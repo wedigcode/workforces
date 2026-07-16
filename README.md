@@ -19,7 +19,8 @@ workforces/            ← Workspace Layer (user-owned configuration and state)
 ├── README.md          ← Workspace overview
 ├── workrules.md       ← User configurations, settings, and response preferences
 ├── workstate.md       ← Workspace tracking state
-└── goals/             ← RICE-scored blueprints and goals
+├── goals/             ← RICE-scored blueprints and goals
+└── team-sync/         ← YYYY-MM-DD.md files documenting standups and syncs
 ```
 
 ---
@@ -59,6 +60,7 @@ For more setup options and environment configuration, see the [Setup Guide](docs
 | Command | Workflow | Description |
 |---------|----------|-------------|
 | `/work` | [`work`](workflows/work.md) | Scans GitHub queue, surfaces top active tasks, handles completion |
+| `/work sync` | [`sync`](workflows/sync.md) | Aligns on wins, losses, next goals, and blockers; logs daily syncs |
 | `/work plan` | [`project-management`](workflows/project-management.md) | Strategic gap analysis, task generation, and issue scheduling |
 | `/update-workforces` | [`update-workforces`](workflows/update-workforces.md) | Dry-run, patch toolkit layer files, and summarize updates |
 

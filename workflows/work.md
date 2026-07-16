@@ -12,6 +12,7 @@ Your single command center. Scans your GitHub queue, surfaces the top task, and 
 
 ```
 /work              → Full run: GitHub queue + top task
+/work sync         → Run standup sync: wins, losses, next goals, and blockers
 /work plan         → Invoke @project-manager to generate + prioritize new work
 /work status       → Show all active and pending tasks
 /work done [#]     → Mark a task complete
@@ -108,7 +109,7 @@ Present the highest-priority task from `workforces/workstate.md`:
 > _Reason: Highest priority active task. 2 tasks blocked until this ships._
 
 ---
-`/work plan` · `/work status` · `/work done 1`
+`/work sync` · `/work plan` · `/work status` · `/work done 1`
 ```
 
 ---
@@ -145,6 +146,12 @@ When the user picks a task (or accepts the recommendation):
 ---
 
 ## Subcommands
+
+### `/work sync`
+
+Invokes the `@project-manager` agent to run a sync/standup session. See [`workflows/sync.md`](./sync.md).
+
+It reviews wins, losses, what's next, and blockers, then logs the session to `workforces/team-sync/YYYY-MM-DD.md`.
 
 ### `/work plan`
 
