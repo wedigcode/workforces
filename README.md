@@ -1,68 +1,79 @@
 # Workforces
 
-A lean collection of AI agent skills, workflows, and rules. When installed, everything lives in a `workforces/` directory inside your project.
+A lean, portable AI toolkit containing agent personas, slash-command workflows, reusable skills, and behavioral rules.
 
 ---
 
-## Structure
+## Toolkit Structure
+
+When installed, the toolkit separates static agent assets (the **Toolkit Layer**) from your runtime states and configurations (the **Workspace Layer**):
 
 ```
-workforces/           ← installed repo root
-├── skills/           ← reusable skill modules (SKILL.md)
-├── workflows/        ← slash-command workflows
-├── agents/           ← agent personas (by department)
-├── rules/            ← always-on behavioral rules
-│
-├── memory/           ← runtime: skill config + state (gitignored in projects)
-│   └── <skill-name>.md
-└── knowledge-catalog/ ← runtime: OKF project knowledge base (you own this)
+.agents/               ← Toolkit Layer (automatically updated, read-only)
+├── agents/            ← Specialist agent personas (e.g., project-manager.md)
+├── workflows/         ← Slash-command workflows (e.g., work.md)
+├── skills/            ← Reusable skill modules (e.g., workforce-management/)
+└── rules/             ← Always-on rules (e.g., base.md)
+
+workforces/            ← Workspace Layer (user-owned configuration and state)
+├── README.md          ← Workspace overview
+├── workrules.md       ← User configurations, settings, and response preferences
+├── workstate.md       ← Workspace tracking state
+└── goals/             ← RICE-scored blueprints and goals
 ```
 
-**`memory/`** — written by skills. Stores config (IDs, tokens, usernames) and state (last-synced, last-run).  
-**`knowledge-catalog/`** — written by you and your project agents. OKF-formatted knowledge about your systems, APIs, and data.
+---
+
+## Installation Guide
+
+### For AI Assistants (Autopilot Install)
+If you are an AI assistant (Antigravity, Claude Code, or VS Code Copilot) tasked with installing this repo:
+1. Clone this repository to `/tmp/workforces`.
+2. Inspect the host environment and run:
+   ```bash
+   bash /tmp/workforces/skills/workforce-management/scripts/setup.sh ./ --editor <editor-type> --type <repo-type> --non-interactive
+   ```
+   *Replace `<editor-type>` with `antigravity`, `vscode`, or `claude` depending on the user's workspace profile, and `<repo-type>` with `project` or `workforce`.*
+3. Configure the user's response preferences inside `workforces/workrules.md` under `## AI Preferences`.
+
+### For Humans (Manual Install)
+```bash
+git clone https://github.com/wedigcode/workforces.git /tmp/workforces
+bash /tmp/workforces/skills/workforce-management/scripts/setup.sh ./
+rm -rf /tmp/workforces
+```
+For more setup options and environment configuration, see the [Setup Guide](docs/setup.md).
 
 ---
 
 ## Core Components
 
 ### Skills
-
 | Skill | Description |
 |-------|-------------|
-| [`memory-management`](skills/memory-management/SKILL.md) | Protocol for reading/writing skill memory and navigating OKF knowledge catalogs |
-| [`github-project-planning`](skills/github-project-planning/SKILL.md) | Create GitHub Issues, manage Projects V2 boards, set custom fields |
+| [`memory-management`](skills/memory-management/SKILL.md) | Protocol for navigating OKF catalogs and managing workspace memories |
+| [`github-project-planning`](skills/github-project-planning/SKILL.md) | Create/update GitHub issues and interact with Project V2 boards |
+| [`workforce-management`](skills/workforce-management/SKILL.md) | Update, patch, and align settings for the Workforces toolkit |
 
 ### Workflows
-
-| Workflow | Command | Description |
-|----------|---------|-------------|
-| [`work`](workflows/work.md) | `/work` | GitHub queue + top task surface + planning handoff |
-| [`project-management`](workflows/project-management.md) | `/work plan` | Gap analysis → task generation → GitHub issue creation |
-
-### Agents
-
-| Agent | Path | Role |
-|-------|------|------|
-| Project Manager | [`agents/project-manager.md`](agents/project-manager.md) | Strategic planning: generates, scores, and sequences work |
+| Command | Workflow | Description |
+|---------|----------|-------------|
+| `/work` | [`work`](workflows/work.md) | Scans GitHub queue, surfaces top active tasks, handles completion |
+| `/work plan` | [`project-management`](workflows/project-management.md) | Strategic gap analysis, task generation, and issue scheduling |
+| `/update-workforces` | [`update-workforces`](workflows/update-workforces.md) | Dry-run, patch toolkit layer files, and summarize updates |
 
 ---
 
-## Quick Start
+## Updating
 
-1. Run `/work` — on first run it will ask for your GitHub username and set up `workforces/workrules.md` and `workforces/workstate.md`
-2. Run `/work plan` — connects to GitHub Projects V2 (will guide you through setup on first run)
+Update the installed toolkit using the built-in update workflow:
 
----
+```bash
+# Preview modifications
+bash .agents/skills/workforce-management/scripts/update.sh ./ --dry
 
-## Design Notes
+# Apply updates
+bash .agents/skills/workforce-management/scripts/update.sh ./
+```
 
-- **No SDKs.** Everything is markdown + YAML + `gh` CLI.
-- **Skill memory** lives in `workforces/memory/<skill>.md` — plain markdown, human-readable.
-- **Knowledge catalog** is OKF format: each file has YAML frontmatter (`type`, `description`, `tags`) + markdown body. AI navigates it progressively via `index.md`.
-- **Plugins:** Subcommands like `/work retro`, `/work metrics`, `/work goals` are not built yet — they'll be added as plugins.
-
----
-
-## Setup Notes
-
-> During first config, the agent will ask how you like your AI responses (e.g. keep it short, no bullet points, under 100 words). This gets written to `workforces/workrules.md` under `## AI Preferences`.
+Or ask your AI assistant: `/update-workforces`.
