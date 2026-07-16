@@ -4,6 +4,22 @@ A lean, portable AI toolkit containing agent personas, slash-command workflows, 
 
 ---
 
+## Workforce vs. Project
+
+When installing this toolkit, you'll choose a **type** that describes the role of the target repository:
+
+### Project (`--type project`)
+A **standard codebase** where you're doing the actual work — writing code, shipping features, fixing bugs. Most repos fall into this category (e.g. a web app, API service, or internal tool).
+
+Installing the toolkit into a project repo gives your AI assistant full context about that codebase: its goals, GitHub queue, and team preferences. The `workforces/` workspace folder tracks state and goals *scoped to that project*.
+
+### Workforce (`--type workforce`)
+A **central coordinator repo** that tracks and manages multiple project repos. It's not where code gets written — it's the command center. A workforce-type install is appropriate when the repo's purpose is to orchestrate tasks, maintain shared knowledge, or manage cross-project planning across an entire team or product portfolio.
+
+> **In short:** a *project* is where work happens; a *workforce* is what coordinates across many projects.
+
+---
+
 ## Toolkit Structure
 
 When installed, the toolkit separates static agent assets (the **Toolkit Layer**) from your runtime states and configurations (the **Workspace Layer**):
