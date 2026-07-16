@@ -27,7 +27,7 @@ When installed, the project root contains:
 ├── agents/            ← Personas (e.g. project-manager.md)
 ├── workflows/         ← Slash commands (e.g. work.md, project-management.md)
 ├── skills/            ← Reusable skill directories (e.g. workforce-management/)
-└── rules/             ← Enforced rules (e.g. base.md, token-parsimony.md)
+└── rules/             ← Enforced rules (e.g. base.md)
 
 workforces/            ← Workspace layer (user config and state)
 ├── README.md          ← Local workspace overview

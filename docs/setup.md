@@ -56,7 +56,7 @@ bash setup.sh ./ --type workforce       # Central coordinator tracking multiple 
 | `<editor-dir>/agents/` | Persona configurations (e.g. `project-manager.md`) |
 | `<editor-dir>/workflows/` | Workflow slash commands (e.g. `work.md`, `update-workforces.md`) |
 | `<editor-dir>/skills/` | Modular capability directories containing `SKILL.md` and supporting tools (e.g. `workforce-management/`) |
-| `<editor-dir>/rules/` | Global rules and constraints (e.g. `base.md`, `token-parsimony.md`) |
+| `<editor-dir>/rules/` | Global rules and constraints (e.g. `base.md`) |
 | `workforces/` | Workspace configurations: objectives, states, and version info |
 
 ---
