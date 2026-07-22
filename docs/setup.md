@@ -38,13 +38,13 @@ If you are an AI assistant (such as Antigravity, Claude Code, or VS Code Copilot
 
 ```bash
 # Specify target editor (auto-detects by default)
-bash setup.sh ./ --editor antigravity   # Antigravity/Gemini (uses .agents/)
-bash setup.sh ./ --editor vscode        # VS Code + Copilot (uses .github/copilot/)
-bash setup.sh ./ --editor claude        # Claude Code (uses .claude/)
+bash /tmp/workforces/skills/workforce-management/scripts/setup.sh ./ --editor antigravity   # Antigravity/Gemini (uses .agents/)
+bash /tmp/workforces/skills/workforce-management/scripts/setup.sh ./ --editor vscode        # VS Code + Copilot (uses .github/copilot/)
+bash /tmp/workforces/skills/workforce-management/scripts/setup.sh ./ --editor claude        # Claude Code (uses .claude/)
 
 # Specify repository role
-bash setup.sh ./ --type project         # Standard project codebase (recommends local git-exclude)
-bash setup.sh ./ --type workforce       # Central coordinator tracking multiple projects
+bash /tmp/workforces/skills/workforce-management/scripts/setup.sh ./ --type project         # Standard project codebase (recommends local git-exclude)
+bash /tmp/workforces/skills/workforce-management/scripts/setup.sh ./ --type workforce       # Central coordinator tracking multiple projects
 ```
 
 ---
