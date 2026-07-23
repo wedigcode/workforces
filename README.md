@@ -71,6 +71,7 @@ For more setup options and environment configuration, see the [Setup Guide](docs
 | [`memory-management`](skills/memory-management/SKILL.md) | Protocol for navigating OKF catalogs and managing workspace memories |
 | [`github-project-planning`](skills/github-project-planning/SKILL.md) | Create/update GitHub issues and interact with Project V2 boards |
 | [`workforce-management`](skills/workforce-management/SKILL.md) | Update, patch, and align settings for the Workforces toolkit |
+| [`feature-research`](skills/feature-research/SKILL.md) | Research-first pipeline: gap analysis, PRD, and work breakdown across projects |
 
 ### Workflows
 | Command | Workflow | Description |
@@ -78,6 +79,7 @@ For more setup options and environment configuration, see the [Setup Guide](docs
 | `/work` | [`work`](workflows/work.md) | Scans GitHub queue, surfaces top active tasks, handles completion |
 | `/work sync` | [`sync`](workflows/sync.md) | Aligns on wins, losses, next goals, and blockers; logs daily syncs |
 | `/work plan` | [`project-management`](workflows/project-management.md) | Strategic gap analysis, task generation, and issue scheduling |
+| `/feature` | [`feature`](workflows/feature.md) | Multi-phase feature scoping, gap analysis, PRD generation, and task breakdown |
 | `/update-workforces` | [`update-workforces`](workflows/update-workforces.md) | Dry-run, patch toolkit layer files, and summarize updates |
 
 ---
