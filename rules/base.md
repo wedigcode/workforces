@@ -1,3 +1,7 @@
+---
+trigger: always_on
+---
+
 # Workforces Base Rules
 
 These rules apply to all workforces and projects. They are enforced by the AI agents at all times.
