@@ -76,11 +76,38 @@ For more setup options and environment configuration, see the [Setup Guide](docs
 ### Workflows
 | Command | Workflow | Description |
 |---------|----------|-------------|
-| `/work` | [`work`](workflows/work.md) | Scans GitHub queue, surfaces top active tasks, handles completion |
+| `/work` | [`work`](workflows/work.md) | Single command center: scans GitHub queue, surfaces top active tasks |
+| `/work feature` / `/feature` | [`feature`](workflows/feature.md) | Multi-phase feature scoping, gap analysis, PRD generation |
+| `/work plan` / `/plan` | [`plan`](workflows/plan.md) | Phased project planning, task breakdown, estimates, and risk matrix |
+| `/work investigate` / `/investigate` | [`investigate`](workflows/investigate.md) | Incident triage, log streaming to scratch, postmortem generation |
 | `/work sync` | [`sync`](workflows/sync.md) | Aligns on wins, losses, next goals, and blockers; logs daily syncs |
-| `/work plan` | [`project-management`](workflows/project-management.md) | Strategic gap analysis, task generation, and issue scheduling |
-| `/feature` | [`feature`](workflows/feature.md) | Multi-phase feature scoping, gap analysis, PRD generation, and task breakdown |
 | `/update-workforces` | [`update-workforces`](workflows/update-workforces.md) | Dry-run, patch toolkit layer files, and summarize updates |
+
+---
+
+## Integrated Workflow Pipeline
+
+The toolkit connects feature research, planning, incident triage, and execution into a cohesive, hands-off pipeline:
+
+```mermaid
+graph LR
+    A["/feature<br/>Research & PRD"] -->|--from-prd| B["/plan<br/>Phases & Estimates"]
+    B -->|--push-to-work| C["/work<br/>Execution & GitHub Issues"]
+    D["/investigate<br/>Incident Triage"] -->|--push-to-work| C
+    D -->|--from-incident| B
+```
+
+### End-to-End Workflow Lifecycles
+
+1. **Feature Scoping ➔ Planning ➔ Execution**
+   - **Research & Spec**: Run `/feature "Feature Idea"` (or `/work feature`) to run gap analysis and output a PRD (`docs/prd-*.md`).
+   - **Phase & Estimate**: Run `/work plan --from-prd docs/prd-feature.md` to split the PRD into deployable phases, tasks, and time estimates.
+   - **Push to Execution**: Use the `--push-to-work` flag (or accept the prompt) to sync Phase 1 tasks into `workforces/workstate.md` and create tracked GitHub issues.
+   - **Execute**: Run `/work` to view the queue and execute the top priority task.
+
+2. **Incident Triage ➔ Remediation**
+   - **Triage & Diagnose**: Run `/investigate [service-name]` (or `/work investigate`) to stream logs into workspace scratch space (`workforces/tmp/`), classify root cause, and generate a postmortem (`workforces/incidents/`).
+   - **Remediate**: Pass `--push-to-work` to push P0/P1 fixes into your active tasks, or run `/plan --from-incident` to build a full remediation plan.
 
 ---
 
