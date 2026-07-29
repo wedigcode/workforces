@@ -116,9 +116,10 @@ Read: skills/github-project-planning/SKILL.md
 |---|------|----------------|------|-----------|-------------------|
 ```
 
-**⏸ PAUSE** — Ask user if they want to create GitHub issues for P0/P1 tasks.
+**⏸ PAUSE** — Ask user if they want to create GitHub issues for P0/P1 tasks, or generate an execution timeline with estimates via `/plan`.
 
-If yes → hand off to `github-project-planning` skill for issue creation.
+- If GitHub issues → hand off to `github-project-planning` skill for issue creation.
+- If execution plan → run `/plan --from-prd docs/prd-{feature-name}.md`.
 
 ---
 

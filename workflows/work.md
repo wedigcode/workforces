@@ -11,12 +11,14 @@ Your single command center. Scans your GitHub queue, surfaces the top task, and 
 ## Usage
 
 ```
-/work              → Full run: GitHub queue + top task
-/work sync         → Run standup sync: wins, losses, next goals, and blockers
-/work plan         → Invoke @project-manager to generate + prioritize new work
-/work status       → Show all active and pending tasks
-/work done [#]     → Mark a task complete
-/work skip [#]     → Skip a task (won't re-show)
+/work                    → Full run: GitHub queue + top task
+/work feature [idea]     → Start feature research & PRD pipeline (delegates to /feature)
+/work plan [goal]        → Create execution plan & estimates (delegates to /plan)
+/work plan --from-prd    → Convert recent PRD into execution plan & estimates
+/work sync               → Run standup sync: wins, losses, next goals, and blockers
+/work status             → Show all active and pending tasks
+/work done [#]           → Mark a task complete (unblocks dependent tasks)
+/work skip [#]           → Skip a task (won't re-show)
 ```
 
 ---
@@ -147,17 +149,23 @@ When the user picks a task (or accepts the recommendation):
 
 ## Subcommands
 
+### `/work feature [idea]`
+
+Triggers the research & specification pipeline. See [`workflows/feature.md`](./feature.md).
+
+Runs gap analysis, produces feature brief & PRD, breaks down tasks, and optionally hands off to `/plan --from-prd`.
+
+### `/work plan [goal]`
+
+Triggers execution planning & estimation. See [`workflows/plan.md`](./plan.md).
+
+Breaks down goals or PRDs into deployable phases, time estimates, dependency maps, and risk assessments. Supports `--push-to-work` to automatically populate `workforces/workstate.md` and create GitHub issues via [`workflows/project-management.md`](./project-management.md).
+
 ### `/work sync`
 
 Invokes the `@project-manager` agent to run a sync/standup session. See [`workflows/sync.md`](./sync.md).
 
 It reviews wins, losses, what's next, and blockers, then logs the session to `workforces/team-sync/YYYY-MM-DD.md`.
-
-### `/work plan`
-
-Invokes the `@project-manager` agent for a full planning run. See [`workflows/project-management.md`](./project-management.md).
-
-This always includes GitHub issue creation — not just a workstate update.
 
 ### `/work status`
 
