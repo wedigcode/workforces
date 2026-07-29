@@ -15,6 +15,7 @@ Your single command center. Scans your GitHub queue, surfaces the top task, and 
 /work feature [idea]     → Start feature research & PRD pipeline (delegates to /feature)
 /work plan [goal]        → Create execution plan & estimates (delegates to /plan)
 /work plan --from-prd    → Convert recent PRD into execution plan & estimates
+/work investigate [svc]  → Incident triage & postmortem (delegates to /investigate)
 /work sync               → Run standup sync: wins, losses, next goals, and blockers
 /work status             → Show all active and pending tasks
 /work done [#]           → Mark a task complete (unblocks dependent tasks)
@@ -166,6 +167,12 @@ Breaks down goals or PRDs into deployable phases, time estimates, dependency map
 Invokes the `@project-manager` agent to run a sync/standup session. See [`workflows/sync.md`](./sync.md).
 
 It reviews wins, losses, what's next, and blockers, then logs the session to `workforces/team-sync/YYYY-MM-DD.md`.
+
+### `/work investigate [service]`
+
+Triggers incident triage and root-cause classification. See [`workflows/investigate.md`](./investigate.md).
+
+Streams log output to workspace scratch space (`workforces/tmp/`), classifies root cause, generates incident postmortem, and optionally pushes P0/P1 fixes directly into `/plan` or `workforces/workstate.md`.
 
 ### `/work status`
 
