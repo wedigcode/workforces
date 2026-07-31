@@ -12,6 +12,7 @@ Turns a feature idea into a researched, documented, and task-broken deliverable 
 
 ```
 /feature [idea]           → Start full pipeline (Phase 0–4)
+/feature [idea] --auto    → Full pipeline + automatically execute all work breakdown tasks end-to-end
 /feature --gap-only       → Stop after gap analysis (Phase 0–1)
 /feature --prd            → Skip to PRD (assumes gap analysis exists)
 /feature --breakdown      → Skip to work breakdown (assumes PRD exists)
@@ -116,10 +117,10 @@ Read: skills/github-project-planning/SKILL.md
 |---|------|----------------|------|-----------|-------------------|
 ```
 
-**⏸ PAUSE** — Ask user if they want to create GitHub issues for P0/P1 tasks, or generate an execution timeline with estimates via `/plan`.
+**⏸ PAUSE** — (Skipped if `--auto` flag is used or `auto_delegate: true` is configured).
 
-- If GitHub issues → hand off to `github-project-planning` skill for issue creation.
-- If execution plan → run `/plan --from-prd docs/prd-{feature-name}.md`.
+- **Standard Mode**: Ask user if they want to create GitHub issues for P0/P1 tasks, or generate an execution timeline via `/plan`.
+- **Auto Mode (`--auto`)**: Automatically hand off to `/plan --from-prd docs/prd-{feature-name}.md --push-to-work --auto` and begin executing all tasks immediately via Coordinator auto-delegation without requiring manual prompts.
 
 ---
 
@@ -127,6 +128,7 @@ Read: skills/github-project-planning/SKILL.md
 
 | Flag | Behavior |
 |------|----------|
+| `--auto` | Complete full pipeline (research -> PRD -> breakdown -> plan -> execution) end-to-end without pausing. |
 | `--gap-only` | Run Phase 0 + Phase 1, then stop. Good for initial research. |
 | `--prd` | Skip to Phase 3. Assumes a gap analysis already exists — look for it in recent artifacts. |
 | `--breakdown` | Skip to Phase 4. Assumes a PRD exists — look for it in `docs/prd-*.md`. |

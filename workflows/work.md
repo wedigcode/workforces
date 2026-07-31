@@ -12,7 +12,9 @@ Your single command center. Scans your GitHub queue, surfaces the top task, and 
 
 ```
 /work                    → Full run: GitHub queue + top task
+/work --auto (or --all)  → Auto-coordinator mode: execute all active/pending tasks end-to-end
 /work feature [idea]     → Start feature research & PRD pipeline (delegates to /feature)
+/work feature [idea] --auto → Research, plan, and automatically execute all tasks end-to-end
 /work plan [goal]        → Create execution plan & estimates (delegates to /plan)
 /work plan --from-prd    → Convert recent PRD into execution plan & estimates
 /work investigate [svc]  → Incident triage & postmortem (delegates to /investigate)
@@ -119,11 +121,22 @@ Present the highest-priority task from `workforces/workstate.md`:
 
 ## Step 4 — Execute
 
-When the user picks a task (or accepts the recommendation):
-
+### Standard Mode
+When the user picks a single task (or accepts the top recommendation):
 1. Work on it directly or activate the appropriate skill/agent.
-2. **Emergent Tasks & Ideas:** If new tasks, bugs, refactor needs, or feature ideas pop up during execution, immediately use the `github-project-planning` skill to create a new GitHub issue. Ensure it is populated with rich context (acceptance criteria, target files, etc.) so any agent can pick it up and complete it later.
+2. **Emergent Tasks & Ideas:** If new tasks, bugs, refactor needs, or feature ideas pop up during execution, immediately use the `github-project-planning` skill to create a new GitHub issue with rich context.
 3. Update `workforces/workstate.md` with results when done.
+
+### Auto-Execution / Coordinator Mode (`--auto` or `--all` or `auto_delegate: true`)
+When invoked with `--auto`/`--all` or when `auto_delegate: true` is configured in `workrules.md`:
+1. **Act as Coordinator**: Do not pause between individual tasks to prompt the user or require manual command entry.
+2. **Task Loop**:
+   - Select all active/pending tasks from `workforces/workstate.md` whose dependencies are met.
+   - For independent tasks, execute sequentially or in parallel using background sub-processes / subagents.
+   - Validate implementation (run tests/builds).
+   - Mark task `completed` in `workforces/workstate.md`, which unblocks dependent tasks.
+   - Automatically move to the next unblocked task.
+3. **Completion**: Provide a consolidated summary of all completed work across the entire queue once finished.
 
 ---
 

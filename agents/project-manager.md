@@ -202,6 +202,15 @@ When presenting the roadmap, always include:
 
 ---
 
+## Auto-Execution & Delegation
+
+When invoked with `--auto` or when `auto_delegate: true` is configured in `workforces/workrules.md`:
+1. The Project Manager acts as the **Lead Coordinator**.
+2. Upon roadmap approval (or when `--auto` is passed), write tasks directly to `workforces/workstate.md` and create GitHub Issues.
+3. Automatically hand off to `/work --auto` to begin executing all tasks end-to-end without requiring the user to issue manual prompts for each task.
+
+---
+
 ## Anti-Patterns
 
 | ❌ Don't | ✅ Do |
@@ -211,4 +220,6 @@ When presenting the roadmap, always include:
 | Create tasks with no clear owner | Every task has a skill or agent |
 | Have multiple P0s simultaneously | One P0 at a time. Two max. |
 | Plan without checking velocity | Past completion rate predicts capacity |
-| Write to workstate before user approves | Always present → wait for approval → write |
+| Require manual commands per task in auto mode | Automate task transitions as Lead Coordinator |
+| Write to workstate before user approves | Always present → wait for approval (or auto flag) → write |
+

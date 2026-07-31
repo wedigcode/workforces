@@ -12,7 +12,8 @@ Breaks down work into phased, actionable tasks with estimates, dependencies, and
 
 ```
 /plan [goal]                     → Create a plan for a goal
-/plan --from-prd [path]          → Build plan & estimates from a PRD (e.g. docs/prd-*.md)
+/plan [goal] --auto              → Create plan, push to workstate, and automatically execute all tasks end-to-end
+/plan --from-prd [path] --auto   → Import PRD, build plan, push tasks to workstate, and auto-execute all tasks
 /plan --push-to-work             → Sync Phase 1 tasks into workforces/workstate.md & GH issues
 /plan --estimate                 → Add time estimates to existing plan
 /plan --risks                    → Add risk assessment to existing plan
@@ -128,9 +129,14 @@ Critical path: the longest chain of dependent tasks = minimum timeline.
 [from Step 5]
 ```
 
-**⏸ PAUSE** — Ask user if they want to push Phase 1 tasks into `/work` execution state (`workforces/workstate.md`) and create GitHub issues.
+**⏸ PAUSE** — (Skipped if `--auto` flag is used or `auto_delegate: true` is configured).
 
-If yes → run `/plan --push-to-work` (appends Phase 1 tasks to `Active Tasks` in `workstate.md` and triggers `github-project-planning` skill for issue creation).
+If `--auto` flag is present:
+- Automatically run `/plan --push-to-work` (appends tasks to `workforces/workstate.md` and creates GitHub issues).
+- Immediately hand off to `/work --auto` to begin executing all tasks via Coordinator auto-delegation.
+
+If standard mode:
+- Ask user if they want to push Phase 1 tasks into `/work` execution state (`workforces/workstate.md`).
 
 ---
 
@@ -138,6 +144,7 @@ If yes → run `/plan --push-to-work` (appends Phase 1 tasks to `Active Tasks` i
 
 | Flag | Behavior |
 |------|----------|
+| `--auto` | Create plan, sync tasks to `workforces/workstate.md`, and execute all tasks automatically end-to-end. |
 | `--from-prd [path]` | Import goal, scope, and initial task breakdown directly from a feature PRD document. |
 | `--push-to-work` | Push Phase 1 tasks directly into `workforces/workstate.md` and create tracked GitHub issues. |
 | `--estimate` | Add/re-evaluate time estimates for an existing plan. |
