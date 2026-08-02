@@ -121,7 +121,15 @@ else
   BASE_DIR=".agents"
 fi
 
-if [[ "$INSTALLED_HASH" == "$LATEST_HASH" && "$INSTALLED_HASH" != "unknown" ]]; then
+MISSING_CORE_DIRS=false
+for d in plugins agents workflows rules skills teams; do
+  if [[ -d "$SOURCE_DIR/$d" && ! -d "$TARGET/$BASE_DIR/$d" ]]; then
+    MISSING_CORE_DIRS=true
+    break
+  fi
+done
+
+if [[ "$INSTALLED_HASH" == "$LATEST_HASH" && "$INSTALLED_HASH" != "unknown" && "$MISSING_CORE_DIRS" == false ]]; then
   NEW_TEAMS_AVAILABLE=()
   if [[ -d "$SOURCE_DIR/teams" ]]; then
     for stdir in "$SOURCE_DIR/teams"/*; do
@@ -221,8 +229,23 @@ if [[ -d "$SOURCE_DIR/skills" ]]; then
     while read -r f; do
       [[ -n "$f" ]] || continue
       rel_path="${f#$skill_dir/}"
-      copy_file "$f" "$TARGET/$BASE_DIR/skills/$skill_name/$rel_path" "$BASE_DIR/skills/$skill_name/$rel_path"
     done < <(find "$skill_dir" -type f)
+  done
+fi
+
+# ─── Copy Plugins ───
+if [[ -d "$SOURCE_DIR/plugins" ]]; then
+  echo -e "${BOLD}▸ Copying Plugins...${NC}"
+  for plugin_dir in "$SOURCE_DIR/plugins"/*; do
+    [[ -d "$plugin_dir" ]] || continue
+    plugin_name=$(basename "$plugin_dir")
+    
+    mkdir -p "$TARGET/$BASE_DIR/plugins/$plugin_name"
+    while read -r f; do
+      [[ -n "$f" ]] || continue
+      rel_path="${f#$plugin_dir/}"
+      copy_file "$f" "$TARGET/$BASE_DIR/plugins/$plugin_name/$rel_path" "$BASE_DIR/plugins/$plugin_name/$rel_path"
+    done < <(find "$plugin_dir" -type f)
   done
 fi
 

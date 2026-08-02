@@ -158,6 +158,7 @@ AGENTS_DIR="$TARGET/$BASE_DIR/agents"
 WORKFLOWS_DIR="$TARGET/$BASE_DIR/workflows"
 SKILLS_DIR="$TARGET/$BASE_DIR/skills"
 RULES_DIR="$TARGET/$BASE_DIR/rules"
+PLUGINS_DIR="$TARGET/$BASE_DIR/plugins"
 
 # ─── Counters ───
 COPIED=0
@@ -242,6 +243,22 @@ if [[ -d "$TOOLKIT_ROOT/skills" ]]; then
       rel_path="${f#$skill_dir/}"
       copy_file "$f" "$SKILLS_DIR/$skill_name/$rel_path" "$BASE_DIR/skills/$skill_name/$rel_path"
     done < <(find "$skill_dir" -type f)
+  done
+fi
+
+# ─── Copy Plugins (Recursive Plugin Subdirectories) ───
+if [[ -d "$TOOLKIT_ROOT/plugins" ]]; then
+  echo -e "${BOLD}▸ Copying Plugins...${NC}"
+  for plugin_dir in "$TOOLKIT_ROOT/plugins"/*; do
+    [[ -d "$plugin_dir" ]] || continue
+    plugin_name=$(basename "$plugin_dir")
+    
+    mkdir -p "$PLUGINS_DIR/$plugin_name"
+    while read -r f; do
+      [[ -n "$f" ]] || continue
+      rel_path="${f#$plugin_dir/}"
+      copy_file "$f" "$PLUGINS_DIR/$plugin_name/$rel_path" "$BASE_DIR/plugins/$plugin_name/$rel_path"
+    done < <(find "$plugin_dir" -type f)
   done
 fi
 
