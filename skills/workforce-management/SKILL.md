@@ -24,14 +24,15 @@ Manage the lifecycle of the Workforces toolkit, including setup, automated updat
 When installed, the project root contains:
 ```
 .agents/               ← Read-only toolkit layer (safe to overwrite during update)
-├── agents/            ← Personas (e.g. project-manager.md)
-├── workflows/         ← Slash commands (e.g. work.md, project-management.md)
+├── agents/            ← Personas (e.g. project-manager.md, brand-strategist.md)
+├── workflows/         ← Slash commands (e.g. work.md, teams.md)
 ├── skills/            ← Reusable skill directories (e.g. workforce-management/)
-└── rules/             ← Enforced rules (e.g. base.md)
+├── rules/             ← Enforced rules (e.g. base.md, brand-voice.md)
+└── teams/             ← Installed Team Pack manifests (e.g. brand-marketing/team.json)
 
 workforces/            ← Workspace layer (user config and state)
 ├── README.md          ← Local workspace overview
-├── workrules.md       ← AI priorities, preferences, and custom rules
+├── workrules.md       ← AI priorities, installed_teams, and custom rules
 ├── workstate.md       ← Target repository configuration and run markers
 ├── goals/             ← Local planning files
 └── .version           ← Current installed commit/version metadata
@@ -41,8 +42,10 @@ workforces/            ← Workspace layer (user config and state)
 
 If an AI agent is instructed to "install" this toolkit:
 1. **Clone the Source Repo:** Clone the workforces repository to a temporary directory.
-2. **Execute setup.sh:** Run `bash skills/workforce-management/scripts/setup.sh ./ --editor <editor> --type <type>`.
+2. **Execute setup.sh:** Run `bash skills/workforce-management/scripts/setup.sh ./ --editor <editor> --type <type> --teams <teams>`.
    - Use `--editor antigravity` to use the `.agents/` folder.
    - Use `--type project` for standard project targets (recommends git-excluding the workforce assets).
    - Use `--type workforce` for parent command repositories tracking child projects.
-3. **Align Preferences:** Query the user (or inspect their active workspace) to set the custom AI priorities and formats. Save these preferences under `## AI Preferences` in `workforces/workrules.md`.
+   - Use `--teams brand-marketing,sales-outreach` or `--teams all` to equip specialized Team Packs.
+3. **Align Preferences:** Query the user (or inspect their active workspace) to set the custom AI priorities and team configs under `## Installed Teams` in `workforces/workrules.md`.
+

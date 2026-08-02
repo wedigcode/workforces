@@ -8,6 +8,7 @@
 # Options:
 #   --type <type>          Repo type: workforce or project
 #   --editor <type>        Editor type: antigravity, vscode, claude, auto (default: auto)
+#   --teams <team-list>    Comma-separated list of teams to install (e.g., brand-marketing,sales-outreach, all, none)
 #   --non-interactive      Run without prompting the user for any inputs (ideal for AI assistants)
 #   --help, -h             Show this help menu
 
@@ -29,6 +30,7 @@ TOOLKIT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 TARGET=""
 REPO_TYPE=""
 EDITOR_TYPE=""
+TEAMS_ARG=""
 NON_INTERACTIVE=false
 
 usage() {
@@ -39,6 +41,7 @@ usage() {
   echo "Options:"
   echo "  --type <type>          Repo type: workforce or project"
   echo "  --editor <type>        Editor type: antigravity, vscode, claude, auto (default: auto)"
+  echo "  --teams <team-list>    Teams to install (e.g. 'brand-marketing,sales-outreach', 'all', 'none')"
   echo "  --non-interactive      Do not prompt for any options (fails on invalid configuration)"
   echo ""
   exit 1
@@ -61,6 +64,10 @@ while [[ $# -gt 0 ]]; do
     --editor)
       shift
       EDITOR_TYPE="$1"
+      ;;
+    --teams)
+      shift
+      TEAMS_ARG="$1"
       ;;
     --non-interactive)
       NON_INTERACTIVE=true
@@ -238,6 +245,21 @@ if [[ -d "$TOOLKIT_ROOT/skills" ]]; then
   done
 fi
 
+# ─── Copy Upstream Team Pack Building Blocks ───
+if [[ -d "$TOOLKIT_ROOT/teams" ]]; then
+  echo -e "${BOLD}▸ Copying Upstream Team Pack Building Blocks...${NC}"
+  for team_dir in "$TOOLKIT_ROOT/teams"/*; do
+    [[ -d "$team_dir" ]] || continue
+    team_name=$(basename "$team_dir")
+    mkdir -p "$TARGET/$BASE_DIR/teams/$team_name"
+    while read -r f; do
+      [[ -n "$f" ]] || continue
+      rel="${f#$team_dir/}"
+      copy_file "$f" "$TARGET/$BASE_DIR/teams/$team_name/$rel" "$BASE_DIR/teams/$team_name/$rel"
+    done < <(find "$team_dir" -type f)
+  done
+fi
+
 # ─── Setup Workspace folder (workforces/) ───
 WORKFORCES_DIR="$TARGET/workforces"
 mkdir -p "$WORKFORCES_DIR" "$WORKFORCES_DIR/goals"
@@ -259,6 +281,10 @@ if [[ ! -f "$WORKFORCES_DIR/workrules.md" ]]; then
 
 ## Type
 - type: ${REPO_TYPE}
+
+## Installed Teams
+- installed_teams:
+${INSTALLED_TEAMS_YAML:-  []}
 
 ## GitHub Settings
 # GitHub usernames this workforce tracks for issues/PRs (comma-separated, @me = active user)

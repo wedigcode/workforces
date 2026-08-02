@@ -48,6 +48,18 @@ Before generating any work:
 
 ---
 
+## Step 1b — Team & Capability Audit
+
+Inspect available project teams and capabilities:
+
+1. Read `workforces/teams/` and `workforces/workstate.md` (`## Active Teams`).
+2. For each task or objective being planned:
+   - Match the task to an active team in `workforces/teams/<team-name>/`.
+   - If a required domain capability does not exist in any installed team, flag a **Team Gap** and recommend creating one:
+     > *"💡 **Team Gap Detected:** Task '[Task Name]' requires specialized [domain] capabilities. Recommend running `/teams \"I need a team for [domain]\"` to construct a minimal team under `workforces/teams/`."*
+
+---
+
 ## Step 2 — Gap Analysis
 
 Compare where you are vs. where goals say you should be:

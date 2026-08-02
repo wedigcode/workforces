@@ -17,6 +17,7 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+CYAN='\033[0;36m'
 BOLD='\033[1m'
 NC='\033[0m'
 
@@ -109,13 +110,6 @@ fi
 
 echo -e "  Latest:    ${LATEST_HASH}"
 
-if [[ "$INSTALLED_HASH" == "$LATEST_HASH" && "$INSTALLED_HASH" != "unknown" ]]; then
-  echo ""
-  echo -e "  ${GREEN}✓ Already up to date${NC}"
-  echo ""
-  exit 0
-fi
-
 # Detect base config directory
 if [[ -d "$TARGET/.agents" ]]; then
   BASE_DIR=".agents"
@@ -125,6 +119,32 @@ elif [[ -d "$TARGET/.claude" ]]; then
   BASE_DIR=".claude"
 else
   BASE_DIR=".agents"
+fi
+
+if [[ "$INSTALLED_HASH" == "$LATEST_HASH" && "$INSTALLED_HASH" != "unknown" ]]; then
+  NEW_TEAMS_AVAILABLE=()
+  if [[ -d "$SOURCE_DIR/teams" ]]; then
+    for stdir in "$SOURCE_DIR/teams"/*; do
+      [[ -d "$stdir" && -f "$stdir/team.json" ]] || continue
+      team_id=$(basename "$stdir")
+      if [[ ! -d "$TARGET/$BASE_DIR/teams/$team_id" ]]; then
+        NEW_TEAMS_AVAILABLE+=("$team_id")
+      fi
+    done
+  fi
+
+  echo ""
+  echo -e "  ${GREEN}✓ Core toolkit already up to date (${INSTALLED_HASH})${NC}"
+  if [[ ${#NEW_TEAMS_AVAILABLE[@]} -gt 0 ]]; then
+    echo ""
+    echo -e "  ${YELLOW}💡 New Team Packs available in upstream workforces:${NC}"
+    for nt in "${NEW_TEAMS_AVAILABLE[@]}"; do
+      echo -e "     - ${CYAN}$nt${NC}"
+    done
+    echo -e "     Run: bash .agents/skills/workforce-management/scripts/setup.sh ./ --teams ${NEW_TEAMS_AVAILABLE[0]} to install."
+  fi
+  echo ""
+  exit 0
 fi
 
 echo -e "${BOLD}▸ Updating toolkit layer ($BASE_DIR/)${NC}"
@@ -206,6 +226,28 @@ if [[ -d "$SOURCE_DIR/skills" ]]; then
   done
 fi
 
+# ─── Sync Upstream Team Pack Building Blocks & Discover New Building Blocks ───
+NEW_TEAMS_AVAILABLE=()
+
+if [[ -d "$SOURCE_DIR/teams" ]]; then
+  echo -e "${BOLD}▸ Syncing Upstream Team Pack Building Blocks...${NC}"
+  for stdir in "$SOURCE_DIR/teams"/*; do
+    [[ -d "$stdir" ]] || continue
+    team_name=$(basename "$stdir")
+    
+    if [[ ! -d "$TARGET/$BASE_DIR/teams/$team_name" ]]; then
+      NEW_TEAMS_AVAILABLE+=("$team_name")
+    fi
+
+    mkdir -p "$TARGET/$BASE_DIR/teams/$team_name"
+    while read -r f; do
+      [[ -n "$f" ]] || continue
+      rel="${f#$stdir/}"
+      copy_file "$f" "$TARGET/$BASE_DIR/teams/$team_name/$rel" "$BASE_DIR/teams/$team_name/$rel"
+    done < <(find "$stdir" -type f)
+  done
+fi
+
 # ─── Write version hash ───
 if [[ "$DRY" != true ]]; then
   cat > "$VERSION_FILE" << EOF
@@ -225,6 +267,13 @@ else
   echo -e "  ${BOLD}Update Summary:${NC}"
   echo -e "  Updated:  ${GREEN}$COPIED${NC} files"
   echo -e "  Skipped:  $SKIPPED files (already identical)"
+  if [[ ${#NEW_TEAMS_AVAILABLE[@]} -gt 0 ]]; then
+    echo ""
+    echo -e "  ${YELLOW}💡 New Team Packs available in upstream workforces:${NC}"
+    for nt in "${NEW_TEAMS_AVAILABLE[@]}"; do
+      echo -e "     - ${CYAN}$nt${NC}"
+    done
+  fi
   echo ""
   echo -e "  ${GREEN}✓ Toolkit updated to $LATEST_HASH${NC}"
 fi
