@@ -32,8 +32,23 @@ These rules apply to all workforces and projects. They are enforced by the AI ag
   5. Loop to the next unblocked task until all tasks are complete.
   6. Present a final consolidated **Execution Summary Report**.
 
+## Discovered Gap & Decision Escalation Protocol
+
+During execution (whether in standard mode or auto-coordinator mode):
+
+1. **Continuous Gap & Risk Detection:**
+   - As tasks execute, if an overlooked dependency, missing asset (e.g. missing branding guidelines, missing DB schema, unhandled auth flow break), or breaking risk is discovered:
+   - Log the gap immediately in `workforces/workstate.md` under `## Unforeseen Risks & Discovered Gaps`.
+
+2. **Threshold Assessment (Minor vs. Major):**
+   - **Minor / Scope-Enclosed Issue:** (e.g. creating a missing helper file, adding a missing utility method, or extending an internal interface without breaking changes)
+     -> Auto-fix or auto-generate the missing dependency, log it in `workforces/workstate.md`, and continue execution.
+   - **Major / Architectural / User Decision Issue:** (e.g. auth flow break requiring OAuth integration instead of simple link, major DB schema change, missing core brand strategy choices, breaking API changes)
+     -> **STOP EXECUTION IMMEDIATELY.**
+     -> Formulate clear decision options with trade-offs.
+     -> Present the decision to the user (via interactive question tool or structured prompt) and wait for user direction before proceeding.
+
 ## Rule Cascading
 
 - A parent workforce can read all child `workforces/README.md` files to get context.
 - A project should NOT need to know about other projects. Keep context scoped.
-
