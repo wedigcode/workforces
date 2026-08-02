@@ -125,9 +125,9 @@ if [[ "$INSTALLED_HASH" == "$LATEST_HASH" && "$INSTALLED_HASH" != "unknown" ]]; 
   NEW_TEAMS_AVAILABLE=()
   if [[ -d "$SOURCE_DIR/teams" ]]; then
     for stdir in "$SOURCE_DIR/teams"/*; do
-      [[ -d "$stdir" && -f "$stdir/team.json" ]] || continue
+      [[ -d "$stdir" && ( -f "$stdir/pack.md" || -f "$stdir/team.json" ) ]] || continue
       team_id=$(basename "$stdir")
-      if [[ ! -d "$TARGET/$BASE_DIR/teams/$team_id" ]]; then
+      if [[ ! -d "$TARGET/workforces/teams/$team_id" ]]; then
         NEW_TEAMS_AVAILABLE+=("$team_id")
       fi
     done
@@ -235,7 +235,7 @@ if [[ -d "$SOURCE_DIR/teams" ]]; then
     [[ -d "$stdir" ]] || continue
     team_name=$(basename "$stdir")
     
-    if [[ ! -d "$TARGET/$BASE_DIR/teams/$team_name" ]]; then
+    if [[ ! -d "$TARGET/workforces/teams/$team_name" ]]; then
       NEW_TEAMS_AVAILABLE+=("$team_name")
     fi
 
