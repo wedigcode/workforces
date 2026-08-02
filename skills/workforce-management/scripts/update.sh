@@ -73,7 +73,7 @@ fi
 TARGET="$(cd "$TARGET" && pwd)"
 VERSION_FILE="$TARGET/workforces/.version"
 WORKFORCES_REPO="https://github.com/wedigcode/workforces.git"
-TMP_DIR="/tmp/workforces-update-$$"
+TMP_DIR="$TARGET/.agents/.tmp-update-$$"
 trap 'rm -rf "$TMP_DIR"' EXIT
 
 # Detect installed version
@@ -97,7 +97,7 @@ TOOLKIT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
 # If running from a git checkout of the workforces repo, we can use that local checkout as the source.
 # Otherwise, we clone the remote repo.
-if [[ -d "$TOOLKIT_ROOT/.git" ]]; then
+if [[ -d "$TOOLKIT_ROOT/.git" && -d "$TOOLKIT_ROOT/skills" ]]; then
   echo -e "${BOLD}▸ Using local repo as source...${NC}"
   SOURCE_DIR="$TOOLKIT_ROOT"
   LATEST_HASH=$(git -C "$TOOLKIT_ROOT" rev-parse HEAD 2>/dev/null || echo "unknown")
