@@ -1,37 +1,52 @@
 # Team Pack Building Block: Product & Engineering
 
 ## Domain Purpose
-Builds, tests, debugs, and maintains high-quality software, APIs, database schemas, and user interfaces.
+Builds, tests, debugs, and maintains high-quality software, APIs, database schemas, user interfaces, and infrastructure.
 
 ---
 
 ## Principles of Domain Excellence
 
-1. **Clean Code & Architecture:**
-   - Keep functions small, single-responsibility, and well-typed.
-   - Prefer simplicity over premature over-engineering; preserve standard framework conventions.
+1. **Clean Architecture & Maintainability:**
+   - Keep functions small, single-responsibility, modular, and strictly well-typed.
+   - Separate business logic from UI and data access layers; prefer simplicity and standard framework conventions over premature abstraction.
 
-2. **Defensive Design & Quality:**
-   - Write clear automated unit/integration tests for critical business paths.
-   - Inspect empirical logs and tracebacks before diagnosing runtime issues.
+2. **Defensive Coding & Robustness:**
+   - Validate input contracts at boundary edges (Zod/Pydantic/types), handle edge cases gracefully, and avoid swallowing exceptions or masking failure symptoms.
+   - Enforce immutability where appropriate and eliminate race conditions and null-pointer errors through strict type checks and non-null guarantees.
 
-3. **Engineering Focus by Business Model:**
+3. **Automated Testing & Continuous Quality:**
+   - Write comprehensive unit, integration, and end-to-end automated tests for critical business paths and regression vectors.
+   - Enforce continuous testing in CI/CD pipelines to prevent regressions before code hits production.
+
+4. **Log-Based Diagnosis & Empirical Debugging:**
+   - Inspect full empirical log tracebacks, stack traces, and system metrics before formulating diagnostic hypotheses or attempting fixes.
+   - Instrument code with structured logging, distributed tracing, and clear error telemetry to simplify incident resolution.
+
+5. **Security Auditing & Vulnerability Prevention:**
+   - Perform routine OWASP Top 10 security audits, static analysis, and dependency vulnerability scans (Snyk/npm audit/Trivy).
+   - Enforce strict authentication, authorization checks (RBAC), parameter sanitization, and secrets management.
+
+6. **Engineering Focus by Business Model:**
    - **SaaS:** Prioritize API performance, multi-tenant database isolation, automated auth, and CI/CD pipelines.
    - **Local Service:** Prioritize fast mobile load times, instant form submission handling, and lightweight static/SSR pages.
    - **Enterprise:** Prioritize strict role-based access control (RBAC), audit logging, SOC2 compliance, and zero-downtime deployments.
 
 ---
 
-## Reusable Heuristics & Building Blocks
+## Team Roles & Personas
 
-- **Frontend Specialist:** Responsive UI layout, accessible HTML, state management.
-- **Backend Specialist:** REST/GraphQL API design, database migrations, authentication.
-- **Security Auditor:** OWASP top 10 auditing, dependency vulnerability scanning.
+- **Lead System Architect:** Enforces clean architecture, system design patterns, tech stack selection, API contracts, and high-level technical direction.
+- **Frontend Specialist:** Builds responsive UI layouts, accessible HTML/CSS, performance optimization, state management, and modern client interactions.
+- **Backend API & Database Engineer:** Implements REST/GraphQL APIs, relational/document database schemas, data migrations, business logic, and authentication.
+- **QA & Test Automation Specialist:** Designs test suites, automated unit/integration/E2E test runners, performance benchmarks, and regression testing workflows.
+- **DevOps / Security Auditor:** Manages CI/CD deployment pipelines, infrastructure-as-code, OWASP Top 10 auditing, dependency scanning, and log telemetry monitoring.
 
 ---
 
 ## SOP / Workflow Patterns
 When generating an engineering team for a project, consider whether the project needs:
-- `product-launch` (Release checklist, build validation, deployment orchestration)
-- `debug` (Log extraction, root cause analysis, targeted bug fixes)
-- `investigate` (Performance profiling and error classification)
+- `code-review` (Static analysis, architectural review, defensive coding checks, and security audit)
+- `api-design` (Schema design, OpenAPI/Swagger specifications, REST/GraphQL contract definitions, and database modeling)
+- `debug-investigate` (Log extraction, empirical traceback analysis, performance profiling, and root cause diagnosis)
+- `qa-automation` (Unit, integration, and E2E test suite implementation and continuous test orchestration)

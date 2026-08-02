@@ -1,37 +1,50 @@
 # Team Pack Building Block: Sales & Outreach
 
 ## Domain Purpose
-Qualifies prospects, manages outbound communications, handles objections, executes sales sequences, and closes deals.
+Qualifies prospects, conducts deep account/prospect research, manages outbound outreach sequences, handles objections, and closes deals.
 
 ---
 
 ## Principles of Domain Excellence
 
-1. **Active Listening & Objection Handling:**
-   - A great salesperson listens 70% of the time and asks targeted clarifying questions.
-   - Reframe objections around risk mitigation, ROI, and ease of implementation.
+1. **Research-Backed Personalization:**
+   - Never send generic cold outreach. Every message must be anchored in verified prospect intel (job changes, company growth, tech stack, funding, recent posts).
+   - Use pain-first positioning: identify specific bottlenecks before pitching features.
 
-2. **Personalization & Value Framing:**
-   - Every outreach message must cite a specific, relevant detail about the prospect or business.
-   - Focus on business outcomes (revenue growth, cost reduction, time savings) over technical specs.
+2. **Active Listening & Objection Handling:**
+   - Ask high-leverage clarifying questions to uncover implicit pain points.
+   - Reframe objections around risk mitigation, clear ROI, and ease of onboarding.
 
-3. **Outreach Strategy by Business Model:**
-   - **SaaS:** Focus on trial conversion, usage-based expansion, and automated email follow-up sequences.
-   - **Local Service:** Focus on rapid lead response (<5 min response time), direct phone/SMS setting, and appointment booking.
-   - **Enterprise:** Focus on multi-threaded stakeholder alignment, procurement assistance, and custom proposal decks.
+3. **Multi-Threaded & Multi-Channel Outreach:**
+   - Combine email, LinkedIn touchpoints, and targeted follow-ups over a 4–6 step sequence.
+   - Map decision-makers, champions, and economic buyers within target accounts.
+
+4. **Outreach Strategy by Business Model:**
+   - **SaaS:** Trial conversion, usage-based expansion, feature-led automated follow-up sequences.
+   - **Local Service:** Rapid lead response (<5 min SLA), direct phone/SMS setting, clear appointment booking.
+   - **Enterprise:** Multi-threaded stakeholder alignment, security/procurement assistance, custom ROI proposal decks.
 
 ---
 
-## Reusable Heuristics & Building Blocks
+## Team Roles & Personas
 
-- **Sales Setter:** Rapid qualification, BANT (Budget, Authority, Need, Timing) verification.
-- **Sales Closer:** Value-based closing, proposal presentation, contract sign-off facilitation.
-- **Outreach Cadence:** 3–4 touch multi-channel sequences (Email, LinkedIn, Direct Call).
+1. **Prospecting Specialist (BDR/SDR):**
+   - Outbound campaign execution, list curation, cold email/LinkedIn drafting, multi-touch sequence management.
+
+2. **Client Research Intel Specialist:**
+   - Deep account research, buying committee mapping, technographic & firmographic discovery, personalized hook creation.
+
+3. **Sales Setter / Qualifier:**
+   - Inbound SLA management (<5 min), BANT (Budget, Authority, Need, Timing) verification, calendar booking.
+
+4. **Sales Closer (Account Executive):**
+   - Discovery calls, value-focused demo presentation, custom proposal decks, objection handling, closing & procurement.
 
 ---
 
 ## SOP / Workflow Patterns
 When generating a sales team for a project, consider whether the project needs:
-- `outreach-sequence` (Multi-touch outbound email/LinkedIn sequence)
-- `prospect-intel` (Researching key accounts and decision-maker pain points)
-- `content-to-sale` (Converting inbound content leads into booked sales calls)
+- `prospect-intel` (Deep research on target accounts, pain points, and decision-makers)
+- `outreach-sequence` (Multi-touch outbound email/LinkedIn cadence with personalized hooks)
+- `deal-closing` (Discovery call framework, ROI pitch deck generation, and objection handling)
+- `lead-qualification` (Rapid SLA triage and BANT qualification script)
