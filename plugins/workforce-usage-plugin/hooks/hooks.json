@@ -1,0 +1,16 @@
+{
+  "hooks": [
+    {
+      "name": "auto-track-token-usage",
+      "event": "post_tool_call",
+      "matcher": {
+        "tools": [
+          "*"
+        ]
+      },
+      "action": {
+        "command": "python3 skills/usage-tracker/scripts/track_usage.py ./"
+      }
+    }
+  ]
+}
