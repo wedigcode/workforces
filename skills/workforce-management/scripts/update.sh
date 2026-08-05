@@ -121,29 +121,38 @@ else
   BASE_DIR=".agents"
 fi
 
-# ─── Ensure workforces/tmp in .gitignore ───
+# ─── Ensure workforces/tmp and workforces/session-context in .gitignore ───
 GITIGNORE_FILE="$TARGET/.gitignore"
-if [[ ! -f "$GITIGNORE_FILE" ]]; then
-  if [[ "$DRY" == true ]]; then
-    echo -e "  ${GREEN}WOULD CREATE:${NC} .gitignore with 'workforces/tmp'"
-  else
-    echo "workforces/tmp" > "$GITIGNORE_FILE"
-    echo -e "  ${GREEN}CREATED:${NC} .gitignore with 'workforces/tmp'"
-  fi
-elif ! grep -qs "^/\?workforces/tmp" "$GITIGNORE_FILE" && ! grep -qs "^/\?workforces/\?$" "$GITIGNORE_FILE"; then
-  if [[ "$DRY" == true ]]; then
-    echo -e "  ${YELLOW}WOULD ADD:${NC} 'workforces/tmp' to .gitignore"
-  else
-    if [[ -s "$GITIGNORE_FILE" ]] && [[ "$(tail -c 1 "$GITIGNORE_FILE")" != $'\n' ]]; then
-      echo "" >> "$GITIGNORE_FILE"
+add_update_gitignore_entry() {
+  local entry="$1"
+  local label="$2"
+  if [[ ! -f "$GITIGNORE_FILE" ]]; then
+    if [[ "$DRY" == true ]]; then
+      echo -e "  ${GREEN}WOULD CREATE:${NC} .gitignore with '$label'"
+    else
+      echo "$entry" > "$GITIGNORE_FILE"
+      echo -e "  ${GREEN}CREATED:${NC} .gitignore with '$label'"
     fi
-    echo "workforces/tmp" >> "$GITIGNORE_FILE"
-    echo -e "  ${GREEN}ADDED:${NC} 'workforces/tmp' to .gitignore"
+  elif ! grep -qs "^/\?${entry//\*/\\*}" "$GITIGNORE_FILE" && ! grep -qs "^/\?workforces/\?$" "$GITIGNORE_FILE"; then
+    if [[ "$DRY" == true ]]; then
+      echo -e "  ${YELLOW}WOULD ADD:${NC} '$label' to .gitignore"
+    else
+      if [[ -s "$GITIGNORE_FILE" ]] && [[ "$(tail -c 1 "$GITIGNORE_FILE")" != $'\n' ]]; then
+        echo "" >> "$GITIGNORE_FILE"
+      fi
+      echo "$entry" >> "$GITIGNORE_FILE"
+      echo -e "  ${GREEN}ADDED:${NC} '$label' to .gitignore"
+    fi
   fi
-fi
+}
+
+add_update_gitignore_entry "workforces/tmp" "workforces/tmp"
+add_update_gitignore_entry "workforces/session-context/*" "workforces/session-context/*"
+add_update_gitignore_entry "!workforces/session-context/.gitkeep" "!workforces/session-context/.gitkeep"
 
 if [[ "$DRY" != true ]]; then
-  mkdir -p "$TARGET/workforces/tmp"
+  mkdir -p "$TARGET/workforces/tmp" "$TARGET/workforces/session-context"
+  touch "$TARGET/workforces/session-context/.gitkeep"
 fi
 
 MISSING_CORE_DIRS=false

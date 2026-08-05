@@ -279,20 +279,29 @@ fi
 
 # ─── Setup Workspace folder (workforces/) ───
 WORKFORCES_DIR="$TARGET/workforces"
-mkdir -p "$WORKFORCES_DIR" "$WORKFORCES_DIR/goals" "$WORKFORCES_DIR/tmp"
+mkdir -p "$WORKFORCES_DIR" "$WORKFORCES_DIR/goals" "$WORKFORCES_DIR/tmp" "$WORKFORCES_DIR/session-context"
+touch "$WORKFORCES_DIR/session-context/.gitkeep"
 
-# ─── Ensure workforces/tmp in .gitignore ───
+# ─── Ensure workforces/tmp and workforces/session-context in .gitignore ───
 GITIGNORE_FILE="$TARGET/.gitignore"
-if [[ ! -f "$GITIGNORE_FILE" ]]; then
-  echo "workforces/tmp" > "$GITIGNORE_FILE"
-  echo -e "  ${GREEN}CREATED:${NC} .gitignore with 'workforces/tmp'"
-elif ! grep -qs "^/\?workforces/tmp" "$GITIGNORE_FILE" && ! grep -qs "^/\?workforces/\?$" "$GITIGNORE_FILE"; then
-  if [[ -s "$GITIGNORE_FILE" ]] && [[ "$(tail -c 1 "$GITIGNORE_FILE")" != $'\n' ]]; then
-    echo "" >> "$GITIGNORE_FILE"
+add_gitignore_entry() {
+  local entry="$1"
+  local label="$2"
+  if [[ ! -f "$GITIGNORE_FILE" ]]; then
+    echo "$entry" > "$GITIGNORE_FILE"
+    echo -e "  ${GREEN}CREATED:${NC} .gitignore with '$label'"
+  elif ! grep -qs "^/\?${entry//\*/\\*}" "$GITIGNORE_FILE" && ! grep -qs "^/\?workforces/\?$" "$GITIGNORE_FILE"; then
+    if [[ -s "$GITIGNORE_FILE" ]] && [[ "$(tail -c 1 "$GITIGNORE_FILE")" != $'\n' ]]; then
+      echo "" >> "$GITIGNORE_FILE"
+    fi
+    echo "$entry" >> "$GITIGNORE_FILE"
+    echo -e "  ${GREEN}ADDED:${NC} '$label' to .gitignore"
   fi
-  echo "workforces/tmp" >> "$GITIGNORE_FILE"
-  echo -e "  ${GREEN}ADDED:${NC} 'workforces/tmp' to .gitignore"
-fi
+}
+
+add_gitignore_entry "workforces/tmp" "workforces/tmp"
+add_gitignore_entry "workforces/session-context/*" "workforces/session-context/*"
+add_gitignore_entry "!workforces/session-context/.gitkeep" "!workforces/session-context/.gitkeep"
 
 # Seed workforce.md if not already present
 if [[ ! -f "$WORKFORCES_DIR/README.md" ]]; then
