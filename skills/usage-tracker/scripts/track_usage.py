@@ -178,10 +178,19 @@ def track_usage(workspace_root=".", brain_dir=None):
         total_aggregate["tool_call_count"] += metrics["tool_call_count"]
         total_aggregate["est_total_tokens"] += est_tokens
 
-    # Write JSON log output
-    workforces_dir = os.path.join(workspace_root, "workforces")
-    os.makedirs(workforces_dir, exist_ok=True)
-    json_log_path = os.path.join(workforces_dir, "usage-log.json")
+    # Write JSON log output to workforces/tmp/ (gitignored)
+    tmp_dir = os.path.join(workspace_root, "workforces", "tmp")
+    os.makedirs(tmp_dir, exist_ok=True)
+    json_log_path = os.path.join(tmp_dir, "usage-log.json")
+    
+    # Remove legacy location if it exists
+    legacy_log_path = os.path.join(workspace_root, "workforces", "usage-log.json")
+    if os.path.exists(legacy_log_path):
+        try:
+            os.remove(legacy_log_path)
+        except Exception:
+            pass
+
 
     log_data = {
         "last_tracked_at": datetime.now().isoformat(),
@@ -203,6 +212,7 @@ def track_usage(workspace_root=".", brain_dir=None):
         json.dump(log_data, f, indent=2)
 
     # Write Markdown Summary Output
+    workforces_dir = os.path.join(workspace_root, "workforces")
     summary_md_path = os.path.join(workforces_dir, "usage-summary.md")
     active_session = all_sessions[0] if all_sessions else None
 

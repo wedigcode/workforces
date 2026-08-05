@@ -16,7 +16,7 @@ The `usage-tracker` skill enables real-time and historical token and content usa
 
 ## Output Files
 
-- `workforces/usage-log.json`: Comprehensive JSON database of all tracked sessions, character counts, and estimated token metrics.
+- `workforces/tmp/usage-log.json`: Comprehensive JSON database of all tracked sessions, character counts, and estimated token metrics (gitignored under `workforces/tmp/`).
 - `workforces/usage-summary.md`: Formatted Markdown report detailing aggregate usage and active session highlights.
 
 ## Manual Execution
