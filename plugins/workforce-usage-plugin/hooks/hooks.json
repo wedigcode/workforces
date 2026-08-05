@@ -9,7 +9,7 @@
         ]
       },
       "action": {
-        "command": "python3 skills/usage-tracker/scripts/track_usage.py ./"
+        "command": "python3 -c \"import os, sys, subprocess; script = next((p for p in ['.agents/skills/usage-tracker/scripts/track_usage.py', 'skills/usage-tracker/scripts/track_usage.py'] if os.path.exists(p)), None); subprocess.run([sys.executable, script, './']) if script else None\""
       }
     }
   ]

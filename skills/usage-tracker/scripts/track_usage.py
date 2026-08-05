@@ -108,10 +108,21 @@ def find_conversation_dirs(brain_dir):
 
 def track_usage(workspace_root=".", brain_dir=None):
     workspace_root = os.path.abspath(workspace_root)
-    if not brain_dir:
-        brain_dir = os.path.expanduser("~/.gemini/antigravity/brain")
+    
+    conv_dirs = []
+    if brain_dir:
+        conv_dirs.extend(find_conversation_dirs(brain_dir))
+    else:
+        candidates = [
+            os.path.expanduser("~/.gemini/antigravity-ide/brain"),
+            os.path.expanduser("~/.gemini/antigravity/brain"),
+        ]
+        for b_dir in candidates:
+            for c_dir in find_conversation_dirs(b_dir):
+                if c_dir not in conv_dirs:
+                    conv_dirs.append(c_dir)
+        conv_dirs.sort(key=lambda d: os.path.getmtime(d), reverse=True)
 
-    conv_dirs = find_conversation_dirs(brain_dir)
     
     all_sessions = []
     total_aggregate = {

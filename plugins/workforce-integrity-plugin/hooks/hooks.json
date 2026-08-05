@@ -11,7 +11,7 @@
         ]
       },
       "action": {
-        "command": "python3 skills/workforce-management/scripts/validate-references.py ./ --fix"
+        "command": "python3 -c \"import os, sys, subprocess; script = next((p for p in ['.agents/skills/workforce-management/scripts/validate-references.py', 'skills/workforce-management/scripts/validate-references.py'] if os.path.exists(p)), None); subprocess.run([sys.executable, script, './', '--fix']) if script else None\""
       }
     }
   ]
