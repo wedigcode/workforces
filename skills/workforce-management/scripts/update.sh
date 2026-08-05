@@ -121,6 +121,31 @@ else
   BASE_DIR=".agents"
 fi
 
+# ─── Ensure workforces/tmp in .gitignore ───
+GITIGNORE_FILE="$TARGET/.gitignore"
+if [[ ! -f "$GITIGNORE_FILE" ]]; then
+  if [[ "$DRY" == true ]]; then
+    echo -e "  ${GREEN}WOULD CREATE:${NC} .gitignore with 'workforces/tmp'"
+  else
+    echo "workforces/tmp" > "$GITIGNORE_FILE"
+    echo -e "  ${GREEN}CREATED:${NC} .gitignore with 'workforces/tmp'"
+  fi
+elif ! grep -qs "^/\?workforces/tmp" "$GITIGNORE_FILE" && ! grep -qs "^/\?workforces/\?$" "$GITIGNORE_FILE"; then
+  if [[ "$DRY" == true ]]; then
+    echo -e "  ${YELLOW}WOULD ADD:${NC} 'workforces/tmp' to .gitignore"
+  else
+    if [[ -s "$GITIGNORE_FILE" ]] && [[ "$(tail -c 1 "$GITIGNORE_FILE")" != $'\n' ]]; then
+      echo "" >> "$GITIGNORE_FILE"
+    fi
+    echo "workforces/tmp" >> "$GITIGNORE_FILE"
+    echo -e "  ${GREEN}ADDED:${NC} 'workforces/tmp' to .gitignore"
+  fi
+fi
+
+if [[ "$DRY" != true ]]; then
+  mkdir -p "$TARGET/workforces/tmp"
+fi
+
 MISSING_CORE_DIRS=false
 for d in plugins agents workflows rules skills teams; do
   if [[ -d "$SOURCE_DIR/$d" && ! -d "$TARGET/$BASE_DIR/$d" ]]; then

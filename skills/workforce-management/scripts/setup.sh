@@ -279,7 +279,20 @@ fi
 
 # ─── Setup Workspace folder (workforces/) ───
 WORKFORCES_DIR="$TARGET/workforces"
-mkdir -p "$WORKFORCES_DIR" "$WORKFORCES_DIR/goals"
+mkdir -p "$WORKFORCES_DIR" "$WORKFORCES_DIR/goals" "$WORKFORCES_DIR/tmp"
+
+# ─── Ensure workforces/tmp in .gitignore ───
+GITIGNORE_FILE="$TARGET/.gitignore"
+if [[ ! -f "$GITIGNORE_FILE" ]]; then
+  echo "workforces/tmp" > "$GITIGNORE_FILE"
+  echo -e "  ${GREEN}CREATED:${NC} .gitignore with 'workforces/tmp'"
+elif ! grep -qs "^/\?workforces/tmp" "$GITIGNORE_FILE" && ! grep -qs "^/\?workforces/\?$" "$GITIGNORE_FILE"; then
+  if [[ -s "$GITIGNORE_FILE" ]] && [[ "$(tail -c 1 "$GITIGNORE_FILE")" != $'\n' ]]; then
+    echo "" >> "$GITIGNORE_FILE"
+  fi
+  echo "workforces/tmp" >> "$GITIGNORE_FILE"
+  echo -e "  ${GREEN}ADDED:${NC} 'workforces/tmp' to .gitignore"
+fi
 
 # Seed workforce.md if not already present
 if [[ ! -f "$WORKFORCES_DIR/README.md" ]]; then

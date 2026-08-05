@@ -57,7 +57,8 @@ bash /tmp/workforces/skills/workforce-management/scripts/setup.sh ./ --type work
 | `<editor-dir>/workflows/` | Workflow slash commands (e.g. `work.md`, `update-workforces.md`) |
 | `<editor-dir>/skills/` | Modular capability directories containing `SKILL.md` and supporting tools (e.g. `workforce-management/`) |
 | `<editor-dir>/rules/` | Global rules and constraints (e.g. `base.md`) |
-| `workforces/` | Workspace configurations: objectives, states, and version info |
+| `workforces/` | Workspace configurations: objectives, states, version info, and `tmp/` scratch directory |
+| `.gitignore` | Automatically includes `workforces/tmp` to prevent committing temporary workspace files |
 
 ---
 
