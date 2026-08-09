@@ -1,0 +1,50 @@
+---
+name: code-graph
+description: Graph Documentor and Method Indexer. Parses codebases into symbol catalogs and dependency maps stored in Open Knowledge Format (OKF).
+---
+
+# Skill: Code Graph & Method Indexer
+
+Provides lightweight, zero-dependency symbol indexing, function discovery, and call graph mapping.
+
+---
+
+## Capabilities
+
+1. **Symbol Search & Deduplication**: Fast query tool to check if a function or class already exists before writing code.
+2. **OKF Catalog Generation**: Automatically generates OKF concept Markdown files under `workforces/knowledge-catalog/`.
+3. **Graph Serialization**: Generates `workforces/code-graph.json` with symbol counts, file locations, line numbers, signatures, and call dependencies.
+
+---
+
+## Commands
+
+### 1. Check if a method exists
+```bash
+python3 skills/code-graph/scripts/graph_indexer.py --scan ./ --query "<method_name>"
+```
+
+### 2. Full Codebase Indexing
+```bash
+python3 skills/code-graph/scripts/graph_indexer.py --scan ./ --out-okf workforces/knowledge-catalog
+```
+
+---
+
+## OKF Output Schema
+
+Generates:
+- `workforces/knowledge-catalog/index.md` (Main catalog listing symbols and types)
+- `workforces/knowledge-catalog/symbols/<symbol_name>.md` (Individual OKF concept file)
+
+Example OKF frontmatter generated for symbols:
+```yaml
+---
+type: Code Symbol
+title: calculateTotal
+description: Method in src/services/calculator.ts
+language: typescript
+file: src/services/calculator.ts
+line: 42
+---
+```

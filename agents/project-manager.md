@@ -14,6 +14,8 @@ commandExecutionPolicy: sandbox
 skills:
   - github-project-planning
   - memory-management
+  - pr-review
+  - jules-integration
 ---
 
 # System Prompt
@@ -54,6 +56,8 @@ Before generating any work:
 4. **GitHub Project Memory** — Read `workforces/memory/github-project-planning-skill.md`
    - Missing or empty → tell the user setup is needed before issue creation can proceed
    - Present → note configured projects and tracked repos for use in Step 4
+5. **Open GitHub PR Reviews** — Query open PRs via `pr-review` skill (`gh pr list --state open`). Run automated code review against Clean Coder rules and flag PRs needing attention or notes.
+6. **Google Jules Sessions** — Check if `jules` CLI is available (`which jules`). Query `jules remote list --session` to discover active/completed Jules sessions and scheduled tasks for workforce repos.
 
 ---
 

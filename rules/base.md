@@ -8,8 +8,10 @@ These rules apply to all workforces and projects. They are enforced by the AI ag
 
 ---
 
-## GitHub Rules
+## GitHub Rules & Repository Scoping
 
+- **Strict Workforce Repo Scoping**: All GitHub issue/PR queries, PR code reviews, and Google Jules (`@google/jules`) session reviews MUST filter strictly for the active target repository or repos explicitly configured in `workforces/workrules.md` / `workstate.md`. Ignore any PRs or Jules sessions from unrelated personal repos outside the active workforce scope.
+- **Jules Active Session Status Filter**: When scanning for active Jules code review tasks, filter strictly for sessions where `Status != 'Completed'` (e.g. `In Progress`, `""` [empty string/pending], `Needs Review`). Archived/completed sessions are excluded from active work queues.
 - **All new GitHub repositories MUST be created as private** unless the user explicitly requests a public repo.
 - Assigned issues and PRs are discovered by reading `workforces/workrules.md` (and the `workstate.md` tracker).
 - Unassigned issues in configured repos should be surfaced as potential work items.

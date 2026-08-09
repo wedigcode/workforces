@@ -18,6 +18,7 @@ Your single command center. Scans your GitHub queue, surfaces the top task, and 
 /work plan [goal]        → Create execution plan & estimates (delegates to /plan)
 /work plan --from-prd    → Convert recent PRD into execution plan & estimates
 /work investigate [svc]  → Incident triage & postmortem (delegates to /investigate)
+/work improve [pillar]   → Audit & continuous improvement across cleanup, performance, security, health, testing (delegates to /work improve)
 /work sync               → Run standup sync: wins, losses, next goals, and blockers
 /work status             → Show all active and pending tasks
 /work done [#]           → Mark a task complete (unblocks dependent tasks)
@@ -70,6 +71,9 @@ gh pr list --search "review-requested:@me" --state open --limit 30
 
 # My open PRs
 gh pr list --author @me --state open --limit 30
+
+# Google Jules active sessions & scheduled tasks (if jules CLI is installed)
+jules remote list --session
 ```
 
 Flag **stale issues** (>30 days) — recommend push forward, delegate, or close.
