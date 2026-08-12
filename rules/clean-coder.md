@@ -18,7 +18,7 @@ These engineering rules govern all code generation, refactoring, and execution w
 ## 1. Deduplication & Existing Method Discovery
 - **Check Before Create**: BEFORE creating any function, method, helper, or class, the agent MUST check if a suitable method already exists in the codebase.
 - **Symbol Index Lookup**: Use the `code-graph` tool (`python3 .agents/skills/code-graph/scripts/graph_indexer.py --query <name>`), `grep_search`, or the OKF catalog under `workforces/knowledge-catalog/` to verify existence.
-
+- **Target Class & Neighbor Method Inspection**: BEFORE writing a new method inside an existing class or module, the agent MUST inspect all existing public and static methods in that target file. If an existing method performs type conversion, sanitization, or formatting (e.g. `convertNumber`), the new method MUST reuse/compose it rather than reimplementing low-level regex, parsing, or type-casting logic.
 - **Reuse and Extend**: If a function with similar capability exists, reuse or refactor it cleanly rather than introducing duplicate implementations.
 
 ## 2. Test-Driven Development (TDD) Mindset
@@ -26,7 +26,7 @@ These engineering rules govern all code generation, refactoring, and execution w
 - **Fail First Verification**: When adding features or fixing bugs, ensure a failing test or assertion exists to demonstrate the bug/gap before writing code to fix it.
 - **Refactor Safely**: Refactor code only while tests pass.
 
-## 3. SOLID, DRY & KISS Principles
+## 3. SOLID, DRY, KISS & Anti-Over-Engineering Principles
 - **Single Responsibility (SRP)**: Each function/class must do ONE thing and do it exceptionally well. Keep functions small (ideally <30 lines).
 - **Open/Closed (OCP)**: Design modules for extension without modifying core existing contracts.
 - **Liskov Substitution (LSP)**: Derived structures/types must remain fully compatible with base abstractions.
@@ -34,8 +34,17 @@ These engineering rules govern all code generation, refactoring, and execution w
 - **Dependency Inversion (DIP)**: Depend upon abstractions, not concrete implementations.
 - **DRY (Don't Repeat Yourself)**: Zero copy-paste logic. Extract repeated logic into clean, reusable utilities.
 - **KISS (Keep It Simple, Stupid)**: Avoid over-engineering. Pick the simplest architecture that satisfies all requirements cleanly.
+- **Diff Compression Check**: Prior to completing code edits, evaluate whether the new or modified function can be written in <50% of the lines by composing existing class methods.
 
-## 4. Naming & Self-Documenting Code
+## 4. Mandatory Post-Edit Hook & Self-Review
+- **Automated Post-Edit Review Execution**: Immediately after modifying any code file (via `write_to_file`, `replace_file_content`, or `multi_replace_file_content`), the agent MUST execute the post-code review audit:
+  ```bash
+  python3 .agents/skills/post-code-review/scripts/post_code_reviewer.py --root ./
+  ```
+  *(Fallback: `python3 skills/post-code-review/scripts/post_code_reviewer.py --root ./`)*
+- **Self-Remediation**: Any flagged items (swallowed errors, contract breaking changes, over-engineering warnings, missing tests) MUST be addressed and resolved before presenting completion results to the user.
+
+## 5. Naming & Self-Documenting Code
 - **Expressive Naming**: Use intent-revealing names for variables, methods, and classes (e.g. `calculateMonthlyTaxableIncome` instead of `calcTax`).
 - **Clean Comments**: Comments must explain *why* non-obvious code decisions were made, NOT *what* standard code line does. Let clean code describe *what*.
 - **No Swallowed Errors**: NEVER write empty `catch` or `except` blocks, silence exceptions with dummy fallbacks, or ignore promise rejections. Log, annotate, or propagate errors gracefully.

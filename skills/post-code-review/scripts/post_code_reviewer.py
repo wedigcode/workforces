@@ -139,6 +139,40 @@ def audit_contract_changes(modified_files: List[str], symbols: List[Dict[str, An
                 issues.append(f"⚠️ **Downstream Caller Blast Radius:** Symbol `{sym_name}()` in `{mod_file}` has external callers: {', '.join(callers[:3])}. Verify parameter signatures remain compatible.")
     return issues
 
+def audit_class_helper_reuse(modified_files: List[str], diff_text: str, root_dir: Path) -> List[str]:
+    """Check if newly added functions in a file perform low-level parsing while existing helper methods in the target file exist."""
+    issues = []
+    helper_keywords = ["convertNumber", "convert_number", "formatNumber", "format_number", "sanitize", "parseNumber", "parse_number", "toFloat", "to_float"]
+
+    for rel_path in modified_files:
+        full_path = root_dir / rel_path
+        if not full_path.exists() or not rel_path.endswith((".php", ".ts", ".js", ".py")):
+            continue
+
+        try:
+            content = full_path.read_text(encoding="utf-8", errors="ignore")
+            existing_helpers = [kw for kw in helper_keywords if kw in content]
+            if not existing_helpers:
+                continue
+
+            file_diff_lines = [l for l in diff_text.splitlines() if l.startswith("+") and not l.startswith("+++")]
+            has_raw_parsing = any(
+                re.search(r"preg_replace|str_replace|replace\(/[^\n]+/|floatval|\(float\)|parseFloat|re\.sub", l)
+                for l in file_diff_lines
+            )
+
+            if has_raw_parsing:
+                diff_calls_helper = any(kw in l for kw in existing_helpers for l in file_diff_lines)
+                if not diff_calls_helper:
+                    helpers_str = ", ".join(f"`{h}`" for h in set(existing_helpers))
+                    issues.append(
+                        f"💡 **Potential Over-Engineering / Duplicate Class Helper:** Code modifications in `{rel_path}` use custom string/number parsing while neighboring helper(s) ({helpers_str}) exist in the target file. Consider composing existing helper(s)."
+                    )
+        except Exception:
+            pass
+
+    return issues
+
 def run_code_reviewer(root_dir: Path) -> str:
     """Execute complete post-code review audit."""
     modified_files = get_modified_files(root_dir)
@@ -153,6 +187,7 @@ def run_code_reviewer(root_dir: Path) -> str:
     # Perform audits
     all_issues.extend(audit_swallowed_errors(diff_text, modified_files, root_dir))
     all_issues.extend(audit_contract_changes(modified_files, symbols, root_dir))
+    all_issues.extend(audit_class_helper_reuse(modified_files, diff_text, root_dir))
     all_issues.extend(audit_missing_tests(modified_files))
 
     output = []
