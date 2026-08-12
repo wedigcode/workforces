@@ -151,11 +151,22 @@ add_update_gitignore_entry() {
   fi
 }
 
+remove_gitignore_entry() {
+  local entry="$1"
+  local label="$2"
+  if [[ -f "$GITIGNORE_FILE" ]] && grep -qs "${entry}" "$GITIGNORE_FILE"; then
+    if [[ "$DRY" == true ]]; then
+      echo -e "  ${YELLOW}WOULD REMOVE:${NC} '$label' from .gitignore"
+    else
+      python3 -c "import sys; path, target = sys.argv[1], sys.argv[2]; lines = [l for l in open(path).read().splitlines() if target not in l]; open(path, 'w').write('\n'.join(lines) + ('\n' if lines else ''))" "$GITIGNORE_FILE" "$entry"
+      echo -e "  ${GREEN}REMOVED:${NC} '$label' from .gitignore"
+    fi
+  fi
+}
+
 add_update_gitignore_entry "workforces/tmp" "workforces/tmp"
 add_update_gitignore_entry "workforces/session-context/*" "workforces/session-context/*"
 add_update_gitignore_entry "!workforces/session-context/.gitkeep" "!workforces/session-context/.gitkeep"
-add_update_gitignore_entry "workforces/code-graph.json" "workforces/code-graph.json"
-add_update_gitignore_entry "workforces/knowledge-catalog" "workforces/knowledge-catalog"
 
 if [[ "$DRY" != true ]]; then
   mkdir -p "$TARGET/workforces/tmp" "$TARGET/workforces/session-context"

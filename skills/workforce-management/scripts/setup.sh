@@ -302,8 +302,6 @@ add_gitignore_entry() {
 add_gitignore_entry "workforces/tmp" "workforces/tmp"
 add_gitignore_entry "workforces/session-context/*" "workforces/session-context/*"
 add_gitignore_entry "!workforces/session-context/.gitkeep" "!workforces/session-context/.gitkeep"
-add_gitignore_entry "workforces/code-graph.json" "workforces/code-graph.json"
-add_gitignore_entry "workforces/knowledge-catalog" "workforces/knowledge-catalog"
 
 # Seed workforce.md if not already present
 if [[ ! -f "$WORKFORCES_DIR/README.md" ]]; then

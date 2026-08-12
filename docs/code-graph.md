@@ -71,8 +71,9 @@ A machine-readable symbol registry:
 
 ### 2. OKF Knowledge Catalog (`workforces/knowledge-catalog/`)
 Human and AI-readable Open Knowledge Format catalog:
-- **`workforces/knowledge-catalog/index.md`**: Master table listing all indexed symbols, kinds, languages, and line numbers (`src/services/calculator.ts#L42`).
-- **`workforces/knowledge-catalog/symbols/<symbol_name>.md`**: Individual concept cards per symbol containing metadata frontmatter, signatures, docstrings, and outbound calls.
+- **`workforces/knowledge-catalog/index.md`**: Master catalog index referencing domain catalogs and the Code Symbol Index.
+- **`workforces/knowledge-catalog/code/index.md`**: Master table listing all indexed symbols, kinds, languages, and line numbers (`src/services/calculator.ts#L42`).
+- **`workforces/knowledge-catalog/code/symbols/<symbol_name>.md`**: Individual concept cards per symbol containing metadata frontmatter, signatures, docstrings, and outbound calls.
 
 ---
 

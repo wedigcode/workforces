@@ -235,10 +235,32 @@ class SymbolIndexer:
             }, f, indent=2)
 
     def export_okf_catalog(self, catalog_dir: Path):
-        catalog_dir.mkdir(parents=True, exist_ok=True)
-        
-        # Write symbols index file
-        index_file = catalog_dir / "index.md"
+        # Determine code catalog directory and root knowledge catalog directory
+        if catalog_dir.name == "knowledge-catalog":
+            code_catalog_dir = catalog_dir / "code"
+            root_catalog_dir = catalog_dir
+        else:
+            code_catalog_dir = catalog_dir
+            root_catalog_dir = catalog_dir.parent if catalog_dir.parent.name == "knowledge-catalog" else catalog_dir.parent
+
+        code_catalog_dir.mkdir(parents=True, exist_ok=True)
+        root_catalog_dir.mkdir(parents=True, exist_ok=True)
+
+        # Write or seed root knowledge catalog index file if missing or updating
+        root_index_file = root_catalog_dir / "index.md"
+        with open(root_index_file, "w", encoding="utf-8") as f:
+            f.write("---\n")
+            f.write("type: Knowledge Catalog\n")
+            f.write("title: Project Knowledge Catalog\n")
+            f.write("description: Central catalog of project architecture, domain knowledge, and code symbol indices.\n")
+            f.write("---\n\n")
+            f.write("# Project Knowledge Catalog\n\n")
+            f.write("Central repository of codebase documentation and indexed symbols.\n\n")
+            f.write("## Catalog Sections\n\n")
+            f.write(f"- 💻 **[Codebase Symbol Index](code/index.md)** — Auto-generated catalog of {len(self.symbols)} indexed functions, methods, and classes.\n")
+
+        # Write code symbols index file
+        index_file = code_catalog_dir / "index.md"
         with open(index_file, "w", encoding="utf-8") as f:
             f.write("---\n")
             f.write("type: Code Symbol Index\n")
@@ -246,18 +268,26 @@ class SymbolIndexer:
             f.write(f"description: Extracted catalog of {len(self.symbols)} functions, methods, and classes.\n")
             f.write("---\n\n")
             f.write("# Codebase Symbol Index\n\n")
+            f.write("[← Back to Knowledge Catalog](../index.md)\n\n")
             f.write("| Symbol | Kind | Language | File | Signature |\n")
             f.write("|--------|------|----------|------|-----------|\n")
             for sym in self.symbols:
-                f.write(f"| `{sym['name']}` | {sym['kind']} | {sym['language']} | [{sym['file']}](../../{sym['file']}#L{sym['line']}) | `{sym['signature']}` |\n")
+                f.write(f"| `{sym['name']}` | {sym['kind']} | {sym['language']} | [{sym['file']}](../../../{sym['file']}#L{sym['line']}) | `{sym['signature']}` |\n")
 
-        # Write individual symbol OKF files for key functions
-        symbols_dir = catalog_dir / "symbols"
+        # Write individual symbol OKF files under code/symbols/
+        symbols_dir = code_catalog_dir / "symbols"
         symbols_dir.mkdir(exist_ok=True, parents=True)
+        
+        # Ensure .gitkeep exists in symbols_dir
+        gitkeep_file = symbols_dir / ".gitkeep"
+        if not gitkeep_file.exists():
+            gitkeep_file.touch()
 
         valid_filenames = {f"{re.sub(r'[^a-zA-Z0-9_-]', '_', sym['name'])}.md" for sym in self.symbols}
-        for existing_file in symbols_dir.glob("*.md"):
-            if existing_file.name not in valid_filenames:
+        valid_filenames.add(".gitkeep")
+
+        for existing_file in symbols_dir.glob("*"):
+            if existing_file.is_file() and existing_file.name not in valid_filenames:
                 try:
                     existing_file.unlink()
                 except Exception:
@@ -278,7 +308,7 @@ class SymbolIndexer:
                 f.write(f"# `{sym['name']}`\n\n")
                 f.write(f"- **Kind:** {sym['kind']}\n")
                 f.write(f"- **Signature:** `{sym['signature']}`\n")
-                f.write(f"- **Location:** [{sym['file']}](../../../{sym['file']}#L{sym['line']})\n\n")
+                f.write(f"- **Location:** [{sym['file']}](../../../../{sym['file']}#L{sym['line']})\n\n")
                 if sym['docstring']:
                     f.write(f"## Documentation\n```\n{sym['docstring']}\n```\n\n")
                 if sym['calls']:
@@ -303,7 +333,7 @@ def main():
     parser.add_argument("--scan", type=str, help="Scan codebase path")
     parser.add_argument("--query", type=str, help="Search query for existing methods")
     parser.add_argument("--out-json", type=str, default="workforces/code-graph.json", help="Path to output JSON")
-    parser.add_argument("--out-okf", type=str, default="workforces/knowledge-catalog", help="Path to OKF catalog")
+    parser.add_argument("--out-okf", type=str, default="workforces/knowledge-catalog/code", help="Path to OKF catalog")
     parser.add_argument("--build-okf", action="store_true", help="Build full OKF markdown catalog files")
     parser.add_argument("--force", action="store_true", help="Force full rescan ignoring cache")
 

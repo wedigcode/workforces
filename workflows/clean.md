@@ -11,10 +11,10 @@ Run codebase maintenance to keep the Code Graph, OKF Knowledge Catalog, and work
 ## Steps
 
 ### Step 1: Force Full Code Graph & OKF Catalog Rebuild
-Re-indexes all codebase symbols and regenerates individual OKF concept Markdown files under `workforces/knowledge-catalog/`:
+Re-indexes all codebase symbols and regenerates individual OKF concept Markdown files under `workforces/knowledge-catalog/code/`:
 
 ```bash
-python3 skills/code-graph/scripts/graph_indexer.py --scan ./ --build-okf --force
+python3 skills/code-graph/scripts/graph_indexer.py --scan ./ --out-okf workforces/knowledge-catalog/code --build-okf --force
 ```
 
 ---
@@ -40,7 +40,7 @@ Outputs a clean summary matrix:
 | Check | Status | Details |
 |-------|--------|---------|
 | **Code Graph Index** | ✅ Up to date | 32 symbols indexed in `workforces/code-graph.json` |
-| **OKF Knowledge Catalog** | ✅ Rebuilt | Catalog synced at `workforces/knowledge-catalog/index.md` |
+| **OKF Knowledge Catalog** | ✅ Rebuilt | Catalog synced at `workforces/knowledge-catalog/code/index.md` |
 | **Dead Code / Unused Symbols** | ⚠️ 2 found | `unused_helper()` (src/utils.ts:L14) |
 | **Workspace Scratch Clean** | ✅ Clean | 0 stale files removed |
 ```
