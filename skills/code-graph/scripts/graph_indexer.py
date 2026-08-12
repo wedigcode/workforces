@@ -13,9 +13,10 @@ import ast
 import json
 import os
 import re
+import subprocess
 import sys
 from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Set
 
 # Supported file extensions & comment rules
 LANG_EXTENSIONS = {
@@ -34,7 +35,9 @@ LANG_EXTENSIONS = {
 
 IGNORE_DIRS = {
     ".git", ".node_modules", "node_modules", "vendor", "__pycache__",
-    ".venv", "venv", "dist", "build", ".next", ".agents", "coverage"
+    ".venv", "venv", "dist", "build", ".next", ".agents", "coverage",
+    "var", "cache", ".cache", "tmp", ".tmp", "temp", "storage", "out", "pkg",
+    "target", ".turbo", ".nuxt", ".output"
 }
 
 
@@ -42,6 +45,27 @@ class SymbolIndexer:
     def __init__(self, root_dir: str):
         self.root_dir = Path(root_dir).resolve()
         self.symbols: List[Dict[str, Any]] = []
+
+    def _filter_gitignored(self, candidate_paths: List[Path]) -> List[Path]:
+        """Filter out files ignored by git using git check-ignore --stdin."""
+        if not candidate_paths or not (self.root_dir / ".git").exists():
+            return candidate_paths
+        try:
+            rel_strings = [str(p.relative_to(self.root_dir)) for p in candidate_paths]
+            res = subprocess.run(
+                ["git", "check-ignore", "--stdin"],
+                cwd=self.root_dir,
+                input="\n".join(rel_strings),
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            ignored_set = set(res.stdout.splitlines())
+            if not ignored_set:
+                return candidate_paths
+            return [p for p in candidate_paths if str(p.relative_to(self.root_dir)) not in ignored_set]
+        except Exception:
+            return candidate_paths
 
     def scan(self, json_path: Optional[Path] = None, force: bool = False) -> List[Dict[str, Any]]:
         self.symbols.clear()
@@ -79,6 +103,12 @@ class SymbolIndexer:
                         files_unmodified.append(rel_path)
                     else:
                         files_to_parse.append((file_path, LANG_EXTENSIONS[ext]))
+
+        # Filter out gitignored files
+        if files_to_parse:
+            candidate_paths = [fp for fp, _ in files_to_parse]
+            allowed_paths = set(self._filter_gitignored(candidate_paths))
+            files_to_parse = [(fp, lang) for fp, lang in files_to_parse if fp in allowed_paths]
 
         # Fast path: no files modified!
         if cached_symbols_by_file and not files_to_parse:
