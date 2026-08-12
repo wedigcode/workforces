@@ -4,5 +4,5 @@
   "description": "Programming task pre-hook plugin. Automatically detects code modification tasks, forces symbol graph indexing, and enforces clean-coder rules.",
   "rules": ["rules/clean-coder.md"],
   "hooks": ["hooks/hooks.json"],
-  "skills": ["skills/clean-coder", "skills/code-graph"]
+  "skills": ["skills/clean-coder", "skills/code-graph", "skills/post-code-review"]
 }

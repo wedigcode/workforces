@@ -1,7 +1,7 @@
 {
   "hooks": [
     {
-      "name": "auto-code-graph-symbol-discovery",
+      "name": "auto-code-graph-pre-impact-analysis",
       "event": "pre_tool_call",
       "matcher": {
         "tools": [
@@ -11,7 +11,21 @@
         ]
       },
       "action": {
-        "command": "python3 -c \"import os, sys, subprocess; script = next((p for p in ['.agents/skills/code-graph/scripts/graph_indexer.py', 'skills/code-graph/scripts/graph_indexer.py'] if os.path.exists(p)), None); subprocess.run([sys.executable, script, '--scan', './']) if script else None\""
+        "command": "python3 -c \"import os, sys, subprocess; script1 = next((p for p in ['.agents/skills/code-graph/scripts/graph_indexer.py', 'skills/code-graph/scripts/graph_indexer.py'] if os.path.exists(p)), None); subprocess.run([sys.executable, script1, '--scan', './']) if script1 else None; script2 = next((p for p in ['.agents/skills/code-graph/scripts/pre_impact_analyzer.py', 'skills/code-graph/scripts/pre_impact_analyzer.py'] if os.path.exists(p)), None); subprocess.run([sys.executable, script2, '--root', './']) if script2 else None\""
+      }
+    },
+    {
+      "name": "auto-post-code-review",
+      "event": "post_tool_call",
+      "matcher": {
+        "tools": [
+          "write_to_file",
+          "replace_file_content",
+          "multi_replace_file_content"
+        ]
+      },
+      "action": {
+        "command": "python3 -c \"import os, sys, subprocess; script = next((p for p in ['.agents/skills/post-code-review/scripts/post_code_reviewer.py', 'skills/post-code-review/scripts/post_code_reviewer.py'] if os.path.exists(p)), None); subprocess.run([sys.executable, script, '--root', './']) if script else None\""
       }
     }
   ]
