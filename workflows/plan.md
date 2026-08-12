@@ -21,6 +21,18 @@ Breaks down work into phased, actionable tasks with estimates, dependencies, and
 
 ---
 
+## Step 0 — Pre-Plan Existing Codebase Audit
+
+> [!IMPORTANT]
+> MUST be executed BEFORE drafting the implementation plan.
+
+1. Perform codebase search and symbol discovery using `code-graph` (`python3 .agents/skills/code-graph/scripts/graph_indexer.py --query <feature/component>`), `grep_search`, and `list_dir`.
+2. Inspect pre-existing schemas, database tables, legacy scripts, or services.
+3. Identify existing abstractions to reuse vs missing components to build.
+4. Record all findings for inclusion in the `## Existing Codebase Audit Findings` section of the plan.
+
+---
+
 ## Step 1 — Define the Goal
 
 1. State the goal in one sentence (or extract from PRD if `--from-prd` flag is used)
@@ -121,6 +133,11 @@ Critical path: the longest chain of dependent tasks = minimum timeline.
 | 1 — [name] | [X] | [X hrs] | ⬜ Not started |
 | 2 — [name] | [X] | [X hrs] | ⬜ Not started |
 | 3 — [name] | [X] | [X hrs] | ⬜ Not started |
+
+### Existing Codebase Audit Findings
+- **Searched Files & Queries:** [paths, grep patterns, symbol queries checked]
+- **Pre-Existing Entities & Methods:** [existing tables, models, functions, legacy scripts found]
+- **Existing vs. Missing Capabilities:** [what already exists to reuse vs. what is missing to build]
 
 ### Detailed Breakdown
 [full task list from Step 3]

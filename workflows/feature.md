@@ -67,7 +67,8 @@ Read: skills/github-project-planning/SKILL.md
    - If not found → ask the user for the file path.
 3. For each relevant project, investigate existing implementations.
 4. Produce a **Gap Analysis Document** using the template from `feature-research` skill.
-5. Save as an artifact.
+5. Include explicit **Existing Codebase Audit Findings** detailing searched files/tables/directories, pre-existing utilities, and existing vs missing capabilities.
+6. Save as an artifact.
 
 **⏸ PAUSE** — Wait for user to review the gap analysis.
 
@@ -77,12 +78,13 @@ Read: skills/github-project-planning/SKILL.md
 
 1. Based on the gap analysis, determine:
    - Where the feature lives (project, repository, module/namespace)
+   - Pre-existing entities and functions to compose vs new code to write
    - External service dependencies
    - Shared library / service contract changes
    - Database migrations / schema updates needed
    - API endpoint changes
    - Deployment / rollout order
-2. Append the **Implementation Strategy** to the feature document.
+2. Append the **Implementation Strategy** (including Codebase Audit Findings) to the feature document.
 
 ---
 

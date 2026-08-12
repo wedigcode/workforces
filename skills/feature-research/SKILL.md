@@ -95,6 +95,14 @@ Produce a **Gap Analysis Document** using this template:
 
 ---
 
+## Existing Codebase Audit Findings
+
+- **Searched Files & Queries:** [list files, tables, directories, and symbol queries searched via code-graph/grep_search/list_dir]
+- **Pre-Existing Entities & Methods:** [list existing database tables, models, legacy utilities, or helper methods]
+- **Existing vs. Missing Capabilities:** [clear breakdown of what already exists vs what needs to be built]
+
+---
+
 ## Overview
 
 | Dimension | Current ([source]) | Proposed ([target]) |

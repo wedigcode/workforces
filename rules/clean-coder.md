@@ -17,6 +17,7 @@ These engineering rules govern all code generation, refactoring, and execution w
 
 ## 1. Deduplication & Existing Method Discovery
 - **Check Before Create**: BEFORE creating any function, method, helper, or class, the agent MUST check if a suitable method already exists in the codebase.
+- **Pre-Plan Codebase Audit**: BEFORE populating an `implementation_plan.md` or proposing new architectural additions, the agent MUST execute codebase searches (`code-graph`, `grep_search`, `list_dir`) and document all audited symbols, tables, utilities, existing vs missing capabilities under `## Existing Codebase Audit Findings`.
 - **Symbol Index Lookup**: Use the `code-graph` tool (`python3 .agents/skills/code-graph/scripts/graph_indexer.py --query <name>`), `grep_search`, or the OKF catalog under `workforces/knowledge-catalog/` to verify existence.
 - **Target Class & Neighbor Method Inspection**: BEFORE writing a new method inside an existing class or module, the agent MUST inspect all existing public and static methods in that target file. If an existing method performs type conversion, sanitization, or formatting (e.g. `convertNumber`), the new method MUST reuse/compose it rather than reimplementing low-level regex, parsing, or type-casting logic.
 - **Reuse and Extend**: If a function with similar capability exists, reuse or refactor it cleanly rather than introducing duplicate implementations.
