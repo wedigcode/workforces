@@ -24,6 +24,9 @@ def parse_transcript_file(file_path):
         "tool_payload_chars": 0,
         "step_count": 0,
         "tool_call_count": 0,
+        "tool_counts": {},
+        "tool_payloads": {},
+        "workflows_triggered": set(),
         "subagent_invocations": []
     }
 
@@ -48,26 +51,35 @@ def parse_transcript_file(file_path):
                 thinking = entry.get("thinking", "") or ""
                 tool_calls = entry.get("tool_calls", []) or []
 
-                # Thoughts / Reasoning
-                if thinking:
-                    metrics["thought_chars"] += len(thinking)
-
-                # Content by type
-                if entry_type == "USER_INPUT":
+                # Detect workflow invocations in user inputs or planner responses
+                if entry_type == "USER_INPUT" and isinstance(content, str):
                     metrics["user_input_chars"] += len(content)
+                    for wf in ["/work", "/feature", "/plan", "/investigate", "/sync", "/update-workforces"]:
+                        if wf in content:
+                            metrics["workflows_triggered"].add(wf)
                 elif source == "MODEL" and entry_type == "PLANNER_RESPONSE":
                     if isinstance(content, str) and content:
                         metrics["model_output_chars"] += len(content)
                 elif source in ("MODEL", "SYSTEM") and entry_type not in ("USER_INPUT", "PLANNER_RESPONSE"):
                     metrics["tool_payload_chars"] += len(content)
 
-                # Tool Calls & Subagents
+                # Thoughts / Reasoning
+                if thinking:
+                    metrics["thought_chars"] += len(thinking)
+
+                # Tool Calls Breakdown & Subagents
                 if tool_calls:
                     metrics["tool_call_count"] += len(tool_calls)
                     for tc in tool_calls:
                         name = tc.get("name", "")
                         args = tc.get("args", {})
-                        metrics["tool_payload_chars"] += len(json.dumps(args))
+                        arg_len = len(json.dumps(args))
+                        metrics["tool_payload_chars"] += arg_len
+                        
+                        if name:
+                            metrics["tool_counts"][name] = metrics["tool_counts"].get(name, 0) + 1
+                            metrics["tool_payloads"][name] = metrics["tool_payloads"].get(name, 0) + arg_len
+
                         if name == "invoke_subagent":
                             subagents_list = args.get("Subagents", []) if isinstance(args, dict) else []
                             for sub in subagents_list:
@@ -80,6 +92,7 @@ def parse_transcript_file(file_path):
     except Exception as e:
         print(f"Warning: Error parsing transcript {file_path}: {e}", file=sys.stderr)
 
+    metrics["workflows_triggered"] = list(metrics["workflows_triggered"])
     return metrics
 
 def find_conversation_dirs(brain_dir):
@@ -244,6 +257,22 @@ def track_usage(workspace_root=".", brain_dir=None):
             f"| Tool Payloads | {m['tool_payload_chars']:,} chars | {active_session['est_tool_tokens']:,} tokens |",
             f"| **Session Total** | **{active_session['total_chars']:,} chars** | **{active_session['est_total_tokens']:,} tokens** |\n"
         ])
+
+        if m.get("tool_counts"):
+            md_lines.append("### Active Tool Selection Breakdown\n")
+            md_lines.append("| Tool Name | Invocation Count | Est. Payload Tokens |")
+            md_lines.append("|---|---|---|")
+            sorted_tools = sorted(m["tool_counts"].items(), key=lambda x: x[1], reverse=True)
+            for tool_name, count in sorted_tools:
+                payload_chars = m.get("tool_payloads", {}).get(tool_name, 0)
+                md_lines.append(f"| `{tool_name}` | {count} calls | {estimate_tokens(payload_chars):,} tokens |")
+            md_lines.append("")
+
+        if m.get("workflows_triggered"):
+            md_lines.append("### Workflows Triggered\n")
+            for wf in m["workflows_triggered"]:
+                md_lines.append(f"- Workflow Command: `{wf}`")
+            md_lines.append("")
 
         if m["subagent_invocations"]:
             md_lines.append("### Subagent Activity\n")
