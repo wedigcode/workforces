@@ -253,7 +253,15 @@ class SymbolIndexer:
 
         # Write individual symbol OKF files for key functions
         symbols_dir = catalog_dir / "symbols"
-        symbols_dir.mkdir(exist_ok=True)
+        symbols_dir.mkdir(exist_ok=True, parents=True)
+
+        valid_filenames = {f"{re.sub(r'[^a-zA-Z0-9_-]', '_', sym['name'])}.md" for sym in self.symbols}
+        for existing_file in symbols_dir.glob("*.md"):
+            if existing_file.name not in valid_filenames:
+                try:
+                    existing_file.unlink()
+                except Exception:
+                    pass
 
         for sym in self.symbols:
             safe_name = re.sub(r'[^a-zA-Z0-9_-]', '_', sym['name'])
