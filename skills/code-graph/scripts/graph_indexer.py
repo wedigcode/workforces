@@ -15,6 +15,7 @@ import os
 import re
 import subprocess
 import sys
+from collections import defaultdict
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Set
 
@@ -283,7 +284,12 @@ class SymbolIndexer:
         if not gitkeep_file.exists():
             gitkeep_file.touch()
 
-        valid_filenames = {f"{re.sub(r'[^a-zA-Z0-9_-]', '_', sym['name'])}.md" for sym in self.symbols}
+        # Group symbols by name to support multi-occurrence symbols cleanly
+        symbols_by_name = defaultdict(list)
+        for sym in self.symbols:
+            symbols_by_name[sym["name"]].append(sym)
+
+        valid_filenames = {f"{re.sub(r'[^a-zA-Z0-9_-]', '_', name)}.md" for name in symbols_by_name}
         valid_filenames.add(".gitkeep")
 
         for existing_file in symbols_dir.glob("*"):
@@ -293,28 +299,58 @@ class SymbolIndexer:
                 except Exception:
                     pass
 
-        for sym in self.symbols:
-            safe_name = re.sub(r'[^a-zA-Z0-9_-]', '_', sym['name'])
+        for name, occurrences in symbols_by_name.items():
+            safe_name = re.sub(r'[^a-zA-Z0-9_-]', '_', name)
             sym_file = symbols_dir / f"{safe_name}.md"
             with open(sym_file, "w", encoding="utf-8") as f:
                 f.write("---\n")
-                f.write(f"type: Code Symbol\n")
-                f.write(f"title: {sym['name']}\n")
-                f.write(f"description: {sym['kind'].capitalize()} in {sym['file']}\n")
-                f.write(f"language: {sym['language']}\n")
-                f.write(f"file: {sym['file']}\n")
-                f.write(f"line: {sym['line']}\n")
+                f.write("type: Code Symbol\n")
+                f.write(f"title: {name}\n")
+                if len(occurrences) == 1:
+                    sym = occurrences[0]
+                    f.write(f"description: {sym['kind'].capitalize()} in {sym['file']}\n")
+                    f.write(f"language: {sym['language']}\n")
+                    f.write(f"file: {sym['file']}\n")
+                    f.write(f"line: {sym['line']}\n")
+                else:
+                    f.write(f"description: {occurrences[0]['kind'].capitalize()} defined across {len(occurrences)} locations\n")
+                    f.write(f"language: {occurrences[0]['language']}\n")
+                    f.write(f"occurrences: {len(occurrences)}\n")
                 f.write("---\n\n")
-                f.write(f"# `{sym['name']}`\n\n")
-                f.write(f"- **Kind:** {sym['kind']}\n")
-                f.write(f"- **Signature:** `{sym['signature']}`\n")
-                f.write(f"- **Location:** [{sym['file']}](../../../../{sym['file']}#L{sym['line']})\n\n")
-                if sym['docstring']:
-                    f.write(f"## Documentation\n```\n{sym['docstring']}\n```\n\n")
-                if sym['calls']:
-                    f.write("## Dependencies / Calls\n")
-                    for call in sym['calls']:
-                        f.write(f"- `{call}`\n")
+
+                f.write(f"# `{name}`\n\n")
+
+                if len(occurrences) == 1:
+                    sym = occurrences[0]
+                    f.write(f"- **Kind:** {sym['kind']}\n")
+                    f.write(f"- **Signature:** `{sym['signature']}`\n")
+                    f.write(f"- **Location:** [{sym['file']}](../../../../{sym['file']}#L{sym['line']})\n\n")
+                    if sym['docstring']:
+                        f.write(f"## Documentation\n```\n{sym['docstring']}\n```\n\n")
+                    if sym['calls']:
+                        f.write("## Dependencies / Calls\n")
+                        for call in sym['calls']:
+                            f.write(f"- `{call}`\n")
+                else:
+                    f.write(f"Defined in **{len(occurrences)}** locations across the codebase.\n\n")
+                    f.write("## Summary Table\n\n")
+                    f.write("| Location | Kind | Language | Signature |\n")
+                    f.write("| -------- | ---- | -------- | --------- |\n")
+                    for sym in occurrences:
+                        f.write(f"| [{sym['file']}](../../../../{sym['file']}#L{sym['line']}) | {sym['kind']} | {sym['language']} | `{sym['signature']}` |\n")
+                    f.write("\n## Occurrences Detail\n\n")
+                    for idx, sym in enumerate(occurrences, 1):
+                        f.write(f"### {idx}. [{sym['file']}](../../../../{sym['file']}#L{sym['line']})\n\n")
+                        f.write(f"- **Kind:** {sym['kind']}\n")
+                        f.write(f"- **Signature:** `{sym['signature']}`\n")
+                        f.write(f"- **Location:** [{sym['file']}](../../../../{sym['file']}#L{sym['line']})\n\n")
+                        if sym['docstring']:
+                            f.write(f"**Documentation:**\n```\n{sym['docstring']}\n```\n\n")
+                        if sym['calls']:
+                            f.write("**Dependencies / Calls:**\n")
+                            for call in sym['calls']:
+                                f.write(f"- `{call}`\n")
+                            f.write("\n")
 
 
 def query_symbols(symbols: List[Dict[str, Any]], query: str) -> List[Dict[str, Any]]:
