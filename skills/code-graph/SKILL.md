@@ -29,6 +29,13 @@ python3 skills/code-graph/scripts/graph_indexer.py --scan ./ --query "<method_na
 python3 skills/code-graph/scripts/graph_indexer.py --scan ./ --out-okf workforces/knowledge-catalog
 ```
 
+### 3. Pre-Hook Impact & Blast Radius Analysis
+```bash
+python3 skills/code-graph/scripts/pre_impact_analyzer.py --file <path_to_file>
+```
+
+> For full architecture, language support, and output schema details, see the [Code Graph Documentation](../../docs/code-graph.md).
+
 ---
 
 ## OKF Output Schema

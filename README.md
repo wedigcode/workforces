@@ -68,6 +68,8 @@ For more setup options and environment configuration, see the [Setup Guide](docs
 ### Skills
 | Skill | Description |
 |-------|-------------|
+| [`code-graph`](skills/code-graph/SKILL.md) | Zero-dependency symbol indexer, function call graph mapper, and pre-hook impact analyzer |
+| [`post-code-review`](skills/post-code-review/SKILL.md) | Whole-codebase post-hook quality reviewer and blast-radius evaluator |
 | [`memory-management`](skills/memory-management/SKILL.md) | Protocol for navigating OKF catalogs and managing workspace memories |
 | [`github-project-planning`](skills/github-project-planning/SKILL.md) | Create/update GitHub issues and interact with Project V2 boards |
 | [`workforce-management`](skills/workforce-management/SKILL.md) | Update, patch, and align settings for the Workforces toolkit |

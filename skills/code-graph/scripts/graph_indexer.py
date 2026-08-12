@@ -43,15 +43,57 @@ class SymbolIndexer:
         self.root_dir = Path(root_dir).resolve()
         self.symbols: List[Dict[str, Any]] = []
 
-    def scan(self) -> List[Dict[str, Any]]:
+    def scan(self, json_path: Optional[Path] = None, force: bool = False) -> List[Dict[str, Any]]:
         self.symbols.clear()
+        
+        # Check cache validity if json_path exists
+        cached_symbols_by_file = {}
+        json_mtime = 0.0
+        if json_path and json_path.exists() and not force:
+            try:
+                json_mtime = json_path.stat().st_mtime
+                data = json.loads(json_path.read_text(encoding="utf-8"))
+                for sym in data.get("symbols", []):
+                    f_rel = sym.get("file")
+                    if f_rel:
+                        cached_symbols_by_file.setdefault(f_rel, []).append(sym)
+            except Exception:
+                cached_symbols_by_file.clear()
+
+        files_to_parse = []
+        files_unmodified = []
+
         for root, dirs, files in os.walk(self.root_dir):
             dirs[:] = [d for d in dirs if d not in IGNORE_DIRS and not d.startswith(".")]
             for file in files:
                 ext = Path(file).suffix.lower()
                 if ext in LANG_EXTENSIONS:
                     file_path = Path(root) / file
-                    self._parse_file(file_path, LANG_EXTENSIONS[ext])
+                    rel_path = str(file_path.relative_to(self.root_dir))
+                    try:
+                        file_mtime = file_path.stat().st_mtime
+                    except Exception:
+                        file_mtime = json_mtime + 1.0
+
+                    if cached_symbols_by_file and file_mtime <= json_mtime and rel_path in cached_symbols_by_file:
+                        files_unmodified.append(rel_path)
+                    else:
+                        files_to_parse.append((file_path, LANG_EXTENSIONS[ext]))
+
+        # Fast path: no files modified!
+        if cached_symbols_by_file and not files_to_parse:
+            for rel_path, syms in cached_symbols_by_file.items():
+                self.symbols.extend(syms)
+            return self.symbols
+
+        # Retain unmodified cached symbols
+        for rel_path in files_unmodified:
+            self.symbols.extend(cached_symbols_by_file[rel_path])
+
+        # Parse modified / new files
+        for file_path, lang in files_to_parse:
+            self._parse_file(file_path, lang)
+
         return self.symbols
 
     def _parse_file(self, file_path: Path, language: str):
@@ -177,7 +219,7 @@ class SymbolIndexer:
             f.write("| Symbol | Kind | Language | File | Signature |\n")
             f.write("|--------|------|----------|------|-----------|\n")
             for sym in self.symbols:
-                f.write(f"| `{sym['name']}` | {sym['kind']} | {sym['language']} | [{sym['file']}](file:///{self.root_dir}/{sym['file']}#L{sym['line']}) | `{sym['signature']}` |\n")
+                f.write(f"| `{sym['name']}` | {sym['kind']} | {sym['language']} | [{sym['file']}](../../{sym['file']}#L{sym['line']}) | `{sym['signature']}` |\n")
 
         # Write individual symbol OKF files for key functions
         symbols_dir = catalog_dir / "symbols"
@@ -198,7 +240,7 @@ class SymbolIndexer:
                 f.write(f"# `{sym['name']}`\n\n")
                 f.write(f"- **Kind:** {sym['kind']}\n")
                 f.write(f"- **Signature:** `{sym['signature']}`\n")
-                f.write(f"- **Location:** [{sym['file']}](file:///{self.root_dir}/{sym['file']}#L{sym['line']})\n\n")
+                f.write(f"- **Location:** [{sym['file']}](../../../{sym['file']}#L{sym['line']})\n\n")
                 if sym['docstring']:
                     f.write(f"## Documentation\n```\n{sym['docstring']}\n```\n\n")
                 if sym['calls']:
@@ -224,18 +266,21 @@ def main():
     parser.add_argument("--query", type=str, help="Search query for existing methods")
     parser.add_argument("--out-json", type=str, default="workforces/code-graph.json", help="Path to output JSON")
     parser.add_argument("--out-okf", type=str, default="workforces/knowledge-catalog", help="Path to OKF catalog")
+    parser.add_argument("--build-okf", action="store_true", help="Build full OKF markdown catalog files")
+    parser.add_argument("--force", action="store_true", help="Force full rescan ignoring cache")
 
     args = parser.parse_args()
 
     root_path = args.scan or "."
     indexer = SymbolIndexer(root_path)
-    symbols = indexer.scan()
-
     out_json_path = Path(args.out_json)
+    
+    symbols = indexer.scan(json_path=out_json_path, force=args.force)
     indexer.export_graph_json(out_json_path)
 
-    out_okf_path = Path(args.out_okf)
-    indexer.export_okf_catalog(out_okf_path)
+    if args.build_okf:
+        out_okf_path = Path(args.out_okf)
+        indexer.export_okf_catalog(out_okf_path)
 
     if args.query:
         matches = query_symbols(symbols, args.query)
@@ -247,9 +292,9 @@ def main():
                 print(f"    Doc: {m['docstring'][:80]}...")
             print()
     else:
-        print(f"✅ Code graph indexed successfully: {len(symbols)} symbols extracted.")
-        print(f"   JSON: {out_json_path}")
-        print(f"   OKF Catalog: {out_okf_path}/index.md")
+        print(f"⚡ Code graph up to date: {len(symbols)} symbols indexed in {out_json_path}.")
+        if args.build_okf:
+            print(f"   OKF Catalog: {args.out_okf}/index.md")
 
 
 if __name__ == "__main__":
