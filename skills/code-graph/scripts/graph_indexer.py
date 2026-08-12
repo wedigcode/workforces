@@ -58,7 +58,7 @@ class SymbolIndexer:
                 input="\n".join(rel_strings),
                 capture_output=True,
                 text=True,
-                timeout=5
+                timeout=30
             )
             ignored_set = set(res.stdout.splitlines())
             if not ignored_set:

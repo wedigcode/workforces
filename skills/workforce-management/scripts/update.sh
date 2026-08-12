@@ -23,6 +23,7 @@ NC='\033[0m'
 
 TARGET=""
 DRY=false
+FORCE=false
 NON_INTERACTIVE=false
 
 usage() {
@@ -32,6 +33,7 @@ usage() {
   echo ""
   echo "Options:"
   echo "  --dry                  Show what would change without modifying files"
+  echo "  --force                Force re-sync of all toolkit files regardless of version hash"
   echo "  --non-interactive      Run without prompting"
   echo ""
   exit 1
@@ -49,6 +51,9 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --dry)
       DRY=true
+      ;;
+    --force)
+      FORCE=true
       ;;
     --non-interactive)
       NON_INTERACTIVE=true
@@ -165,7 +170,7 @@ for d in plugins agents workflows rules skills teams; do
   fi
 done
 
-if [[ "$INSTALLED_HASH" == "$LATEST_HASH" && "$INSTALLED_HASH" != "unknown" && "$MISSING_CORE_DIRS" == false ]]; then
+if [[ "$FORCE" == false && "$INSTALLED_HASH" == "$LATEST_HASH" && "$INSTALLED_HASH" != "unknown" && "$MISSING_CORE_DIRS" == false ]]; then
   NEW_TEAMS_AVAILABLE=()
   if [[ -d "$SOURCE_DIR/teams" ]]; then
     for stdir in "$SOURCE_DIR/teams"/*; do
