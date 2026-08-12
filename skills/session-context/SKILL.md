@@ -101,3 +101,12 @@ When a user prompt references past conversations (e.g., *"Look at what we were j
 
 1. Auto-invoke `/context search` or inspect the highest sequence note in `workforces/session-context/`.
 2. Load and present the relevant context before executing new instructions.
+
+---
+
+## 5. Mandatory Pre-Response Checklist
+
+Before outputting your final text response after any interaction that modifies code, architectural decisions, or task requirements:
+1. You MUST invoke `write_to_file` to create or update `workforces/session-context/<seq>_<date>_<slug>.md`.
+2. Do NOT declare the turn complete or reply to the user until the session context note exists on disk.
+

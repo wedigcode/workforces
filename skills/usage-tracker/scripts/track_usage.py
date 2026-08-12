@@ -284,8 +284,38 @@ def track_usage(workspace_root=".", brain_dir=None):
     with open(summary_md_path, "w", encoding="utf-8") as f:
         f.write("\n".join(md_lines))
 
+    # Also update turn summary text file
+    if active_session:
+        conv_id = active_session.get("conversation_id")
+        m = active_session["metrics"]
+        sorted_tools = sorted(m.get("tool_counts", {}).items(), key=lambda x: x[1], reverse=True)
+        tool_str = ", ".join([f"{name}: {cnt}" for name, cnt in sorted_tools]) if sorted_tools else "None"
+        wf_str = ", ".join(m.get("workflows_triggered", [])) if m.get("workflows_triggered") else "None"
+        sum_lines = [
+            "═" * 68,
+            " 📊 WORKFORCES TURN SUMMARY (Post-Hook Execution)",
+            "═" * 68,
+            f" • Active Tools ({m.get('tool_call_count', 0)} calls): {tool_str}",
+            f" • Workflows Triggered : {wf_str}",
+            f" • Session Payload Tokens: ~{active_session['est_total_tokens']:,} tokens ({active_session['total_chars']:,} chars)",
+            "═" * 68
+        ]
+        sum_text = "\n".join(sum_lines) + "\n"
+        target_files = [os.path.join(tmp_dir, "turn-summary.txt")]
+        if conv_id:
+            target_files.append(os.path.join(tmp_dir, f"turn-summary-{conv_id}.txt"))
+
+        for tf in target_files:
+            try:
+                with open(tf, "w", encoding="utf-8") as stf:
+                    stf.write(sum_text)
+            except Exception:
+                pass
+
+
     print(f"✓ Token & Usage updated! Log: {json_log_path} | Summary: {summary_md_path}")
 
 if __name__ == "__main__":
     target = sys.argv[1] if len(sys.argv) > 1 and not sys.argv[1].startswith("--") else "."
     track_usage(workspace_root=target)
+

@@ -111,13 +111,44 @@ def print_summary():
     tool_str = ", ".join([f"{name}: {cnt}" for name, cnt in sorted_tools]) if sorted_tools else "None"
     wf_str = ", ".join(workflows_triggered) if workflows_triggered else "None"
 
-    print("\n" + "═" * 68)
-    print(" 📊 WORKFORCES TURN SUMMARY (Post-Hook Execution)")
-    print("═" * 68)
-    print(f" • Active Tools ({total_tool_calls} calls): {tool_str}")
-    print(f" • Workflows Triggered : {wf_str}")
-    print(f" • Session Payload Tokens: ~{est_tokens:,} tokens ({total_chars:,} chars)")
-    print("═" * 68 + "\n")
+    summary_lines = [
+        "═" * 68,
+        " 📊 WORKFORCES TURN SUMMARY (Post-Hook Execution)",
+        "═" * 68,
+        f" • Active Tools ({total_tool_calls} calls): {tool_str}",
+        f" • Workflows Triggered : {wf_str}",
+        f" • Session Payload Tokens: ~{est_tokens:,} tokens ({total_chars:,} chars)",
+        "═" * 68
+    ]
+    summary_text = "\n".join(summary_lines)
+
+    # 1. Print to stdout
+    print("\n" + summary_text + "\n")
+
+    # 2. Save to workforces/tmp/turn-summary.txt & session-scoped file
+    workspace_dir = sys.argv[1] if len(sys.argv) > 1 and not sys.argv[1].startswith("--") else "."
+    tmp_dir = os.path.join(os.path.abspath(workspace_dir), "workforces", "tmp")
+    os.makedirs(tmp_dir, exist_ok=True)
+
+    conv_id = None
+    try:
+        # transcript_file path: .../brain/<conv_id>/.system_generated/logs/transcript.jsonl
+        conv_id = os.path.basename(os.path.dirname(os.path.dirname(os.path.dirname(transcript_file))))
+    except Exception:
+        pass
+
+    summary_files = [os.path.join(tmp_dir, "turn-summary.txt")]
+    if conv_id:
+        summary_files.append(os.path.join(tmp_dir, f"turn-summary-{conv_id}.txt"))
+
+    for sf_path in summary_files:
+        try:
+            with open(sf_path, "w", encoding="utf-8") as sf:
+                sf.write(summary_text + "\n")
+        except Exception:
+            pass
 
 if __name__ == "__main__":
     print_summary()
+
+

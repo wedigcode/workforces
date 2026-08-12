@@ -54,3 +54,9 @@ During execution (whether in standard mode or auto-coordinator mode):
 
 - A parent workforce can read all child `workforces/README.md` files to get context.
 - A project should NOT need to know about other projects. Keep context scoped.
+
+## Response Usage Reporting Protocol
+
+- If `workforces/tmp/turn-summary.txt` (or session-scoped `workforces/tmp/turn-summary-<conversation_id>.txt`) exists at the end of a turn, read its content and append the `📊 WORKFORCES TURN SUMMARY` block to your final markdown response.
+
+

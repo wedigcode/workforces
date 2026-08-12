@@ -10,33 +10,47 @@ import os
 import sys
 
 def audit_teams(target_dir=".", fix=False):
-    teams_dir = os.path.join(target_dir, "workforces", "teams")
-    if not os.path.exists(teams_dir):
-        print(f"No teams directory found at {teams_dir}")
+    candidate_dirs = [
+        os.path.join(target_dir, "workforces", "teams"),
+        os.path.join(target_dir, ".agents", "teams")
+    ]
+    teams_dirs = [d for d in candidate_dirs if os.path.exists(d)]
+    if not teams_dirs:
+        print(f"No teams directory found at {os.path.join(target_dir, 'workforces', 'teams')}")
         return 0
 
     total_missing = 0
-    for team in sorted(os.listdir(teams_dir)):
-        team_path = os.path.join(teams_dir, team)
-        manifest_path = os.path.join(team_path, "team.json")
-        if not os.path.exists(manifest_path):
-            continue
+    scanned_teams = set()
 
-        try:
-            with open(manifest_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-        except Exception as e:
-            print(f"Error reading {manifest_path}: {e}")
-            continue
+    for teams_dir in teams_dirs:
+        for team in sorted(os.listdir(teams_dir)):
+            if team in scanned_teams:
+                continue
+            team_path = os.path.join(teams_dir, team)
+            if not os.path.isdir(team_path):
+                continue
+            manifest_path = os.path.join(team_path, "team.json")
+            if not os.path.exists(manifest_path):
+                continue
 
-        missing = []
-        for key in ["personas", "rules", "workflows"]:
-            for rel in data.get(key, []):
-                full_path = os.path.join(team_path, rel)
-                if not os.path.exists(full_path):
-                    missing.append((key, rel, full_path))
+            scanned_teams.add(team)
+            try:
+                with open(manifest_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+            except Exception as e:
+                print(f"Error reading {manifest_path}: {e}")
+                continue
 
-        print(f"\n=== Team: {team} ({data.get('name', team)}) ===")
+            missing = []
+            for key in ["personas", "rules", "workflows"]:
+                for rel in data.get(key, []):
+                    full_path = os.path.join(team_path, rel)
+                    alt_path = os.path.join(target_dir, rel)
+                    if not os.path.exists(full_path) and not os.path.exists(alt_path):
+                        missing.append((key, rel, full_path))
+
+            print(f"\n=== Team: {team} ({data.get('name', team)}) ===")
+
         if not missing:
             print("  ✓ All referenced personas, rules, and workflows exist!")
         else:

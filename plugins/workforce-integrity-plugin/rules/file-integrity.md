@@ -31,8 +31,10 @@ Every AI agent and workforce orchestrator MUST enforce complete reference lineag
 ## 4. Automated Validation Guardrail & Hooks
 
 - **Automated Hook Execution:** When `workforce-integrity-plugin` is active, the system automatically triggers validation via `post_tool_call` hooks upon file mutations (`write_to_file`, `replace_file_content`, `multi_replace_file_content`).
+- **Session Lineage Enforcement:** The hook verifies that active session context files exist in `workforces/session-context/`. If mutations occur without session context recording, a warning is raised.
 - **Manual Verification:** After creating or modifying team packs, plans, PRDs, or major documentation, run:
   ```bash
   python3 skills/workforce-management/scripts/validate-references.py ./ --fix
   ```
-- Ensure 0 dangling references exist before presenting completion summaries to the user.
+- Ensure 0 dangling references exist and active session context is saved before presenting completion summaries to the user.
+

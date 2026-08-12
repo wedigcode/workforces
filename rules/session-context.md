@@ -17,3 +17,11 @@ trigger: always_on
 3. **Zero-Narrative Parsimony:**
    - Maintain dense, facts-only markdown formatting adhering to the `session-context` skill frontmatter and schema.
    - Never add conversational filler to session notes.
+
+---
+
+### 🚨 MANDATORY PRE-RESPONSE CHECKLIST
+Before outputting your final text response after any interaction that modifies code, architectural decisions, or task requirements:
+1. You MUST invoke `write_to_file` to create or update `workforces/session-context/<seq>_<date>_<slug>.md`.
+2. Do NOT declare the turn complete or reply to the user until the session context note exists on disk.
+

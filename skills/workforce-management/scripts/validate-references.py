@@ -59,8 +59,9 @@ def audit_references(target_dir=".", fix=False):
                     if raw_link.startswith("http://") or raw_link.startswith("https://") or raw_link.startswith("#"):
                         continue
                     # Ignore placeholder docs example links
-                    if "example" in raw_link or "path/to/file" in raw_link or "modifiedfile" in raw_link:
+                    if "example" in raw_link or "path/to" in raw_link or "modifiedfile" in raw_link:
                         continue
+
 
                     clean_link = raw_link.replace("file://", "").split("#")[0]
                     if not clean_link:
@@ -72,12 +73,19 @@ def audit_references(target_dir=".", fix=False):
                         target_path = os.path.normpath(os.path.join(root, clean_link))
 
                     if not os.path.exists(target_path):
+                        # Fallback: check relative to workspace root (e.g. for files copied under .agents/)
+                        root_rel_path = os.path.normpath(os.path.join(target_dir, clean_link.replace("../", "")))
+                        if os.path.exists(root_rel_path):
+                            target_path = root_rel_path
+
+                    if not os.path.exists(target_path):
                         broken_refs.append({
                             "source": rel_source,
                             "type": "Markdown Link",
                             "ref": raw_link,
                             "target": target_path
                         })
+
 
                 # 3. Extract Unchecked TODO Tasks (- [ ])
                 todos = re.findall(r"^\s*-\s*\[\s*\]\s+(.+)$", content, re.MULTILINE)
@@ -86,6 +94,12 @@ def audit_references(target_dir=".", fix=False):
                         "source": rel_source,
                         "task": todo.strip()
                     })
+
+    # 4. Audit Session Context Lineage
+    session_ctx_dir = os.path.normpath(os.path.join(target_dir, "workforces", "session-context"))
+    session_notes = []
+    if os.path.exists(session_ctx_dir):
+        session_notes = [f for f in os.listdir(session_ctx_dir) if f.endswith(".md")]
 
     # Print Audit Report
     print("=" * 60)
@@ -115,6 +129,12 @@ def audit_references(target_dir=".", fix=False):
                     f.write(stub_content)
                 print(f"       └─ Fixed: Created missing file -> {item['target']}")
 
+    if session_notes:
+        print(f"  ✓ Session context lineage active ({len(session_notes)} note(s) in workforces/session-context/)")
+    else:
+        print("  ⚠️ Session Lineage Warning: No session note found in workforces/session-context/")
+        print("     └─ Remember to execute write_to_file to record session context before outputting final response.")
+
     if pending_todos:
         print(f"\n  📋 Found {len(pending_todos)} pending subtask(s):")
         for item in pending_todos:
@@ -130,3 +150,4 @@ if __name__ == "__main__":
     if broken_count > 0 and not fix_flag:
         sys.exit(1)
     sys.exit(0)
+
