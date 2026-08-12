@@ -265,6 +265,7 @@ if [[ -d "$SOURCE_DIR/skills" ]]; then
     while read -r f; do
       [[ -n "$f" ]] || continue
       rel_path="${f#$skill_dir/}"
+      copy_file "$f" "$TARGET/$BASE_DIR/skills/$skill_name/$rel_path" "$BASE_DIR/skills/$skill_name/$rel_path"
     done < <(find "$skill_dir" -type f)
   done
 fi
