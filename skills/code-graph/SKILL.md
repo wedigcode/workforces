@@ -1,6 +1,6 @@
 ---
 name: code-graph
-description: Graph Documentor and Method Indexer. Parses codebases into symbol catalogs and dependency maps stored in Open Knowledge Format (OKF).
+description: MANDATORY before writing, editing, or refactoring code. Graph documentor and method indexer to find existing functions, avoid duplication, and map call graphs.
 ---
 
 # Skill: Code Graph & Method Indexer

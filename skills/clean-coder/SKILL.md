@@ -1,6 +1,6 @@
 ---
 name: clean-coder
-description: Mindset and protocol for TDD, deduplication, clean architecture (SOLID/DRY/KISS), self-documenting code, and robust error handling.
+description: MANDATORY for all programming, coding, refactoring, bug fixes, function creation, or software architecture tasks. Enforces TDD, symbol deduplication before writing code, SOLID/DRY principles, self-documenting code, and zero error swallowing.
 ---
 
 # Skill: Clean Coder

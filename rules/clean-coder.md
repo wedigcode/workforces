@@ -8,6 +8,13 @@ These engineering rules govern all code generation, refactoring, and execution w
 
 ---
 
+## 0. Programming Task Detection & Mandatory Pre-Hooks
+- **Task Pre-Check**: Whenever a prompt or workflow step involves writing, refactoring, or modifying code (triggering tools like `write_to_file`, `replace_file_content`, `multi_replace_file_content`), the agent MUST treat it as a **Programming Task**.
+- **Mandatory Pre-Hook Execution**: Before modifying any code, the agent MUST automatically invoke the `code-graph` symbol discovery (`python3 skills/code-graph/scripts/graph_indexer.py --query <target_name>`) and load `skills/clean-coder` guidelines into active context.
+- **Fail-Safe**: If unsure whether a task is a programming task, evaluate: *Will this change modify application logic, functions, classes, or tests?* If YES, execute the pre-hook lookup immediately.
+
+---
+
 ## 1. Deduplication & Existing Method Discovery
 - **Check Before Create**: BEFORE creating any function, method, helper, or class, the agent MUST check if a suitable method already exists in the codebase.
 - **Symbol Index Lookup**: Use the `code-graph` tool (`python3 skills/code-graph/scripts/graph_indexer.py --query <name>`), `grep_search`, or the OKF catalog under `workforces/knowledge-catalog/` to verify existence.
