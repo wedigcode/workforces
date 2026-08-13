@@ -50,3 +50,19 @@ When generating an engineering team for a project, consider whether the project 
 - `api-design` (Schema design, OpenAPI/Swagger specifications, REST/GraphQL contract definitions, and database modeling)
 - `debug-investigate` (Log extraction, empirical traceback analysis, performance profiling, and root cause diagnosis)
 - `qa-automation` (Unit, integration, and E2E test suite implementation and continuous test orchestration)
+
+---
+
+## Design Integration (UI/UX Tasks)
+
+When a frontend task touches **visual design, CSS styling, layout, or UI components**, the `design-reviewer` agent is automatically invoked alongside `clean-coder`:
+
+1. **Dev team** implements the feature (clean-coder handles code quality)
+2. **Design Reviewer** runs a design audit before the task is marked complete
+3. If the design fails the anti-pattern checklist or brand consistency checks, the Design Reviewer revises or rejects — the dev team does NOT self-approve visual design
+
+**Trigger keywords for design review:** UI, UX, component, CSS, layout, styling, landing page, visual design, brand, frontend
+
+> The `clean-coder` agent handles code quality (correctness, architecture, tests).
+> The `design-reviewer` agent handles design quality (anti-patterns, brand, visual hierarchy, UX).
+> **Both must pass before a frontend task is complete.**

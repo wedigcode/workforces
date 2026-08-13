@@ -41,6 +41,18 @@ Drives customer-centric positioning, brand strategy, persuasive copywriting, vis
 
 ## SOP / Workflow Patterns
 When generating a marketing team for a project, consider whether the project needs:
+- `brand-context` — **Run first.** Establishes `docs/brand-context.md` with brand voice, palette, typography, and target audience. Shared with the design team.
 - `landing-page-copy` (High-converting landing page messaging framework, structure, and copy)
 - `launch-campaign` (Cross-channel campaign planning, asset generation, and launch sequencing)
 - `lead-magnet-funnel` (Valuable opt-in resource definition, lead capture form, and follow-up nurture sequence)
+
+---
+
+## Design Team Collaboration
+
+The marketing team and design team share brand context. All copy and visual assets must align with `docs/brand-context.md`:
+
+- **Brand voice (Section 3)** governs all marketing copy — same voice rules for emails, landing pages, ads, and social
+- **Visual identity (Section 4)** governs all design assets — same colors, fonts, and imagery style
+- The `design-reviewer` agent reviews any visual marketing asset before shipping
+- Campaigns requiring new visual assets should loop in the **Design Team** to ensure brand consistency
