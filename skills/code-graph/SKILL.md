@@ -21,18 +21,19 @@ Provides lightweight, zero-dependency symbol indexing, function discovery, and c
 
 ### 1. Check if a method exists
 ```bash
-python3 skills/code-graph/scripts/graph_indexer.py --scan ./ --query "<method_name>"
+python3 skills/code-graph/scripts/graph_indexer.py --scan ./ --query "<method_name>" [--target-dir <path>]
 ```
 
 ### 2. Full Codebase Indexing
 ```bash
-python3 skills/code-graph/scripts/graph_indexer.py --scan ./ --out-okf workforces/knowledge-catalog/code --build-okf
+python3 skills/code-graph/scripts/graph_indexer.py --scan ./ --out-okf workforces/knowledge-catalog/code --build-okf [--target-dir <path>]
 ```
 
 ### 3. Pre-Hook Impact & Blast Radius Analysis
 ```bash
-python3 skills/code-graph/scripts/pre_impact_analyzer.py --file <path_to_file>
+python3 skills/code-graph/scripts/pre_impact_analyzer.py --file <path_to_file> [--target-dir <path>]
 ```
+*(Note: Automatically resolves target project root from `workrules.md`/`workstate.md`, `WORKFORCE_TARGET_DIR`, or pass explicit `--target-dir <path>`)*
 
 > For full architecture, language support, and output schema details, see the [Code Graph Documentation](../../docs/code-graph.md).
 

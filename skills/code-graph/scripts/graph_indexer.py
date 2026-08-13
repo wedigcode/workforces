@@ -364,31 +364,154 @@ def query_symbols(symbols: List[Dict[str, Any]], query: str) -> List[Dict[str, A
     return matches
 
 
+def resolve_target_dir(
+    root_arg: str = "./",
+    target_dir_arg: Optional[str] = None,
+    target_file_hint: Optional[str] = None
+) -> Path:
+    """
+    Intelligently resolve the target codebase root path when running in a workforce or project repo.
+    """
+    root_path = Path(root_arg).resolve()
+
+    # 1. Explicit CLI argument override (--target-dir or --project-root)
+    if target_dir_arg:
+        td = Path(target_dir_arg)
+        if not td.is_absolute():
+            td = (root_path / td).resolve()
+        if td.exists():
+            return td
+
+    # 2. Environment variable overrides
+    for env_var in ["WORKFORCE_TARGET_DIR", "TARGET_REPO_ROOT", "PROJECT_ROOT"]:
+        env_val = os.getenv(env_var)
+        if env_val:
+            td = Path(env_val)
+            if not td.is_absolute():
+                td = (root_path / td).resolve()
+            if td.exists():
+                return td
+
+    # 3. Read workforce configuration files (workrules.md, workstate.md)
+    config_files = [
+        root_path / "workforces" / "workrules.md",
+        root_path / "workforces" / "workstate.md",
+        root_path / "workrules.md",
+        root_path / "workstate.md",
+    ]
+    for cfg in config_files:
+        if cfg.exists():
+            try:
+                content = cfg.read_text(encoding="utf-8", errors="ignore")
+                for line in content.splitlines():
+                    match = re.search(
+                        r"^\s*(?:-\s*)?(?:target_dir|project_root|target_repo|repo_root|active_project)\s*:\s*[`'\"]?([^`'\"]+)[`'\"]?",
+                        line,
+                        re.IGNORECASE,
+                    )
+                    if match:
+                        target_val = match.group(1).strip()
+                        td = Path(target_val)
+                        if not td.is_absolute():
+                            td = (root_path / td).resolve()
+                        if td.exists():
+                            return td
+            except Exception:
+                pass
+
+    # 4. Target file hint (e.g. apps/chcked/app/api/... or /path/to/apps/chcked/...)
+    if target_file_hint:
+        hint_path = Path(target_file_hint)
+        if hint_path.is_absolute():
+            try:
+                rel_parts = hint_path.relative_to(root_path).parts
+            except Exception:
+                rel_parts = hint_path.parts
+        else:
+            rel_parts = hint_path.parts
+
+        if len(rel_parts) >= 2 and rel_parts[0] in ("apps", "packages", "services", "projects"):
+            cand = root_path / rel_parts[0] / rel_parts[1]
+            if cand.exists():
+                return cand
+
+    # 5. Code presence auto-detection:
+    # If root_path contains NO source code files, check subfolders like apps/*, packages/*, services/*, src/*
+    source_exts = {".py", ".ts", ".tsx", ".js", ".jsx", ".go", ".rs", ".java", ".cs", ".php", ".rb"}
+    ignore_top_dirs = {".git", ".agents", "workforces", "teams", "workflows", "skills", "rules", "docs", "plugins", "node_modules", "vendor", "__pycache__"}
+    
+    has_top_level_code = False
+    for root, dirs, files in os.walk(root_path):
+        rel_to_root = Path(root).relative_to(root_path)
+        if any(part in ignore_top_dirs for part in rel_to_root.parts):
+            dirs[:] = []
+            continue
+        for file in files:
+            if Path(file).suffix.lower() in source_exts:
+                has_top_level_code = True
+                break
+        if has_top_level_code:
+            break
+
+    if not has_top_level_code:
+        for parent_sub in ("apps", "packages", "services", "src", "projects"):
+            sub_dir = root_path / parent_sub
+            if sub_dir.exists() and sub_dir.is_dir():
+                for child in sub_dir.iterdir():
+                    if child.is_dir() and not child.name.startswith("."):
+                        return child
+
+    return root_path
+
+
 def main():
     parser = argparse.ArgumentParser(description="Code Graph Indexer & Method Finder (Workforces)")
     parser.add_argument("--scan", type=str, help="Scan codebase path")
+    parser.add_argument("--target-dir", type=str, help="Target project codebase directory")
     parser.add_argument("--query", type=str, help="Search query for existing methods")
-    parser.add_argument("--out-json", type=str, default="workforces/code-graph.json", help="Path to output JSON")
-    parser.add_argument("--out-okf", type=str, default="workforces/knowledge-catalog/code", help="Path to OKF catalog")
+    parser.add_argument("--out-json", type=str, help="Path to output JSON")
+    parser.add_argument("--out-okf", type=str, help="Path to OKF catalog")
     parser.add_argument("--build-okf", action="store_true", help="Build full OKF markdown catalog files")
     parser.add_argument("--force", action="store_true", help="Force full rescan ignoring cache")
 
     args = parser.parse_args()
 
-    root_path = args.scan or "."
-    indexer = SymbolIndexer(root_path)
-    out_json_path = Path(args.out_json)
+    base_root = Path(args.scan or ".").resolve()
+    target_root = resolve_target_dir(root_arg=args.scan or ".", target_dir_arg=args.target_dir)
+
+    out_json = args.out_json
+    if not out_json:
+        if (target_root / "workforces").exists() or not (base_root / "workforces").exists():
+            out_json_path = target_root / "workforces" / "code-graph.json"
+        else:
+            out_json_path = base_root / "workforces" / "code-graph.json"
+    else:
+        out_json_path = Path(out_json)
+        if not out_json_path.is_absolute():
+            out_json_path = base_root / out_json_path
+
+    out_okf = args.out_okf
+    if not out_okf:
+        if (target_root / "workforces").exists() or not (base_root / "workforces").exists():
+            out_okf_path = target_root / "workforces" / "knowledge-catalog" / "code"
+        else:
+            out_okf_path = base_root / "workforces" / "knowledge-catalog" / "code"
+    else:
+        out_okf_path = Path(out_okf)
+        if not out_okf_path.is_absolute():
+            out_okf_path = base_root / out_okf_path
+
+    indexer = SymbolIndexer(str(target_root))
     
     symbols = indexer.scan(json_path=out_json_path, force=args.force)
     indexer.export_graph_json(out_json_path)
 
     if args.build_okf:
-        out_okf_path = Path(args.out_okf)
         indexer.export_okf_catalog(out_okf_path)
 
     if args.query:
         matches = query_symbols(symbols, args.query)
-        print(f"\n🔍 Query: '{args.query}' — Found {len(matches)} matching symbol(s):\n")
+        print(f"\n🔍 Query: '{args.query}' — Found {len(matches)} matching symbol(s) in `{target_root}`:\n")
         for m in matches:
             print(f"  • [{m['kind']}] {m['name']} ({m['language']}) -> {m['file']}:{m['line']}")
             print(f"    Signature: {m['signature']}")
@@ -396,10 +519,11 @@ def main():
                 print(f"    Doc: {m['docstring'][:80]}...")
             print()
     else:
-        print(f"⚡ Code graph up to date: {len(symbols)} symbols indexed in {out_json_path}.")
+        print(f"⚡ Code graph up to date for `{target_root}`: {len(symbols)} symbols indexed in {out_json_path}.")
         if args.build_okf:
-            print(f"   OKF Catalog: {args.out_okf}/index.md")
+            print(f"   OKF Catalog: {out_okf_path}/index.md")
 
 
 if __name__ == "__main__":
     main()
+

@@ -26,11 +26,11 @@ Automated post-tool code reviewer designed to audit code modifications in contex
 ```bash
 python3 .agents/skills/post-code-review/scripts/post_code_reviewer.py --root ./
 ```
-*(Or `python3 skills/post-code-review/scripts/post_code_reviewer.py --root ./`)*
+*(Or `python3 skills/post-code-review/scripts/post_code_reviewer.py --root ./` — automatically resolves target project root from `workrules.md`/`workstate.md`, `WORKFORCE_TARGET_DIR`, or pass explicit `--target-dir <path>`)*
 
 ### Pre-Hook Context Analysis (Pre-Coding)
 ```bash
-python3 skills/code-graph/scripts/pre_impact_analyzer.py --file <target_file>
+python3 skills/code-graph/scripts/pre_impact_analyzer.py --file <target_file> [--target-dir <path>]
 ```
 
 ---

@@ -10,7 +10,7 @@ These engineering rules govern all code generation, refactoring, and execution w
 
 ## 0. Programming Task Detection & Mandatory Pre-Hooks
 - **Task Pre-Check**: Whenever a prompt or workflow step involves writing, refactoring, or modifying code (triggering tools like `write_to_file`, `replace_file_content`, `multi_replace_file_content`), the agent MUST treat it as a **Programming Task**.
-- **Mandatory Pre-Hook Execution**: Before modifying any code, the agent MUST automatically invoke the `code-graph` symbol discovery (`python3 .agents/skills/code-graph/scripts/graph_indexer.py --query <target_name>` or `python3 skills/code-graph/scripts/graph_indexer.py --query <target_name>`) and load `skills/clean-coder` guidelines into active context.
+- **Mandatory Pre-Hook Execution**: Before modifying any code, the agent MUST automatically invoke the `code-graph` symbol discovery (`python3 .agents/skills/code-graph/scripts/graph_indexer.py --query <target_name>` or `skills/code-graph/scripts/graph_indexer.py --query <target_name>`) and load `skills/clean-coder` guidelines into active context. (Note: Use optional `--target-dir <path>` if orchestrating a child project directory outside workforce root).
 - **Fail-Safe**: If unsure whether a task is a programming task, evaluate: *Will this change modify application logic, functions, classes, or tests?* If YES, execute the pre-hook lookup immediately.
 
 ---
@@ -42,7 +42,7 @@ These engineering rules govern all code generation, refactoring, and execution w
   ```bash
   python3 .agents/skills/post-code-review/scripts/post_code_reviewer.py --root ./
   ```
-  *(Fallback: `python3 skills/post-code-review/scripts/post_code_reviewer.py --root ./`)*
+  *(Fallback: `python3 skills/post-code-review/scripts/post_code_reviewer.py --root ./` — automatically resolves target project root from `workrules.md`/`workstate.md` or `WORKFORCE_TARGET_DIR`).*
 - **Self-Remediation**: Any flagged items (swallowed errors, contract breaking changes, over-engineering warnings, missing tests) MUST be addressed and resolved before presenting completion results to the user.
 
 ## 5. Naming & Self-Documenting Code
