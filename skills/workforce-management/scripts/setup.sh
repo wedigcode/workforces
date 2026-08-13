@@ -199,9 +199,16 @@ echo ""
 mkdir -p "$AGENTS_DIR" "$WORKFLOWS_DIR" "$SKILLS_DIR" "$RULES_DIR"
 
 # ─── Copy Agents (Flat) ───
+AGENTS_SRC=""
 if [[ -d "$TOOLKIT_ROOT/agents" ]]; then
+  AGENTS_SRC="$TOOLKIT_ROOT/agents"
+elif [[ -d "$TOOLKIT_ROOT/.agents/agents" ]]; then
+  AGENTS_SRC="$TOOLKIT_ROOT/.agents/agents"
+fi
+
+if [[ -n "$AGENTS_SRC" ]]; then
   echo -e "${BOLD}▸ Copying Agents...${NC}"
-  for f in "$TOOLKIT_ROOT/agents"/*.md; do
+  for f in "$AGENTS_SRC"/*.md; do
     [[ -f "$f" ]] || continue
     basename=$(basename "$f")
     copy_file "$f" "$AGENTS_DIR/$basename" "$BASE_DIR/agents/$basename"

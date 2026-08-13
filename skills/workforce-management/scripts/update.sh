@@ -245,8 +245,15 @@ copy_file() {
 }
 
 # ─── Copy Agents ───
+AGENTS_SRC=""
 if [[ -d "$SOURCE_DIR/agents" ]]; then
-  for f in "$SOURCE_DIR/agents"/*.md; do
+  AGENTS_SRC="$SOURCE_DIR/agents"
+elif [[ -d "$SOURCE_DIR/.agents/agents" ]]; then
+  AGENTS_SRC="$SOURCE_DIR/.agents/agents"
+fi
+
+if [[ -n "$AGENTS_SRC" ]]; then
+  for f in "$AGENTS_SRC"/*.md; do
     [[ -f "$f" ]] || continue
     basename=$(basename "$f")
     copy_file "$f" "$TARGET/$BASE_DIR/agents/$basename" "$BASE_DIR/agents/$basename"
