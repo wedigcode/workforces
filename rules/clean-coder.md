@@ -49,3 +49,11 @@ These engineering rules govern all code generation, refactoring, and execution w
 - **Expressive Naming**: Use intent-revealing names for variables, methods, and classes (e.g. `calculateMonthlyTaxableIncome` instead of `calcTax`).
 - **Clean Comments**: Comments must explain *why* non-obvious code decisions were made, NOT *what* standard code line does. Let clean code describe *what*.
 - **No Swallowed Errors**: NEVER write empty `catch` or `except` blocks, silence exceptions with dummy fallbacks, or ignore promise rejections. Log, annotate, or propagate errors gracefully.
+
+## 6. Framework Installation & Scaffolding Safeguard (Stop & Prompt User Rule)
+- **No Manual Boilerplate Re-invention**: If an automated framework installation or package scaffolding command (e.g. `npx create-next-app`, `npm create vite@latest`, `django-admin startproject`, `poetry new`, `cargo new`, `firebase init`, `amplify init`, `docker build`) fails, blocks, requires interactive input, or hits sandbox network barriers:
+  - **The agent MUST NEVER attempt to manually code or hand-write framework internals, complex config files, or node_modules from scratch.**
+  - **STOP EXECUTION IMMEDIATELY.**
+  - Provide the exact shell command(s) for the user to run directly in their local terminal.
+  - Instruct the user to confirm once the command finishes, then resume automated workflow execution cleanly using the official scaffolded files.
+

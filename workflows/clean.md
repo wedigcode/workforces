@@ -30,7 +30,26 @@ Run automated quality and hygiene checks:
 
 ---
 
-## Step 3: Summary Report
+## Step 3: Deferred Issue Reporting
+
+For any issues found in Step 2 that cannot be fixed immediately (e.g. dead code intertwined with active logic, architectural debt, breaking-change refactors), report each one to the issue inbox:
+
+```bash
+python3 .agents/skills/issue-tracker/scripts/report-issue.py \
+    --title "[Brief description]" \
+    --type debt \
+    --severity P2 \
+    --reporter clean \
+    --file "[affected file]" \
+    --description "[What was found and why it can't be fixed now]" \
+    --suggested-action "[What should be done]"
+```
+
+Do NOT silently drop findings. Every unfixable issue from the clean audit becomes an inbox item.
+
+---
+
+## Step 4: Summary Report
 
 Outputs a clean summary matrix:
 
@@ -43,4 +62,6 @@ Outputs a clean summary matrix:
 | **OKF Knowledge Catalog** | ✅ Rebuilt | Catalog synced at `workforces/knowledge-catalog/code/index.md` |
 | **Dead Code / Unused Symbols** | ⚠️ 2 found | `unused_helper()` (src/utils.ts:L14) |
 | **Workspace Scratch Clean** | ✅ Clean | 0 stale files removed |
+| **Issues Reported to Inbox** | 📬 2 logged | Run `/task triage` for PM review |
 ```
+

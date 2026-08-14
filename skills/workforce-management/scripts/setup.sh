@@ -31,6 +31,7 @@ TARGET=""
 REPO_TYPE=""
 EDITOR_TYPE=""
 TEAMS_ARG=""
+SITE_SETUP=""
 NON_INTERACTIVE=false
 
 usage() {
@@ -42,6 +43,8 @@ usage() {
   echo "  --type <type>          Repo type: workforce or project"
   echo "  --editor <type>        Editor type: antigravity, vscode, claude, auto (default: auto)"
   echo "  --teams <team-list>    Teams to install (e.g. 'brand-marketing,sales-outreach', 'all', 'none')"
+  echo "  --site-setup           Initialize Site Setup & Product Brief starter (for greenfield sites)"
+  echo "  --skip-site-setup      Skip Site Setup initialization"
   echo "  --non-interactive      Do not prompt for any options (fails on invalid configuration)"
   echo ""
   exit 1
@@ -69,6 +72,12 @@ while [[ $# -gt 0 ]]; do
       shift
       TEAMS_ARG="$1"
       ;;
+    --site-setup)
+      SITE_SETUP=true
+      ;;
+    --skip-site-setup)
+      SITE_SETUP=false
+      ;;
     --non-interactive)
       NON_INTERACTIVE=true
       ;;
@@ -90,6 +99,34 @@ if [[ ! -d "$TARGET" ]]; then
 fi
 
 TARGET="$(cd "$TARGET" && pwd)"
+
+# Detect if target workspace is empty / greenfield
+IS_EMPTY_WORKSPACE=false
+NON_DOT_COUNT=$(find "$TARGET" -maxdepth 1 -not -name ".*" | grep -v "^$TARGET$" | wc -l || true)
+if [[ "$NON_DOT_COUNT" -eq 0 ]]; then
+  IS_EMPTY_WORKSPACE=true
+fi
+
+# ─── Site Setup Prompt for Empty Repos ───
+if [[ -z "$SITE_SETUP" ]]; then
+  if [[ "$IS_EMPTY_WORKSPACE" == true ]]; then
+    if [[ "$NON_INTERACTIVE" == true ]]; then
+      SITE_SETUP=true
+    else
+      echo ""
+      echo -e "${BOLD}${CYAN}🚀 Empty project workspace detected!${NC}"
+      echo "Would you like to initialize a Site Setup & Product Brief (Design Pilot)?"
+      read -p "Enable site setup? (y/n) [default: y]: " site_choice
+      case "$site_choice" in
+        n|N|no|No) SITE_SETUP=false ;;
+        *) SITE_SETUP=true ;;
+      esac
+    fi
+  else
+    SITE_SETUP=false
+  fi
+fi
+
 
 # ─── Repo Type Detection / Prompt ───
 if [[ -z "$REPO_TYPE" ]]; then
@@ -353,7 +390,24 @@ fi
 
 # Seed workstate.md if not already present
 if [[ ! -f "$WORKFORCES_DIR/workstate.md" ]]; then
-  cat > "$WORKFORCES_DIR/workstate.md" << EOF
+  if [[ "$SITE_SETUP" == true ]]; then
+    cat > "$WORKFORCES_DIR/workstate.md" << EOF
+# Work State
+
+## Configuration
+| Setting | Value |
+|---------|-------|
+| GitHub Usernames | @me |
+| Ignored Repos | |
+| Goals Directory | workforces/goals/ |
+
+## Active Tasks
+| # | Task | Priority | Score | Status | Issue | Started | Notes |
+|---|------|----------|-------|--------|-------|---------|-------|
+| 1 | Complete /site-setup — Design Pilot Product Brief & Multi-Team Handoffs | P0 | RICE: 950 | pending | — | $(date +%Y-%m-%d) | Define site type, tech stack, design concepts, and AI protocols |
+EOF
+  else
+    cat > "$WORKFORCES_DIR/workstate.md" << EOF
 # Work State
 
 ## Configuration
@@ -363,8 +417,78 @@ if [[ ! -f "$WORKFORCES_DIR/workstate.md" ]]; then
 | Ignored Repos | |
 | Goals Directory | workforces/goals/ |
 EOF
+  fi
   echo -e "  ${GREEN}CREATED:${NC} workforces/workstate.md"
 fi
+
+# ─── Initialize Site Setup Artifacts if requested ───
+if [[ "$SITE_SETUP" == true ]]; then
+  DOCS_DIR="$TARGET/docs"
+  mkdir -p "$DOCS_DIR"
+  if [[ ! -f "$DOCS_DIR/product-brief.md" ]]; then
+    cat > "$DOCS_DIR/product-brief.md" << EOF
+# Product Brief: [Site / Product Name]
+
+_Status: Draft — Run /site-setup (or invoke @design-pilot) to complete this brief._
+
+---
+
+## 1. Project Summary & Goals
+- **Site Type:** [SaaS / Local Lead Gen / E-commerce / Blog / Portfolio / Web App]
+- **Business Model:** [Direct Service / Lead Gen Affiliate / Subscription SaaS / Direct Sales]
+- **Core Objective:** [Primary conversion action and visitor value]
+- **Target Audience:** [Key customer personas and pain points]
+
+## 2. Creative Concept & Narrative
+- **Visual Metaphor & Story:** [Defined via @design-pilot]
+- **Inspiration References:** [Awwwards / SiteInspire / Dribbble / Land-book / Landing.love]
+- **Design Archetype:** [e.g., Editorial Minimalist, Neo-Brutalist, Dark Luxury, High-Tech Clean]
+
+## 3. Layout Specification
+- **Key Regions:** [Header, Hero, Problem/Solution, Feature Grid, Social Proof, Pricing/CTA, Footer]
+- **Responsive Architecture:** [Mobile-first breakpoints]
+
+## 4. Visual Style Guide & Tokens
+- **Brand Colors:** [Primary, Secondary, Accent, Neutrals]
+- **Typography:** [Display / Heading / Body font pairings]
+- **Tokens File:** \`src/styles/tokens.css\` (or framework styling tokens)
+
+## 5. Content Direction
+- **Brand Voice:** [Tone, do's and don'ts]
+- **Headlines & Hook:** [Conversion copy script]
+
+## 6. Technical Stack & Hosting Architecture
+- **Framework:** [Next.js / Python FastAPI or Django / Vite / Astro / Plain HTML]
+- **Styling:** [Vanilla CSS / CSS Modules / Tailwind]
+- **Hosting:** [Cloudflare Pages / AWS Amplify / Google Firebase or Cloud Run / Docker]
+- **Database / Backend:** [Supabase / Firebase / SQLite / PostgreSQL / None / Static]
+
+## 7. Compliance & AI Search Protocol Guidelines
+- **Compliance Variant:** [Standard / Lead-Gen FTC Disclosure]
+- **AI Protocol Files:** [robots.txt, llms.txt, ai.txt, sitemap, ai-plugin.json]
+EOF
+    echo -e "  ${GREEN}CREATED:${NC} docs/product-brief.md"
+  fi
+
+  if [[ ! -f "$WORKFORCES_DIR/images.json" ]]; then
+    cat > "$WORKFORCES_DIR/images.json" << EOF
+{
+  "brandVariables": {
+    "primaryColor": "",
+    "primaryHex": "",
+    "secondaryColor": "",
+    "secondaryHex": "",
+    "brandMood": "",
+    "visualStyle": "",
+    "tone": ""
+  },
+  "images": []
+}
+EOF
+    echo -e "  ${GREEN}CREATED:${NC} workforces/images.json"
+  fi
+fi
+
 
 # Setup project specific structure / Git Exclude
 if [[ "$REPO_TYPE" == "project" ]]; then
@@ -488,5 +612,14 @@ echo -e "  Skipped: $SKIPPED files (already identical)"
 echo -e "  Editor:  ${CYAN}$DETECTED_EDITOR${NC}"
 echo ""
 echo -e "  ${GREEN}✓ Workforces toolkit installed successfully!${NC}"
+if [[ "$SITE_SETUP" == true ]]; then
+  echo ""
+  echo -e "  ${BOLD}${CYAN}🚀 Site Setup Initialized:${NC}"
+  echo -e "     Run ${BOLD}/site-setup${NC} (or invoke ${BOLD}@design-pilot${NC}) in your AI assistant to:"
+  echo -e "     1. Brainstorm creative design concepts & generate visual mockups"
+  echo -e "     2. Select tech stack & cloud hosting"
+  echo -e "     3. Complete your Product Brief (${CYAN}docs/product-brief.md${NC})"
+fi
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
+

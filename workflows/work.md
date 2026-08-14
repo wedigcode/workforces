@@ -11,8 +11,9 @@ Your single command center. Scans your GitHub queue, surfaces the top task, and 
 ## Usage
 
 ```
-/work                    → Full run: GitHub queue + top task
+/work                    → Full run: GitHub queue + issue inbox + top task
 /work --auto (or --all)  → Auto-coordinator mode: execute all active/pending tasks end-to-end
+/work site-setup         → Greenfield site setup & Product Brief pipeline (delegates to /site-setup)
 /work feature [idea]     → Start feature research & PRD pipeline (delegates to /feature)
 /work feature [idea] --auto → Research, plan, and automatically execute all tasks end-to-end
 /work plan [goal]        → Create execution plan & estimates (delegates to /plan)
@@ -60,7 +61,31 @@ Create `workforces/workstate.md` with empty scaffolding (see [State Management](
 
 ---
 
-## Step 2 — GitHub Queue
+## Step 2 — GitHub Queue & Issue Inbox
+
+### 2a — Issue Inbox
+
+Before querying GitHub, check the local issue inbox:
+
+```bash
+ls workforces/issues/inbox/*.md 2>/dev/null | wc -l
+```
+
+If the inbox has **1 or more** files, surface a prompt:
+
+```markdown
+### 📬 Issue Inbox — N items pending triage
+
+| File | Title | Type | Severity | Reporter | Age |
+|------|-------|------|----------|---------|-----|
+| 20260813-... | Dead code in utils.py | debt | P2 | clean-coder | 2h |
+
+💡 Run `/task triage` to let the Project Manager review these.
+```
+
+If the inbox is empty, skip this block.
+
+### 2b — GitHub Queue
 
 ```bash
 # Issues assigned to me
@@ -167,9 +192,30 @@ When invoked with `--auto`/`--all` or when `auto_delegate: true` is configured i
 
 ## Subcommands
 
+### `/task [subcommand]`
+
+Report deferred issues, bugs, design problems, and ideas. Invokes the `project-manager` subagent for triage.
+See [`workflows/task.md`](./task.md) for the full command reference.
+
+```
+/task                  → Show inbox summary
+/task report           → Guided issue reporting
+/task triage           → PM triages all pending inbox items
+/task list             → Browse all issues
+```
+
+---
+
+### `/work site-setup`
+
+Triggers the greenfield site setup and Product Brief pipeline. See [`workflows/site-setup.md`](./site-setup.md).
+
+Coordinates multi-team handoffs across `@project-manager`, Marketing, `@design-pilot` (Awwwards/SiteInspire inspiration, `generate_image` concept mockups, layout specs, tokens), Compliance (Lead Gen disclosures vs SaaS terms), and Engineering (tech stack scaffolding under installer safeguard rules and language-specific AI protocol generation).
+
 ### `/work feature [idea]`
 
 Triggers the research & specification pipeline. See [`workflows/feature.md`](./feature.md).
+
 
 Runs gap analysis, produces feature brief & PRD, breaks down tasks, and optionally hands off to `/plan --from-prd`.
 

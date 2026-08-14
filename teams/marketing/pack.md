@@ -41,10 +41,12 @@ Drives customer-centric positioning, brand strategy, persuasive copywriting, vis
 
 ## SOP / Workflow Patterns
 When generating a marketing team for a project, consider whether the project needs:
+- `site-setup` — **Run on empty/greenfield repos.** Sets up initial Product Brief, target personas, conversion goals, and brand context.
 - `brand-context` — **Run first.** Establishes `docs/brand-context.md` with brand voice, palette, typography, and target audience. Shared with the design team.
 - `landing-page-copy` (High-converting landing page messaging framework, structure, and copy)
 - `launch-campaign` (Cross-channel campaign planning, asset generation, and launch sequencing)
 - `lead-magnet-funnel` (Valuable opt-in resource definition, lead capture form, and follow-up nurture sequence)
+
 
 ---
 

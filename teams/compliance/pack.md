@@ -21,9 +21,11 @@ Ensures regulatory compliance, data privacy, ad platform adherence, and governan
    - **Ad Platform Compliance:** Review advertising campaigns, landing page claims, claims substantiation, and prohibited content rules for Google Ads, Meta Ads, TikTok, and major ad networks to prevent account suspensions.
 
 4. **Compliance Focus by Business Model:**
+   - **Lead Generation / Affiliate:** Transparent contractor referral disclaimers, no false satisfaction/licensing guarantees, FTC advertising disclosure, privacy policies on all pages.
    - **SaaS:** Data privacy (GDPR/CCPA), terms of service, cookie consent, subscription cancellation disclosure, auto-renewal compliance.
    - **Local Service:** Local licensing disclosures, transparent pricing quotes, anti-spam (TCPA/CAN-SPAM) opt-out options, SMS consent logging.
    - **Enterprise:** Formal SOC2 Type II controls, HIPAA BAA agreements, ISO 27001 auditing, vendor risk assessments, enterprise SLA compliance.
+
 
 ---
 

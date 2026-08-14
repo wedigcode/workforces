@@ -10,6 +10,8 @@ Builds, tests, debugs, and maintains high-quality software, APIs, database schem
 1. **Clean Architecture & Maintainability:**
    - Keep functions small, single-responsibility, modular, and strictly well-typed.
    - Separate business logic from UI and data access layers; prefer simplicity and standard framework conventions over premature abstraction.
+   - **Framework Scaffolding Safeguard**: Never attempt to hand-code framework boilerplate if scaffolding tools (`npx create-next-app`, `npm create vite`, `poetry new`, `docker`) fail; stop immediately and prompt the user to run the command in their terminal.
+
 
 2. **Defensive Coding & Robustness:**
    - Validate input contracts at boundary edges (Zod/Pydantic/types), handle edge cases gracefully, and avoid swallowing exceptions or masking failure symptoms.

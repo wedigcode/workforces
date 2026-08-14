@@ -45,6 +45,11 @@ bash /tmp/workforces/skills/workforce-management/scripts/setup.sh ./ --editor cl
 # Specify repository role
 bash /tmp/workforces/skills/workforce-management/scripts/setup.sh ./ --type project         # Standard project codebase (recommends local git-exclude)
 bash /tmp/workforces/skills/workforce-management/scripts/setup.sh ./ --type workforce       # Central coordinator tracking multiple projects
+
+# Greenfield Site Setup (for new websites, SaaS apps, or landing pages)
+bash /tmp/workforces/skills/workforce-management/scripts/setup.sh ./ --site-setup           # Initializes docs/product-brief.md and workforces/images.json
+bash /tmp/workforces/skills/workforce-management/scripts/setup.sh ./ --skip-site-setup      # Skips site setup initialization
+
 ```
 
 ---

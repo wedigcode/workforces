@@ -70,6 +70,9 @@ For more setup options and environment configuration, see the [Setup Guide](docs
 |-------|-------------|
 | [`code-graph`](skills/code-graph/SKILL.md) | Zero-dependency symbol indexer, function call graph mapper, and pre-hook impact analyzer |
 | [`post-code-review`](skills/post-code-review/SKILL.md) | Whole-codebase post-hook quality reviewer and blast-radius evaluator |
+| [`site-setup`](skills/site-setup/SKILL.md) | Greenfield site initialization, multi-team handoffs, scaffolding safeguards, and brief generation |
+| [`ai-search-optimization`](skills/ai-search-optimization/SKILL.md) | Framework-aware GEO readiness: llms.txt, robots.txt, ai.txt, ai-plugin.json, and sitemaps |
+| [`image-workflow`](skills/image-workflow/SKILL.md) | Image planning queue in `workforces/images.json`, Antigravity `generate_image`, and optimization |
 | [`memory-management`](skills/memory-management/SKILL.md) | Protocol for navigating OKF catalogs and managing workspace memories |
 | [`github-project-planning`](skills/github-project-planning/SKILL.md) | Create/update GitHub issues and interact with Project V2 boards |
 | [`workforce-management`](skills/workforce-management/SKILL.md) | Update, patch, and align settings for the Workforces toolkit |
@@ -80,11 +83,14 @@ For more setup options and environment configuration, see the [Setup Guide](docs
 | Command | Workflow | Description |
 |---------|----------|-------------|
 | `/work` | [`work`](workflows/work.md) | Single command center: scans GitHub queue, surfaces top active tasks |
+| `/work site-setup` / `/site-setup` | [`site-setup`](workflows/site-setup.md) | Greenfield site setup & Product Brief pipeline with `@design-pilot` |
+| `/brand-context` | [`brand-context`](workflows/brand-context.md) | Brand identity foundation: voice, palette, typography, and tokens |
 | `/work feature` / `/feature` | [`feature`](workflows/feature.md) | Multi-phase feature scoping, gap analysis, PRD generation |
 | `/work plan` / `/plan` | [`plan`](workflows/plan.md) | Phased project planning, task breakdown, estimates, and risk matrix |
 | `/work investigate` / `/investigate` | [`investigate`](workflows/investigate.md) | Incident triage, log streaming to scratch, postmortem generation |
 | `/work sync` | [`sync`](workflows/sync.md) | Aligns on wins, losses, next goals, and blockers; logs daily syncs |
 | `/update-workforces` | [`update-workforces`](workflows/update-workforces.md) | Dry-run, patch toolkit layer files, and summarize updates |
+
 
 ---
 

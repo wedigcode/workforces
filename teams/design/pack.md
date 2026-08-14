@@ -36,9 +36,11 @@ Creates, reviews, and maintains human-crafted visual design systems, brand ident
 ## Team Roles & Personas
 
 - **Creative Director:** Owns overall visual identity, brand positioning, and design direction. Enforces anti-pattern avoidance and human-crafted design standards across all outputs.
+- **Design Pilot (Agent):** Visionary design strategist specializing in collaborative website concept creation, Awwwards/SiteInspire benchmarking, AI concept image generation via `generate_image`, and structured design briefs. See [`design-pilot.md`](../../agents/design-pilot.md).
 - **UI/UX Designer:** Creates wireframes, user flows, high-fidelity mockups, and interaction specs. Partners with the dev team on implementation feasibility.
 - **Brand Strategist:** Develops and maintains brand voice, color systems, typography standards, and cross-channel brand coherence. Produces and maintains `docs/brand-context.md`.
-- **Design Reviewer (Agent):** Automated design gatekeeper — reviews any dev team UI output against brand and anti-pattern standards, revises or rejects designs that don't meet the bar. See [design-reviewer.md](file:///Users/wedigcode/Sites/github.com/wedigcode/workforces/.agents/agents/design-reviewer.md).
+- **Design Reviewer (Agent):** Automated design gatekeeper — reviews any dev team UI output against brand and anti-pattern standards, revises or rejects designs that don't meet the bar. See [`design-reviewer.md`](../../agents/design-reviewer.md).
+
 
 ---
 
@@ -52,6 +54,8 @@ This team uses the following skills — all agents on this team should load them
 | [`visual-design-fundamentals`](./../skills/visual-design-fundamentals/SKILL.md) | Color theory, typography, whitespace, hierarchy |
 | [`ui-ux-design`](./../skills/ui-ux-design/SKILL.md) | UX flows, wireframing, responsive design, accessibility |
 | [`brand-guidelines`](./../skills/brand-guidelines/SKILL.md) | Voice, color palette enforcement, cross-channel consistency |
+| [`image-workflow`](./../../skills/image-workflow/SKILL.md) | Image planning in `workforces/images.json` and optimization |
+| [`site-setup`](./../../skills/site-setup/SKILL.md) | Greenfield site setup & Product Brief framework |
 
 ---
 
@@ -59,9 +63,11 @@ This team uses the following skills — all agents on this team should load them
 
 When generating a design team for a project, consider which workflows apply:
 
-- `brand-context` — **Always run first.** Establishes `docs/brand-context.md` with brand voice, palette, typography, and target audience. Required before any design or marketing work.
+- `site-setup` — **Run on empty/greenfield repos.** Interactive site initialization with `@design-pilot`, tech stack scaffolding, and multi-team handoffs.
+- `brand-context` — **Run first.** Establishes `docs/brand-context.md` with brand voice, palette, typography, and target audience. Required before any design or marketing work.
 - `design-review` — Pull the `design-reviewer` agent into dev team UI PRs to gate design quality. Runs alongside `clean-coder` for frontend changes.
 - `visual-audit` — Full visual audit of an existing site or product UI against brand guidelines and design anti-patterns. Produces a prioritized fix list.
+
 
 ---
 
