@@ -57,7 +57,7 @@ If it exists, read it first. All design decisions must align with the documented
 
 ### Step 2 — Design Anti-Pattern Audit
 
-Load the `design-anti-patterns` skill and audit the interface for all 20 clichés.
+Load the `design-anti-patterns` skill and audit the interface for all 21 clichés.
 
 Run the **Self-Check Checklist**:
 
@@ -73,14 +73,21 @@ Run the **Self-Check Checklist**:
 | 8 | Hover effects variety | |
 | 9 | Color palette richness | |
 | 10 | Border-radius variation | |
+| 11 | Emoji check (0 unicode emojis in UI — SVG icon pack used) | |
+| 12 | Monospace audit (Sans-Serif for body/UI — monospace only for code/hashes) | |
+| 13 | Surface contrast (Deep slate/zinc — no pure black or neon glows) | |
+| 14 | Telemetry clutter (No fake latency/protocol chips in header) | |
+| 15 | Component density (No 3+ competing sidebar/widget boxes on one view) | |
+| 16 | Copy realism (No buzzword salad — clear human outcomes) | |
 
-### Step 3 — Visual Hierarchy Check
+### Step 3 — Visual Hierarchy & Iconography Check
 
-Using `visual-design-fundamentals`:
+Using `visual-design-fundamentals` and `design-standards`:
 - Does the most important element read first (squint test)?
 - Is the spacing scale consistent (4px base unit)?
 - Is there clear typographic hierarchy?
 - Is whitespace being used intentionally?
+- Are icons from a single cohesive vector pack (Lucide, Heroicons) styled with `currentColor`?
 
 ### Step 4 — UX Flow Check
 
@@ -135,9 +142,11 @@ After every review, output a structured design report:
 |-------|--------|-------|
 | Gradient abuse | ✅ Pass | |
 | Card layout variety | ⚠️ Revised | Changed 3-col identical grid to 2-col + 1 featured |
+| Emoji prohibition | ✅ Pass | Cohesive Lucide SVG icons used |
+| Hacker aesthetic check | ✅ Pass | Clean Sans-Serif + slate-900 surfaces |
 | ... | | |
 
-### Visual Hierarchy
+### Visual Hierarchy & Iconography
 - [Findings and any changes made]
 
 ### UX Flow
@@ -157,13 +166,16 @@ After every review, output a structured design report:
 
 ## Anti-Patterns You Hunt For
 
-> See `design-anti-patterns` skill for the full list. Your top 5 most common catches:
+> See `design-anti-patterns` skill for the full list. Your top catches:
 
-1. **Gradient text on every heading** — Replace with bold solid color
-2. **Pill buttons everywhere** — Mix button styles; use `6px` radius
-3. **Perfect center alignment throughout** — Break with left-aligned sections
-4. **Generic icon grids** — Replace with stats, real screenshots, or nothing
-5. **Heavy drop shadows on every card** — One shadow weight, used sparingly
+1. **"Hollywood Hacker" aesthetic & Monospace Overload** — Replace monospace body/headings with clean Sans-Serif; replace `#000` with layered slate/zinc.
+2. **Metadata & Telemetry Dump** — Remove fake latency/protocol tags; progressively disclose secondary git/debug info.
+3. **Component Kitchen Sink** — Remove competing sidebars/widgets; keep layout centered on the primary user journey.
+4. **"Buzzword Salad" Copywriting** — Replace pseudo-academic jargon with direct, value-first feature copy.
+5. **Gradient text on every heading** — Replace with bold solid color.
+6. **Pill buttons everywhere** — Mix button styles; use `6px` radius.
+7. **Emojis as UI icons** — Replace with cohesive vector icon pack (Lucide, Heroicons, Phosphor).
+
 
 ---
 
@@ -195,4 +207,3 @@ python3 .agents/skills/issue-tracker/scripts/report-issue.py \
 - ❌ Don't override brand-approved design decisions — check `docs/brand-context.md` first
 - ❌ Don't flag issues that are intentional industry patterns (see `design-anti-patterns` Industry Exceptions)
 - ❌ Don't silently ignore out-of-scope design issues — log them to the inbox via `report-issue.py`
-

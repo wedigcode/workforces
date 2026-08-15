@@ -1,11 +1,11 @@
 ---
 name: design-anti-patterns
-description: 20 AI design clichés to avoid and human-crafted alternatives. MANDATORY when building UI, reviewing designs, or creating landing pages — ensures output doesn't look AI-generated. Focus is design quality, not code quality (see clean-coder for that).
+description: 25 AI design clichés to avoid and human-crafted alternatives. MANDATORY when building UI, reviewing designs, or creating landing pages — ensures output doesn't look AI-generated. Focus is design quality, not code quality (see clean-coder for that).
 ---
 
 # Design Anti-Patterns
 
-AI tools default to the same visual patterns. This skill identifies 20 overused AI design clichés and provides unique, human-crafted alternatives. The goal: designs that look **intentional and differentiated**, not templated.
+AI tools default to the same visual patterns. This skill identifies 25 overused AI design clichés and provides unique, human-crafted alternatives. The goal: designs that look **intentional and differentiated**, not templated.
 
 > **Core Principle:** These aren't forbidden patterns — they're overused ones. Use them sparingly and intentionally, not by default.
 
@@ -260,6 +260,79 @@ AI tools default to the same visual patterns. This skill identifies 20 overused 
 - Numbered list with brief descriptions
 - Single large image with annotation labels
 
+### 21. Emojis as UI Icons or Feature Graphics
+
+**The cliché:** Using raw unicode emojis (🚀, 💡, ⚡, 📈, 🔥, 🛠️, 🎯, 🔒) as icons on feature cards, buttons, navigation items, badges, or headers.
+
+**Why it fails:**
+- Inconsistent rendering across operating systems (Apple, Windows, Android, Linux)
+- Fixed multi-color emoji pixels clash with custom brand color palettes
+- Cannot style or transition with CSS `currentColor`, dark/light theme tokens, or stroke widths
+- Screen readers announce literal unicode descriptions (e.g., "Rocket high voltage"), degrading accessibility
+- Instantly signals an amateur, low-effort, AI-generated prototype
+
+**Alternatives:**
+- Cohesive SVG vector icon pack: **Lucide Icons** (`lucide-react`, `lucide-vue-next`, `lucide-svelte`), **Heroicons**, **Phosphor**, **Tabler**
+- Minimalist custom inline SVGs with `stroke="currentColor"` and unified `viewBox="0 0 24 24"`
+- Semantic step numbers (01, 02, 03) or bold typographic indicators
+- Clean typography and whitespace with no decorative icons needed
+
+---
+
+## Priority 6: Developer Tools & SaaS Feeds
+
+### 22. The "Hollywood Hacker" Developer Cliché
+
+**The cliché:** Designing developer tools or SaaS feeds to look like a cyberpunk movie terminal with pure pitch-black (`#000000`) backgrounds, high-contrast neon green/cyan hairline borders, phosphor text glow shaders, and monospace fonts used for all headings, body copy, chips, and navigation.
+
+**Why it fails:**
+- Monospace body text creates severe reading fatigue and slows comprehension.
+- High-contrast neon glows on pure black strain the eyes and look like an amateur movie prop or AI caricature rather than a modern, serious developer product.
+
+**Alternatives:**
+- Layered, sophisticated dark-mode surfaces such as slate or zinc (`#090d16`, `#0f172a`, `#18181b`, `#27272a`).
+- High-readability Sans-Serif typography (Inter, Geist, Plus Jakarta Sans, Roboto, or `system-ui`) for all UI labels, headings, badges, and descriptions.
+- Monospace font strictly reserved for actual code snippets, commit hashes, or terminal commands.
+- Subtle 1px borders (`border-zinc-800` or `rgba(255, 255, 255, 0.08)`) with focused, purposeful accent colors.
+
+### 23. The Metadata & Telemetry Dump (Lack of Hierarchy)
+
+**The cliché:** Cramming every backend metric, protocol tag, latency counter, UUID, branch name, and commit hash into top-level headers and feed cards.
+
+**Why it fails:**
+- When everything is screaming for attention, nothing stands out.
+- Decorative, non-actionable data (e.g., "0.04s latency", "ENGINE PROTOCOL: AMPLIFY_GEN2_REALTIME", raw hashes) clutters the UI and obscures the core value proposition.
+
+**Alternatives:**
+- Aggressive whitespace and generous padding (`p-6`, `gap-6` or `gap-8`). Space signals premium quality.
+- Progressive disclosure: primary cards display clear title, human description, author, and primary action.
+- Secondary technical metadata (commit hash, branch name, diff stats) collapsed into subtle secondary rows, tooltips, or expandable drawers.
+
+### 24. The Component Kitchen Sink
+
+**The cliché:** Jamming every possible UI component onto a single viewport (Cmd+K global search, multi-tier tag clouds, leaderboard widgets, trending stacks sidebars, protocol link cards, deploy CTAs, terminal snippets) just to show feature density.
+
+**Why it fails:**
+- Overwhelms users with competing focal points and visual noise.
+- Fragmented page flow with no clear primary user journey.
+
+**Alternatives:**
+- Purpose-driven minimalism: keep the primary feed or workflow centered and uncluttered.
+- Only include search, filters, or sidebars when directly required by actual user workflows.
+- Dedicated secondary pages or modals rather than cramming 4 competing sidebars onto one screen.
+
+### 25. "Buzzword Salad" Copywriting & Default AI Datasets
+
+**The cliché:** Writing hyper-inflated, pseudo-academic titles (e.g. "Autonomous Code-Graph Symbol Indexer & Analyzer", "Neural Agent Memory Layer & Vector Cache") and using default AI placeholder datasets (Alex Chen, Marcus Brody, Sophia Vance with Unsplash URLs).
+
+**Why it fails:**
+- Instantly flags the site as an AI-generated prototype.
+- Obscures the real utility of the product behind technical jargon.
+
+**Alternatives:**
+- Plain-English, outcome-focused copy (e.g., "Fast AST Codebase Search", "Multi-Agent Context Cache").
+- Domain-realistic sample data tailored to the product's actual use cases.
+
 ---
 
 ## Self-Check Checklist
@@ -278,6 +351,13 @@ Before finalizing any design, verify:
 | 8 | Hover audit | Everything scales on hover? Vary the effects |
 | 9 | Color palette | All pastels? Add contrast |
 | 10 | Border-radius | Everything max-rounded? Mix sharp and subtle |
+| 11 | Emoji check | Unicode emojis used as UI icons? Replace with SVG icon pack (Lucide/Heroicons) |
+| 12 | Monospace audit | Monospace used for body/headings? Switch to Sans-Serif (Inter/Geist) |
+| 13 | Surface contrast | Pure `#000000` black or neon phosphor glows? Switch to slate/zinc surfaces with subtle borders |
+| 14 | Telemetry clutter | Fake latency or protocol tags in header? Remove decorative metadata |
+| 15 | Component density | 3+ competing sidebar/widget boxes on one screen? Remove kitchen-sink clutter |
+| 16 | Copy realism | Buzzword salad titles or default AI names? Rewrite for human clarity |
+
 
 ---
 

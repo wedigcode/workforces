@@ -31,6 +31,15 @@ Creates, reviews, and maintains human-crafted visual design systems, brand ident
    - Build reusable design patterns (spacing scale, color tokens, type scale, component variants) not one-off styles.
    - Every UI decision becomes a rule, not an exception. Document it in the project's brand context or design system.
 
+6. **Professional Iconography Standards:**
+   - Never use raw unicode emojis (🚀, 💡, ⚡) as UI icons or feature graphics. Emojis break visual cohesion, ignore theme tokens, and render inconsistently across platforms.
+   - Mandate cohesive vector icon packs (Lucide Icons, Heroicons, Phosphor, Tabler) styled with `currentColor` and consistent stroke weights.
+
+7. **Developer SaaS Restraint & Information Hierarchy:**
+   - Reject the "Hollywood hacker" cliché: no monospace body copy, no pitch-black `#000000` backgrounds with neon phosphor glows.
+   - Eliminate telemetry dumps and decorative fake data (latency counters, protocol chips, raw hashes in headers).
+   - Enforce progressive disclosure and purpose-driven layouts (no kitchen-sink sidebars or buzzword salad copy).
+
 ---
 
 ## Team Roles & Personas
@@ -44,18 +53,20 @@ Creates, reviews, and maintains human-crafted visual design systems, brand ident
 
 ---
 
-## Skills
+## Skills & Rules
 
-This team uses the following skills — all agents on this team should load them as context:
+This team uses the following skills and rules — all agents on this team should load them as context:
 
-| Skill | Purpose |
-|-------|---------|
-| [`design-anti-patterns`](./../skills/design-anti-patterns/SKILL.md) | 20 AI clichés to avoid — MANDATORY first pass on all design work |
+| Resource | Purpose |
+|----------|---------|
+| [`design-standards`](../../rules/design-standards.md) | Mandatory UI rules — zero emojis in UI, vector icon packs required |
+| [`design-anti-patterns`](./../skills/design-anti-patterns/SKILL.md) | 25 AI clichés to avoid — MANDATORY first pass on all design work |
 | [`visual-design-fundamentals`](./../skills/visual-design-fundamentals/SKILL.md) | Color theory, typography, whitespace, hierarchy |
 | [`ui-ux-design`](./../skills/ui-ux-design/SKILL.md) | UX flows, wireframing, responsive design, accessibility |
 | [`brand-guidelines`](./../skills/brand-guidelines/SKILL.md) | Voice, color palette enforcement, cross-channel consistency |
 | [`image-workflow`](./../../skills/image-workflow/SKILL.md) | Image planning in `workforces/images.json` and optimization |
 | [`site-setup`](./../../skills/site-setup/SKILL.md) | Greenfield site setup & Product Brief framework |
+
 
 ---
 
@@ -67,7 +78,6 @@ When generating a design team for a project, consider which workflows apply:
 - `brand-context` — **Run first.** Establishes `docs/brand-context.md` with brand voice, palette, typography, and target audience. Required before any design or marketing work.
 - `design-review` — Pull the `design-reviewer` agent into dev team UI PRs to gate design quality. Runs alongside `clean-coder` for frontend changes.
 - `visual-audit` — Full visual audit of an existing site or product UI against brand guidelines and design anti-patterns. Produces a prioritized fix list.
-
 
 ---
 

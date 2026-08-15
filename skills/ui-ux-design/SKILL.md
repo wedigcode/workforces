@@ -103,6 +103,15 @@ Sketch (paper) → Low-fi wireframe → High-fi mockup → Prototype → Build
 | Reduced motion | Respect `prefers-reduced-motion` media query |
 | Screen reader testing | Test with VoiceOver (Mac) or NVDA (Windows) |
 
+### 7. Iconography Standards
+
+| Rule | Requirement |
+|------|-------------|
+| **No Emojis** | NEVER use raw unicode emojis (🚀, 💡, ⚡, 🔥, 🛠️) as UI icons, button graphics, or feature symbols. |
+| **Vector Icon Packs** | Use a single, cohesive SVG icon pack: **Lucide**, **Heroicons**, **Phosphor**, or **Tabler**. |
+| **Sizing Scale** | Inline/buttons: 16px; Menus/nav: 18–20px; Feature cards: 20–24px; Hero highlights: 32–48px. |
+| **Token Styling** | Style with `currentColor` to inherit CSS tokens, themes, and hover states cleanly. |
+
 ---
 
 ## UI Checklist
@@ -117,6 +126,10 @@ Sketch (paper) → Low-fi wireframe → High-fi mockup → Prototype → Build
 | ✅ Empty states | Helpful messaging when lists/data are empty |
 | ✅ Accessible | Keyboard nav, contrast, alt text, labels |
 | ✅ Consistent patterns | Same component looks and behaves the same everywhere |
+| ✅ Professional Icons | Cohesive vector icon pack used — zero unicode emojis in UI |
+| ✅ Typography Hierarchy | Clean Sans-Serif for body/UI — monospace strictly for code/hashes |
+| ✅ Generous Whitespace | Generous padding (`p-6`, `gap-6`+), avoiding cramped data dumps |
+| ✅ Purposeful Layout | No decorative fake telemetry (e.g. latency/protocol) or kitchen-sink widgets |
 
 ---
 
@@ -130,3 +143,8 @@ Sketch (paper) → Low-fi wireframe → High-fi mockup → Prototype → Build
 | Form without validation feedback | Users submit bad data | Inline validation, clear error messages |
 | Hover-only interactions on mobile | Mobile users can't trigger them | Use taps, long-press, or visible toggles |
 | Modal on page load | Feels aggressive, high bounce rate | Trigger modals on intent (scroll, exit, time delay) |
+| Using emojis as UI icons | Inconsistent OS rendering, non-themeable, amateur look | Cohesive vector icon pack (Lucide, Heroicons, Phosphor) |
+| "Hollywood Hacker" aesthetic | Monospace body copy, neon glows on pure black cause eye strain | Sans-Serif typography, layered slate/zinc dark surfaces |
+| Metadata / Telemetry dump | Cramming ping latency, protocols, and hashes everywhere destroys hierarchy | Progressive disclosure: clean cards with collapsible details |
+| Component kitchen sink | Jamming search, tags, sidebars, leaderboards into one screen | Focused, purpose-driven layout centered on the primary task |
+| "Buzzword salad" copywriting | AI-generated technical jargon obscures product utility | Plain-English, outcome-focused titles and descriptions |
