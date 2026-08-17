@@ -63,7 +63,19 @@ python3 skills/social-engagement/scripts/social_indexer.py --export-json
 python3 skills/social-engagement/scripts/engagement_evaluator.py --evaluate-json /path/to/discovered_posts.json
 ```
 
-### C. Dashboard Generator (`dashboard_generator.py`)
+### C. Progressive Scroll Crawler & Extractor (`social_crawler.py`)
+```bash
+# Output browser progressive scroll script
+python3 skills/social-engagement/scripts/social_crawler.py --generate-browser-script
+
+# Unfold an introduction or discussion thread into individual member engagement candidates
+python3 skills/social-engagement/scripts/social_crawler.py --unfold-thread thread.json --output /path/to/posts.json
+
+# Parse raw text dump into structured post records
+python3 skills/social-engagement/scripts/social_crawler.py --parse-text-stream dump.txt --output /path/to/posts.json
+```
+
+### D. Dashboard Generator (`dashboard_generator.py`)
 ```bash
 # Generate workforces/social/dashboard.html and workforces/social/action_queue.md
 python3 skills/social-engagement/scripts/dashboard_generator.py

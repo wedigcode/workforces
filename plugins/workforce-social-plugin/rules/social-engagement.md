@@ -56,3 +56,13 @@ Every comment drafted must align with the active strategic goal configured in `w
 ## 6. Cold-Post Negative Caching (Triage Efficiency)
 - To avoid wasting tokens and review cycles on low-value content, the engine must tag non-viable posts (below engagement threshold, off-topic, or spam) as `cold`/`ignored` in the SQLite index.
 - Never re-evaluate or re-read cold posts unless their engagement velocity undergoes a major verified surge.
+
+---
+
+## 7. Mandatory Progressive Scroll Ingestion Protocol
+- **Infinite-Scroll & Lazy-Loading Awareness**: Social platforms (Skool, X.com, LinkedIn) dynamically load posts as the user scrolls down. Static scraping at `y = 0` only captures pinned/hero items and is strictly prohibited.
+- **Progressive Stepping Loop**:
+  - When inspecting feeds or discussion threads via browser agents or DOM scripts, perform 5–10 stepped scroll increments (`window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })`) with natural human-like pauses (1.0–1.5s).
+  - Unfold thread comment streams by expanding hidden "View more replies" / "Show more" toggles before completing extraction.
+  - Ingest 15–20+ recent member posts and newcomer discussions to provide broad community coverage.
+

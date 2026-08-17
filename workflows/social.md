@@ -43,11 +43,18 @@ Read: skills/brand-guidelines/SKILL.md
 
 ---
 
-## Step 2 — Ingestion & Negative Cold-Post Triage
+## Step 2 — Progressive Ingestion & Negative Cold-Post Triage
 
-1. When candidate post URLs or content are discovered:
+1. **Progressive Feed & Thread Ingestion**:
+   - When inspecting dynamic feeds (Skool, X.com, LinkedIn), execute progressive scrolling (`window.scrollTo` in 5–10 stepped increments with 1.0–1.5s pauses) to trigger lazy-loading and ingest 15–20+ recent member posts.
+   - For introduction threads (e.g. "Intro yourself") or Q&A discussions, unfold full comment streams into individually addressable posts:
+     ```bash
+     python3 skills/social-engagement/scripts/social_crawler.py --unfold-thread /path/to/thread.json --output /path/to/posts.json
+     ```
+2. **Negative Cold-Post Triage**:
    - Check if post was previously marked `ignored` or `cold` via `social_indexer.py`.
    - Skip cold posts immediately to conserve compute and avoid redundant reading.
+
 
 ---
 

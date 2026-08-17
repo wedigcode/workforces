@@ -44,11 +44,26 @@ except ImportError:
 
 def parse_simple_yaml(text: str) -> Dict[str, Any]:
     """Robust zero-dependency YAML parser for nested dictionaries, lists, and scalars."""
-    root: Dict[str, Any] = {}
-    # stack entry: (indent, container, key_in_container)
-    stack: List[Tuple[int, Any, Optional[str]]] = [(-1, root, None)]
-
     lines = text.split("\n")
+    root: Dict[str, Any] = {}
+    # stack entry: (indent, container_dict_or_list, key_in_parent, parent_dict)
+    stack: List[Tuple[int, Any, Optional[str], Optional[Dict[str, Any]]]] = [(-1, root, None, None)]
+
+    def clean_scalar(val: str) -> Any:
+        v = val.split("#")[0].strip().strip('"').strip("'")
+        if v.lower() == "true":
+            return True
+        elif v.lower() == "false":
+            return False
+        elif v.lower() in ("none", "null"):
+            return None
+        elif v.isdigit():
+            return int(v)
+        try:
+            return float(v)
+        except ValueError:
+            return v
+
     for raw_line in lines:
         line = raw_line.rstrip()
         if not line or line.strip().startswith("#"):
@@ -57,53 +72,50 @@ def parse_simple_yaml(text: str) -> Dict[str, Any]:
         indent = len(line) - len(line.lstrip(" "))
         stripped = line.strip()
 
-        # Pop stack items that have >= indentation than current line
         while len(stack) > 1 and stack[-1][0] >= indent:
             stack.pop()
 
-        cur_indent, cur_obj, cur_key = stack[-1]
+        cur_indent, cur_obj, cur_key, parent_dict = stack[-1]
 
-        # Case 1: List item "- value"
         if stripped.startswith("- "):
-            val_str = stripped[2:].strip().strip('"').strip("'")
-            # If cur_obj is a dict and we have a cur_key, ensure it's a list
-            if isinstance(cur_obj, dict) and cur_key:
+            item_text = stripped[2:].strip()
+            # If cur_obj is a dict and was empty, convert it in parent_dict from dict to list
+            if isinstance(cur_obj, dict) and len(cur_obj) == 0 and parent_dict is not None and cur_key is not None:
+                new_list: List[Any] = []
+                parent_dict[cur_key] = new_list
+                cur_obj = new_list
+                stack[-1] = (cur_indent, cur_obj, cur_key, parent_dict)
+
+            if isinstance(cur_obj, list):
+                if ":" in item_text and not (item_text.startswith('"') or item_text.startswith("'")):
+                    k, v = item_text.split(":", 1)
+                    k = k.strip().strip('"').strip("'")
+                    v_clean = clean_scalar(v) if v.strip() else {}
+                    item_dict = {k: v_clean}
+                    cur_obj.append(item_dict)
+                    if not v.strip():
+                        stack.append((indent, item_dict, k, None))
+                else:
+                    cur_obj.append(clean_scalar(item_text))
+            elif isinstance(cur_obj, dict):
                 if cur_key not in cur_obj or not isinstance(cur_obj[cur_key], list):
                     cur_obj[cur_key] = []
-                cur_obj[cur_key].append(val_str)
-            elif isinstance(cur_obj, list):
-                cur_obj.append(val_str)
+                cur_obj[cur_key].append(clean_scalar(item_text))
             continue
 
-        # Case 2: Key-value pair "key: value" or "key:"
         if ":" in stripped:
             parts = stripped.split(":", 1)
             key = parts[0].strip().strip('"').strip("'")
             val = parts[1].strip()
 
-            if not val or val.startswith("#"):
-                # Container key (dict or list depending on upcoming children)
+            if not val or val.startswith("#") or val == "|":
+                new_container: Dict[str, Any] = {}
                 if isinstance(cur_obj, dict):
-                    # We create an empty dict initially, will convert to list if first child is "- "
-                    cur_obj[key] = {}
-                    stack.append((indent, cur_obj, key))
+                    cur_obj[key] = new_container
+                    stack.append((indent, new_container, key, cur_obj))
             else:
-                # Scalar value
-                clean_val = val.split("#")[0].strip().strip('"').strip("'")
-                if clean_val.lower() == "true":
-                    typed_val = True
-                elif clean_val.lower() == "false":
-                    typed_val = False
-                elif clean_val.isdigit():
-                    typed_val = int(clean_val)
-                else:
-                    typed_val = clean_val
-
                 if isinstance(cur_obj, dict):
-                    if cur_key and isinstance(cur_obj.get(cur_key), dict):
-                        cur_obj[cur_key][key] = typed_val
-                    else:
-                        cur_obj[key] = typed_val
+                    cur_obj[key] = clean_scalar(val)
 
     return root
 
@@ -227,12 +239,26 @@ def calculate_relevance_and_virality(
 ) -> Tuple[int, str]:
     """
     Calculates a relevance score (0-100) and triage recommendation.
-    Factors: keyword presence, engagement metrics, velocity, and question intent.
+    Factors: keyword presence, engagement metrics, velocity, question intent,
+    newcomer introductions, and technical developer bottlenecks.
     """
     score = 0
     text = (post.get("content_text") or "").lower()
+    title = (post.get("title") or "").lower()
+    full_text = f"{title}\n{text}"
     platform = post.get("platform", "x.com").lower()
     platform_key = platform.replace(".", "_")
+
+    is_intro = bool(post.get("is_introduction")) or any(k in full_text for k in [
+        "intro yourself", "introduce yourself", "just joined", "new here", "new member",
+        "excited to be here", "hello everyone", "glad to join", "my background", "starting out"
+    ])
+
+    is_tech = bool(post.get("is_tech_bottleneck")) or any(re.search(rf"\b{re.escape(k)}\b", full_text) for k in [
+        "aws", "amplify", "lambda", "cloud", "architecture", "database", "dynamodb", "postgres",
+        "supabase", "firebase", "deployment", "backend", "auth", "cognito", "api", "rest", "graphql",
+        "error", "bug", "stuck on", "troubleshooting", "scaling", "latency", "docker", "infra"
+    ])
 
     # 1. Keyword Matching (0-40 pts)
     platform_cfg = config.get("platforms", {}).get(platform_key, {})
@@ -258,18 +284,25 @@ def calculate_relevance_and_virality(
         score += 5
 
     # 3. Conversational / Question Opportunity (0-25 pts)
-    if "?" in text or any(q in text for q in ["how do you", "what is", "anyone tried", "recommendations", "thoughts on", "struggling with", "help with"]):
+    if "?" in text or any(q in text for q in ["how do you", "what is", "anyone tried", "recommendations", "thoughts on", "struggling with", "help with", "how do i"]):
         score += 25
     elif any(d in text for d in ["debate", "versus", "vs", "broken", "fail", "hot take", "unpopular opinion"]):
         score += 15
+
+    # 4. Intent Boosts (Newcomer welcoming & Developer unblocking)
+    if is_intro:
+        score = max(score + 35, 75)
+    elif is_tech:
+        score = max(score + 30, 70)
 
     # Cold Post Triage Filter
     min_threshold = platform_cfg.get("min_engagement_threshold", {})
     min_likes = min_threshold.get("likes", 0)
     min_replies = min_threshold.get("replies", 0)
 
-    if score < 25 or (min_likes > 0 and likes < min_likes and replies < min_replies and "?" not in text):
-        return score, "cold"
+    if not is_intro and not is_tech:
+        if score < 25 or (min_likes > 0 and likes < min_likes and replies < min_replies and "?" not in text):
+            return score, "cold"
 
     return min(score, 100), "viable"
 
@@ -294,12 +327,14 @@ def generate_op_response(
     """
     Drafts a high-impact, value-first response to the original post (OP)
     driven dynamically by the persona's configured domain, frameworks, value points,
-    and catalyst questions (applicable to any niche: realtor, roofer, tech, coach, etc.).
+    and catalyst questions. Handles newcomer introductions and developer advice specifically.
     """
     content_text = post.get("content_text", "")
     author = post.get("author", "")
     author_handle = post.get("author_handle", "").lstrip("@")
+    title = post.get("title", "")
     platform = post.get("platform", "x.com").lower()
+    full_text = f"{title}\n{content_text}".lower()
 
     domain = persona.get("domain") or persona.get("name") or "this space"
     frameworks = persona.get("response_frameworks", {})
@@ -324,7 +359,53 @@ def generate_op_response(
 
     topic = extract_topic_from_text(content_text, domain)
 
-    # Custom template support if configured in persona
+    # Intent Detection
+    is_intro = bool(post.get("is_introduction")) or any(k in full_text for k in [
+        "intro yourself", "introduce yourself", "just joined", "new here", "new member",
+        "excited to be here", "hello everyone", "glad to join", "my background", "starting out"
+    ])
+
+    is_tech = bool(post.get("is_tech_bottleneck")) or any(re.search(rf"\b{re.escape(k)}\b", full_text) for k in [
+        "aws", "amplify", "lambda", "cloud", "architecture", "database", "dynamodb", "postgres",
+        "supabase", "firebase", "deployment", "backend", "auth", "cognito", "api", "rest", "graphql",
+        "error", "bug", "stuck on", "troubleshooting", "scaling", "latency", "docker", "infra"
+    ])
+
+    # 1. Newcomer Introduction / Welcome Flow
+    if is_intro and "skool" in platform:
+        author_greeting = f"@{author_handle}" if author_handle else author
+        intro_template = frameworks.get("welcome_template") or persona.get("welcome_template")
+        if intro_template and isinstance(intro_template, str):
+            try:
+                return intro_template.format(
+                    author=author,
+                    author_handle=author_handle,
+                    domain=domain,
+                    value_point_1=vp1,
+                    catalyst_question=cat_q
+                )
+            except Exception:
+                pass
+
+        return (
+            f"Welcome to the community, {author_greeting}! Great to have you here.\n\n"
+            f"Given your focus, one of the most effective habits to build early is {vp1.lower()}.\n\n"
+            f"As you dive in, what is the primary workflow or system you're looking to build first?"
+        )
+
+    # 2. Developer / AWS Architecture Bottleneck Flow
+    if is_tech and "skool" in platform:
+        author_greeting = f"@{author_handle}" if author_handle else author
+        return (
+            f"Great technical question, {author_greeting}.\n\n"
+            f"When diagnosing bottlenecks in {domain}:\n"
+            f"1. **Core Diagnostic**: Ensure environment variables and service credentials align with your active execution profile before dispatching requests.\n"
+            f"2. **Boundary Validation**: {vp1}.\n"
+            f"3. **State Management**: {vp2}.\n\n"
+            f"Are you observing this error during local invocation or in the remote deployment pipeline?"
+        )
+
+    # 3. Custom template support if configured in persona
     custom_template = frameworks.get("op_template") or persona.get("op_template")
     if custom_template and isinstance(custom_template, str):
         try:

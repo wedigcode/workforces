@@ -1,2 +1,22 @@
 /.agents
 /workforces
+
+# Python bytecode and cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+
+# Environments & dependencies
+.venv/
+env/
+venv/
+node_modules/
+
+# OS & Editor artifacts
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
