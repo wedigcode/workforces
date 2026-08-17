@@ -346,6 +346,7 @@ add_gitignore_entry() {
 add_gitignore_entry "workforces/tmp" "workforces/tmp"
 add_gitignore_entry "workforces/session-context/*" "workforces/session-context/*"
 add_gitignore_entry "!workforces/session-context/.gitkeep" "!workforces/session-context/.gitkeep"
+add_gitignore_entry "workforces/memory" "workforces/memory"
 
 # Seed workforce.md if not already present
 if [[ ! -f "$WORKFORCES_DIR/README.md" ]]; then
@@ -490,35 +491,8 @@ EOF
 fi
 
 
-# Setup project specific structure / Git Exclude
-if [[ "$REPO_TYPE" == "project" ]]; then
-  if [[ -d "$TARGET/.git" ]]; then
-    exclude_setup=false
-    if [[ "$NON_INTERACTIVE" == true ]]; then
-      # Automatically set up exclude in non-interactive mode
-      exclude_setup=true
-    else
-      read -p "Do you want to git-exclude the workforce agent files local to this checkout? (y/n): " ignore_choice
-      if [[ "$ignore_choice" =~ ^[Yy]$ ]]; then
-        exclude_setup=true
-      fi
-    fi
-
-    if [[ "$exclude_setup" == true ]]; then
-      mkdir -p "$TARGET/.git/info"
-      exclude_file="$TARGET/.git/info/exclude"
-      touch "$exclude_file"
-      for entry in "$BASE_DIR/" "workforces/memory/"; do
-        if ! grep -q "^$entry" "$exclude_file"; then
-          echo "$entry" >> "$exclude_file"
-          echo -e "  ${GREEN}ADDED:${NC} '$entry' to .git/info/exclude"
-        fi
-      done
-    fi
-  else
-    echo -e "  ${YELLOW}NOTE:${NC} No .git directory found — skipping git-exclude setup"
-  fi
-elif [[ "$REPO_TYPE" == "workforce" ]]; then
+# Setup project specific structure
+if [[ "$REPO_TYPE" == "workforce" ]]; then
   # Workforce command repo tracks child projects
   mkdir -p "$WORKFORCES_DIR/projects"
   if [[ ! -f "$WORKFORCES_DIR/projects/README.md" ]]; then

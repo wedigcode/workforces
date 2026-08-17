@@ -44,7 +44,7 @@ If an AI agent is instructed to "install" this toolkit:
 1. **Clone the Source Repo:** Clone the workforces repository to a temporary directory.
 2. **Execute setup.sh:** Run `bash skills/workforce-management/scripts/setup.sh ./ --editor <editor> --type <type> --teams <teams>`.
    - Use `--editor antigravity` to use the `.agents/` folder.
-   - Use `--type project` for standard project targets (recommends git-excluding the workforce assets).
+   - Use `--type project` for standard project targets.
    - Use `--type workforce` for parent command repositories tracking child projects.
    - Use `--teams brand-marketing,sales-outreach` or `--teams all` to equip specialized Team Packs.
 3. **Align Preferences:** Query the user (or inspect their active workspace) to set the custom AI priorities and team configs under `## Installed Teams` in `workforces/workrules.md`.

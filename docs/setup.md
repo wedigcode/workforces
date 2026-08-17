@@ -43,7 +43,7 @@ bash /tmp/workforces/skills/workforce-management/scripts/setup.sh ./ --editor vs
 bash /tmp/workforces/skills/workforce-management/scripts/setup.sh ./ --editor claude        # Claude Code (uses .claude/)
 
 # Specify repository role
-bash /tmp/workforces/skills/workforce-management/scripts/setup.sh ./ --type project         # Standard project codebase (recommends local git-exclude)
+bash /tmp/workforces/skills/workforce-management/scripts/setup.sh ./ --type project         # Standard project codebase
 bash /tmp/workforces/skills/workforce-management/scripts/setup.sh ./ --type workforce       # Central coordinator tracking multiple projects
 
 # Greenfield Site Setup (for new websites, SaaS apps, or landing pages)
