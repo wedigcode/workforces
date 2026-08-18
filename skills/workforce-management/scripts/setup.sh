@@ -430,41 +430,52 @@ if [[ "$SITE_SETUP" == true ]]; then
     cat > "$DOCS_DIR/product-brief.md" << EOF
 # Product Brief: [Site / Product Name]
 
-_Status: Draft — Run /site-setup (or invoke @design-pilot) to complete this brief._
+_Status: Draft — Run /site-setup (or invoke @advisor / @design-pilot) to complete this brief._
 
 ---
 
-## 1. Project Summary & Goals
+## 1. Project Summary, Core Problem & Pain Points
 - **Site Type:** [SaaS / Local Lead Gen / E-commerce / Blog / Portfolio / Web App]
 - **Business Model:** [Direct Service / Lead Gen Affiliate / Subscription SaaS / Direct Sales]
-- **Core Objective:** [Primary conversion action and visitor value]
-- **Target Audience:** [Key customer personas and pain points]
+- **Core Problem Statement:** [Fundamental breakdown or market gap being solved]
+- **Acute Pain Points Breakdown:**
+  - **Tier 1 (Critical Blockers):** [Direct revenue loss, compliance risk, or active churn]
+  - **Tier 2 (Operational Drag):** [Manual toil, wasted hours, or error risk]
+  - **Tier 3 (UX Friction):** [Confusion, drop-off, or support volume]
+- **Current Workarounds:** [How users cope today and why existing tools fail]
+- **Cost of Inaction:** [Quantified cost if unsolved for 6 months]
+- **Target Audience:** [Key customer personas and raw voice verbatims]
 
-## 2. Creative Concept & Narrative
+## 2. Problem-to-Solution Lineage Matrix
+| # | Identified Pain Point | Severity | Current Workaround | Proposed Solution / Feature | Success Metric |
+|---|----------------------|----------|-------------------|-----------------------------|----------------|
+| P-1 | [e.g. 48hr manual review delay] | P0 | [Manual staff emails] | [Real-time automated Step Function evaluator] | [Review time < 3s, drop-off < 5%] |
+| P-2 | [e.g. Complex pricing table hesitation] | P1 | [Support quote requests] | [Interactive ROI calculator] | [Checkout conversion +25%] |
+
+## 3. Creative Concept & Narrative
 - **Visual Metaphor & Story:** [Defined via @design-pilot]
 - **Inspiration References:** [Awwwards / SiteInspire / Dribbble / Land-book / Landing.love]
 - **Design Archetype:** [e.g., Editorial Minimalist, Neo-Brutalist, Dark Luxury, High-Tech Clean]
 
-## 3. Layout Specification
+## 4. Layout Specification
 - **Key Regions:** [Header, Hero, Problem/Solution, Feature Grid, Social Proof, Pricing/CTA, Footer]
 - **Responsive Architecture:** [Mobile-first breakpoints]
 
-## 4. Visual Style Guide & Tokens
+## 5. Visual Style Guide & Tokens
 - **Brand Colors:** [Primary, Secondary, Accent, Neutrals]
 - **Typography:** [Display / Heading / Body font pairings]
+- **Vector Icons:** [Lucide / Heroicons / Phosphor — zero unicode emojis in UI]
 - **Tokens File:** \`src/styles/tokens.css\` (or framework styling tokens)
 
-## 5. Content Direction
+## 6. Content Direction
 - **Brand Voice:** [Tone, do's and don'ts]
 - **Headlines & Hook:** [Conversion copy script]
 
-## 6. Technical Stack & Hosting Architecture
+## 7. Technical Stack & AI Protocols
 - **Framework:** [Next.js / Python FastAPI or Django / Vite / Astro / Plain HTML]
 - **Styling:** [Vanilla CSS / CSS Modules / Tailwind]
 - **Hosting:** [Cloudflare Pages / AWS Amplify / Google Firebase or Cloud Run / Docker]
 - **Database / Backend:** [Supabase / Firebase / SQLite / PostgreSQL / None / Static]
-
-## 7. Compliance & AI Search Protocol Guidelines
 - **Compliance Variant:** [Standard / Lead-Gen FTC Disclosure]
 - **AI Protocol Files:** [robots.txt, llms.txt, ai.txt, sitemap, ai-plugin.json]
 EOF
@@ -589,10 +600,11 @@ echo -e "  ${GREEN}✓ Workforces toolkit installed successfully!${NC}"
 if [[ "$SITE_SETUP" == true ]]; then
   echo ""
   echo -e "  ${BOLD}${CYAN}🚀 Site Setup Initialized:${NC}"
-  echo -e "     Run ${BOLD}/site-setup${NC} (or invoke ${BOLD}@design-pilot${NC}) in your AI assistant to:"
-  echo -e "     1. Brainstorm creative design concepts & generate visual mockups"
-  echo -e "     2. Select tech stack & cloud hosting"
-  echo -e "     3. Complete your Product Brief (${CYAN}docs/product-brief.md${NC})"
+  echo -e "     Run ${BOLD}/site-setup${NC} (or invoke ${BOLD}@advisor${NC} / ${BOLD}@design-pilot${NC}) in your AI assistant to:"
+  echo -e "     1. Consult with @advisor to unpack root problems, pain points & stakes"
+  echo -e "     2. Brainstorm creative design concepts & generate visual mockups"
+  echo -e "     3. Select tech stack & cloud hosting"
+  echo -e "     4. Complete your Product Brief (${CYAN}docs/product-brief.md${NC})"
 fi
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""

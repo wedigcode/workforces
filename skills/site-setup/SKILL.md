@@ -15,7 +15,8 @@ Site setup is not a monolithic step; it is an orchestrated pipeline managed by t
 
 ```mermaid
 graph TD
-    A["Step 0: @project-manager<br/>Discovery & Team Registration"] --> B["Step 1: Marketing & SEO<br/>Audience, Keywords, Value Prop"]
+    A["Step 0: @project-manager<br/>Discovery & Scope Intake"] --> A2["Step 0b: @advisor<br/>Consultative Problem & Pain Point Discovery"]
+    A2 --> B["Step 1: Marketing & SEO<br/>Audience, Keywords, Value Prop"]
     B --> C["Step 2: @design-pilot<br/>Visual Concept, Images & Tokens"]
     C --> D["Step 3: Compliance & Sales<br/>FTC Rules & Conversion Model"]
     D --> E["Step 4: @clean-coder (Dev)<br/>Tech Stack & AI Protocols"]
@@ -26,11 +27,12 @@ graph TD
 | Stage | Owner / Team | Focus | Output Artifacts |
 | :--- | :--- | :--- | :--- |
 | **0. Strategy & Scope** | `@project-manager` | Site category, business model, team registration | `workforces/workstate.md`, `workforces/teams/` |
+| **0b. Consultative Discovery** | `@advisor` | 5-Dimension problem extraction: root cause, acute pain points, failed workarounds, cost of inaction, problem-to-solution matrix | `docs/product-brief.md` (Problem & Pain Points), [`consultant-discovery-framework.md`](templates/consultant-discovery-framework.md) |
 | **1. Marketing & SEO** | `marketing` / `@seo-architect` | Target audience, pain points, keyword strategy, copy hook | `docs/brand-context.md` (Voice, Audience, SEO) |
-| **2. Visual Concept** | `design` / `@design-pilot` | Concept ideation (Awwwards/SiteInspire), visual mockups via `generate_image`, layout specs, tokens | `docs/brand-context.md` (Palette, Type), `src/styles/tokens.css`, `workforces/images.json` |
+| **2. Visual Concept** | `design` / `@design-pilot` | Concept ideation (Awwwards/SiteInspire), visual mockups via `generate_image`, layout specs, tokens, icon pack selection (no emojis) | `docs/brand-context.md` (Palette, Type, Icons), `src/styles/tokens.css`, `workforces/images.json` |
 | **3. Compliance & Sales** | `compliance` / `sales` | Affiliate disclosures (Lead Gen) vs Direct SaaS terms, conversion CTAs | Compliance clauses in `docs/product-brief.md` |
 | **4. Scaffolding & AI Protocols** | `dev` / `@clean-coder` | Scaffolding tech stack, language-specific AI protocol files (`robots.txt`, `llms.txt`, `ai.txt`, `sitemap`) | Codebase scaffolding, protocol files |
-| **5. Brief Finalization** | `@project-manager` | Consolidate 7 mandatory brief sections, unblock P0 build tasks | `docs/product-brief.md`, `workforces/workstate.md` |
+| **5. Brief Finalization** | `@project-manager` | Consolidate 7 mandatory brief sections + Problem-to-Solution Matrix, unblock P0 build tasks | `docs/product-brief.md`, `workforces/workstate.md` |
 
 ---
 
@@ -86,11 +88,13 @@ Choose the appropriate compliance profile during Step 0:
 
 Execution MUST follow this strict dependency order:
 
-1. **Step 1: Product Brief & Brand Context** (`docs/product-brief.md`, `docs/brand-context.md`)
-2. **Step 2: Design Tokens** (`src/styles/tokens.css` or CSS variables)
-3. **Step 3: Concept Images & Image Planning Queue** (`workforces/images.json` + `generate_image`)
-4. **Step 4: Framework Scaffolding & Codebase Setup** (scaffold CLI under safeguard rule)
-5. **Step 5: Language-Specific AI Protocols & SEO** (`robots.txt`, `llms.txt`, `ai.txt`, `sitemap`)
-6. **Step 6: Image Optimization** (`skills/image-workflow/scripts/optimize_images.py`)
-7. **Step 7: Component & Page Construction** (building against tokens and compliance rules)
-8. **Step 8: SEO & Schema Validation** (LocalBusiness / Organization / FAQ schema)
+1. **Step 0: Discovery & Scope Intake** (`@project-manager`)
+2. **Step 0b: Consultative Problem Discovery & Pain Point Mapping** (`@advisor` via `templates/consultant-discovery-framework.md`)
+3. **Step 1: Product Brief & Brand Context** (`docs/product-brief.md`, `docs/brand-context.md`)
+4. **Step 2: Design Tokens** (`src/styles/tokens.css` or CSS variables)
+5. **Step 3: Concept Images & Image Planning Queue** (`workforces/images.json` + `generate_image`)
+6. **Step 4: Framework Scaffolding & Codebase Setup** (scaffold CLI under safeguard rule)
+7. **Step 5: Language-Specific AI Protocols & SEO** (`robots.txt`, `llms.txt`, `ai.txt`, `sitemap`)
+8. **Step 6: Image Optimization** (`skills/image-workflow/scripts/optimize_images.py`)
+9. **Step 7: Component & Page Construction** (building against tokens and compliance rules)
+10. **Step 8: SEO & Schema Validation** (LocalBusiness / Organization / FAQ schema)

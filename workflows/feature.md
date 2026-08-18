@@ -36,23 +36,31 @@ Read: skills/github-project-planning/SKILL.md
 
 ---
 
-## Step 1 — Clarify (Phase 0)
+## Step 1 — Clarify & Problem Discovery (Phase 0 — `@advisor`)
 
-1. Read the user's feature idea
-2. Produce a **Feature Brief** using the template from `feature-research` skill
-3. Present to the user for confirmation
+1. Engage with the user to unpack the core problem and pain points prompting the feature idea, following [`consultant-discovery-framework.md`](../skills/site-setup/templates/consultant-discovery-framework.md):
+   - What is the acute user/business pain point?
+   - How are users coping today (current workarounds or hacks)?
+   - Why have existing solutions or tools failed?
+   - What is the quantified cost of inaction if not solved?
+2. Produce a comprehensive **Feature Brief & Problem Lineage** using the template below:
+3. Present to the user for confirmation:
 
 ```markdown
-## Feature Brief
+## Feature Brief & Problem Lineage
 
 **Feature:** [one-line description]
-**Target User:** [who benefits]
+**Target User:** [who benefits and feels the pain most acutely]
 **Target Project(s) / Repo(s):** [which projects/repos will be modified]
-**Problem:** [what problem this solves]
-**Success Criteria:** [how we know it's done]
+**Core Problem & Pain Points:**
+- **Primary Pain Point (P0/P1):** [Specific blocker, operational drag, or user friction]
+- **Current Workaround:** [How the user/system copes today without this feature]
+- **Cost of Inaction:** [Quantified risk, lost time, or revenue impact if unsolved]
+**Proposed Solution & 10x Breakthrough:** [How this feature solves the root cause]
+**Success Criteria & Metric of Relief:** [How we know it's working (e.g. latency < 3s, error rate 0%, 5 hrs saved/wk)]
 ```
 
-**⏸ PAUSE** — Wait for user to confirm the brief is accurate before proceeding.
+**⏸ PAUSE** — Wait for user to confirm the brief is accurate before proceeding to Gap Analysis.
 
 ---
 

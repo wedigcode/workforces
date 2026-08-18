@@ -83,9 +83,10 @@ For more setup options and environment configuration, see the [Setup Guide](docs
 | Command | Workflow | Description |
 |---------|----------|-------------|
 | `/work` | [`work`](workflows/work.md) | Single command center: scans GitHub queue, surfaces top active tasks |
-| `/work site-setup` / `/site-setup` | [`site-setup`](workflows/site-setup.md) | Greenfield site setup & Product Brief pipeline with `@design-pilot` |
+| `/advisor` / `/consult` | [`advisor`](workflows/advisor.md) | Strategic advisory, consultative problem discovery & trade-off evaluation |
+| `/work site-setup` / `/site-setup` | [`site-setup`](workflows/site-setup.md) | Greenfield site setup & Product Brief pipeline with `@advisor` and `@design-pilot` |
 | `/brand-context` | [`brand-context`](workflows/brand-context.md) | Brand identity foundation: voice, palette, typography, and tokens |
-| `/work feature` / `/feature` | [`feature`](workflows/feature.md) | Multi-phase feature scoping, gap analysis, PRD generation |
+| `/work feature` / `/feature` | [`feature`](workflows/feature.md) | Multi-phase feature scoping, problem discovery, gap analysis, PRD generation |
 | `/work plan` / `/plan` | [`plan`](workflows/plan.md) | Phased project planning, task breakdown, estimates, and risk matrix |
 | `/work investigate` / `/investigate` | [`investigate`](workflows/investigate.md) | Incident triage, log streaming to scratch, postmortem generation |
 | `/work sync` | [`sync`](workflows/sync.md) | Aligns on wins, losses, next goals, and blockers; logs daily syncs |
