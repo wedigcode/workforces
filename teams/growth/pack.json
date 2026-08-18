@@ -1,0 +1,20 @@
+{
+  "name": "growth",
+  "title": "Growth, SEO & Generative Engine Optimization",
+  "description": "Search intent matching, technical/programmatic SEO, AI Search Engine Optimization (GEO/AISO), and conversion funnel acceleration.",
+  "agents": [
+    "growth"
+  ],
+  "rules": [
+    "design-standards.md"
+  ],
+  "skills": [
+    "ai-search-optimization",
+    "feature-research",
+    "doc-generator",
+    "memory-management"
+  ],
+  "workflows": [
+    "feature.md"
+  ]
+}

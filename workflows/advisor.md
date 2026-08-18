@@ -111,6 +111,7 @@ Once the problem space is clarified, `@advisor` presents a structured **Executiv
 
 Based on the agreed direction, `@advisor` provides seamless transitions to the next workforce workflows:
 
-- **For New Websites / SaaS Apps:** Hand off to `/site-setup` (Step 1 Marketing & Step 2 `@design-pilot`).
+- **For New Websites / SaaS Apps:** Hand off to `/site-setup` (Step 1 Marketing & Step 2 `@designer`).
 - **For New Features:** Hand off to `/feature [idea]` (Phase 1 Gap Analysis & Phase 3 PRD).
 - **For Strategic Task Execution:** Hand off to `/plan` or `/work`.
+

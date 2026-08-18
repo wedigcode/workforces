@@ -17,9 +17,9 @@ Site setup is not a monolithic step; it is an orchestrated pipeline managed by t
 graph TD
     A["Step 0: @project-manager<br/>Discovery & Scope Intake"] --> A2["Step 0b: @advisor<br/>Consultative Problem & Pain Point Discovery"]
     A2 --> B["Step 1: Marketing & SEO<br/>Audience, Keywords, Value Prop"]
-    B --> C["Step 2: @design-pilot<br/>Visual Concept, Images & Tokens"]
+    B --> C["Step 2: @designer<br/>Visual Concept, Images & Tokens"]
     C --> D["Step 3: Compliance & Sales<br/>FTC Rules & Conversion Model"]
-    D --> E["Step 4: @clean-coder (Dev)<br/>Tech Stack & AI Protocols"]
+    D --> E["Step 4: @programmer (Dev)<br/>Tech Stack & AI Protocols"]
     E --> F["Step 5: PM Finalization<br/>Product Brief & Workstate Roadmap"]
 ```
 
@@ -28,11 +28,12 @@ graph TD
 | :--- | :--- | :--- | :--- |
 | **0. Strategy & Scope** | `@project-manager` | Site category, business model, team registration | `workforces/workstate.md`, `workforces/teams/` |
 | **0b. Consultative Discovery** | `@advisor` | 5-Dimension problem extraction: root cause, acute pain points, failed workarounds, cost of inaction, problem-to-solution matrix | `docs/product-brief.md` (Problem & Pain Points), [`consultant-discovery-framework.md`](templates/consultant-discovery-framework.md) |
-| **1. Marketing & SEO** | `marketing` / `@seo-architect` | Target audience, pain points, keyword strategy, copy hook | `docs/brand-context.md` (Voice, Audience, SEO) |
-| **2. Visual Concept** | `design` / `@design-pilot` | Concept ideation (Awwwards/SiteInspire), visual mockups via `generate_image`, layout specs, tokens, icon pack selection (no emojis) | `docs/brand-context.md` (Palette, Type, Icons), `src/styles/tokens.css`, `workforces/images.json` |
-| **3. Compliance & Sales** | `compliance` / `sales` | Affiliate disclosures (Lead Gen) vs Direct SaaS terms, conversion CTAs | Compliance clauses in `docs/product-brief.md` |
-| **4. Scaffolding & AI Protocols** | `dev` / `@clean-coder` | Scaffolding tech stack, language-specific AI protocol files (`robots.txt`, `llms.txt`, `ai.txt`, `sitemap`) | Codebase scaffolding, protocol files |
+| **1. Marketing & SEO** | `marketing` / `@marketer` | Target audience, pain points, keyword strategy, copy hook | `docs/brand-context.md` (Voice, Audience, SEO) |
+| **2. Visual Concept** | `design` / `@designer` | Concept ideation (Awwwards/SiteInspire), visual mockups via `generate_image`, layout specs, tokens, icon pack selection (no emojis) | `docs/brand-context.md` (Palette, Type, Icons), `src/styles/tokens.css`, `workforces/images.json` |
+| **3. Compliance & Sales** | `compliance` (`@compliance`) / `sales` (`@sales`) | Affiliate disclosures (Lead Gen) vs Direct SaaS terms, conversion CTAs | Compliance clauses in `docs/product-brief.md` |
+| **4. Scaffolding & AI Protocols** | `dev` / `@programmer` | Scaffolding tech stack, language-specific AI protocol files (`robots.txt`, `llms.txt`, `ai.txt`, `sitemap`) | Codebase scaffolding, protocol files |
 | **5. Brief Finalization** | `@project-manager` | Consolidate 7 mandatory brief sections + Problem-to-Solution Matrix, unblock P0 build tasks | `docs/product-brief.md`, `workforces/workstate.md` |
+
 
 ---
 

@@ -28,6 +28,8 @@ Qualifies prospects, conducts deep account/prospect research, manages outbound o
 
 ## Team Roles & Personas
 
+0. **Sales Agent (`@sales`):** Autonomous prospect research, outbound sequence drafting, objection handling, and pitch deck generation. See [`sales.md`](../../agents/sales.md).
+
 1. **Prospecting Specialist (BDR/SDR):**
    - Outbound campaign execution, list curation, cold email/LinkedIn drafting, multi-touch sequence management.
 
@@ -39,6 +41,7 @@ Qualifies prospects, conducts deep account/prospect research, manages outbound o
 
 4. **Sales Closer (Account Executive):**
    - Discovery calls, value-focused demo presentation, custom proposal decks, objection handling, closing & procurement.
+
 
 ---
 

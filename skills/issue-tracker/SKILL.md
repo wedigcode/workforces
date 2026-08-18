@@ -16,7 +16,8 @@ A structured pipeline for deferring issues discovered during agent execution —
 
 - An agent finds a bug but is mid-task and can't stop to fix it
 - `/clean` or `post-code-review` spots tech debt not worth fixing right now
-- The `design-reviewer` flags a design anti-pattern in a component not currently being edited
+- The `@designer` flags a design anti-pattern in a component not currently being edited
+
 - A security vulnerability is found that requires separate attention
 - An idea surfaces during execution that belongs in the backlog
 
@@ -131,6 +132,7 @@ github_issue: ~
 | `/work sync` | Project-manager reviews inbox as part of sync session |
 | `/task` | Slash command for humans and agents to report issues interactively |
 | `project-manager` agent | Triages inbox on demand or during sync |
-| `clean-coder` agent | Reports deferred code issues via `report-issue.py` |
-| `design-reviewer` agent | Reports deferred design issues via `report-issue.py` |
+| `programmer` agent | Reports deferred code issues via `report-issue.py` |
+| `designer` agent | Reports deferred design issues via `report-issue.py` |
 | `post-code-review` | Appends unfixable findings to inbox automatically |
+

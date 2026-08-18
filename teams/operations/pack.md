@@ -36,9 +36,11 @@ Tracks empirical metrics, drives operational transparency, optimizes sprint velo
 
 ## Team Roles & Personas
 
+- **Operations Agent (`@operations`):** Empirical metrics tracking, sprint velocity, dashboard generation, and workforce memory persistence. See [`operations.md`](../../agents/operations.md).
 - **Operations & Metrics Lead:** Designs telemetry frameworks, tracks core KPI metrics, builds performance dashboards, and conducts operational reviews.
 - **Community & Customer Experience Manager:** Oversees community health, monitors user feedback channels, manages support escalation workflows, and drives sentiment tracking.
 - **Process & Documentation Specialist:** Manages workforce state/memory, documents standard operating procedures (SOPs), optimizes task breakdown workflows, and ensures operational transparency.
+
 
 ---
 

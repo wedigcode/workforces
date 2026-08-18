@@ -6,7 +6,7 @@ description: Interactive Site Setup & Product Brief pipeline — guides you thro
 
 The end-to-end conversational onboarding workflow for launching a new website, web app, or SaaS property in an empty codebase. 
 
-Coordinated by the **Project Manager** (`@project-manager`) with specialized handoffs across the **Strategic Advisor** (`@advisor`), **Marketing**, **Design Pilot** (`@design-pilot`), **Compliance/Sales**, and **Engineering** (`@clean-coder`).
+Coordinated by the **Project Manager** (`@project-manager`) with specialized handoffs across the **Strategic Advisor** (`@advisor`), **Marketing** (`@marketer`), **Designer** (`@designer`), **Compliance/Sales** (`@compliance`/`@sales`), and **Engineering** (`@programmer`).
 
 ---
 
@@ -16,11 +16,12 @@ Coordinated by the **Project Manager** (`@project-manager`) with specialized han
 graph TD
     A["Step 0: @project-manager<br/>Discovery & Scope Intake"] --> A2["Step 0b: @advisor<br/>Consultative Problem & Pain Point Discovery"]
     A2 --> B["Step 1: Marketing & SEO<br/>Audience, Keywords, Value Prop"]
-    B --> C["Step 2: @design-pilot<br/>Visual Concept, Images & Tokens"]
+    B --> C["Step 2: @designer<br/>Visual Concept, Images & Tokens"]
     C --> D["Step 3: Compliance & Sales<br/>FTC Rules & Conversion Model"]
-    D --> E["Step 4: @clean-coder (Dev)<br/>Tech Stack & AI Protocols"]
+    D --> E["Step 4: @programmer (Dev)<br/>Tech Stack & AI Protocols"]
     E --> F["Step 5: PM Finalization<br/>Product Brief & Workstate Roadmap"]
 ```
+
 
 ---
 
@@ -100,7 +101,8 @@ Define the market position and audience resonance informed by the advisor's prob
 
 ---
 
-## Step 2 — Design Pilot Ideation & Visual Prototyping (`@design-pilot`)
+## Step 2 — Visual Design & Concept Prototyping (`@designer`)
+
 
 Collaboratively brainstorm the visual language, referencing modern award-winning benchmarks to inspire the user:
 
@@ -148,7 +150,8 @@ Verify trust signals, legal disclosures, and conversion mechanics:
 
 ---
 
-## Step 4 — Dev & Technology Scaffolding Handoff (`dev` / `@clean-coder`)
+## Step 4 — Dev & Technology Scaffolding Handoff (`dev` / `@programmer`)
+
 
 Select framework, cloud hosting, and configure framework-aware AI protocols:
 

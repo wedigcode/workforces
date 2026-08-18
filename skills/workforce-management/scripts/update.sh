@@ -36,16 +36,22 @@ usage() {
   echo "  --force                Force re-sync of all toolkit files regardless of version hash"
   echo "  --non-interactive      Run without prompting"
   echo ""
-  exit 1
+  exit 0
 }
+
 
 # Parse args
 if [[ $# -lt 1 ]]; then
   usage
 fi
 
+if [[ "$1" == "-h" || "$1" == "--help" ]]; then
+  usage
+fi
+
 TARGET="$1"
 shift
+
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -267,7 +273,25 @@ copy_file() {
   fi
 }
 
-# ─── Copy Agents ───
+# ─── Resolve Assets via Team Manifest Resolver ───
+RESOLVER_SCRIPT="$SOURCE_DIR/skills/workforce-management/scripts/resolve_manifest.py"
+if [[ -f "$RESOLVER_SCRIPT" ]]; then
+  RESOLVER_OUTPUT=$(python3 "$RESOLVER_SCRIPT" --toolkit-root "$SOURCE_DIR" --target "$TARGET" --format bash-export)
+  eval "$RESOLVER_OUTPUT"
+else
+  ALLOWED_AGENTS="advisor.md project-manager.md scribe.md programmer.md designer.md"
+  ALLOWED_RULES="base.md clean-coder.md design-standards.md mcp-protection.md session-context.md"
+  ALLOWED_SKILLS="brand-guidelines clean-coder code-graph codebase-improvement design-anti-patterns doc-generator image-workflow issue-tracker jules-integration memory-management post-code-review pr-review session-context ui-ux-design usage-tracker visual-design-fundamentals workforce-management"
+  ALLOWED_WORKFLOWS="advisor.md brand-context.md clean.md improve.md investigate.md plan.md question-formulation.md site-setup.md sync.md task.md teams.md update-workforces.md verify-integrity.md work.md"
+  ALLOWED_PLUGINS="workforce-programming-plugin workforce-usage-plugin"
+  ALLOWED_TEAMS="dev design"
+  INSTALLED_TEAMS_LIST="dev design"
+fi
+
+echo -e "  Active Installed Teams: ${GREEN}${INSTALLED_TEAMS_LIST:-core}${NC}"
+echo ""
+
+# ─── Copy Allowed Agents ───
 AGENTS_SRC=""
 if [[ -d "$SOURCE_DIR/agents" ]]; then
   AGENTS_SRC="$SOURCE_DIR/agents"
@@ -279,80 +303,87 @@ if [[ -n "$AGENTS_SRC" ]]; then
   for f in "$AGENTS_SRC"/*.md; do
     [[ -f "$f" ]] || continue
     basename=$(basename "$f")
-    copy_file "$f" "$TARGET/$BASE_DIR/agents/$basename" "$BASE_DIR/agents/$basename"
+    if [[ " $ALLOWED_AGENTS " =~ " $basename " ]]; then
+      copy_file "$f" "$TARGET/$BASE_DIR/agents/$basename" "$BASE_DIR/agents/$basename"
+    fi
   done
 fi
 
-# ─── Copy Workflows ───
+# ─── Copy Allowed Workflows ───
 if [[ -d "$SOURCE_DIR/workflows" ]]; then
   for f in "$SOURCE_DIR/workflows"/*.md; do
     [[ -f "$f" ]] || continue
     basename=$(basename "$f")
-    copy_file "$f" "$TARGET/$BASE_DIR/workflows/$basename" "$BASE_DIR/workflows/$basename"
+    if [[ " $ALLOWED_WORKFLOWS " =~ " $basename " ]]; then
+      copy_file "$f" "$TARGET/$BASE_DIR/workflows/$basename" "$BASE_DIR/workflows/$basename"
+    fi
   done
 fi
 
-# ─── Copy Rules ───
+# ─── Copy Allowed Rules ───
 if [[ -d "$SOURCE_DIR/rules" ]]; then
   for f in "$SOURCE_DIR/rules"/*.md; do
     [[ -f "$f" ]] || continue
     basename=$(basename "$f")
-    copy_file "$f" "$TARGET/$BASE_DIR/rules/$basename" "$BASE_DIR/rules/$basename"
+    if [[ " $ALLOWED_RULES " =~ " $basename " ]]; then
+      copy_file "$f" "$TARGET/$BASE_DIR/rules/$basename" "$BASE_DIR/rules/$basename"
+    fi
   done
 fi
 
-# ─── Copy Skills ───
+# ─── Copy Allowed Skills ───
 if [[ -d "$SOURCE_DIR/skills" ]]; then
   for skill_dir in "$SOURCE_DIR/skills"/*; do
     [[ -d "$skill_dir" ]] || continue
     skill_name=$(basename "$skill_dir")
-    
-    mkdir -p "$TARGET/$BASE_DIR/skills/$skill_name"
-    while read -r f; do
-      [[ -n "$f" ]] || continue
-      rel_path="${f#$skill_dir/}"
-      copy_file "$f" "$TARGET/$BASE_DIR/skills/$skill_name/$rel_path" "$BASE_DIR/skills/$skill_name/$rel_path"
-    done < <(find "$skill_dir" -type f -not -path "*/__pycache__/*" -not -name "*.pyc" -not -name ".DS_Store")
+    if [[ " $ALLOWED_SKILLS " =~ " $skill_name " ]]; then
+      mkdir -p "$TARGET/$BASE_DIR/skills/$skill_name"
+      while read -r f; do
+        [[ -n "$f" ]] || continue
+        rel_path="${f#$skill_dir/}"
+        copy_file "$f" "$TARGET/$BASE_DIR/skills/$skill_name/$rel_path" "$BASE_DIR/skills/$skill_name/$rel_path"
+      done < <(find "$skill_dir" -type f -not -path "*/__pycache__/*" -not -name "*.pyc" -not -name ".DS_Store")
+    fi
   done
 fi
 
-# ─── Copy Plugins ───
+# ─── Copy Allowed Plugins ───
 if [[ -d "$SOURCE_DIR/plugins" ]]; then
-  echo -e "${BOLD}▸ Copying Plugins...${NC}"
   for plugin_dir in "$SOURCE_DIR/plugins"/*; do
     [[ -d "$plugin_dir" ]] || continue
     plugin_name=$(basename "$plugin_dir")
-    
-    mkdir -p "$TARGET/$BASE_DIR/plugins/$plugin_name"
-    while read -r f; do
-      [[ -n "$f" ]] || continue
-      rel_path="${f#$plugin_dir/}"
-      copy_file "$f" "$TARGET/$BASE_DIR/plugins/$plugin_name/$rel_path" "$BASE_DIR/plugins/$plugin_name/$rel_path"
-    done < <(find "$plugin_dir" -type f -not -path "*/__pycache__/*" -not -name "*.pyc" -not -name ".DS_Store")
+    if [[ " $ALLOWED_PLUGINS " =~ " $plugin_name " ]]; then
+      mkdir -p "$TARGET/$BASE_DIR/plugins/$plugin_name"
+      while read -r f; do
+        [[ -n "$f" ]] || continue
+        rel_path="${f#$plugin_dir/}"
+        copy_file "$f" "$TARGET/$BASE_DIR/plugins/$plugin_name/$rel_path" "$BASE_DIR/plugins/$plugin_name/$rel_path"
+      done < <(find "$plugin_dir" -type f -not -path "*/__pycache__/*" -not -name "*.pyc" -not -name ".DS_Store")
+    fi
   done
 fi
 
-# ─── Sync Upstream Team Pack Building Blocks & Discover New Building Blocks ───
+# ─── Sync Installed Team Packs & Discover New Upstream Teams ───
 NEW_TEAMS_AVAILABLE=()
 
 if [[ -d "$SOURCE_DIR/teams" ]]; then
-  echo -e "${BOLD}▸ Syncing Upstream Team Pack Building Blocks...${NC}"
   for stdir in "$SOURCE_DIR/teams"/*; do
     [[ -d "$stdir" ]] || continue
     team_name=$(basename "$stdir")
     
-    if [[ ! -d "$TARGET/workforces/teams/$team_name" ]]; then
+    if [[ ! " $ALLOWED_TEAMS " =~ " $team_name " ]]; then
       NEW_TEAMS_AVAILABLE+=("$team_name")
+    else
+      mkdir -p "$TARGET/$BASE_DIR/teams/$team_name"
+      while read -r f; do
+        [[ -n "$f" ]] || continue
+        rel="${f#$stdir/}"
+        copy_file "$f" "$TARGET/$BASE_DIR/teams/$team_name/$rel" "$BASE_DIR/teams/$team_name/$rel"
+      done < <(find "$stdir" -type f -not -path "*/__pycache__/*" -not -name "*.pyc" -not -name ".DS_Store")
     fi
-
-    mkdir -p "$TARGET/$BASE_DIR/teams/$team_name"
-    while read -r f; do
-      [[ -n "$f" ]] || continue
-      rel="${f#$stdir/}"
-      copy_file "$f" "$TARGET/$BASE_DIR/teams/$team_name/$rel" "$BASE_DIR/teams/$team_name/$rel"
-    done < <(find "$stdir" -type f -not -path "*/__pycache__/*" -not -name "*.pyc" -not -name ".DS_Store")
   done
 fi
+
 
 # ─── Write version hash ───
 if [[ "$DRY" != true ]]; then

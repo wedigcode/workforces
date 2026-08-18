@@ -77,21 +77,38 @@ _Last updated: [date]_
 
 ---
 
-## 2. Target Audience
+## 2. Target Audience Personas (Customer Segments)
 
-**Primary persona:** [Name + role]
-- **Demographics:** [Age range, location, role]
-- **Pain points:** [Specific frustrations]
-- **How they search:** [Keywords, queries, phrases they use]
-- **What convinces them:** [Social proof, specs, pricing clarity, demos]
+### Persona 1: [Primary Segment Name / Role — e.g. "Enterprise Engineering Leader"]
+- **Role & Profile:** [e.g. VP Eng, CTO, Senior Architect at 100+ person company]
+- **Core Frustrations & Bottlenecks:** [e.g. Technical debt, delivery delays, compliance risk]
+- **Value Proposition Trigger:** [e.g. Enterprise SLA, security audits, provable ROI metrics]
+- **How They Search & Speak:** [Keywords, terminology, verbatim phrases]
 
-**Secondary persona (if applicable):** [Name + role]
+### Persona 2: [Secondary Segment Name / Role — e.g. "Growth Startup Founder"]
+- **Role & Profile:** [e.g. Seed/Series A Founder, Solopreneur, Product Lead]
+- **Core Frustrations & Bottlenecks:** [e.g. Hiring cost, slow time to market, bandwidth limits]
+- **Value Proposition Trigger:** [e.g. Speed, DIY ease, self-serve setup, transparent pricing]
+- **How They Search & Speak:** [Keywords, terminology, verbatim phrases]
+
+### Persona 3: [Optional Niche Segment — e.g. "Agency / Workflow Integrator"]
+- **Role & Profile:** [e.g. Consultant, agency operator managing multiple client brands]
+- **Core Frustrations & Bottlenecks:** [e.g. Client handoff friction, tool fragmentation]
+- **Value Proposition Trigger:** [e.g. Multi-tenancy, modular team packaging, white-labeling]
 
 ---
 
-## 3. Brand Voice
+## 3. Brand Voice & Author Personas
 
-**Core personality:** [3–5 adjectives]
+**Core Brand Personality:** [3–5 adjectives — e.g. Authoritative, pragmatic, crisp, forward-looking]
+
+### Author / Voice Personas (For Social Media & Thought Leadership)
+- **Persona A: "The CTO / Systems Thinker"**
+  - **Tone & Perspective:** Architectural rigor, scalability, empirical data, engineering ROI.
+  - **Best For:** Technical teardowns, infrastructure debates, GitHub/dev community discussions.
+- **Persona B: "The AI Enabler / Workflow Pragmatist"**
+  - **Tone & Perspective:** Fast iteration, agentic leverage, practical automation tips, builder energy.
+  - **Best For:** Social engagement (X.com/LinkedIn), founder communities, tactical "how-to" playbooks.
 
 | Dimension | Where We Land |
 |-----------|--------------|
@@ -100,13 +117,9 @@ _Last updated: [date]_
 | Expert ↔ Peer | [e.g. "Peer who's 2 steps ahead"] |
 
 **Voice rules:**
-- ✅ Do: [Specific voice guidance]
-- ❌ Never: [Words, phrases, or tones to avoid]
+- ✅ Do: [Specific voice guidance — lead with frameworks, share raw metrics, ask catalytic questions]
+- ❌ Never: [Words, phrases, or tones to avoid — generic fluff, corporate jargon, sycophancy]
 
-**Tone in specific contexts:**
-- Success/wins: [e.g. Celebratory but not over-the-top]
-- Errors/problems: [e.g. Direct and reassuring, no corporate speak]
-- Marketing copy: [e.g. Punchy, benefit-first, short sentences]
 
 ---
 
@@ -260,5 +273,6 @@ Log brand decisions in `workforces/workstate.md` under `## Brand & Design Decisi
 
 - This document is **living** — update it when brand decisions evolve
 - `docs/brand-context.md` is the **authority** — any design or copy that conflicts with it needs discussion, not silent deviation
-- The `design-reviewer` agent reads this file first before every design review
-- The `marketing` team should reference Section 3 (Voice) for all copy
+- The `@designer` agent reads this file first before every design review
+- The `marketing` team (`@marketer`) should reference Section 3 (Voice) for all copy
+

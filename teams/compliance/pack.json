@@ -1,0 +1,25 @@
+{
+  "name": "compliance",
+  "title": "Compliance, Integrity & Reference Lineage",
+  "description": "Enforces zero ghost references, reference lineage, policy compliance, subtask tracking, and decision escalation.",
+  "agents": [
+    "compliance"
+  ],
+  "rules": [
+    "file-integrity.md",
+    "mcp-protection.md"
+  ],
+  "skills": [
+    "integrity-validator",
+    "issue-tracker",
+    "session-context",
+    "usage-tracker"
+  ],
+  "workflows": [
+    "verify-integrity.md",
+    "task.md"
+  ],
+  "plugins": [
+    "workforce-integrity-plugin"
+  ]
+}

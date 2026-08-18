@@ -1,0 +1,21 @@
+{
+  "name": "marketing",
+  "title": "Marketing & Brand Strategy",
+  "description": "Customer-centric positioning, PAS/AIDA conversion copywriting, campaign launches, and lifecycle email journeys.",
+  "agents": [
+    "marketer"
+  ],
+  "rules": [
+    "design-standards.md"
+  ],
+  "skills": [
+    "persona-management",
+    "brand-guidelines",
+    "image-workflow",
+    "ai-search-optimization",
+    "memory-management"
+  ],
+  "workflows": [
+    "brand-context.md"
+  ]
+}

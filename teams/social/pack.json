@@ -1,0 +1,23 @@
+{
+  "name": "social",
+  "title": "Social Engagement & Community Growth",
+  "description": "Anti-bot high-signal content discovery, cold-post triage caching, multi-tier conversation catalysts, and community cultivation.",
+  "agents": [
+    "social"
+  ],
+  "rules": [
+    "social-engagement.md"
+  ],
+  "skills": [
+    "social-engagement",
+    "persona-management",
+    "brand-guidelines",
+    "memory-management"
+  ],
+  "workflows": [
+    "social.md"
+  ],
+  "plugins": [
+    "workforce-social-plugin"
+  ]
+}

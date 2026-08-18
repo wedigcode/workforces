@@ -32,9 +32,9 @@ Drives customer-centric positioning, brand strategy, persuasive copywriting, vis
 
 ## Team Roles & Personas
 
+- **Marketer Agent (`@marketer`):** High-converting conversion copywriter, positioning strategist, and email funnel architect. See [`marketer.md`](../../agents/marketer.md).
 - **Brand & Positioning Strategist:** Defines value propositions, market positioning, audience personas, competitive differentiation, and messaging matrices.
 - **High-Conversion Copywriter:** Crafts persuasive landing page copy, ad copy, email nurture cadences, and video scripts using PAS and AIDA frameworks.
-- **Visual / UI Design Lead:** Establishes visual design systems, brand aesthetics, UI layouts, graphics, and interactive design assets.
 - **Lead Nurture & Campaign Manager:** Builds multi-channel campaign architectures, automated email nurture flows, lead magnets, and customer lifecycle funnels.
 
 ---
@@ -47,14 +47,14 @@ When generating a marketing team for a project, consider whether the project nee
 - `launch-campaign` (Cross-channel campaign planning, asset generation, and launch sequencing)
 - `lead-magnet-funnel` (Valuable opt-in resource definition, lead capture form, and follow-up nurture sequence)
 
-
 ---
 
 ## Design Team Collaboration
 
 The marketing team and design team share brand context. All copy and visual assets must align with `docs/brand-context.md`:
 
-- **Brand voice (Section 3)** governs all marketing copy — same voice rules for emails, landing pages, ads, and social
-- **Visual identity (Section 4)** governs all design assets — same colors, fonts, and imagery style
-- The `design-reviewer` agent reviews any visual marketing asset before shipping
-- Campaigns requiring new visual assets should loop in the **Design Team** to ensure brand consistency
+- **Brand voice (Section 3)** governs all marketing copy — same voice rules for emails, landing pages, ads, and social.
+- **Visual identity (Section 4)** governs all design assets — same colors, fonts, and imagery style.
+- The `@designer` agent reviews visual marketing assets before shipping.
+- Campaigns requiring new visual assets loop in `@designer` to ensure brand consistency.
+

@@ -32,9 +32,11 @@ Optimizes search engine visibility (SEO), AI Search Engine Optimization (GEO/AIS
 
 ## Team Roles & Personas
 
+- **Growth Agent (`@growth`):** Search intent matching, GEO/AISO schema markup, programmatic SEO, and acquisition funnel optimization. See [`growth.md`](../../agents/growth.md).
 - **Technical & Programmatic SEO Lead:** Oversees site crawlability, schema taxonomy, Core Web Vitals optimization, indexing rules, and scalable programmatic template architectures.
 - **AISO / AI Search Optimization Specialist:** Engineers content structure and entity relationships to maximize citation rates across Perplexity, ChatGPT Search, Gemini, and generative AI search engines.
 - **Intent & Content Growth Strategist:** Analyzes user search intent, maps keyword clusters to conversion funnels, executes intent-arbitrage opportunities, and drives high-ROI content roadmaps.
+
 
 ---
 

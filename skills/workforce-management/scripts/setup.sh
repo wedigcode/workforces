@@ -47,16 +47,22 @@ usage() {
   echo "  --skip-site-setup      Skip Site Setup initialization"
   echo "  --non-interactive      Do not prompt for any options (fails on invalid configuration)"
   echo ""
-  exit 1
+  exit 0
 }
+
 
 # Parse args
 if [[ $# -lt 1 ]]; then
   usage
 fi
 
+if [[ "$1" == "-h" || "$1" == "--help" ]]; then
+  usage
+fi
+
 TARGET="$1"
 shift
+
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -232,10 +238,29 @@ echo -e "  Editor:  ${CYAN}$DETECTED_EDITOR ($BASE_DIR/)${NC}"
 echo -e "  Type:    ${CYAN}$REPO_TYPE${NC}"
 echo ""
 
+# ─── Resolve Assets via Team Manifest Resolver ───
+RESOLVER_SCRIPT="$TOOLKIT_ROOT/skills/workforce-management/scripts/resolve_manifest.py"
+if [[ -f "$RESOLVER_SCRIPT" ]]; then
+  RESOLVER_OUTPUT=$(python3 "$RESOLVER_SCRIPT" --toolkit-root "$TOOLKIT_ROOT" --target "$TARGET" ${TEAMS_ARG:+--teams "$TEAMS_ARG"} --format bash-export)
+  eval "$RESOLVER_OUTPUT"
+else
+  # Fallback if resolver script not found
+  ALLOWED_AGENTS="advisor.md project-manager.md scribe.md programmer.md designer.md"
+  ALLOWED_RULES="base.md clean-coder.md design-standards.md mcp-protection.md session-context.md"
+  ALLOWED_SKILLS="brand-guidelines clean-coder code-graph codebase-improvement design-anti-patterns doc-generator image-workflow issue-tracker jules-integration memory-management post-code-review pr-review session-context ui-ux-design usage-tracker visual-design-fundamentals workforce-management"
+  ALLOWED_WORKFLOWS="advisor.md brand-context.md clean.md improve.md investigate.md plan.md question-formulation.md site-setup.md sync.md task.md teams.md update-workforces.md verify-integrity.md work.md"
+  ALLOWED_PLUGINS="workforce-programming-plugin workforce-usage-plugin"
+  ALLOWED_TEAMS="dev design"
+  INSTALLED_TEAMS_LIST="dev design"
+fi
+
+echo -e "  Installed Teams: ${GREEN}${INSTALLED_TEAMS_LIST:-core}${NC}"
+echo ""
+
 # Create directories
 mkdir -p "$AGENTS_DIR" "$WORKFLOWS_DIR" "$SKILLS_DIR" "$RULES_DIR"
 
-# ─── Copy Agents (Flat) ───
+# ─── Copy Allowed Agents ───
 AGENTS_SRC=""
 if [[ -d "$TOOLKIT_ROOT/agents" ]]; then
   AGENTS_SRC="$TOOLKIT_ROOT/agents"
@@ -248,78 +273,87 @@ if [[ -n "$AGENTS_SRC" ]]; then
   for f in "$AGENTS_SRC"/*.md; do
     [[ -f "$f" ]] || continue
     basename=$(basename "$f")
-    copy_file "$f" "$AGENTS_DIR/$basename" "$BASE_DIR/agents/$basename"
+    if [[ " $ALLOWED_AGENTS " =~ " $basename " ]]; then
+      copy_file "$f" "$AGENTS_DIR/$basename" "$BASE_DIR/agents/$basename"
+    fi
   done
 fi
 
-# ─── Copy Workflows (Flat) ───
+# ─── Copy Allowed Workflows ───
 if [[ -d "$TOOLKIT_ROOT/workflows" ]]; then
   echo -e "${BOLD}▸ Copying Workflows...${NC}"
   for f in "$TOOLKIT_ROOT/workflows"/*.md; do
     [[ -f "$f" ]] || continue
     basename=$(basename "$f")
-    copy_file "$f" "$WORKFLOWS_DIR/$basename" "$BASE_DIR/workflows/$basename"
+    if [[ " $ALLOWED_WORKFLOWS " =~ " $basename " ]]; then
+      copy_file "$f" "$WORKFLOWS_DIR/$basename" "$BASE_DIR/workflows/$basename"
+    fi
   done
 fi
 
-# ─── Copy Rules (Flat) ───
+# ─── Copy Allowed Rules ───
 if [[ -d "$TOOLKIT_ROOT/rules" ]]; then
   echo -e "${BOLD}▸ Copying Rules...${NC}"
   for f in "$TOOLKIT_ROOT/rules"/*.md; do
     [[ -f "$f" ]] || continue
     basename=$(basename "$f")
-    copy_file "$f" "$RULES_DIR/$basename" "$BASE_DIR/rules/$basename"
+    if [[ " $ALLOWED_RULES " =~ " $basename " ]]; then
+      copy_file "$f" "$RULES_DIR/$basename" "$BASE_DIR/rules/$basename"
+    fi
   done
 fi
 
-# ─── Copy Skills (Recursive Skill Subdirectories) ───
+# ─── Copy Allowed Skills ───
 if [[ -d "$TOOLKIT_ROOT/skills" ]]; then
   echo -e "${BOLD}▸ Copying Skills...${NC}"
-  # Loop through subdirectories under skills/
   for skill_dir in "$TOOLKIT_ROOT/skills"/*; do
     [[ -d "$skill_dir" ]] || continue
     skill_name=$(basename "$skill_dir")
-    
-    # Replicate skill structure under SKILLS_DIR
-    mkdir -p "$SKILLS_DIR/$skill_name"
-    while read -r f; do
-      [[ -n "$f" ]] || continue
-      rel_path="${f#$skill_dir/}"
-      copy_file "$f" "$SKILLS_DIR/$skill_name/$rel_path" "$BASE_DIR/skills/$skill_name/$rel_path"
-    done < <(find "$skill_dir" -type f -not -path "*/__pycache__/*" -not -name "*.pyc" -not -name ".DS_Store")
+    if [[ " $ALLOWED_SKILLS " =~ " $skill_name " ]]; then
+      mkdir -p "$SKILLS_DIR/$skill_name"
+      while read -r f; do
+        [[ -n "$f" ]] || continue
+        rel_path="${f#$skill_dir/}"
+        copy_file "$f" "$SKILLS_DIR/$skill_name/$rel_path" "$BASE_DIR/skills/$skill_name/$rel_path"
+      done < <(find "$skill_dir" -type f -not -path "*/__pycache__/*" -not -name "*.pyc" -not -name ".DS_Store")
+    fi
   done
 fi
 
-# ─── Copy Plugins (Recursive Plugin Subdirectories) ───
+# ─── Copy Allowed Plugins ───
 if [[ -d "$TOOLKIT_ROOT/plugins" ]]; then
   echo -e "${BOLD}▸ Copying Plugins...${NC}"
   for plugin_dir in "$TOOLKIT_ROOT/plugins"/*; do
     [[ -d "$plugin_dir" ]] || continue
     plugin_name=$(basename "$plugin_dir")
-    
-    mkdir -p "$PLUGINS_DIR/$plugin_name"
-    while read -r f; do
-      [[ -n "$f" ]] || continue
-      rel_path="${f#$plugin_dir/}"
-      copy_file "$f" "$PLUGINS_DIR/$plugin_name/$rel_path" "$BASE_DIR/plugins/$plugin_name/$rel_path"
-    done < <(find "$plugin_dir" -type f -not -path "*/__pycache__/*" -not -name "*.pyc" -not -name ".DS_Store")
+    if [[ " $ALLOWED_PLUGINS " =~ " $plugin_name " ]]; then
+      mkdir -p "$PLUGINS_DIR/$plugin_name"
+      while read -r f; do
+        [[ -n "$f" ]] || continue
+        rel_path="${f#$plugin_dir/}"
+        copy_file "$f" "$PLUGINS_DIR/$plugin_name/$rel_path" "$BASE_DIR/plugins/$plugin_name/$rel_path"
+      done < <(find "$plugin_dir" -type f -not -path "*/__pycache__/*" -not -name "*.pyc" -not -name ".DS_Store")
+    fi
   done
 fi
 
-# ─── Copy Upstream Team Pack Building Blocks ───
+# ─── Copy Installed Team Pack Building Blocks ───
 if [[ -d "$TOOLKIT_ROOT/teams" ]]; then
-  echo -e "${BOLD}▸ Copying Upstream Team Pack Building Blocks...${NC}"
+  echo -e "${BOLD}▸ Copying Installed Team Packs...${NC}"
   for team_dir in "$TOOLKIT_ROOT/teams"/*; do
     [[ -d "$team_dir" ]] || continue
     team_name=$(basename "$team_dir")
-    mkdir -p "$TARGET/$BASE_DIR/teams/$team_name"
-    while read -r f; do
-      [[ -n "$f" ]] || continue
-      rel="${f#$team_dir/}"
-      copy_file "$f" "$TARGET/$BASE_DIR/teams/$team_name/$rel" "$BASE_DIR/teams/$team_name/$rel"
-    done < <(find "$team_dir" -type f -not -path "*/__pycache__/*" -not -name "*.pyc" -not -name ".DS_Store")
+    if [[ " $ALLOWED_TEAMS " =~ " $team_name " ]]; then
+      mkdir -p "$TARGET/$BASE_DIR/teams/$team_name"
+      while read -r f; do
+        [[ -n "$f" ]] || continue
+        rel="${f#$team_dir/}"
+        copy_file "$f" "$TARGET/$BASE_DIR/teams/$team_name/$rel" "$BASE_DIR/teams/$team_name/$rel"
+      done < <(find "$team_dir" -type f -not -path "*/__pycache__/*" -not -name "*.pyc" -not -name ".DS_Store")
+    fi
   done
 fi
+
 
 # ─── Setup Workspace folder (workforces/) ───
 WORKFORCES_DIR="$TARGET/workforces"
@@ -358,8 +392,15 @@ EOF
   echo -e "  ${GREEN}CREATED:${NC} workforces/README.md"
 fi
 
+# Format installed teams YAML
+INSTALLED_TEAMS_YAML=""
+for t in $INSTALLED_TEAMS_LIST; do
+  INSTALLED_TEAMS_YAML+=$'  - '"$t"$'\n'
+done
+
 # Seed workrules.md if not already present
 if [[ ! -f "$WORKFORCES_DIR/workrules.md" ]]; then
+
   cat > "$WORKFORCES_DIR/workrules.md" << EOF
 # Work Rules
 
@@ -430,7 +471,7 @@ if [[ "$SITE_SETUP" == true ]]; then
     cat > "$DOCS_DIR/product-brief.md" << EOF
 # Product Brief: [Site / Product Name]
 
-_Status: Draft — Run /site-setup (or invoke @advisor / @design-pilot) to complete this brief._
+_Status: Draft — Run /site-setup (or invoke @advisor / @designer) to complete this brief._
 
 ---
 
@@ -453,7 +494,8 @@ _Status: Draft — Run /site-setup (or invoke @advisor / @design-pilot) to compl
 | P-2 | [e.g. Complex pricing table hesitation] | P1 | [Support quote requests] | [Interactive ROI calculator] | [Checkout conversion +25%] |
 
 ## 3. Creative Concept & Narrative
-- **Visual Metaphor & Story:** [Defined via @design-pilot]
+- **Visual Metaphor & Story:** [Defined via @designer]
+
 - **Inspiration References:** [Awwwards / SiteInspire / Dribbble / Land-book / Landing.love]
 - **Design Archetype:** [e.g., Editorial Minimalist, Neo-Brutalist, Dark Luxury, High-Tech Clean]
 
@@ -600,7 +642,8 @@ echo -e "  ${GREEN}✓ Workforces toolkit installed successfully!${NC}"
 if [[ "$SITE_SETUP" == true ]]; then
   echo ""
   echo -e "  ${BOLD}${CYAN}🚀 Site Setup Initialized:${NC}"
-  echo -e "     Run ${BOLD}/site-setup${NC} (or invoke ${BOLD}@advisor${NC} / ${BOLD}@design-pilot${NC}) in your AI assistant to:"
+  echo -e "     Run ${BOLD}/site-setup${NC} (or invoke ${BOLD}@advisor${NC} / ${BOLD}@designer${NC}) in your AI assistant to:"
+
   echo -e "     1. Consult with @advisor to unpack root problems, pain points & stakes"
   echo -e "     2. Brainstorm creative design concepts & generate visual mockups"
   echo -e "     3. Select tech stack & cloud hosting"

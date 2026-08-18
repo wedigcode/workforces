@@ -1,0 +1,23 @@
+{
+  "name": "operations",
+  "title": "Operations, Analytics & Workforce Memory",
+  "description": "Empirical metrics tracking, sprint velocity optimization, operational transparency, and persistent workforce memory.",
+  "agents": [
+    "operations"
+  ],
+  "rules": [
+    "base.md",
+    "session-context.md"
+  ],
+  "skills": [
+    "usage-tracker",
+    "session-context",
+    "memory-management",
+    "issue-tracker"
+  ],
+  "workflows": [
+    "sync.md",
+    "context.md",
+    "task.md"
+  ]
+}

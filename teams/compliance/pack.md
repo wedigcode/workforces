@@ -31,9 +31,11 @@ Ensures regulatory compliance, data privacy, ad platform adherence, and governan
 
 ## Team Roles & Personas
 
+- **Compliance Agent (`@compliance`):** Workforce reference lineage enforcement, zero ghost references, data privacy governance, and policy compliance. See [`compliance.md`](../../agents/compliance.md).
 - **Data Privacy Officer / Auditor:** Audits data ingestion/storage, handles GDPR/CCPA/HIPAA consent workflows, manages DSAR requests, and enforces data minimization.
 - **Platform & Terms Compliance Specialist:** Ensures ad creative and landing page claims satisfy ad network policies (Google, Meta, etc.), drafts Terms of Service, and reviews consumer disclosure rules.
 - **Security & SOC2 Governance Specialist:** Defines infrastructure security controls, manages SOC2 Type II readiness, performs vendor risk assessments, and enforces RBAC/IAM auditing.
+
 
 ---
 

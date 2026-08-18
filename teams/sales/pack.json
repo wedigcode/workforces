@@ -1,0 +1,17 @@
+{
+  "name": "sales",
+  "title": "Sales & Outreach",
+  "description": "Prospect intel research, personalized multi-touch outbound sequences, qualification, and objection handling.",
+  "agents": [
+    "sales"
+  ],
+  "rules": [],
+  "skills": [
+    "persona-management",
+    "brand-guidelines",
+    "memory-management"
+  ],
+  "workflows": [
+    "advisor.md"
+  ]
+}

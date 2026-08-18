@@ -1,58 +1,67 @@
 ---
-description: Dynamic Team Architect — generates customized, minimalist teams in workforces/teams/<team-name>/ based on user prompt and project needs.
+description: Dynamic Team Architect — lists, installs, and manages modular Team Packs (dev, design, marketing, sales, operations, social, growth, compliance) for your workspace.
 ---
 
-# /teams — Dynamic Team Architect
+# /teams — Modular Team Architect & Pack Manager
 
-Constructs, lists, or updates customized Team Packs for your active project workforce.
+Lists installed teams, installs additional domain team packs on-demand from upstream `workforces`, or generates custom project-specific teams.
 
 ---
 
 ## Commands & Usage
 
 ```
-/teams                                       → List installed teams and available upstream building blocks
-/teams "I need a team for marketing..."       → Dynamically build a custom team in workforces/teams/<team-name>/
-/teams add <domain-name>                     → Bootstrap a team based on an upstream building block (e.g., sales, marketing, dev, growth)
+/teams                                       → List installed teams, active agents, and available upstream packs
+/teams add <domain-name>                     → Install an upstream team pack (e.g. marketing, sales, social, dev, growth, compliance)
+/teams "I need a custom team for..."          → Dynamically synthesize a custom project team in workforces/teams/<team-name>/
 ```
 
 ---
 
-## Step 1 — Parse Project Context & Request
+## Installing an Upstream Team Pack (`/teams add <team>`)
 
-1. Read `workforces/workrules.md` to identify the project type (e.g., SaaS, Local Service, Enterprise) and active settings.
-2. Read `workforces/workstate.md` to check currently registered teams.
-3. Parse the user's request prompt (e.g., *"I need a team that will help with marketing for a local service business"*).
+When you need capabilities for a new domain (for example, adding `@marketer` and copywriting skills via `marketing`, or `@social` via `social`):
 
-## Step 2 — Query Building Blocks & Principles
+### Step 1 — Register in Configuration
+Add the team name to `installed_teams` in `workforces/workrules.md`:
+```yaml
+## Installed Teams
+- installed_teams:
+  - dev
+  - design
+  - marketing
+```
 
-1. Inspect available building blocks in upstream `workforces` repository under `teams/*/pack.md` (e.g., `teams/marketing/pack.md`, `teams/sales/pack.md`, `teams/dev/pack.md`, `teams/growth/pack.md`).
-2. Extract the relevant **Principles of Domain Excellence** (e.g. for marketing: customer-centric positioning, visual & copy consistency; for sales: active listening, objection handling).
+### Step 2 — Sync Team Assets
+Run the workforce installer to sync only that team's specific agents, rules, skills, and workflows from upstream:
+```bash
+bash .agents/skills/workforce-management/scripts/setup.sh ./ --teams <team-name>
+```
+*(Or run `bash .agents/skills/workforce-management/scripts/update.sh ./` to re-sync all configured teams).*
 
-## Step 3 — Synthesize Minimalist Team Pack
+The installer reads `teams/<team>/pack.json` and copies:
+- **Agents:** (e.g. `agents/marketer.md`)
+- **Rules:** Associated domain rules
+- **Skills:** Associated domain skills
+- **Workflows:** Associated domain workflows
+- **Manifest:** `teams/<team>/pack.json` & `pack.md`
 
-Generate a **custom, minimalist team pack** inside `workforces/teams/<team-name>/` in the active workspace:
+### Step 3 — Update Work State
+Append the newly installed team under `## Active Teams` in `workforces/workstate.md` so `@project-manager` and orchestrators immediately recognize its agents and workflows.
 
-1. **Manifest (`workforces/teams/<team-name>/team.json`):**
-   ```json
-   {
-     "id": "<team-name>",
-     "name": "<Human Readable Team Name>",
-     "version": "1.0.0",
-     "description": "<Brief purpose statement>",
-     "personas": ["personas/<role-1>.md"],
-     "rules": ["rules/<domain-rule>.md"],
-     "workflows": ["workflows/<sop-name>.md"]
-   }
-   ```
+---
 
-2. **Personas (`workforces/teams/<team-name>/personas/`):**
-   Generate minimal persona files incorporating the domain principles of excellence.
+## Listing Installed Teams (`/teams`)
 
-3. **Rules & SOPs (`workforces/teams/<team-name>/rules/` & `workflows/`):**
-   Generate targeted SOP workflows specifically required for the project (e.g. `launch-campaign.md`, `outreach-sequence.md`).
-
-## Step 4 — Register Active Team
-
-1. **Register in `workforces/workstate.md`:**
-   Append the new team under `## Active Teams` (ID, name, and folder path `workforces/teams/<team-name>/`) so the AI Project Manager (`project-manager.md`) and orchestrators immediately recognize its capabilities.
+When invoked without arguments, `/teams` reads `workforces/workrules.md` and displays:
+1. **Active Installed Teams & Agents:**
+   - `dev` → `@programmer` (TDD, clean code, code graph)
+   - `design` → `@designer` (UI/UX, visual mockups, tokens)
+2. **Available Upstream Packs:**
+   - `marketing` (`@marketer`)
+   - `sales` (`@sales`)
+   - `social` (`@social`)
+   - `growth` (`@growth`, `@researcher`)
+   - `operations` (`@operations`)
+   - `compliance` (`@compliance`)
+3. **Action:** Prompts user: *"Run `/teams add <team>` to install an additional domain pack."*

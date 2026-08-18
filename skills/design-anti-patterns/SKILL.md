@@ -1,6 +1,7 @@
 ---
 name: design-anti-patterns
-description: 25 AI design clichés to avoid and human-crafted alternatives. MANDATORY when building UI, reviewing designs, or creating landing pages — ensures output doesn't look AI-generated. Focus is design quality, not code quality (see clean-coder for that).
+description: 25 AI design clichés to avoid and human-crafted alternatives. MANDATORY when building UI, reviewing designs, or creating landing pages — ensures output doesn't look AI-generated. Focus is design quality, not code quality (see programmer for that).
+
 ---
 
 # Design Anti-Patterns

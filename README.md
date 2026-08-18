@@ -79,18 +79,37 @@ For more setup options and environment configuration, see the [Setup Guide](docs
 | [`feature-research`](skills/feature-research/SKILL.md) | Research-first pipeline: gap analysis, PRD, and work breakdown across projects |
 | [`usage-tracker`](skills/usage-tracker/SKILL.md) | Real-time token, character, thought, and subagent usage tracking across agent sessions |
 
+### Agents & Team Roster
+Full roster documentation available in [`docs/teams-and-agents.md`](docs/teams-and-agents.md).
+
+| Agent Tag | Role / Domain | Core Capabilities |
+| :--- | :--- | :--- |
+| [`@advisor`](agents/advisor.md) | Strategic Advisor | Consultative problem discovery, root cause extraction, and trade-off coaching |
+| [`@project-manager`](agents/project-manager.md) | Project Manager | Backlog prioritization, task sequencing, sprint syncs, and GitHub project sync |
+| [`@programmer`](agents/programmer.md) | Software Engineer | Clean code authoring, TDD, symbol graph index lookup, and post-edit reviews |
+| [`@designer`](agents/designer.md) | Visual & UI/UX Designer | Visual concept ideation, AI image mockups, design tokens, and design QA reviews |
+| [`@marketer`](agents/marketer.md) | Marketer | Positioning, PAS/AIDA copywriting, email nurture funnels, and launch campaigns |
+| [`@sales`](agents/sales.md) | Sales Specialist | Prospect research, multi-touch outbound cadences, qualification, and closing |
+| [`@social`](agents/social.md) | Social Engager | Content discovery, cold-post triage, and high-engagement reply catalysts |
+| [`@growth`](agents/growth.md) | Growth & SEO Lead | Intent matching, programmatic SEO, and Generative Engine Optimization (GEO/AISO) |
+| [`@operations`](agents/operations.md) | Operations Lead | Metrics dashboards, telemetry tracking, sprint velocity, and workforce state |
+| [`@compliance`](agents/compliance.md) | Compliance Auditor | Reference lineage enforcement, zero ghost references, and policy compliance |
+| [`@researcher`](agents/researcher.md) | Feature Researcher | Gap analysis, competitive teardowns, and structured PRD specifications |
+| [`@scribe`](agents/scribe.md) | Scribe | Zero-narrative session context recording and architectural persistence |
+
 ### Workflows
 | Command | Workflow | Description |
 |---------|----------|-------------|
 | `/work` | [`work`](workflows/work.md) | Single command center: scans GitHub queue, surfaces top active tasks |
 | `/advisor` / `/consult` | [`advisor`](workflows/advisor.md) | Strategic advisory, consultative problem discovery & trade-off evaluation |
-| `/work site-setup` / `/site-setup` | [`site-setup`](workflows/site-setup.md) | Greenfield site setup & Product Brief pipeline with `@advisor` and `@design-pilot` |
+| `/work site-setup` / `/site-setup` | [`site-setup`](workflows/site-setup.md) | Greenfield site setup & Product Brief pipeline with `@advisor` and `@designer` |
 | `/brand-context` | [`brand-context`](workflows/brand-context.md) | Brand identity foundation: voice, palette, typography, and tokens |
 | `/work feature` / `/feature` | [`feature`](workflows/feature.md) | Multi-phase feature scoping, problem discovery, gap analysis, PRD generation |
 | `/work plan` / `/plan` | [`plan`](workflows/plan.md) | Phased project planning, task breakdown, estimates, and risk matrix |
 | `/work investigate` / `/investigate` | [`investigate`](workflows/investigate.md) | Incident triage, log streaming to scratch, postmortem generation |
 | `/work sync` | [`sync`](workflows/sync.md) | Aligns on wins, losses, next goals, and blockers; logs daily syncs |
 | `/update-workforces` | [`update-workforces`](workflows/update-workforces.md) | Dry-run, patch toolkit layer files, and summarize updates |
+
 
 
 ---

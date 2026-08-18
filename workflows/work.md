@@ -78,7 +78,8 @@ If the inbox has **1 or more** files, surface a prompt:
 
 | File | Title | Type | Severity | Reporter | Age |
 |------|-------|------|----------|---------|-----|
-| 20260813-... | Dead code in utils.py | debt | P2 | clean-coder | 2h |
+| 20260813-... | Dead code in utils.py | debt | P2 | programmer | 2h |
+
 
 💡 Run `/task triage` to let the Project Manager review these.
 ```
@@ -210,7 +211,8 @@ See [`workflows/task.md`](./task.md) for the full command reference.
 
 Triggers the greenfield site setup and Product Brief pipeline. See [`workflows/site-setup.md`](./site-setup.md).
 
-Coordinates multi-team handoffs across `@project-manager`, Marketing, `@design-pilot` (Awwwards/SiteInspire inspiration, `generate_image` concept mockups, layout specs, tokens), Compliance (Lead Gen disclosures vs SaaS terms), and Engineering (tech stack scaffolding under installer safeguard rules and language-specific AI protocol generation).
+Coordinates multi-team handoffs across `@project-manager`, Marketing (`@marketer`), Design (`@designer` — inspiration, `generate_image` concept mockups, layout specs, tokens), Compliance (`@compliance`), and Engineering (`@programmer` — tech stack scaffolding under installer safeguard rules and language-specific AI protocol generation).
+
 
 ### `/work feature [idea]`
 

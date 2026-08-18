@@ -3,7 +3,7 @@
 ## Domain Purpose
 Creates, reviews, and maintains human-crafted visual design systems, brand identity, UI/UX standards, and design assets across all products and marketing surfaces. Ensures no AI-default design patterns ship — every interface should look like a real designer made it.
 
-> **Design vs Engineering Boundary:** This team owns the *what* and *why* of design — visual decisions, brand consistency, anti-pattern avoidance, UX flows. The `dev` team (with `clean-coder`) owns the *how* — implementing those decisions in code.
+> **Design vs Engineering Boundary:** This team owns the *what* and *why* of design — visual decisions, brand consistency, anti-pattern avoidance, UX flows. The `dev` team (with `@programmer`) owns the *how* — implementing those decisions in code.
 
 ---
 
@@ -23,7 +23,7 @@ Creates, reviews, and maintains human-crafted visual design systems, brand ident
    - The squint test: whatever you notice first should be the most important element.
 
 4. **Cross-Team Design Integration:**
-   - The `design-reviewer` agent is automatically pulled into dev team UI/UX tasks, functioning as the design gatekeeper alongside `clean-coder`.
+   - The `@designer` agent is automatically pulled into dev team UI/UX tasks, functioning as the design gatekeeper alongside `@programmer`.
    - Design specs and brand context flow to the marketing team for copy and campaign consistency.
    - Design systems, tokens, and component specs are documented and shared with the dev team.
 
@@ -44,29 +44,26 @@ Creates, reviews, and maintains human-crafted visual design systems, brand ident
 
 ## Team Roles & Personas
 
+- **Designer Agent (`@designer`):** Visionary design strategist, UI/UX architect, and automated design gatekeeper. Specializes in collaborative website concept creation, Awwwards/SiteInspire benchmarking, AI concept image generation via `generate_image`, structured design briefs, and rigorous design QA reviews. See [`designer.md`](../../agents/designer.md).
 - **Creative Director:** Owns overall visual identity, brand positioning, and design direction. Enforces anti-pattern avoidance and human-crafted design standards across all outputs.
-- **Design Pilot (Agent):** Visionary design strategist specializing in collaborative website concept creation, Awwwards/SiteInspire benchmarking, AI concept image generation via `generate_image`, and structured design briefs. See [`design-pilot.md`](../../agents/design-pilot.md).
-- **UI/UX Designer:** Creates wireframes, user flows, high-fidelity mockups, and interaction specs. Partners with the dev team on implementation feasibility.
+- **UI/UX Specialist:** Creates wireframes, user flows, high-fidelity mockups, and interaction specs. Partners with the dev team on implementation feasibility.
 - **Brand Strategist:** Develops and maintains brand voice, color systems, typography standards, and cross-channel brand coherence. Produces and maintains `docs/brand-context.md`.
-- **Design Reviewer (Agent):** Automated design gatekeeper — reviews any dev team UI output against brand and anti-pattern standards, revises or rejects designs that don't meet the bar. See [`design-reviewer.md`](../../agents/design-reviewer.md).
-
 
 ---
 
 ## Skills & Rules
 
-This team uses the following skills and rules — all agents on this team should load them as context:
+This team uses the following skills and rules:
 
 | Resource | Purpose |
 |----------|---------|
 | [`design-standards`](../../rules/design-standards.md) | Mandatory UI rules — zero emojis in UI, vector icon packs required |
-| [`design-anti-patterns`](./../skills/design-anti-patterns/SKILL.md) | 25 AI clichés to avoid — MANDATORY first pass on all design work |
-| [`visual-design-fundamentals`](./../skills/visual-design-fundamentals/SKILL.md) | Color theory, typography, whitespace, hierarchy |
-| [`ui-ux-design`](./../skills/ui-ux-design/SKILL.md) | UX flows, wireframing, responsive design, accessibility |
-| [`brand-guidelines`](./../skills/brand-guidelines/SKILL.md) | Voice, color palette enforcement, cross-channel consistency |
-| [`image-workflow`](./../../skills/image-workflow/SKILL.md) | Image planning in `workforces/images.json` and optimization |
-| [`site-setup`](./../../skills/site-setup/SKILL.md) | Greenfield site setup & Product Brief framework |
-
+| [`design-anti-patterns`](../../skills/design-anti-patterns/SKILL.md) | 25 AI clichés to avoid — MANDATORY first pass on all design work |
+| [`visual-design-fundamentals`](../../skills/visual-design-fundamentals/SKILL.md) | Color theory, typography, whitespace, hierarchy |
+| [`ui-ux-design`](../../skills/ui-ux-design/SKILL.md) | UX flows, wireframing, responsive design, accessibility |
+| [`brand-guidelines`](../../skills/brand-guidelines/SKILL.md) | Voice, color palette enforcement, cross-channel consistency |
+| [`image-workflow`](../../skills/image-workflow/SKILL.md) | Image planning in `workforces/images.json` and optimization |
+| [`site-setup`](../../skills/site-setup/SKILL.md) | Greenfield site setup & Product Brief framework |
 
 ---
 
@@ -74,9 +71,9 @@ This team uses the following skills and rules — all agents on this team should
 
 When generating a design team for a project, consider which workflows apply:
 
-- `site-setup` — **Run on empty/greenfield repos.** Interactive site initialization with `@design-pilot`, tech stack scaffolding, and multi-team handoffs.
+- `site-setup` — **Run on empty/greenfield repos.** Interactive site initialization with `@designer`, tech stack scaffolding, and multi-team handoffs.
 - `brand-context` — **Run first.** Establishes `docs/brand-context.md` with brand voice, palette, typography, and target audience. Required before any design or marketing work.
-- `design-review` — Pull the `design-reviewer` agent into dev team UI PRs to gate design quality. Runs alongside `clean-coder` for frontend changes.
+- `design-review` — Pull the `@designer` agent into dev team UI PRs to gate design quality. Runs alongside `@programmer` for frontend changes.
 - `visual-audit` — Full visual audit of an existing site or product UI against brand guidelines and design anti-patterns. Produces a prioritized fix list.
 
 ---

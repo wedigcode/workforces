@@ -7,7 +7,8 @@ description: MANDATORY for all programming, coding, refactoring, bug fixes, func
 
 Provides step-by-step guidance for writing pristine, self-documenting, reusable code while preventing function duplication and error swallowing.
 
-> 💡 **Native Agent Integration**: Execute directly via `@clean-coder` custom agent or CLI command `jetski --agent clean-coder`.
+> 💡 **Native Agent Integration**: Execute directly via `@programmer` custom agent or CLI command `jetski --agent programmer`.
+
 
 ---
 

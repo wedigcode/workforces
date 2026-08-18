@@ -6,7 +6,8 @@ description: Verify file references, link integrity, and extract pending subtask
 
 Scans all workspace markdown files (`.md`) and JSON manifests (`.json`) to audit link integrity, detect dangling references, extract unchecked subtasks, and auto-generate missing dependency files.
 
-> 💡 **Native Agent**: Run natively via `@integrity-auditor` or CLI: `jetski --agent integrity-auditor`
+> 💡 **Native Agent**: Run natively via `@compliance` or CLI: `jetski --agent compliance`
+
 
 ---
 

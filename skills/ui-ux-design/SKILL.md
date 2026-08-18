@@ -1,6 +1,7 @@
 ---
 name: ui-ux-design
-description: User interface principles, user experience flows, wireframing, interaction design, responsive design, and accessibility. For web and app design. Covers the 'what' and 'why' — see clean-coder for implementation.
+description: User interface principles, user experience flows, wireframing, interaction design, responsive design, and accessibility. For web and app design. Covers the 'what' and 'why' — see programmer for implementation.
+
 ---
 
 # UI/UX Design

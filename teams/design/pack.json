@@ -1,0 +1,22 @@
+{
+  "name": "design",
+  "title": "Design & UI/UX Experience",
+  "description": "Visual concept ideation, AI image prototyping, design tokens, UI/UX architecture, anti-pattern defense, and design QA reviews.",
+  "agents": [
+    "designer"
+  ],
+  "rules": [
+    "design-standards.md"
+  ],
+  "skills": [
+    "ui-ux-design",
+    "visual-design-fundamentals",
+    "design-anti-patterns",
+    "brand-guidelines",
+    "image-workflow"
+  ],
+  "workflows": [
+    "brand-context.md",
+    "site-setup.md"
+  ]
+}

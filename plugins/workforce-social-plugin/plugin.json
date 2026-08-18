@@ -1,7 +1,5 @@
 {
   "name": "workforce-social-plugin",
   "version": "1.0.0",
-  "description": "Human-safe social engagement and community cultivation engine for X.com, Skool, LinkedIn, and online communities. Features cold-post triage culling, persona-based multi-tier comment generation, and interactive HTML action dashboard.",
-  "rules": ["rules/social-engagement.md"],
-  "skills": ["skills/social-engagement"]
+  "description": "Human-safe social engagement and community cultivation engine for X.com, Skool, LinkedIn, and online communities."
 }

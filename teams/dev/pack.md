@@ -57,14 +57,15 @@ When generating an engineering team for a project, consider whether the project 
 
 ## Design Integration (UI/UX Tasks)
 
-When a frontend task touches **visual design, CSS styling, layout, or UI components**, the `design-reviewer` agent is automatically invoked alongside `clean-coder`:
+When a frontend task touches **visual design, CSS styling, layout, or UI components**, the `@designer` agent is automatically invoked alongside `@programmer`:
 
-1. **Dev team** implements the feature (clean-coder handles code quality)
-2. **Design Reviewer** runs a design audit before the task is marked complete
-3. If the design fails the anti-pattern checklist or brand consistency checks, the Design Reviewer revises or rejects — the dev team does NOT self-approve visual design
+1. **Dev team** implements the feature (`@programmer` handles code quality, TDD, and architecture).
+2. **Designer** (`@designer`) runs a design audit before the task is marked complete.
+3. If the design fails the anti-pattern checklist or brand consistency checks, the Designer revises or provides specifications — the dev team does NOT self-approve visual design.
 
 **Trigger keywords for design review:** UI, UX, component, CSS, layout, styling, landing page, visual design, brand, frontend
 
-> The `clean-coder` agent handles code quality (correctness, architecture, tests).
-> The `design-reviewer` agent handles design quality (anti-patterns, brand, visual hierarchy, UX).
+> The `@programmer` agent handles code quality (correctness, architecture, tests).  
+> The `@designer` agent handles design quality (anti-patterns, brand, visual hierarchy, UX).  
 > **Both must pass before a frontend task is complete.**
+
