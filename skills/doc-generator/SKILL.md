@@ -30,8 +30,9 @@ Detects project programming language, discovers native documentation generators 
 ### Step 2: Extract & Convert to OKF
 1. Run `code-graph` indexer first for baseline symbol indexing:
    ```bash
-   python3 skills/code-graph/scripts/graph_indexer.py --scan ./ --out-okf workforces/knowledge-catalog
+   python3 .agents/skills/code-graph/scripts/graph_indexer.py --scan ./ --out-okf workforces/knowledge-catalog
    ```
+   *(Fallback: `python3 skills/code-graph/scripts/graph_indexer.py ...`)*
 2. If native doc tools are installed or requested, invoke them to populate raw docs under `workforces/docs/`.
 3. Synthesize API documentation into OKF concept files in `workforces/knowledge-catalog/docs/`.
 

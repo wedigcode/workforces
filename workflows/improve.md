@@ -28,7 +28,7 @@ Audits the codebase and executes continuous refactoring across the 5 core pillar
 
 1. **Baseline Verification**:
    - Check if project tests pass (`npm test`, `pytest`, `go test`, `cargo test`, etc.).
-   - Index symbols using `python3 skills/code-graph/scripts/graph_indexer.py --scan ./`.
+   - Index symbols using `python3 .agents/skills/code-graph/scripts/graph_indexer.py --scan ./`.
 
 2. **Pillar Audit**:
    - Perform static checks for selected pillar(s).

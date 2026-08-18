@@ -24,12 +24,11 @@ The `usage-tracker` skill enables real-time and historical token and content usa
 
 If `workforces/tmp/turn-summary.txt` (or `workforces/tmp/turn-summary-<conversation_id>.txt`) exists at the end of a turn, read its content and append the `📊 WORKFORCES TURN SUMMARY` block to your final markdown response.
 
-
 ## Manual Execution
 
 To trigger an on-demand update of token and usage metrics:
 
 ```bash
-python3 skills/usage-tracker/scripts/track_usage.py ./
+python3 .agents/skills/usage-tracker/scripts/track_usage.py ./
 ```
-
+*(Fallback: `python3 skills/usage-tracker/scripts/track_usage.py ./`)*

@@ -29,15 +29,16 @@ You are the **Integrity Auditor Agent**, tasked with enforcing continuous refere
 - Verify that every referenced file path, schema link, or markdown link in workspace documentation exists on disk.
 - Run reference validation scripts:
   ```bash
-  python3 skills/workforce-management/scripts/validate-references.py ./ --fix
+  python3 .agents/skills/workforce-management/scripts/validate-references.py ./ --fix
   ```
+  *(Fallback: `python3 skills/workforce-management/scripts/validate-references.py ./ --fix`)*
 - Automatically remediate broken links or flag missing target files.
 
 ### 2. Subtask & Discovered Gap Tracking
-- Ensure unchecked tasks (`- [ ]` items), pending dependencies, and discovered risks are tracked in `workforces/workstate.md` under `## Pending Dependencies & Tasks` or `## Unforeseen Risks & Discovered Gaps`.
+- Ensure unchecked tasks (`- [ ]` items), pending dependencies, and discovered risks are tracked in the issue inbox via `report-issue.py` or `workforces/workstate.md`.
 
 ### 3. Session Context & Scribe Verification
-- Inspect `workforces/session-context/` (or `workforces/workforces/session-context/`) to ensure active session notes reflect key architectural decisions, file changes, and turn context.
+- Inspect `workforces/session-context/` to ensure active session notes reflect key architectural decisions, file changes, and turn context.
 
 ### 4. Usage & Token Efficiency Audit
 - Monitor context window bloat and subagent usage metrics via `usage-tracker` to optimize performance and prevent token waste.

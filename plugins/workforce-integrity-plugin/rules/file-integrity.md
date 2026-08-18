@@ -18,8 +18,20 @@ Every AI agent and workforce orchestrator MUST enforce complete reference lineag
 ## 2. Subtask & Discovered Gap Tracking
 
 - When a created file or execution step mentions required follow-ups, pending dependencies, unhandled risks, or unchecked tasks (`- [ ]` items):
-  - The agent MUST log the pending dependency or discovered gap into `workforces/workstate.md` under `## Pending Dependencies & Tasks` or `## Unforeseen Risks & Discovered Gaps`.
-  - The agent MUST NOT declare a main task complete until all child dependencies referenced in created files are generated and satisfied.
+  - The agent MUST report the issue to the **issue inbox** using `report-issue.py`:
+    ```bash
+    python3 .agents/skills/issue-tracker/scripts/report-issue.py \
+        --title "[Brief title]" \
+        --type [bug|debt|design|refactor|security|idea] \
+        --severity [P0|P1|P2|P3] \
+        --reporter [agent-name] \
+        --description "[What was found and why it matters]" \
+        --suggested-action "[Recommended next step]"
+    ```
+    *(Fallback: `python3 skills/issue-tracker/scripts/report-issue.py` if running inside source toolkit root)*
+  - **Do NOT** write freeform gap notes into `workforces/workstate.md` sections (`## Pending Dependencies & Tasks` or `## Unforeseen Risks & Discovered Gaps`). The inbox is the single source of truth for discovered issues.
+  - `workforces/workstate.md` is reserved for **active task tracking** (tasks the team is currently executing), not gap discovery. The project-manager promotes inbox items to workstate during triage.
+  - The agent MUST NOT declare a main task complete until all immediate child dependencies (files, assets) referenced in created files are generated and satisfied.
 
 ## 3. Decision Escalation Threshold (Stop & Ask Rule)
 
@@ -34,7 +46,7 @@ Every AI agent and workforce orchestrator MUST enforce complete reference lineag
 - **Session Lineage Enforcement:** The hook verifies that active session context files exist in `workforces/session-context/`. If mutations occur without session context recording, a warning is raised.
 - **Manual Verification:** After creating or modifying team packs, plans, PRDs, or major documentation, run:
   ```bash
-  python3 skills/workforce-management/scripts/validate-references.py ./ --fix
+  python3 .agents/skills/workforce-management/scripts/validate-references.py ./ --fix
   ```
+  *(Fallback: `python3 skills/workforce-management/scripts/validate-references.py ./ --fix`)*
 - Ensure 0 dangling references exist and active session context is saved before presenting completion summaries to the user.
-

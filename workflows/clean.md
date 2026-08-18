@@ -14,8 +14,9 @@ Run codebase maintenance to keep the Code Graph, OKF Knowledge Catalog, and work
 Re-indexes all codebase symbols and regenerates individual OKF concept Markdown files under `workforces/knowledge-catalog/code/`:
 
 ```bash
-python3 skills/code-graph/scripts/graph_indexer.py --scan ./ --out-okf workforces/knowledge-catalog/code --build-okf --force
+python3 .agents/skills/code-graph/scripts/graph_indexer.py --scan ./ --out-okf workforces/knowledge-catalog/code --build-okf --force
 ```
+*(Fallback: `python3 skills/code-graph/scripts/graph_indexer.py ...`)*
 
 ---
 
@@ -44,6 +45,7 @@ python3 .agents/skills/issue-tracker/scripts/report-issue.py \
     --description "[What was found and why it can't be fixed now]" \
     --suggested-action "[What should be done]"
 ```
+*(Fallback: `python3 skills/issue-tracker/scripts/report-issue.py`)*
 
 Do NOT silently drop findings. Every unfixable issue from the clean audit becomes an inbox item.
 
@@ -64,4 +66,3 @@ Outputs a clean summary matrix:
 | **Workspace Scratch Clean** | ✅ Clean | 0 stale files removed |
 | **Issues Reported to Inbox** | 📬 2 logged | Run `/task triage` for PM review |
 ```
-

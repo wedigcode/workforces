@@ -182,6 +182,28 @@ for d in plugins agents workflows rules skills teams; do
   fi
 done
 
+if [[ "$MISSING_CORE_DIRS" == false && -d "$SOURCE_DIR/skills" ]]; then
+  for sdir in "$SOURCE_DIR/skills"/*; do
+    [[ -d "$sdir" ]] || continue
+    sname=$(basename "$sdir")
+    if [[ ! -d "$TARGET/$BASE_DIR/skills/$sname" || ! -f "$TARGET/$BASE_DIR/skills/$sname/SKILL.md" ]]; then
+      MISSING_CORE_DIRS=true
+      break
+    fi
+  done
+fi
+
+if [[ "$MISSING_CORE_DIRS" == false && -d "$SOURCE_DIR/plugins" ]]; then
+  for pdir in "$SOURCE_DIR/plugins"/*; do
+    [[ -d "$pdir" ]] || continue
+    pname=$(basename "$pdir")
+    if [[ ! -d "$TARGET/$BASE_DIR/plugins/$pname" ]]; then
+      MISSING_CORE_DIRS=true
+      break
+    fi
+  done
+fi
+
 if [[ "$FORCE" == false && "$INSTALLED_HASH" == "$LATEST_HASH" && "$INSTALLED_HASH" != "unknown" && "$MISSING_CORE_DIRS" == false ]]; then
   NEW_TEAMS_AVAILABLE=()
   if [[ -d "$SOURCE_DIR/teams" ]]; then
@@ -290,7 +312,7 @@ if [[ -d "$SOURCE_DIR/skills" ]]; then
       [[ -n "$f" ]] || continue
       rel_path="${f#$skill_dir/}"
       copy_file "$f" "$TARGET/$BASE_DIR/skills/$skill_name/$rel_path" "$BASE_DIR/skills/$skill_name/$rel_path"
-    done < <(find "$skill_dir" -type f)
+    done < <(find "$skill_dir" -type f -not -path "*/__pycache__/*" -not -name "*.pyc" -not -name ".DS_Store")
   done
 fi
 
@@ -306,7 +328,7 @@ if [[ -d "$SOURCE_DIR/plugins" ]]; then
       [[ -n "$f" ]] || continue
       rel_path="${f#$plugin_dir/}"
       copy_file "$f" "$TARGET/$BASE_DIR/plugins/$plugin_name/$rel_path" "$BASE_DIR/plugins/$plugin_name/$rel_path"
-    done < <(find "$plugin_dir" -type f)
+    done < <(find "$plugin_dir" -type f -not -path "*/__pycache__/*" -not -name "*.pyc" -not -name ".DS_Store")
   done
 fi
 
@@ -328,7 +350,7 @@ if [[ -d "$SOURCE_DIR/teams" ]]; then
       [[ -n "$f" ]] || continue
       rel="${f#$stdir/}"
       copy_file "$f" "$TARGET/$BASE_DIR/teams/$team_name/$rel" "$BASE_DIR/teams/$team_name/$rel"
-    done < <(find "$stdir" -type f)
+    done < <(find "$stdir" -type f -not -path "*/__pycache__/*" -not -name "*.pyc" -not -name ".DS_Store")
   done
 fi
 

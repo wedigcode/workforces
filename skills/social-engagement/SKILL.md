@@ -1,84 +1,86 @@
 ---
 name: social-engagement
 description: Anti-bot human-safe social engagement and community cultivation engine for X.com, Skool, and LinkedIn. Features cold-post triage culling, persona-based multi-tier comment generation, and interactive HTML action dashboard. Triggers on social, engage, x.com, twitter, skool, linkedin, community, post, comment, reply.
-tools:
-  - view_file
-  - run_command
-  - write_to_file
-  - replace_file_content
 ---
 
-# Social Engagement Skill
+# Skill: Social Engagement & Community Growth
 
-The **Social Engagement Skill** provides an anti-bot resilient, high-leverage engagement system designed to discover trending conversations across **X.com**, **Skool.com**, **LinkedIn**, and community forums, index them with cold-post triage caching, and generate high-impact single and multi-comment responses aligned with configurable user goals and platform personas.
+The `social-engagement` skill provides a systematic, anti-bot framework for discovering high-potential discussions, discarding stale/dead threads, and drafting valuable, multi-tier replies across X (Twitter), Skool, and LinkedIn.
 
 ---
 
-## 1. Anti-Bot Safety & The "Slow is Safe" Architecture
+## 1. Safety Guardrails & Human-in-the-Loop Protocol
 
-Social platforms aggressively detect and penalize automated bot scrapers and high-frequency API hammering. To keep user accounts safe:
-1. **Zero Bot Scraper Fingerprints**: Do not make high-frequency automated HTTP requests. Use browser-driven DOM inspection and human-paced navigation.
-2. **Action Dashboard & Review Queue**: All generated responses are written to an interactive **HTML Action Dashboard** (`workforces/social/dashboard.html`) and markdown action queue (`workforces/social/action_queue.md`) with direct post links and one-click copy buttons.
-3. **Safe Human Execution**: A human operator can quickly review, click *"Open Post in Browser"*, and paste the response safely.
+1. **Zero Unattended Posting**: Under NO circumstances should automated scripts execute HTTP POST or browser clicks to publish comments directly without user review.
+2. **Review Dashboard**: All drafted responses must be saved into `workforces/social/` and surfaced via `workforces/social/dashboard.html` for 1-click human copy, verification, and manual posting.
+3. **Anti-Bot Quality**: Responses must add authentic value, introduce new angles or framework insights, and avoid low-effort generic compliments (*"Nice post!", "Agreed!"*).
 
 ---
 
-## 2. Core Components & Directory Structure
+## 2. Architecture & Data Flow
 
 ```
-workforces/social/
-├── config.yaml          # Multi-platform settings, goals, keywords, thresholds
-├── personas/            # Persona profiles for specific platforms or communities
-├── social_index.db      # High-performance SQLite database (WAL mode)
-├── index.json           # JSON export of indexed posts & threads
-├── queue.json           # Active pending drafts and review queue
-├── action_queue.md      # Markdown queue with direct post links
-└── dashboard.html       # Self-contained dark-mode interactive HTML review dashboard
+[Candidate Posts / URLs]
+       │
+       ▼
+[social_crawler.py] ──> Extract DOM / Text & Unfold Threads
+       │
+       ▼
+[is_post_cold()] ─────> Skip if closed/resolved or >48h inactive
+       │ (Pass)
+       ▼
+[engagement_evaluator.py] ─> Score relevance, match persona & draft multi-tier replies
+       │
+       ▼
+[social_indexer.py] ──> Store in SQLite (workforces/social/social_engagement.db)
+       │
+       ▼
+[dashboard_generator.py] ─> Render interactive workforces/social/dashboard.html
 ```
 
 ---
 
 ## 3. Scripts & CLI Commands
 
-All scripts are located under `skills/social-engagement/scripts/`:
+All scripts are located under `.agents/skills/social-engagement/scripts/` (or `skills/social-engagement/scripts/` in source toolkit):
 
 ### A. Index & Triage Manager (`social_indexer.py`)
 ```bash
 # Initialize SQLite schema
-python3 skills/social-engagement/scripts/social_indexer.py --init
+python3 .agents/skills/social-engagement/scripts/social_indexer.py --init
 
 # List indexed posts
-python3 skills/social-engagement/scripts/social_indexer.py --list --status drafted
+python3 .agents/skills/social-engagement/scripts/social_indexer.py --list --status drafted
 
 # Show index stats & platform breakdown
-python3 skills/social-engagement/scripts/social_indexer.py --stats
+python3 .agents/skills/social-engagement/scripts/social_indexer.py --stats
 
 # Export SQLite index to index.json and queue.json
-python3 skills/social-engagement/scripts/social_indexer.py --export-json
+python3 .agents/skills/social-engagement/scripts/social_indexer.py --export-json
 ```
 
 ### B. Evaluator & Multi-Tier Response Generator (`engagement_evaluator.py`)
 ```bash
 # Evaluate discovered posts JSON, score relevance, triage cold posts, and draft replies
-python3 skills/social-engagement/scripts/engagement_evaluator.py --evaluate-json /path/to/discovered_posts.json
+python3 .agents/skills/social-engagement/scripts/engagement_evaluator.py --evaluate-json /path/to/discovered_posts.json
 ```
 
 ### C. Progressive Scroll Crawler & Extractor (`social_crawler.py`)
 ```bash
 # Output browser progressive scroll script
-python3 skills/social-engagement/scripts/social_crawler.py --generate-browser-script
+python3 .agents/skills/social-engagement/scripts/social_crawler.py --generate-browser-script
 
 # Unfold an introduction or discussion thread into individual member engagement candidates
-python3 skills/social-engagement/scripts/social_crawler.py --unfold-thread thread.json --output /path/to/posts.json
+python3 .agents/skills/social-engagement/scripts/social_crawler.py --unfold-thread thread.json --output /path/to/posts.json
 
 # Parse raw text dump into structured post records
-python3 skills/social-engagement/scripts/social_crawler.py --parse-text-stream dump.txt --output /path/to/posts.json
+python3 .agents/skills/social-engagement/scripts/social_crawler.py --parse-text-stream dump.txt --output /path/to/posts.json
 ```
 
 ### D. Dashboard Generator (`dashboard_generator.py`)
 ```bash
 # Generate workforces/social/dashboard.html and workforces/social/action_queue.md
-python3 skills/social-engagement/scripts/dashboard_generator.py
+python3 .agents/skills/social-engagement/scripts/dashboard_generator.py
 ```
 
 ---

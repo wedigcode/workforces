@@ -17,8 +17,9 @@ Provides step-by-step guidance for writing pristine, self-documenting, reusable 
 Before writing any code:
 1. Run symbol search via `code-graph` or `grep_search`:
    ```bash
-   python3 skills/code-graph/scripts/graph_indexer.py --query "<method_name_or_keyword>"
+   python3 .agents/skills/code-graph/scripts/graph_indexer.py --query "<method_name_or_keyword>"
    ```
+   *(Fallback: `python3 skills/code-graph/scripts/graph_indexer.py --query "<method_name_or_keyword>"`)*
 2. Inspect `workforces/knowledge-catalog/symbols/` or `workforces/code-graph.json` to check if a function already provides the required logic.
 3. **Inspect Target Class / File Methods**: BEFORE writing a new method inside an existing class or module, inspect all public and static methods in that target file (e.g. `Format::convertNumber()`). If any existing method normalizes or formats inputs, compose it instead of reimplementing custom regex or type parsing.
 4. If an existing method covers ~80% of requirements, extend or compose it cleanly rather than re-creating.
@@ -48,6 +49,7 @@ Immediately after writing or modifying any code file:
    ```bash
    python3 .agents/skills/post-code-review/scripts/post_code_reviewer.py --root ./
    ```
+   *(Fallback: `python3 skills/post-code-review/scripts/post_code_reviewer.py --root ./`)*
 2. Address and resolve any output warnings (swallowed errors, contract blast radius warnings, missing tests, or class helper over-engineering flags).
 
 ### Step 5: Graceful Error Handling Patterns

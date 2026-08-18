@@ -42,8 +42,9 @@ Structured workflow for auditing and upgrading code quality across five core eng
 
 1. Run symbol indexer to analyze function size and complexity:
    ```bash
-   python3 skills/code-graph/scripts/graph_indexer.py --scan ./
+   python3 .agents/skills/code-graph/scripts/graph_indexer.py --scan ./
    ```
+   *(Fallback: `python3 skills/code-graph/scripts/graph_indexer.py --scan ./`)*
 2. Inspect `workforces/code-graph.json` and check for:
    - Duplicate signatures or function names
    - Monolithic functions with large line counts

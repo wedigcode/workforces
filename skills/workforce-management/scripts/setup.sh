@@ -286,7 +286,7 @@ if [[ -d "$TOOLKIT_ROOT/skills" ]]; then
       [[ -n "$f" ]] || continue
       rel_path="${f#$skill_dir/}"
       copy_file "$f" "$SKILLS_DIR/$skill_name/$rel_path" "$BASE_DIR/skills/$skill_name/$rel_path"
-    done < <(find "$skill_dir" -type f)
+    done < <(find "$skill_dir" -type f -not -path "*/__pycache__/*" -not -name "*.pyc" -not -name ".DS_Store")
   done
 fi
 
@@ -302,7 +302,7 @@ if [[ -d "$TOOLKIT_ROOT/plugins" ]]; then
       [[ -n "$f" ]] || continue
       rel_path="${f#$plugin_dir/}"
       copy_file "$f" "$PLUGINS_DIR/$plugin_name/$rel_path" "$BASE_DIR/plugins/$plugin_name/$rel_path"
-    done < <(find "$plugin_dir" -type f)
+    done < <(find "$plugin_dir" -type f -not -path "*/__pycache__/*" -not -name "*.pyc" -not -name ".DS_Store")
   done
 fi
 
@@ -317,7 +317,7 @@ if [[ -d "$TOOLKIT_ROOT/teams" ]]; then
       [[ -n "$f" ]] || continue
       rel="${f#$team_dir/}"
       copy_file "$f" "$TARGET/$BASE_DIR/teams/$team_name/$rel" "$BASE_DIR/teams/$team_name/$rel"
-    done < <(find "$team_dir" -type f)
+    done < <(find "$team_dir" -type f -not -path "*/__pycache__/*" -not -name "*.pyc" -not -name ".DS_Store")
   done
 fi
 

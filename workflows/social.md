@@ -28,8 +28,8 @@ Load these skills before starting:
 3. **`memory-management`** — OKF knowledge catalog access
 
 ```
-Read: skills/social-engagement/SKILL.md
-Read: skills/brand-guidelines/SKILL.md
+Read: .agents/skills/social-engagement/SKILL.md
+Read: .agents/skills/brand-guidelines/SKILL.md
 ```
 
 ---
@@ -49,7 +49,7 @@ Read: skills/brand-guidelines/SKILL.md
    - When inspecting dynamic feeds (Skool, X.com, LinkedIn), execute progressive scrolling (`window.scrollTo` in 5–10 stepped increments with 1.0–1.5s pauses) to trigger lazy-loading and ingest 15–20+ recent member posts.
    - For introduction threads (e.g. "Intro yourself") or Q&A discussions, unfold full comment streams into individually addressable posts:
      ```bash
-     python3 skills/social-engagement/scripts/social_crawler.py --unfold-thread /path/to/thread.json --output /path/to/posts.json
+     python3 .agents/skills/social-engagement/scripts/social_crawler.py --unfold-thread /path/to/thread.json --output /path/to/posts.json
      ```
 2. **Negative Cold-Post Triage**:
    - Check if post was previously marked `ignored` or `cold` via `social_indexer.py`.
@@ -62,7 +62,7 @@ Read: skills/brand-guidelines/SKILL.md
 
 1. Execute the evaluator:
    ```bash
-   python3 skills/social-engagement/scripts/engagement_evaluator.py --evaluate-json <path-to-posts.json>
+   python3 .agents/skills/social-engagement/scripts/engagement_evaluator.py --evaluate-json <path-to-posts.json>
    ```
 2. The evaluator:
    - Scores relevance (0–100) based on keywords, velocity, and question opportunities.
@@ -76,7 +76,7 @@ Read: skills/brand-guidelines/SKILL.md
 
 1. Run the dashboard generator:
    ```bash
-   python3 skills/social-engagement/scripts/dashboard_generator.py
+   python3 .agents/skills/social-engagement/scripts/dashboard_generator.py
    ```
 2. Outputs:
    - **`workforces/social/dashboard.html`**: Sleek, standalone dark-mode dashboard with one-click copy buttons and direct post links.

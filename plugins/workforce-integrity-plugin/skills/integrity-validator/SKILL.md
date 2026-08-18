@@ -16,5 +16,6 @@ This skill enforces strict file reference integrity across workforces and projec
 ## Usage
 
 ```bash
-python3 skills/workforce-management/scripts/validate-references.py ./ --fix
+python3 .agents/skills/workforce-management/scripts/validate-references.py ./ --fix
 ```
+*(Fallback: `python3 skills/workforce-management/scripts/validate-references.py ./ --fix`)*
