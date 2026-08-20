@@ -1,10 +1,10 @@
 ---
-description: Dynamic Team Architect — lists, installs, and manages modular Team Packs (dev, design, marketing, sales, operations, social, growth, compliance) for your workspace.
+description: Dynamic Team Architect — lists, installs, prunes, and manages modular Team Packs (dev, design, marketing, sales, operations, social, growth, compliance) for your workspace.
 ---
 
 # /teams — Modular Team Architect & Pack Manager
 
-Lists installed teams, installs additional domain team packs on-demand from upstream `workforces`, or generates custom project-specific teams.
+Lists installed teams, installs additional domain team packs on-demand from upstream `workforces`, prunes unneeded teams to eliminate prompt bloat while preserving shared dependencies, or generates custom project-specific teams.
 
 ---
 
@@ -13,6 +13,7 @@ Lists installed teams, installs additional domain team packs on-demand from upst
 ```
 /teams                                       → List installed teams, active agents, and available upstream packs
 /teams add <domain-name>                     → Install an upstream team pack (e.g. marketing, sales, social, dev, growth, compliance)
+/teams remove <domain-name>                  → Safely prune a team pack, eliminating runtime bloat while keeping shared dependencies
 /teams "I need a custom team for..."          → Dynamically synthesize a custom project team in workforces/teams/<team-name>/
 ```
 
@@ -51,6 +52,27 @@ Append the newly installed team under `## Active Teams` in `workforces/workstate
 
 ---
 
+## Uninstalling & Pruning a Team (`/teams remove <team>`)
+
+When a domain team is no longer needed, uninstall it to eliminate runtime prompt bloat (unused skills and eager rules) from `.agents/`:
+
+### Step 1 — Run the Pruner
+Execute the reference-counting pruner:
+```bash
+python3 .agents/skills/workforce-management/scripts/prune-team.py <team-name>
+```
+*(Alternative: `python3 .agents/skills/workforce-management/scripts/prune-team.py <team-name> --dry` to preview changes without deleting files).*
+
+### Step 2 — Programmatic Dependency Protection
+The uninstaller dynamically scans all remaining installed teams and ensures:
+1. **Shared Skills & Rules Preserved:** Any skill, rule, workflow, or plugin required by another active team (e.g. `brand-guidelines`, `image-workflow`, `doc-generator`) is automatically kept.
+2. **Runtime Bloat Pruned:** Only unshared, orphaned skills, eager rules, workflows, and toolkit agents are deleted from `.agents/`.
+3. **Workspace Personas & Data Retained:** All user business personas (`workforces/personas/`), voice profiles, and workspace configs (`workforces/teams/<team>/`) are **preserved by default**. Re-adding the team later restores your customized tone and history immediately.
+4. **Hard Wipe (`--purge-data`):** Only if `--purge-data` is explicitly passed will workspace folders in `workforces/teams/<team>/` be deleted.
+5. **Registry Synchronized:** Automatically unregisters the team from `workforces/workrules.md` and `workforces/workstate.md`.
+
+---
+
 ## Listing Installed Teams (`/teams`)
 
 When invoked without arguments, `/teams` reads `workforces/workrules.md` and displays:
@@ -64,4 +86,4 @@ When invoked without arguments, `/teams` reads `workforces/workrules.md` and dis
    - `growth` (`@growth`, `@researcher`)
    - `operations` (`@operations`)
    - `compliance` (`@compliance`)
-3. **Action:** Prompts user: *"Run `/teams add <team>` to install an additional domain pack."*
+3. **Action:** Prompts user: *"Run `/teams add <team>` to install an additional domain pack, or `/teams remove <team>` to prune an unneeded team."*
