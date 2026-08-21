@@ -39,12 +39,12 @@ Drives foundational strategy, consultative problem discovery, atomic micro-SaaS 
 
 - `/ideate` — **Dual-Engine Idea Generation:** Dispatches `@unbundler` and `@disruptor` in parallel to scout atomic unbundled concepts and macro market disruptions, synthesized by `@advisor`.
 - `/advisor` — **Consultative Discovery:** Deep 5-dimension problem extraction, pain point tiering, and strategic dilemma resolution.
-- `/site-setup` — **Greenfield Onboarding:** Feeds validated PRDs directly into brand context, visual mockups with `@designer`, and scaffolding with `@programmer`.
+- `/site-setup` — **Greenfield Onboarding:** Feeds validated PRDs directly into brand context, design tokens with `@designer`, and scaffolding with `@programmer`.
 
 ---
 
 ## Cross-Team Handoffs
 
-- **Design Team (`@designer`):** Consumes the PRD and Problem-to-Solution Matrix to draft visual mockups and design tokens matching user psychology.
+- **Design Team (`@designer`):** Consumes the PRD and Problem-to-Solution Matrix to draft layout specifications and design tokens matching user psychology.
 - **Dev Team (`@programmer`):** Consumes the PRD non-goals, schema requirements, and recommended tech stack for clean scaffolding.
 - **Marketing Team (`@marketer`):** Consumes the "What-How-Who" framework and raw customer voice verbatims for high-converting landing page copy.

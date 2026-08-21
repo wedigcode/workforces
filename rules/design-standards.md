@@ -41,12 +41,16 @@ These visual and UI/UX design rules govern all website, web application, landing
 
 ---
 
-## 4. Prohibition of the "Hollywood Hacker" Aesthetic
-- **Strict Rule**: Avoid the stereotypical cyberpunk/hacker terminal aesthetic unless explicitly requested for a retro game or novelty CLI theme.
-- **Constraints**:
-  - **No Monospace Overload**: Do NOT use monospace fonts (`font-mono`, `Courier`, `JetBrains Mono`) for body text, headings, navigation links, or general UI labels. Use clean modern Sans-Serif fonts (Inter, Geist, Plus Jakarta Sans, Roboto, or `system-ui`). Monospace is strictly reserved for code blocks, terminal snippets, commit hashes, or inline code variables.
-  - **No Pure `#000000` Black**: Avoid harsh `#000000` backgrounds. Use layered, sophisticated dark-mode surfaces such as slate or zinc (`#090d16`, `#0f172a`, `#18181b`, `#27272a`).
-  - **No Phosphor Glows or Neon Outlines**: Avoid neon glowing borders, phosphor text shaders, and aggressive high-contrast outlines that cause reading fatigue. Use subtle borders (`rgba(255, 255, 255, 0.08)` or `border-zinc-800`) and focused, purposeful accent colors.
+## 4. Mandatory Refero-Grade Design Benchmarking & Anti-AI Aesthetics
+- **Strict Requirement**: All site and application designs MUST benchmark against curated, real-world, high-craft design systems (such as those cataloged on **Refero Styles**: [styles.refero.design](https://styles.refero.design/), **Land-book**, and **SiteInspire**).
+- **Prohibition of Generic AI Design Clichés**:
+  - **No Centered 3-Card Columns**: Never default to three identical feature cards in a row with centered icons in little colored circles.
+  - **No Heading Gradient Text**: Avoid generic diagonal blue-to-purple gradient text headings (`background-clip: text`).
+  - **No Flat Un-layered Boxes**: Avoid flat grey boxes on harsh backgrounds. Use rich, layered surface hierarchy (`bg-background`, `bg-surface`, `bg-card`, `border-border/40`).
+- **Human-Craft Design Standards**:
+  - **Distinct Typography Pairings**: Pair a character-rich Display font (e.g. Instrument Serif, Cal Sans, Syne, Cabinet Grotesk, Plus Jakarta Sans, Outfit, General Sans, Fraunces) with a clean UI body font (Inter, Geist, Plus Jakarta Sans, system-ui).
+  - **Intentional Asymmetry & Rhythm**: Break layout monotony with 60/40 splits, staggered feature rows, hero product previews, and alternating visual anchors.
+  - **Refined Color Palette Tokens**: Define an intentional 60-30-10 palette with surface contrast (e.g. warm parchment, midnight deep slate, alpine off-white, editorial darkroom).
 
 ---
 
@@ -72,3 +76,20 @@ These visual and UI/UX design rules govern all website, web application, landing
 - **Constraints**:
   - **No "Buzzword Salad"**: Write clear, direct, human-friendly feature names and descriptions focused on user outcomes (e.g. "Fast AST Codebase Search" instead of "Autonomous Code-Graph Symbol Indexer & Analyzer").
   - **Realistic Domain Context**: Avoid default AI placeholder datasets (e.g., standard Alex Chen / Sophia Vance combinations paired with generic stock photos) when domain-tailored sample data communicates real product value.
+
+---
+
+## 8. Mandatory Visible Designer Agent Handoff & `DESIGN.md` Specification
+- **Strict Rule**: When designing or scaffolding any new web property, the Designer Agent (`@designer`) must explicitly lead Step 2 of `/site-setup` and generate a concrete `DESIGN.md` specification (and `src/styles/tokens.css`).
+- **Required `DESIGN.md` Content**:
+  1. **Refero Style Archetype**: Named aesthetic benchmark from [styles.refero.design](https://styles.refero.design/).
+  2. **Typography System**: Display font + Body font with Google Fonts / Fontshare import links, weight scale, and line-heights.
+  3. **Color System Tokens**: Primary, Secondary, Background, Surface, Card, Border, Muted, and Accent hex values.
+  4. **Layout & Component Rules**: Corner radius scale, button variants, card styling, and asymmetric section blueprints.
+- **Engineering Directive**: Developers and coding agents MUST build strictly against `DESIGN.md` rather than writing ad-hoc styles or default AI templates.
+
+---
+
+## 9. Mandatory Design QA Review Gatekeeper
+- **Strict Rule**: After the dev team completes frontend UI components or pages, `@designer` must perform an explicit Design QA review.
+- **QA Verification**: Check the implementation against [`design-anti-patterns`](../skills/design-anti-patterns/SKILL.md) (verifying 0 emojis in UI, proper font pairings, layered surface depth, and layout asymmetry) before declaring the build task complete.

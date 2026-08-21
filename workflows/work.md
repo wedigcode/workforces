@@ -211,7 +211,7 @@ See [`workflows/task.md`](./task.md) for the full command reference.
 
 Triggers the greenfield site setup and Product Brief pipeline. See [`workflows/site-setup.md`](./site-setup.md).
 
-Coordinates multi-team handoffs across `@project-manager`, Marketing (`@marketer`), Design (`@designer` — inspiration, `generate_image` concept mockups, layout specs, tokens), Compliance (`@compliance`), and Engineering (`@programmer` — tech stack scaffolding under installer safeguard rules and language-specific AI protocol generation).
+Coordinates multi-team handoffs across `@project-manager`, Marketing (`@marketer`), Design (`@designer` — inspiration, layout specs, tokens), Compliance (`@compliance`), and Engineering (`@programmer` — tech stack scaffolding under installer safeguard rules and language-specific AI protocol generation).
 
 
 ### `/work feature [idea]`

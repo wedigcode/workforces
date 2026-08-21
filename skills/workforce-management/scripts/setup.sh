@@ -645,7 +645,7 @@ if [[ "$SITE_SETUP" == true ]]; then
   echo -e "     Run ${BOLD}/site-setup${NC} (or invoke ${BOLD}@advisor${NC} / ${BOLD}@designer${NC}) in your AI assistant to:"
 
   echo -e "     1. Consult with @advisor to unpack root problems, pain points & stakes"
-  echo -e "     2. Brainstorm creative design concepts & generate visual mockups"
+  echo -e "     2. Brainstorm creative design concepts & define design tokens"
   echo -e "     3. Select tech stack & cloud hosting"
   echo -e "     4. Complete your Product Brief (${CYAN}docs/product-brief.md${NC})"
 fi

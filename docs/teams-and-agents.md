@@ -47,7 +47,7 @@ A modular architecture for AI agent workforces. Instead of dumping all agents, r
 | [`@project-manager`](../agents/project-manager.md) | Project Manager | Core | Backlog prioritization, task sequencing, sprint syncs, and GitHub project sync. | `roadmap`, `backlog`, `planning`, `sprint`, `sync` |
 | [`@scribe`](../agents/scribe.md) | Scribe | Core | Dense, zero-narrative session context recording and architectural decision persistence. | `context`, `session-context`, `save notes` |
 | [`@programmer`](../agents/programmer.md) | Programmer | `dev` | Software development, TDD, symbol graph lookup, diff compression, and automated post-edit reviews. | `code`, `programmer`, `dev`, `developer`, `refactor`, `bug fix` |
-| [`@designer`](../agents/designer.md) | Designer | `design` | Visual concept creation, AI image mockups, design tokens, UI/UX architecture, and design QA reviews. | `designer`, `design`, `UI`, `UX`, `layout`, `visual`, `CSS` |
+| [`@designer`](../agents/designer.md) | Designer | `design` | Visual concept creation, design tokens, UI/UX architecture, layout specifications, and design QA reviews. | `designer`, `design`, `UI`, `UX`, `layout`, `visual`, `CSS` |
 | [`@marketer`](../agents/marketer.md) | Marketer | `marketing` | Brand positioning, PAS/AIDA copywriting, email nurture funnels, and campaign launches. | `marketing`, `marketer`, `copy`, `copywriting`, `campaign` |
 | [`@sales`](../agents/sales.md) | Sales Specialist | `sales` | Prospect research, multi-touch outbound cadences, BANT qualification, objection handling, closing. | `sales`, `prospect`, `outreach`, `cold email`, `objection` |
 | [`@social`](../agents/social.md) | Social Engager | `social` | Content discovery, cold-post triage, multi-tier conversation catalysts, and community cultivation. | `social`, `engage`, `x.com`, `skool`, `linkedin`, `community` |
@@ -70,7 +70,7 @@ Each domain team is configured via a structured `pack.json` and comprehensive `p
 
 ### 2. Design (`teams/design/`)
 - **Agents:** `@designer`
-- **Rules:** `design-standards.md` (0 emojis as UI icons, vector packs, no hacker aesthetic, progressive disclosure)
+- **Rules:** `design-standards.md` (0 emojis as UI icons, vector packs, Refero styles, DESIGN.md spec, progressive disclosure)
 - **Skills:** `ui-ux-design`, `visual-design-fundamentals`, `design-anti-patterns`, `brand-guidelines`, `image-workflow`
 - **Workflows:** `/brand-context`, `/site-setup` (Step 2)
 

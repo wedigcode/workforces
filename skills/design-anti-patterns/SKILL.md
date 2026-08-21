@@ -10,6 +10,14 @@ AI tools default to the same visual patterns. This skill identifies 25 overused 
 
 > **Core Principle:** These aren't forbidden patterns — they're overused ones. Use them sparingly and intentionally, not by default.
 
+---
+
+## 💎 Refero Design Benchmark Anchor: Look at Real Products, Not AI Presets
+
+Before designing or building, browse **[styles.refero.design](https://styles.refero.design/)** for real-world design systems (Huly, Mercury, Origin, Function Health, Monad, Cosmos, Mintlify, Dub). Study their typography pairings, asymmetric grids, layered surfaces, and micro-borders. Ground your designs in real human craft rather than AI memory defaults.
+
+---
+
 ## When to Use
 
 - Building any UI, landing page, or web page

@@ -126,7 +126,7 @@ The engine compiles a complete, build-ready PRD saved to `docs/prd-[concept-name
 ### Step 5 — Pipeline Handoff
 
 With the PRD generated, `@advisor` transitions directly into the build pipeline:
-- **Run `/site-setup`** → Pre-populates `docs/brand-context.md`, generates concept mockups with `@designer`, and scaffolds tech with `@programmer`.
+- **Run `/site-setup`** → Pre-populates `docs/brand-context.md`, defines design tokens with `@designer`, and scaffolds tech with `@programmer`.
 - **Run `/feature`** → For modular architectural breakdowns.
 - **Run `/work`** → Executes sprint tasks.
 
@@ -139,4 +139,4 @@ When Workforces is installed in a fresh codebase, the AI checks if project files
 > *"Welcome to Workforces! I notice this is a fresh project. How would you like to begin?"*
 > 1. 💡 **Explore Winning SaaS Ideas:** Run `/ideate` to discover unbundled atomic micro-SaaS and market disruption opportunities.
 > 2. 🧭 **Hash Out Strategy for an Existing Idea:** Run `/advisor` to conduct a 5-dimension problem discovery interview.
-> 3. 🏗️ **Start Direct Setup & Scaffolding:** Run `/site-setup` to configure brand context, visual mockups, and scaffolding.
+> 3. 🏗️ **Start Direct Setup & Scaffolding:** Run `/site-setup` to configure brand context, design tokens, and scaffolding.

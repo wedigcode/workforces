@@ -35,16 +35,16 @@ Creates, reviews, and maintains human-crafted visual design systems, brand ident
    - Never use raw unicode emojis (🚀, 💡, ⚡) as UI icons or feature graphics. Emojis break visual cohesion, ignore theme tokens, and render inconsistently across platforms.
    - Mandate cohesive vector icon packs (Lucide Icons, Heroicons, Phosphor, Tabler) styled with `currentColor` and consistent stroke weights.
 
-7. **Developer SaaS Restraint & Information Hierarchy:**
-   - Reject the "Hollywood hacker" cliché: no monospace body copy, no pitch-black `#000000` backgrounds with neon phosphor glows.
-   - Eliminate telemetry dumps and decorative fake data (latency counters, protocol chips, raw hashes in headers).
-   - Enforce progressive disclosure and purpose-driven layouts (no kitchen-sink sidebars or buzzword salad copy).
+7. **Refero-Grade Human Design Craft & Anti-AI Restraint:**
+   - Benchmark against curated real-world SaaS design systems on [styles.refero.design](https://styles.refero.design/).
+   - Reject generic AI templates: pair a character-rich Display font with clean body Sans, introduce intentional asymmetry, and use rich layered surface depth (`bg-background`, `bg-surface`, `bg-card`).
+   - Eliminate telemetry dumps, decorative fake data, and buzzword salad copy.
 
 ---
 
 ## Team Roles & Personas
 
-- **Designer Agent (`@designer`):** Visionary design strategist, UI/UX architect, and automated design gatekeeper. Specializes in collaborative website concept creation, Awwwards/SiteInspire benchmarking, AI concept image generation via `generate_image`, structured design briefs, and rigorous design QA reviews. See [`designer.md`](../../agents/designer.md).
+- **Designer Agent (`@designer`):** Visionary design strategist, UI/UX architect, and automated design gatekeeper. Specializes in collaborative website concept creation, Awwwards/SiteInspire benchmarking, layout specifications, design tokens, structured design briefs, and rigorous design QA reviews. See [`designer.md`](../../agents/designer.md).
 - **Creative Director:** Owns overall visual identity, brand positioning, and design direction. Enforces anti-pattern avoidance and human-crafted design standards across all outputs.
 - **UI/UX Specialist:** Creates wireframes, user flows, high-fidelity mockups, and interaction specs. Partners with the dev team on implementation feasibility.
 - **Brand Strategist:** Develops and maintains brand voice, color systems, typography standards, and cross-channel brand coherence. Produces and maintains `docs/brand-context.md`.

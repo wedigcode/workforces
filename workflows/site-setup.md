@@ -1,5 +1,5 @@
 ---
-description: Interactive Site Setup & Product Brief pipeline — guides you through business model, consultative problem discovery with @advisor, audience extraction, Design Pilot concept ideation, image mockup generation, tech stack selection with scaffolding safeguards, and framework-aware AI search protocol setup.
+description: Interactive Site Setup & Product Brief pipeline — guides you through business model, consultative problem discovery with @advisor, audience extraction, visual concept & token specification, tech stack selection with scaffolding safeguards, and framework-aware AI search protocol setup.
 ---
 
 # /site-setup — Greenfield Site Setup & Product Brief Pipeline
@@ -17,7 +17,7 @@ graph TD
     A0["Step -1: Pre-Flight Ideation (/ideate)<br/>@unbundler & @disruptor Dual-Engine"] -.->|If idea needed| A["Step 0: @project-manager<br/>Discovery & Scope Intake"]
     A --> A2["Step 0b: @advisor<br/>Consultative Problem & Pain Point Discovery"]
     A2 --> B["Step 1: Marketing & SEO<br/>Audience, Keywords, Value Prop"]
-    B --> C["Step 2: @designer<br/>Visual Concept, Images & Tokens"]
+    B --> C["Step 2: @designer<br/>Visual Concept & Tokens"]
     C --> D["Step 3: Compliance & Sales<br/>FTC Rules & Conversion Model"]
     D --> E["Step 4: @programmer (Dev)<br/>Tech Stack & AI Protocols"]
     E --> F["Step 5: PM Finalization<br/>Product Brief & Workstate Roadmap"]
@@ -109,38 +109,35 @@ Define the market position and audience resonance informed by the advisor's prob
 
 ---
 
-## Step 2 — Visual Design & Concept Prototyping (`@designer`)
+## Step 2 — Visual Design, Refero Benchmarking & `DESIGN.md` (`@designer`)
 
+The **Designer Agent** (`@designer`) explicitly leads this stage to establish a bespoke, human-crafted visual identity and eliminate generic AI templates:
 
-Collaboratively brainstorm the visual language, referencing modern award-winning benchmarks to inspire the user:
+> 🎨 **Designer Directives**:
+> - Introduce yourself clearly as `@designer`.
+> - Actively explore **Refero Styles** ([styles.refero.design](https://styles.refero.design/)), **Land-book**, and **SiteInspire** for the product category.
+> - Present 2–3 named, concrete design style directions with real visual character.
 
-1. **Design Archetype Exploration**:
-   - Benchmark against **Awwwards**, **SiteInspire**, **Dribbble**, **Land-book**, and **Landing.love**.
-   - Present 2–3 aesthetic directions:
-     - **Editorial Minimalist**: High typography contrast, serif/sans pairing, generous whitespace, monochrome base with single vivid accent.
-     - **Neo-Brutalist**: Bold black borders (2–3px), vibrant primary colors, tactile cards, raw geometric typography.
-     - **Dark Luxury / High-Tech Clean**: Deep slate backgrounds, crisp micro-borders, subtle glassmorphism, glowing telemetry.
-     - **Warm Earthy Organic**: Soft cream/sand backgrounds, warm terracotta/forest green accents, humanist typography.
+1. **Refero Styles & Archetype Exploration**:
+   - Browse curated real-world SaaS design systems on **[styles.refero.design](https://styles.refero.design/)**:
+     - *Editorial Warm Parchment*: Warm putty/sand background (`#fbfaf7`), dark olive/charcoal text, serif display heading (Instrument Serif / Fraunces), clean Sans body, generous line-heights, subtle tactile borders.
+     - *Midnight Deep Slate & Frosted Layering*: Slate-950 base (`#090d16`), subtle 1px border contrast (`border-white/8`), Cal Sans / Syne display font, Geist body, high-contrast crisp cards, micro-glow badge.
+     - *Alpine Clean Precision*: Off-white clean surface (`#f8fafc`), high-contrast black typography (Cabinet Grotesk / Plus Jakarta Sans), asymmetric 60/40 hero, sharp corners (`rounded-lg`), bold minimalist actions.
+     - *Darkroom Product Editorial*: Deep charcoal canvas (`#121316`), warm amber/terracotta accent, dramatic full-bleed product showcase, generous whitespace.
 2. **Anti-Pattern Defense**:
-   - Check against [`design-anti-patterns`](../skills/design-anti-patterns/SKILL.md) and [`design-standards`](../rules/design-standards.md) (reject purple-on-dark glow defaults, gradient keyword pill badges, centered 3-card templates, and raw unicode emojis as UI icons).
-3. **AI Concept Image Generation**:
-   - Use the `generate_image` tool to render 1–2 visual concept mockups representing the chosen visual mood:
-     ```
-     generate_image(
-       Prompt="Editorial web design mockup of [business concept], [chosen archetype], [primary color] highlights, clean typography, desktop UI view",
-       ImageName="concept_mockup_preview",
-       AspectRatio="16:9"
-     )
-     ```
-   - Show the generated concept to the user to confirm aesthetic alignment.
-4. **Color Palette, Typography & Iconography Tokens**:
-   - Primary Hex, Secondary Hex, Neutral Light, Neutral Dark, Accent.
-   - Heading Font (e.g. Space Grotesk, Inter, Plus Jakarta Sans) + Body Font.
-   - Vector Icon Pack selection (e.g. `lucide-react`, `@heroicons/react`, `phosphor-react` — strict prohibition on raw unicode emojis for UI icons).
-5. **Image Queue Initialization**:
-   - Populate planned image slots in `workforces/images.json` (Hero, Features, Testimonial, Preview).
+   - Check against [`design-anti-patterns`](../skills/design-anti-patterns/SKILL.md) and [`design-standards`](../rules/design-standards.md) (strictly prohibit generic centered 3-card columns, gradient heading text, raw emojis, and flat single-layer gray boxes).
+3. **Deliver `DESIGN.md` & CSS Design Tokens (`src/styles/tokens.css`)**:
+   - Deliver a concrete `DESIGN.md` specification file containing:
+     - Chosen Refero Style Archetype & Visual Mood
+     - Typography Pairing: Display font + Body font with Google Fonts / Fontshare import links
+     - Color Tokens: Primary, Secondary, Background, Surface, Card, Border, Muted, and Accent hex values
+     - Layout Blueprint: Hero asymmetry (e.g. 60/40), staggered feature rows, testimonial treatments, single-row footer
+     - Component Rules: Button variants, card surface layering, badge styling, vector icon family (`lucide-react`)
+   - Write corresponding CSS custom properties to `src/styles/tokens.css`.
+4. **Image Queue Initialization (Optional Asset Specs)**:
+   - Populate planned image slots in `workforces/images.json` (Hero, Features, Testimonial, Preview) if custom photography or illustration assets are needed later.
 
-> **Action**: Update `docs/brand-context.md` (Visual Identity) and populate `workforces/images.json`.
+> **Action**: Create `DESIGN.md`, populate `src/styles/tokens.css`, update `docs/brand-context.md`, and optionally specify required assets in `workforces/images.json`.
 
 ---
 
@@ -194,8 +191,8 @@ Select framework, cloud hosting, and configure framework-aware AI protocols:
 2. **Update `workforces/workstate.md`**:
    - Mark task 1 (`Complete /site-setup`) complete.
    - Unblock P0 tasks:
-     - Task 2: Build Homepage Component Structure
-     - Task 3: Generate Image Queue via `/work` (`workforces/images.json`)
+     - Task 2: Build Homepage Component Structure (per `DESIGN.md`)
+     - Task 3: `@designer` Design QA Review & Anti-AI Audit
      - Task 4: SEO & Schema Validation
 
 ---
@@ -206,11 +203,12 @@ Select framework, cloud hosting, and configure framework-aware AI protocols:
 - [ ] Consultative problem discovery completed with `@advisor` (root cause, pain points, workarounds, cost of inaction)
 - [ ] Problem-to-Solution Lineage Matrix generated
 - [ ] Target audience & value proposition documented in `docs/brand-context.md`
-- [ ] Design archetype & visual concept preview generated via `generate_image`
+- [ ] Design archetype & Refero style benchmark ([styles.refero.design](https://styles.refero.design/)) confirmed
+- [ ] `DESIGN.md` generated with typography pairing, color tokens, and layout blueprints
+- [ ] CSS design tokens written to `src/styles/tokens.css`
 - [ ] Cohesive vector icon pack selected (Lucide / Heroicons) — zero emojis in UI
-- [ ] CSS design tokens extracted to `src/styles/tokens.css`
-- [ ] `workforces/images.json` populated with required assets
+- [ ] `workforces/images.json` populated with required assets (if needed)
 - [ ] Framework scaffolded (under installer safeguard rule)
 - [ ] Framework-aware AI protocol files generated (`robots.txt`, `llms.txt`, `ai.txt`, `sitemap`)
 - [ ] `docs/product-brief.md` completed with all mandatory sections and lineage matrix
-- [ ] `workforces/workstate.md` updated with unblocked build tasks
+- [ ] `workforces/workstate.md` updated with unblocked build and Design QA tasks

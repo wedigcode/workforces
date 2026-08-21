@@ -78,7 +78,7 @@ The uninstaller dynamically scans all remaining installed teams and ensures:
 When invoked without arguments, `/teams` reads `workforces/workrules.md` and displays:
 1. **Active Installed Teams & Agents:**
    - `dev` → `@programmer` (TDD, clean code, code graph)
-   - `design` → `@designer` (UI/UX, visual mockups, tokens)
+   - `design` → `@designer` (UI/UX, visual design, tokens)
 2. **Available Upstream Packs:**
    - `marketing` (`@marketer`)
    - `sales` (`@sales`)

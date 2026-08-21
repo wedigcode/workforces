@@ -87,7 +87,7 @@ Full roster documentation available in [`docs/teams-and-agents.md`](docs/teams-a
 | [`@advisor`](agents/advisor.md) | Strategic Advisor | Consultative problem discovery, root cause extraction, and trade-off coaching |
 | [`@project-manager`](agents/project-manager.md) | Project Manager | Backlog prioritization, task sequencing, sprint syncs, and GitHub project sync |
 | [`@programmer`](agents/programmer.md) | Software Engineer | Clean code authoring, TDD, symbol graph index lookup, and post-edit reviews |
-| [`@designer`](agents/designer.md) | Visual & UI/UX Designer | Visual concept ideation, AI image mockups, design tokens, and design QA reviews |
+| [`@designer`](agents/designer.md) | Visual & UI/UX Designer | Visual concept ideation, design tokens, layout specifications, and design QA reviews |
 | [`@marketer`](agents/marketer.md) | Marketer | Positioning, PAS/AIDA copywriting, email nurture funnels, and launch campaigns |
 | [`@sales`](agents/sales.md) | Sales Specialist | Prospect research, multi-touch outbound cadences, qualification, and closing |
 | [`@social`](agents/social.md) | Social Engager | Content discovery, cold-post triage, and high-engagement reply catalysts |
