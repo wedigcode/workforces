@@ -15,7 +15,7 @@ import argparse
 CORE_AGENTS = {'advisor.md', 'project-manager.md', 'scribe.md'}
 CORE_RULES = {'base.md', 'mcp-protection.md', 'session-context.md'}
 CORE_SKILLS = {'workforce-management', 'memory-management', 'issue-tracker', 'session-context', 'usage-tracker'}
-CORE_WORKFLOWS = {'work.md', 'plan.md', 'sync.md', 'task.md', 'advisor.md', 'teams.md', 'question-formulation.md', 'update-workforces.md', 'verify-integrity.md'}
+CORE_WORKFLOWS = {'work.md', 'plan.md', 'sync.md', 'task.md', 'advisor.md', 'ideate.md', 'teams.md', 'question-formulation.md', 'update-workforces.md', 'verify-integrity.md'}
 CORE_PLUGINS = {'workforce-usage-plugin'}
 
 def find_teams_dir(toolkit_root):

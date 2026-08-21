@@ -38,9 +38,24 @@ def audit_references(target_dir=".", fix=False):
                 try:
                     data = json.loads(content)
                     if isinstance(data, dict):
-                        for key in ["personas", "rules", "workflows"]:
+                        for key in ["personas", "rules", "workflows", "agents", "skills"]:
                             for rel_ref in data.get(key, []):
                                 target_path = os.path.normpath(os.path.join(root, rel_ref))
+                                if not os.path.exists(target_path):
+                                    # Fallback: check standard directory in target_dir (e.g. rules/, workflows/, agents/, skills/)
+                                    candidates = [
+                                        os.path.normpath(os.path.join(target_dir, key, rel_ref)),
+                                        os.path.normpath(os.path.join(target_dir, key, rel_ref + ".md")),
+                                        os.path.normpath(os.path.join(target_dir, rel_ref)),
+                                        os.path.normpath(os.path.join(target_dir, rel_ref + ".md")),
+                                        os.path.normpath(os.path.join(root, rel_ref + ".md"))
+                                    ]
+                                    if rel_ref.endswith(".md"):
+                                        candidates.append(os.path.normpath(os.path.join(target_dir, key, rel_ref[:-3])))
+                                    for c in candidates:
+                                        if os.path.exists(c):
+                                            target_path = c
+                                            break
                                 if not os.path.exists(target_path):
                                     broken_refs.append({
                                         "source": rel_source,

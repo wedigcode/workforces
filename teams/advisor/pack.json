@@ -1,0 +1,24 @@
+{
+  "name": "advisor",
+  "title": "Strategy, Advisory & Ideation",
+  "description": "Strategic problem discovery, atomic micro-SaaS unbundling, macro market disruption scouting, and high-leverage business model validation.",
+  "agents": [
+    "advisor",
+    "unbundler",
+    "disruptor"
+  ],
+  "rules": [
+    "design-standards.md"
+  ],
+  "skills": [
+    "site-setup",
+    "feature-research",
+    "brand-guidelines",
+    "memory-management",
+    "issue-tracker"
+  ],
+  "workflows": [
+    "advisor.md",
+    "ideate.md"
+  ]
+}

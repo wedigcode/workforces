@@ -14,7 +14,8 @@ Coordinated by the **Project Manager** (`@project-manager`) with specialized han
 
 ```mermaid
 graph TD
-    A["Step 0: @project-manager<br/>Discovery & Scope Intake"] --> A2["Step 0b: @advisor<br/>Consultative Problem & Pain Point Discovery"]
+    A0["Step -1: Pre-Flight Ideation (/ideate)<br/>@unbundler & @disruptor Dual-Engine"] -.->|If idea needed| A["Step 0: @project-manager<br/>Discovery & Scope Intake"]
+    A --> A2["Step 0b: @advisor<br/>Consultative Problem & Pain Point Discovery"]
     A2 --> B["Step 1: Marketing & SEO<br/>Audience, Keywords, Value Prop"]
     B --> C["Step 2: @designer<br/>Visual Concept, Images & Tokens"]
     C --> D["Step 3: Compliance & Sales<br/>FTC Rules & Conversion Model"]
@@ -22,6 +23,13 @@ graph TD
     E --> F["Step 5: PM Finalization<br/>Product Brief & Workstate Roadmap"]
 ```
 
+---
+
+## Step -1 — Pre-Flight Ideation & Unbundling Hook (Optional)
+
+> 💡 **Need an idea or starting from scratch?**
+> If the user does not have a defined product or business concept yet, run **`/ideate`** first. 
+> `/ideate` dispatches the **Atomic SaaS Extractor** (`@unbundler`) and **Market Disruption Scout** (`@disruptor`) in parallel to evaluate spreadsheet moats, billion-dollar market formulas, and build-ready PRDs before initiating site setup.
 
 ---
 
