@@ -1,0 +1,59 @@
+{
+  "editable_elements": {
+    "primary_subject": "Brief description of the main subject/focus of the image",
+    "text_overlays": [
+      {
+        "text": "PRIMARY HEADLINE / TEXT",
+        "position": "top-center | center | bottom-third",
+        "font_family": "Clean bold modern sans-serif",
+        "color": "#FFFFFF",
+        "styling": "all-caps, high contrast, subtle drop shadow"
+      }
+    ],
+    "brand_colors": {
+      "primary_accent": "#6366F1",
+      "secondary_accent": "#EC4899",
+      "background_tone": "#0F172A"
+    },
+    "key_props_and_objects": [
+      "Key prop 1 (e.g. laptop, ceramic cup, product container)",
+      "Key prop 2 (e.g. foliage, geometric shape, UI badge)"
+    ]
+  },
+  "visual_aesthetic": {
+    "style": "High-end commercial 3D render / studio photography / clean editorial",
+    "art_medium": "Photorealistic digital render / professional studio photography",
+    "mood_and_tone": "Modern, premium, high-trust, dynamic atmosphere",
+    "color_grading": {
+      "palette_type": "Deep layered dark surfaces with vibrant neon rim light accents",
+      "contrast": "High dynamic range with deep rich blacks and crisp highlights",
+      "saturation": "Balanced natural base with punchy accent highlights"
+    }
+  },
+  "composition_and_framing": {
+    "camera_angle": "Isometric 45-degree angle / Eye-level straight-on / Low heroic perspective",
+    "framing": "Medium close-up shot / Wide cinematic banner",
+    "focal_point": "Center foreground subject with clean radial eye-flow",
+    "depth_of_field": "Shallow depth of field (f/2.8), soft bokeh on distant background layers",
+    "aspect_ratio": "16:9"
+  },
+  "lighting_and_environment": {
+    "key_light": "Soft diffused top-left key light (4500K neutral warm)",
+    "fill_light": "Subtle ambient fill light tinted with primary accent color",
+    "rim_light": "Sharp high-contrast edge backlight defining contours and silhouettes",
+    "shadows": "Realistic soft contact shadows directly beneath foreground objects"
+  },
+  "textures_and_materials": {
+    "surfaces": [
+      "Matte anodized metallic finish",
+      "Frosted translucent glassmorphism panels",
+      "Subtle textured micro-grain surfaces"
+    ],
+    "environmental_effects": "Clean crisp atmosphere, zero dust/artifacts, subtle ambient reflections"
+  },
+  "rendering_parameters": {
+    "engine_target": "Nano Banana / Flux 1.1 Pro / Midjourney v6 / Imagen 3",
+    "quality": "8k resolution, photorealistic ray tracing, sharp focus, octane render style",
+    "negative_prompt": "blurry, low quality, warped text, distorted anatomy, messy composition, oversaturated, pixelated"
+  }
+}
