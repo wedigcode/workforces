@@ -25,7 +25,22 @@ trigger: always_on
 ---
 
 ### 🚨 MANDATORY PRE-RESPONSE CHECKLIST
-Before outputting your final text response after any interaction that modifies code, architectural decisions, or task requirements:
-1. You MUST invoke `write_to_file` to create or update `workforces/session-context/<seq>_<date>_<slug>.md`.
-2. Ensure any new or evolving issues are synced in `tracked_issues`.
-3. Do NOT declare the turn complete or reply to the user until the session context note exists on disk.
+Before outputting your final text response after any interaction that modifies code, architectural decisions, product requirements, or roadmaps:
+1. **Spontaneous Ideas & Issues Check:** If new feature ideas, roadmap phases, architectural concepts, bugs, or technical debt were discussed or proposed, you MUST execute:
+   ```bash
+   python3 .agents/skills/issue-tracker/scripts/report-issue.py \
+       --title "<Title>" \
+       --type [idea|bug|debt|design|refactor|security] \
+       --severity [P0|P1|P2|P3] \
+       --reporter <agent> \
+       --session-id "<seq>" \
+       --session-file "workforces/session-context/<seq>_<date>_<slug>.md" \
+       --description "<Core problem & 10x value>" \
+       --suggested-action "<Implementation plan & target workflow>" \
+       --sync-session
+   ```
+   *(Fallback: `python3 skills/issue-tracker/scripts/report-issue.py ...`)*
+   for each item BEFORE generating the final response.
+2. **Session Context Update:** If not automatically created or updated by `report-issue.py --sync-session`, invoke `write_to_file` to create or update `workforces/session-context/<seq>_<date>_<slug>.md`.
+3. **Lineage Verification:** Ensure all new or evolving issues appear in `tracked_issues` frontmatter and the session context note exists on disk before concluding the turn.
+

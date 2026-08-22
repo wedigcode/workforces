@@ -109,7 +109,7 @@ Before writing specs, the selected concept undergoes rigorous stress-testing:
 
 ---
 
-### Step 4 — Micro-SaaS PRD Generation
+### Step 4 — Micro-SaaS PRD Generation & Issue Inbox Registration
 
 The engine compiles a complete, build-ready PRD saved to `docs/prd-[concept-name].md` containing:
 - **Product Name & One-Line Thesis**
@@ -121,14 +121,34 @@ The engine compiles a complete, build-ready PRD saved to `docs/prd-[concept-name
 - **Recommended Tech Stack**
 - **Pricing, Monetization & Lean Validation Plan**
 
+> 🚨 **Mandatory Tool Call**: Once the winning concept and PRD are defined, `@advisor` MUST execute `report-issue.py` to register the concept in `workforces/issues/inbox/` with session lineage:
+
+```bash
+# Capture winning micro-SaaS concept directly into the inbox with session sync:
+python3 .agents/skills/issue-tracker/scripts/report-issue.py \
+    --title "Micro-SaaS Concept: [Product Name]" \
+    --type idea \
+    --severity P0 \
+    --reporter advisor \
+    --session-id "[seq]" \
+    --session-file "workforces/session-context/<seq>_<date>_<slug>.md" \
+    --file "docs/prd-[concept-name].md" \
+    --description "[One-line thesis & 10x value breakthrough]" \
+    --suggested-action "Execute /site-setup with @designer and @programmer to scaffold MVP" \
+    --evolution-note "Selected winning concept from dual-engine ideation matrix." \
+    --sync-session
+```
+*(Fallback: `python3 skills/issue-tracker/scripts/report-issue.py ...`)*
+
 ---
 
 ### Step 5 — Pipeline Handoff
 
-With the PRD generated, `@advisor` transitions directly into the build pipeline:
+With the PRD generated and issue registered in the inbox, `@advisor` transitions directly into the build pipeline:
 - **Run `/site-setup`** → Pre-populates `docs/brand-context.md`, defines design tokens with `@designer`, and scaffolds tech with `@programmer`.
 - **Run `/feature`** → For modular architectural breakdowns.
 - **Run `/work`** → Executes sprint tasks.
+
 
 ---
 

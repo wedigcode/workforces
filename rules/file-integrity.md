@@ -15,23 +15,26 @@ Every AI agent and workforce orchestrator MUST enforce complete reference lineag
   1. Check if the target file exists on disk.
   2. If it does NOT exist, **immediately create the target file** with complete, structured content.
 
-## 2. Subtask & Discovered Gap Tracking
+## 2. Subtask, Roadmap & Discovered Gap Tracking
 
-- When a created file or execution step mentions required follow-ups, pending dependencies, unhandled risks, or unchecked tasks (`- [ ]` items):
-  - The agent MUST report the issue to the **issue inbox** using `report-issue.py`:
+- When a created file, advisory consultation (`/advisor`), ideation sprint (`/ideate`), or execution step proposes new feature horizons, required follow-ups, pending dependencies, unhandled risks, or unchecked tasks (`- [ ]` items):
+  - The agent MUST report each item to the **issue inbox** using `report-issue.py` with session lineage:
     ```bash
     python3 .agents/skills/issue-tracker/scripts/report-issue.py \
-        --title "[Brief title]" \
-        --type [bug|debt|design|refactor|security|idea] \
+        --title "[Brief title or feature name]" \
+        --type [idea|bug|debt|design|refactor|security] \
         --severity [P0|P1|P2|P3] \
         --reporter [agent-name] \
-        --description "[What was found and why it matters]" \
-        --suggested-action "[Recommended next step]"
+        --session-id "[seq]" \
+        --session-file "workforces/session-context/<seq>_<date>_<slug>.md" \
+        --description "[Core problem, 10x value, or what was found]" \
+        --suggested-action "[Implementation plan or recommended next step]" \
+        --sync-session
     ```
     *(Fallback: `python3 skills/issue-tracker/scripts/report-issue.py` if running inside source toolkit root)*
-  - **Do NOT** write freeform gap notes into `workforces/workstate.md` sections (`## Pending Dependencies & Tasks` or `## Unforeseen Risks & Discovered Gaps`). The inbox is the single source of truth for discovered issues.
-  - `workforces/workstate.md` is reserved for **active task tracking** (tasks the team is currently executing), not gap discovery. The project-manager promotes inbox items to workstate during triage.
-  - The agent MUST NOT declare a main task complete until all immediate child dependencies (files, assets) referenced in created files are generated and satisfied.
+  - **Do NOT** leave proposed feature roadmaps or gap notes as un-triaged text in session notes or `workforces/workstate.md`. The inbox is the single source of truth for discovered issues and new feature horizons.
+  - `workforces/workstate.md` is reserved for **active task tracking** (tasks the team is currently executing), not gap discovery or unscheduled roadmaps. The project-manager promotes inbox items to workstate during triage.
+  - The agent MUST NOT declare a main task or advisory turn complete until all immediate child dependencies (files, assets, and inbox records) are satisfied.
 
 ## 3. Decision Escalation Threshold (Stop & Ask Rule)
 

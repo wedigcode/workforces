@@ -92,7 +92,7 @@ Once the problem space is clarified, `@advisor` presents a structured **Executiv
 
 ---
 
-### Step 4 — Problem-to-Solution Lineage Matrix
+### Step 4 — Problem-to-Solution Lineage Matrix & Automated Issue Inbox Capture
 
 `@advisor` generates a concrete mapping of pain points to solution requirements:
 
@@ -105,6 +105,24 @@ Once the problem space is clarified, `@advisor` presents a structured **Executiv
 | **P-2** | [Pain point 2] | P1 | [Proposed feature] | [Measurable metric] |
 ```
 
+> 🚨 **Mandatory Tool Call**: For every proposed feature, roadmap phase, or architectural solution agreed upon with the user, `@advisor` MUST execute `report-issue.py` with session lineage before presenting completion text:
+
+```bash
+# Capture each proposed feature / horizon into the issue inbox with session sync:
+python3 .agents/skills/issue-tracker/scripts/report-issue.py \
+    --title "[Feature / Concept Name]" \
+    --type idea \
+    --severity P0 \
+    --reporter advisor \
+    --session-id "[seq]" \
+    --session-file "workforces/session-context/<seq>_<date>_<slug>.md" \
+    --description "[Core problem, acute pain, and 10x value proposition]" \
+    --suggested-action "[Implementation plan & target workflow (e.g. /site-setup, /feature)]" \
+    --evolution-note "Advisory conclusion: validated against pain point matrix." \
+    --sync-session
+```
+*(Fallback: `python3 skills/issue-tracker/scripts/report-issue.py ...`)*
+
 ---
 
 ### Step 5 — Pipeline Handoff
@@ -114,4 +132,5 @@ Based on the agreed direction, `@advisor` provides seamless transitions to the n
 - **For New Websites / SaaS Apps:** Hand off to `/site-setup` (Step 1 Marketing & Step 2 `@designer`).
 - **For New Features:** Hand off to `/feature [idea]` (Phase 1 Gap Analysis & Phase 3 PRD).
 - **For Strategic Task Execution:** Hand off to `/plan` or `/work`.
+
 
