@@ -59,11 +59,11 @@ Before generating any work:
    - Present → note configured projects and tracked repos for use in Step 4
 5. **Open GitHub PR Reviews** — Query open PRs via `pr-review` skill (`gh pr list --state open`). Run automated code review against Clean Coder rules and flag PRs needing attention or notes.
 6. **Google Jules Sessions** — Check if `jules` CLI is available (`which jules`). Query `jules remote list --session` to discover active/completed Jules sessions and scheduled tasks for workforce repos.
-7. **Issue Inbox** — Check `workforces/issues/inbox/` for pending unreviewed issues:
+7. **Issue Inbox & Session Lineage** — Check `workforces/issues/inbox/` for pending unreviewed issues:
    ```bash
    ls workforces/issues/inbox/*.md 2>/dev/null
    ```
-   If items exist, include them in planning. When running triage (invoked via `/task triage` or `/work sync`), process each inbox item per the `issue-tracker` skill protocol.
+   If items exist, inspect their `session_file`, origin session note, and `## 🧠 Session Lineage & Deciding Factors` to understand the full history and requirement evolutions. When running triage (invoked via `/task triage` or `/work sync`), process each inbox item per the `issue-tracker` skill protocol, preserving the session context link in workstate and GitHub issues.
 
 ---
 
@@ -216,8 +216,8 @@ When the user runs `/work sync` or asks for a standup check-in, follow these ste
    - Flag any dependency blocks or questions requiring human feedback/credentials.
 5. **Triage Issue Inbox:**
    - Check `workforces/issues/inbox/` for unreviewed issues.
-   - If items exist, triage each one per the `issue-tracker` skill: assign priority, promote P0/P1 to GitHub issues, log P2/P3 to workstate, move file to `workforces/issues/triaged/`.
-   - Include a **📬 Inbox Triage** section in the sync report.
+   - If items exist, triage each one per the `issue-tracker` skill: read the origin session context and deciding factors log, assign priority, promote P0/P1 to GitHub issues (linking back to the origin session), log P2/P3 to workstate with session reference, move file to `workforces/issues/triaged/`.
+   - Include a **📬 Inbox Triage** section in the sync report with origin session links and key decision context.
 6. **Present Sync Summary:** Format the standup sync report as specified in `workflows/sync.md` and present it to the user for approval.
 7. **Log and Save:** Upon user approval, create a new sync log under `workforces/team-sync/YYYY-MM-DD.md` (creating the directory if it does not exist) and update task statuses or notes in `workforces/workstate.md`.
 
