@@ -212,6 +212,63 @@ tracked_issues: []
         self.assertEqual(len(s_meta["tracked_issues"]), 1)
         self.assertIn("Requirement pivot", s_body)
 
+    def test_reject_issue_and_move_to_completed(self):
+        """Test rejecting an idea, moving file to completed/, and updating session context with strikethrough audit trail."""
+        # 1. Create initial issue in inbox
+        subprocess.run([
+            sys.executable,
+            REPORT_SCRIPT,
+            "--title", "Overly Complex Auth System",
+            "--type", "idea",
+            "--severity", "P2",
+            "--session-id", "022",
+            "--session-file", self.session_file,
+            "--description", "Build custom biometric authentication engine from scratch.",
+            "--out-dir", self.inbox_dir,
+            "--sync-session",
+        ], check=True)
+
+        inbox_files = os.listdir(self.inbox_dir)
+        self.assertEqual(len(inbox_files), 1)
+        issue_path = os.path.join(self.inbox_dir, inbox_files[0])
+
+        # 2. Reject the issue using --reject
+        rejection_reason = "User explicitly rejected this idea: out of scope for MVP."
+        reject_cmd = [
+            sys.executable,
+            REPORT_SCRIPT,
+            "--update", issue_path,
+            "--reject", rejection_reason,
+            "--sync-session",
+        ]
+        result = subprocess.run(reject_cmd, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, f"Error: {result.stderr}")
+        self.assertIn("✅ Issue updated:", result.stdout)
+        self.assertIn("Moved issue from inbox/ to completed/", result.stdout)
+
+        # 3. Verify file moved from inbox to completed
+        completed_dir = os.path.join(self.test_dir, "workforces", "issues", "completed")
+        self.assertEqual(len(os.listdir(self.inbox_dir)), 0)
+        completed_files = os.listdir(completed_dir)
+        self.assertEqual(len(completed_files), 1)
+
+        completed_file_path = os.path.join(completed_dir, completed_files[0])
+        with open(completed_file_path, "r", encoding="utf-8") as f:
+            c_meta, c_body = report_issue_mod.parse_frontmatter(f.read())
+
+        self.assertEqual(c_meta.get("triage_status"), "rejected")
+        self.assertEqual(c_meta.get("status"), "completed")
+        self.assertIn("❌ Rejected by user: User explicitly rejected this idea", c_body)
+        self.assertIn("Decision:** Rejected (User explicitly rejected this idea", c_body)
+
+        # 4. Verify session context contains strikethrough audit trail and rejected status
+        with open(self.session_file, "r", encoding="utf-8") as f:
+            s_meta, s_body = report_issue_mod.parse_frontmatter(f.read())
+
+        self.assertEqual(s_meta["tracked_issues"][0]["status"], "rejected")
+        self.assertIn("~~Overly Complex Auth System~~", s_body)
+        self.assertIn("❌ **Rejected:** User explicitly rejected this idea", s_body)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -87,6 +87,17 @@ For any feature idea, bug, design choice, or tech debt item identified in Step 1
          --sync-session
      ```
 
+4. **Explicit User Rejections & Discarded Concepts:**
+   - If the user explicitly rejects or shoots down an idea ("that's a bad idea", "let's not build that", "reject that concept"), do NOT delete the file or leave it pending in the inbox.
+   - Archive it to `workforces/issues/completed/` with `triage_status: "rejected"`:
+     ```bash
+     python3 .agents/skills/issue-tracker/scripts/report-issue.py \
+         --update "<issue-file-path-or-slug>" \
+         --reject "Rejected by user: <reason given by user>" \
+         --sync-session
+     ```
+   - This marks the issue as `status: completed` / `triage_status: rejected`, logs the rejection deciding factor in `🧠 Session Lineage`, moves the file to `completed/`, and updates the session context note with strikethrough audit trail.
+
 ---
 
 ### Step 4: Write Session Context Note

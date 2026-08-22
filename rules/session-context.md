@@ -17,6 +17,7 @@ trigger: always_on
 3. **Spontaneous Ideas & Issue Tracking Protocol:**
    - When new feature ideas, bugs, design requirements, or technical debt items are discussed, capture them into `workforces/issues/inbox/` using `report-issue.py` with `--session-id`, `--session-file`, and `--sync-session`.
    - When requirements or trade-offs evolve later in the session, update the existing issue via `report-issue.py --update <path> --evolution-note "<reason>" --sync-session` to maintain an immutable history of deciding factors.
+   - **Explicit User Rejections:** When the user explicitly rejects an idea ("bad idea", "reject that", "not needed", "out of scope"), do NOT delete the file or leave it pending in inbox. Execute `report-issue.py --update <path> --reject "<reason>" --sync-session` to archive it to `workforces/issues/completed/` with `triage_status: "rejected"` while preserving full audit history.
 
 4. **Zero-Narrative Parsimony:**
    - Maintain dense, facts-only markdown formatting adhering to the `session-context` skill frontmatter and schema.

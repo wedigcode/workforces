@@ -216,7 +216,7 @@ When the user runs `/work sync` or asks for a standup check-in, follow these ste
    - Flag any dependency blocks or questions requiring human feedback/credentials.
 5. **Triage Issue Inbox:**
    - Check `workforces/issues/inbox/` for unreviewed issues.
-   - If items exist, triage each one per the `issue-tracker` skill: read the origin session context and deciding factors log, assign priority, promote P0/P1 to GitHub issues (linking back to the origin session), log P2/P3 to workstate with session reference, move file to `workforces/issues/triaged/`.
+   - If items exist, triage each one per the `issue-tracker` skill: read the origin session context and deciding factors log, assign priority, promote P0/P1 to GitHub issues (linking back to the origin session), log P2/P3 to workstate with session reference, move active items to `workforces/issues/triaged/`, and move rejected or wont-fix items to `workforces/issues/completed/` with `triage_status: "rejected"`.
    - Include a **📬 Inbox Triage** section in the sync report with origin session links and key decision context.
 6. **Present Sync Summary:** Format the standup sync report as specified in `workflows/sync.md` and present it to the user for approval.
 7. **Log and Save:** Upon user approval, create a new sync log under `workforces/team-sync/YYYY-MM-DD.md` (creating the directory if it does not exist) and update task statuses or notes in `workforces/workstate.md`.

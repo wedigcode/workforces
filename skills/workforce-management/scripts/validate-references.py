@@ -100,6 +100,7 @@ def audit_session_context(target_dir):
     session_ctx_dir = os.path.normpath(os.path.join(target_dir, "workforces", "session-context"))
     inbox_dir = os.path.normpath(os.path.join(target_dir, "workforces", "issues", "inbox"))
     triaged_dir = os.path.normpath(os.path.join(target_dir, "workforces", "issues", "triaged"))
+    completed_dir = os.path.normpath(os.path.join(target_dir, "workforces", "issues", "completed"))
 
     session_notes = []
     untracked_roadmaps = []
@@ -109,7 +110,8 @@ def audit_session_context(target_dir):
 
     inbox_files = os.listdir(inbox_dir) if os.path.exists(inbox_dir) else []
     triaged_files = os.listdir(triaged_dir) if os.path.exists(triaged_dir) else []
-    known_issue_slugs = [f.lower().replace(".md", "") for f in (inbox_files + triaged_files)]
+    completed_files = os.listdir(completed_dir) if os.path.exists(completed_dir) else []
+    known_issue_slugs = [f.lower().replace(".md", "") for f in (inbox_files + triaged_files + completed_files)]
 
     for note in sorted(os.listdir(session_ctx_dir)):
         if not note.endswith(".md") or note == ".gitkeep":

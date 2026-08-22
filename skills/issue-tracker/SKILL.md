@@ -35,11 +35,14 @@ Untriaged issues and feature ideas written directly by agents or the `@scribe`. 
 Issues that the project-manager has reviewed and either:
 - Promoted to `workstate.md` as a P0/P1/P2/P3 task
 - Created as a GitHub issue (P0/P1)
-- Marked as `wont-fix` or `duplicate`
+
+### Completed & Rejected (`workforces/issues/completed/`)
+
+Issues and feature ideas that have either been completed or explicitly rejected by the user/team (`triage_status: "rejected"` or `status: "completed"`). Moving rejected ideas here preserves an immutable audit trail with deciding factors while keeping the active inbox and sprint backlog clean.
 
 ### Session Lineage & Decision Evolution
 
-Long conversations often evolve (e.g. user proposes red styling, then 2 hours later pivots to a soft pastel palette). Rather than creating duplicate issues or losing previous rationale, `report-issue.py` supports `--update` and `--evolution-note` to append timestamped decision milestones to `## 🧠 Session Lineage & Deciding Factors`.
+Long conversations often evolve (e.g. user proposes red styling, then 2 hours later pivots to a soft pastel palette, or rejects a feature outright). Rather than creating duplicate issues or losing previous rationale, `report-issue.py` supports `--update`, `--evolution-note`, and `--reject` to append timestamped decision milestones to `## 🧠 Session Lineage & Deciding Factors`.
 
 ---
 
@@ -74,6 +77,17 @@ python3 .agents/skills/issue-tracker/scripts/report-issue.py \
     --sync-session
 ```
 
+### Rejecting an Issue / Idea (Explicit User Rejection)
+
+When the user rejects an idea or says it's a bad direction, move it to `completed/` with `triage_status: "rejected"`:
+
+```bash
+python3 .agents/skills/issue-tracker/scripts/report-issue.py \
+    --update "workforces/issues/inbox/20260822-071500-adopt-soft-pastel-color-palette.md" \
+    --reject "User explicitly rejected this idea: out of scope for MVP." \
+    --sync-session
+```
+
 ### Checking for Similar Issues
 
 ```bash
@@ -98,8 +112,10 @@ python3 .agents/skills/issue-tracker/scripts/report-issue.py \
 | `--session-file` | | filepath | Origin session context note path |
 | `--evolution-note` | | string | Decision note recording rationale or requirement pivot |
 | `--update` | | filepath/slug | Existing issue file to update |
+| `--reject` | | string | Mark issue as rejected, set `triage_status: 'rejected'`, and move to `completed/` |
+| `--status` | | `inbox` `triaged` `completed` `rejected` | Update status (moves file to inbox/, triaged/, or completed/) |
 | `--sync-session` | | flag | Automatically update session context frontmatter & list |
-| `--find-similar` | | string | Search existing inbox & triaged issues by title |
+| `--find-similar` | | string | Search existing inbox, triaged & completed issues by title |
 | `--force` | | flag | Bypass duplicate similarity check |
 
 ---

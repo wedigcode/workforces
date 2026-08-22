@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-report-issue — Issue & Feature Idea capture and evolution script for workforce agents.
+report-issue — Issue & Feature Idea capture, evolution, and rejection script for workforce agents.
 
 Usage:
     # 1. Report a new issue/idea linked to a session:
@@ -23,7 +23,13 @@ Usage:
         --evolution-note "Pivoted from lavender tones to muted alpine sage for better contrast." \
         --sync-session
 
-    # 3. Check for similar issues before creating:
+    # 3. Reject an issue/idea explicitly (moves to workforces/issues/completed/ with triage_status: 'rejected'):
+    python3 .agents/skills/issue-tracker/scripts/report-issue.py \
+        --update "workforces/issues/inbox/20260822-071500-adopt-soft-pastel-color-palette.md" \
+        --reject "User explicitly rejected this idea: out of scope for MVP." \
+        --sync-session
+
+    # 4. Check for similar issues before creating:
     python3 .agents/skills/issue-tracker/scripts/report-issue.py \
         --find-similar "pastel color palette"
 """
@@ -123,50 +129,43 @@ def parse_frontmatter(content: str) -> Tuple[Dict[str, Any], str]:
                 metadata[key] = False
             else:
                 current_list_key = None
-                try:
-                    if "." in val:
-                        metadata[key] = float(val)
-                    else:
-                        metadata[key] = int(val)
-                except ValueError:
-                    metadata[key] = val
+                metadata[key] = val
 
     return metadata, body
 
 
 def dump_frontmatter(metadata: Dict[str, Any], body: str) -> str:
-    """Format frontmatter dictionary and markdown body back into string."""
+    """Convert metadata dictionary and body into markdown with YAML frontmatter."""
     lines = ["---"]
-    for key, val in metadata.items():
-        if val is None:
-            lines.append(f"{key}: ~")
-        elif isinstance(val, bool):
-            lines.append(f"{key}: {'true' if val else 'false'}")
-        elif isinstance(val, (int, float)):
-            lines.append(f"{key}: {val}")
-        elif isinstance(val, list):
-            if not val:
-                lines.append(f"{key}: []")
+    for k, v in metadata.items():
+        if v is None:
+            lines.append(f"{k}: ~")
+        elif isinstance(v, bool):
+            lines.append(f"{k}: {'true' if v else 'false'}")
+        elif isinstance(v, list):
+            if not v:
+                lines.append(f"{k}: []")
+            elif isinstance(v[0], dict):
+                lines.append(f"{k}:")
+                for item in v:
+                    first = True
+                    for sub_k, sub_v in item.items():
+                        if first:
+                            lines.append(f'  - {sub_k}: "{sub_v}"')
+                            first = False
+                        else:
+                            lines.append(f'    {sub_k}: "{sub_v}"')
             else:
-                lines.append(f"{key}:")
-                for item in val:
-                    if isinstance(item, dict):
-                        # Nested dict in list
-                        dict_items = list(item.items())
-                        if dict_items:
-                            first_k, first_v = dict_items[0]
-                            lines.append(f"  - {first_k}: \"{first_v}\"")
-                            for sub_k, sub_v in dict_items[1:]:
-                                lines.append(f"    {sub_k}: \"{sub_v}\"")
-                    else:
-                        lines.append(f"  - \"{item}\"")
+                formatted_items = [f'"{item}"' for item in v]
+                lines.append(f"{k}: [{', '.join(formatted_items)}]")
         else:
-            # String value
-            clean_str = str(val).replace('"', '\\"')
-            lines.append(f'{key}: "{clean_str}"')
+            clean_v = str(v).replace('"', '\\"')
+            lines.append(f'{k}: "{clean_v}"')
     lines.append("---")
     lines.append("")
-    return "\n".join(lines) + body
+    lines.append(body.strip("\r\n"))
+    lines.append("")
+    return "\n".join(lines)
 
 
 def extract_title(filepath: str) -> str:
@@ -182,11 +181,9 @@ def extract_title(filepath: str) -> str:
 
 def find_issue_by_identifier(identifier: str, search_dirs: List[str]) -> Optional[str]:
     """Find issue file by exact path, relative path, filename, or partial slug match."""
-    # Direct path match
     if os.path.isfile(identifier):
         return os.path.abspath(identifier)
 
-    # Check search dirs
     for d in search_dirs:
         if not os.path.isdir(d):
             continue
@@ -198,7 +195,6 @@ def find_issue_by_identifier(identifier: str, search_dirs: List[str]) -> Optiona
             if os.path.isfile(with_ext):
                 return os.path.abspath(with_ext)
 
-        # Search for slug match in directory
         for fname in os.listdir(d):
             if not fname.endswith(".md"):
                 continue
@@ -339,6 +335,8 @@ def sync_issue_to_session_file(
         issue_type = issue_meta.get("type", "task")
         severity = issue_meta.get("severity", "P2")
         status = issue_meta.get("status", "inbox")
+        triage_status = issue_meta.get("triage_status", "pending")
+        is_rejected = triage_status in ("rejected", "wont-fix") or status in ("rejected", "wont-fix")
 
         # Update or append in frontmatter tracked_issues
         tracked = meta.get("tracked_issues")
@@ -348,7 +346,7 @@ def sync_issue_to_session_file(
         found = False
         new_tracked = []
         for item in tracked:
-            if isinstance(item, dict) and (item.get("id") == issue_id or item.get("file") == issue_file_path):
+            if isinstance(item, dict) and (item.get("id") == issue_id or item.get("file") == issue_file_path or (item.get("title") and item.get("title") == title)):
                 found = True
                 new_tracked.append({
                     "id": issue_id,
@@ -356,7 +354,7 @@ def sync_issue_to_session_file(
                     "title": title,
                     "type": issue_type,
                     "severity": severity,
-                    "status": status,
+                    "status": "rejected" if is_rejected else status,
                 })
             else:
                 new_tracked.append(item)
@@ -368,7 +366,7 @@ def sync_issue_to_session_file(
                 "title": title,
                 "type": issue_type,
                 "severity": severity,
-                "status": status,
+                "status": "rejected" if is_rejected else status,
             })
 
         meta["tracked_issues"] = new_tracked
@@ -377,15 +375,21 @@ def sync_issue_to_session_file(
         # Update Markdown Body section: ## 📋 Tracked Issues & Feature Ideas
         section_header = "## 📋 Tracked Issues & Feature Ideas"
         summary_text = evolution_summary or issue_meta.get("description", "")[:100]
-        issue_entry = f"- [{title}](file://{os.path.abspath(issue_file_path)}) (`{issue_type}` | {severity}) — {summary_text}"
+        if summary_text.startswith("❌ Rejected:"):
+            summary_text = summary_text[len("❌ Rejected:"):].strip()
+        elif summary_text.startswith("❌ Rejected by user:"):
+            summary_text = summary_text[len("❌ Rejected by user:"):].strip()
+
+        if is_rejected:
+            issue_entry = f"- [~~{title}~~](file://{os.path.abspath(issue_file_path)}) (~~`{issue_type}`~~ | ~~{severity}~~) — ❌ **Rejected:** {summary_text}"
+        else:
+            issue_entry = f"- [{title}](file://{os.path.abspath(issue_file_path)}) (`{issue_type}` | {severity}) — {summary_text}"
 
         if section_header in body:
-            # Replace existing entry or append
             parts = body.split(section_header, 1)
             before_sec = parts[0] + section_header + "\n"
             after_sec = parts[1]
 
-            # Find next header ## or end
             next_header = re.search(r"\n##\s+", after_sec)
             if next_header:
                 sec_content = after_sec[:next_header.start()]
@@ -394,12 +398,11 @@ def sync_issue_to_session_file(
                 sec_content = after_sec
                 rest = ""
 
-            # Check if this issue is already in sec_content
             lines = [l for l in sec_content.splitlines() if l.strip()]
             new_lines = []
             replaced = False
             for l in lines:
-                if issue_id in l or title in l:
+                if issue_id in l or title in l or os.path.basename(issue_file_path) in l:
                     new_lines.append(issue_entry)
                     replaced = True
                 else:
@@ -410,7 +413,6 @@ def sync_issue_to_session_file(
             updated_sec = "\n" + "\n".join(new_lines) + "\n"
             body = before_sec + updated_sec + rest
         else:
-            # Append before ## Key Files or at bottom
             insert_marker = "## 📁 Key Files & Code Symbols"
             if insert_marker in body:
                 body = body.replace(
@@ -431,7 +433,7 @@ def sync_issue_to_session_file(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Report, update, and evolve deferred issues and feature ideas for workforce agents."
+        description="Report, update, evolve, and reject deferred issues and feature ideas for workforce agents."
     )
     parser.add_argument("--title", help="Short issue/feature title")
     parser.add_argument(
@@ -459,6 +461,27 @@ def main() -> None:
         help="File path or ID/slug of an existing issue to update with new requirements or evolution notes",
     )
     parser.add_argument(
+        "--reject",
+        nargs="?",
+        const="Rejected by user during consultation",
+        help="Mark issue as rejected by user, set triage_status to 'rejected', and move file to completed/ directory",
+    )
+    parser.add_argument(
+        "--status",
+        choices=["inbox", "triaged", "completed", "rejected"],
+        help="Update issue status (moves file between inbox/, triaged/, and completed/ as appropriate)",
+    )
+    parser.add_argument(
+        "--triage-status",
+        choices=["pending", "triaged", "rejected", "wont-fix", "duplicate", "completed"],
+        help="Update triage_status field",
+    )
+    parser.add_argument(
+        "--move-to",
+        choices=["inbox", "triaged", "completed"],
+        help="Explicitly move issue file to inbox/, triaged/, or completed/ directory",
+    )
+    parser.add_argument(
         "--find-similar",
         help="Search for existing issues similar to the given title string",
     )
@@ -483,10 +506,12 @@ def main() -> None:
 
     inbox_dir = args.out_dir
     triaged_dir = os.path.join(os.path.dirname(inbox_dir), "triaged")
+    completed_dir = os.path.join(os.path.dirname(inbox_dir), "completed")
+    search_dirs = [inbox_dir, triaged_dir, completed_dir]
 
     # MODE 1: Find Similar Issues
     if args.find_similar:
-        results = find_similar_issues(args.find_similar, [inbox_dir, triaged_dir])
+        results = find_similar_issues(args.find_similar, search_dirs)
         if args.json:
             output = [
                 {
@@ -495,6 +520,8 @@ def main() -> None:
                     "title": meta.get("title", ""),
                     "type": meta.get("type", ""),
                     "severity": meta.get("severity", ""),
+                    "status": meta.get("status", ""),
+                    "triage_status": meta.get("triage_status", ""),
                     "session_id": meta.get("session_id"),
                 }
                 for fpath, ratio, meta in results
@@ -506,18 +533,19 @@ def main() -> None:
             else:
                 print(f"🔍 Found {len(results)} matching issue(s):")
                 for fpath, ratio, meta in results:
-                    loc = "inbox" if inbox_dir in fpath else "triaged"
+                    loc = "inbox" if inbox_dir in fpath else ("completed" if completed_dir in fpath else "triaged")
                     print(f"  - [{ratio:.0%}] ({loc}) {meta.get('title', '')}")
                     print(f"    Path: {fpath}")
                     if meta.get("session_id"):
                         print(f"    Session: #{meta.get('session_id')}")
         return
 
-    # MODE 2: Update Existing Issue
-    if args.update:
-        target_file = find_issue_by_identifier(args.update, [inbox_dir, triaged_dir])
+    # MODE 2: Update or Reject Existing Issue
+    update_target = args.update or (args.reject if (args.reject and not args.title and os.path.exists(str(args.reject))) else None)
+    if update_target:
+        target_file = find_issue_by_identifier(update_target, search_dirs)
         if not target_file:
-            print(f"❌ Error: Could not locate issue matching '{args.update}'", file=sys.stderr)
+            print(f"❌ Error: Could not locate issue matching '{update_target}'", file=sys.stderr)
             sys.exit(1)
 
         with open(target_file, "r", encoding="utf-8") as f:
@@ -541,6 +569,10 @@ def main() -> None:
             meta["session_id"] = args.session_id
         if args.session_file:
             meta["session_file"] = args.session_file
+        if args.status:
+            meta["status"] = args.status
+        if args.triage_status:
+            meta["triage_status"] = args.triage_status
         meta["updated_at"] = now.isoformat()
 
         # Update description / suggested action in body if provided
@@ -554,38 +586,83 @@ def main() -> None:
             if act_match:
                 body = body[:act_match.start(1)] + args.suggested_action + body[act_match.end(1):]
 
-        # Append evolution note if provided
-        if args.evolution_note:
+        # Handle rejection
+        rejection_reason = ""
+        if args.reject:
+            meta["triage_status"] = "rejected"
+            meta["status"] = "completed"
+            rejection_reason = args.reject if (isinstance(args.reject, str) and args.reject.strip() and args.reject != "true") else "Rejected by user during consultation."
+            evo_entry = f"- **{now.strftime('%Y-%m-%d %H:%M')}:** ❌ Rejected by user: {rejection_reason}"
+            evo_header = "## 🧠 Session Lineage & Deciding Factors"
+            if evo_header in body:
+                parts = body.split(evo_header, 1)
+                before = parts[0] + evo_header + "\n\n"
+                after = parts[1].lstrip("\r\n")
+                body = before + evo_entry + "\n" + after
+            else:
+                if "## Triage" in body:
+                    body = body.replace("## Triage", f"{evo_header}\n\n{evo_entry}\n\n---\n\n## Triage")
+                else:
+                    body = body.rstrip() + f"\n\n{evo_header}\n\n{evo_entry}\n"
+
+            if "## Triage" in body:
+                body = re.sub(r"- \*\*Decision:\*\*.*", f"- **Decision:** Rejected ({rejection_reason})", body)
+
+        elif args.evolution_note:
             evo_entry = f"- **{now.strftime('%Y-%m-%d %H:%M')}:** {args.evolution_note}"
             evo_header = "## 🧠 Session Lineage & Deciding Factors"
             if evo_header in body:
                 parts = body.split(evo_header, 1)
                 before = parts[0] + evo_header + "\n\n"
                 after = parts[1].lstrip("\r\n")
-                # Insert at top of list
                 body = before + evo_entry + "\n" + after
             else:
-                # Add section before ## Triage or at end
                 if "## Triage" in body:
                     body = body.replace("## Triage", f"{evo_header}\n\n{evo_entry}\n\n---\n\n## Triage")
                 else:
                     body = body.rstrip() + f"\n\n{evo_header}\n\n{evo_entry}\n"
 
+        # Determine target directory
+        target_dir_name = None
+        if args.move_to:
+            target_dir_name = args.move_to
+        elif args.reject or meta.get("triage_status") in ("rejected", "wont-fix", "completed") or meta.get("status") in ("completed", "rejected"):
+            target_dir_name = "completed"
+        elif meta.get("triage_status") == "triaged" or meta.get("status") == "triaged":
+            target_dir_name = "triaged"
+        elif meta.get("status") == "inbox":
+            target_dir_name = "inbox"
+
+        current_dir = os.path.dirname(os.path.abspath(target_file))
+        current_dir_name = os.path.basename(current_dir)
+
+        dest_file = target_file
+        if target_dir_name and target_dir_name != current_dir_name:
+            issues_root = os.path.dirname(current_dir)
+            target_parent = os.path.join(issues_root, target_dir_name)
+            os.makedirs(target_parent, exist_ok=True)
+            dest_file = os.path.join(target_parent, os.path.basename(target_file))
+
         # Write updated content
         new_content = dump_frontmatter(meta, body)
-        with open(target_file, "w", encoding="utf-8") as f:
+        with open(dest_file, "w", encoding="utf-8") as f:
             f.write(new_content)
 
-        print(f"✅ Issue updated: {target_file}")
+        if os.path.abspath(target_file) != os.path.abspath(dest_file) and os.path.exists(target_file):
+            os.remove(target_file)
+            print(f"📦 Moved issue from {current_dir_name}/ to {target_dir_name}/")
+
+        print(f"✅ Issue updated: {dest_file}")
 
         # Sync back to session file if requested
         session_file = args.session_file or meta.get("session_file")
         if (args.sync_session or session_file) and session_file:
+            evo_summary = args.evolution_note or (rejection_reason if args.reject else "Updated requirements & decision factors")
             sync_issue_to_session_file(
                 session_file,
-                target_file,
+                dest_file,
                 meta,
-                evolution_summary=args.evolution_note or "Updated requirements & decision factors"
+                evolution_summary=evo_summary
             )
             print(f"🔗 Synced to session context: {session_file}")
 
@@ -599,15 +676,16 @@ def main() -> None:
 
     # Check for duplicates unless --force
     if not args.force:
-        similar = find_similar_issues(args.title, [inbox_dir, triaged_dir], threshold=0.75)
+        similar = find_similar_issues(args.title, search_dirs, threshold=0.75)
         if similar:
             print("⚠️  Similar issue(s) already exist — skipping to avoid duplicates:\n")
             for fpath, ratio, meta in similar:
-                loc = "inbox" if inbox_dir in fpath else "triaged"
+                loc = "inbox" if inbox_dir in fpath else ("completed" if completed_dir in fpath else "triaged")
                 print(f"   [{ratio:.0%} match] ({loc}) {meta.get('title', extract_title(fpath))}")
                 print(f"   → {fpath}\n")
             print("💡 Options:")
             print(f"   - Update existing: python3 {sys.argv[0]} --update \"{similar[0][0]}\" --evolution-note \"...\"")
+            print(f"   - Reject existing: python3 {sys.argv[0]} --update \"{similar[0][0]}\" --reject \"...\"")
             print("   - Force create anyway: re-run with --force")
             sys.exit(1)
 
@@ -648,6 +726,7 @@ def main() -> None:
             "type": args.type,
             "severity": args.severity,
             "status": "inbox",
+            "triage_status": "pending",
             "description": args.description,
         }
         sync_issue_to_session_file(

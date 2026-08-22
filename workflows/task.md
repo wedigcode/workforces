@@ -14,8 +14,9 @@ Report any bug, design change, tech debt, or spontaneous feature idea to the wor
 /task                           → Show inbox summary + pending triage count
 /task report                    → Interactive: report a new issue (guided prompts)
 /task update [id|path]          → Update existing issue with requirement changes/evolution notes
+/task reject [id|path] [reason] → Explicitly reject an idea, mark triage_status: 'rejected', and move to completed/
 /task triage                    → Invoke project-manager to triage all pending inbox items with session context
-/task list                      → List all issues (inbox + triaged)
+/task list                      → List all issues (inbox + triaged + completed)
 /task list --inbox              → Show only untriaged inbox items
 /task list --type idea          → Filter by type: bug | debt | design | refactor | security | idea
 /task list --severity P0        → Filter by severity: P0 | P1 | P2 | P3
@@ -68,6 +69,17 @@ python3 .agents/skills/issue-tracker/scripts/report-issue.py \
     --sync-session
 ```
 
+## Rejecting Issues (Explicit User Rejection)
+
+When the user rejects an idea or says it's a bad direction, archive it to `completed/` with `triage_status: "rejected"` to preserve the audit trail:
+
+```bash
+python3 .agents/skills/issue-tracker/scripts/report-issue.py \
+    --update "[issue-path-or-slug]" \
+    --reject "User explicitly rejected this idea: [reason]" \
+    --sync-session
+```
+
 ---
 
 ## `/task triage` — PM Triage with Cross-Session Rationale
@@ -83,7 +95,7 @@ Invokes the `project-manager` as a subagent to process all pending inbox items:
    | **P0/P1** | Create GitHub issue (with session link) → add to workstate → move to `triaged/` |
    | **P2** | Add to workstate backlog (with session link) → move to `triaged/` |
    | **P3** | Log in workstate backlog only → move to `triaged/` |
-   | **Wont-fix / Duplicate** | Mark in frontmatter → move to `triaged/` → no workstate entry |
+   | **Wont-fix / Rejected / Duplicate** | Mark `triage_status: "rejected"` in frontmatter → move to `completed/` → no workstate entry |
 
 4. Present a triage summary table with origin session links and key rationales.
 5. Ask for user approval before writing to workstate or creating GitHub issues.
@@ -92,7 +104,7 @@ Invokes the `project-manager` as a subagent to process all pending inbox items:
 
 ## `/task list` — Browse Issues
 
-Show a formatted table of issues. Default shows all (inbox + triaged):
+Show a formatted table of issues. Default shows all (inbox + triaged + completed):
 
 ```markdown
 ### 📋 Issue Tracker
@@ -108,6 +120,12 @@ Show a formatted table of issues. Default shows all (inbox + triaged):
 | Title | Type | Priority | Session | Decision | GitHub |
 |-------|------|----------|:-------:|----------|--------|
 | Fix login race condition | bug | P1 | #015 | → workstate | #45 |
+
+#### 📦 Completed & Rejected — 4 items
+
+| Title | Type | Status | Session | Decision |
+|-------|------|--------|:-------:|----------|
+| ~~Dark mode only~~ | design | rejected | #011 | ❌ Rejected by user |
 ```
 
 ---
@@ -123,6 +141,7 @@ Default view with no subcommand shows inbox health:
 |--------|-------|
 | ⏳ Pending triage | 3 |
 | ✅ Triaged this week | 7 |
+| 📦 Completed / Rejected | 4 |
 | Total open in workstate | 12 |
 
 Run `/task triage` to let the Project Manager review pending items.
@@ -139,5 +158,7 @@ workforces/
     inbox/          ← Unreviewed. Written directly by agents & Scribe.
       YYYYMMDD-HHMMSS-<slug>.md
     triaged/        ← Reviewed by PM. Includes decision, session link, + GitHub link.
+      YYYYMMDD-HHMMSS-<slug>.md
+    completed/      ← Completed or Rejected ideas (preserves immutable audit trail).
       YYYYMMDD-HHMMSS-<slug>.md
 ```
