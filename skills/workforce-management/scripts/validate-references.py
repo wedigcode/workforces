@@ -127,9 +127,9 @@ def audit_session_context(target_dir):
             continue
 
         meta, body = parse_frontmatter(content)
-        tracked_issues = meta.get("tracked_issues") or []
+        tracked_tasks = (meta.get("tracked_tasks") or []) + (meta.get("tracked_issues") or [])
         tracked_strings = []
-        for item in tracked_issues:
+        for item in tracked_tasks:
             if isinstance(item, dict):
                 for v in item.values():
                     if isinstance(v, str):

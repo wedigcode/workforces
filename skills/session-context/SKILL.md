@@ -14,7 +14,7 @@ Provides transient, cross-session memory preservation to prevent context loss, r
 | Surface | Path | Schema / Structure |
 |---------|------|-------------------|
 | **Session Notes** | `workforces/session-context/<seq>_<date>_<slug>.md` | Markdown with Open Session Format frontmatter |
-| **Tracked Issues** | `workforces/issues/inbox/` | YAML-frontmatter issues linked to origin sessions |
+| **Tracked Tasks** | `workforces/tasks/` | YAML-frontmatter tasks & action items linked to origin sessions |
 | **Index / Directory** | `workforces/session-context/` | Numerically indexed & timestamped notes |
 
 ---
@@ -34,13 +34,13 @@ tags: [feature-name, brief, architecture, tasks]
 active_files:
   - path/to/relevant/file.ts
 parent_session_id: null
-tracked_issues:
+tracked_tasks:
   - id: "20260805-162000-feature-brief-task"
-    file: "workforces/issues/inbox/20260805-162000-feature-brief-task.md"
+    file: "workforces/tasks/20260805-162000-feature-brief-task.md"
     title: "Feature Brief & Task"
-    type: "idea"
-    severity: "P2"
-    status: "inbox"
+    type: "follow-up"
+    priority: "P1"
+    status: "todo"
 ---
 
 # Session 001: <Topic Title>
@@ -52,8 +52,8 @@ tracked_issues:
 - **Decision:** Why option A was chosen over option B.
 - **Rejected:** Trade-offs and reasons for rejecting alternatives.
 
-## 📋 Tracked Issues & Feature Ideas
-- [Feature Brief & Task](file:///absolute/path/to/workforces/issues/inbox/20260805-162000-feature-brief-task.md) (`idea` | P2) — Initial formulation and core acceptance criteria.
+## 📋 Tracked Tasks & Action Items
+- [Feature Brief & Task](file:///absolute/path/to/workforces/tasks/20260805-162000-feature-brief-task.md) (`follow-up` | P1) — Initial formulation and core acceptance criteria.
 
 ## 📁 Key Files & Code Symbols
 - [file.py](file:///absolute/path/to/file.py#L10-L40) — Core logic modified/discussed
@@ -77,11 +77,11 @@ tracked_issues:
 
 ---
 
-## 3. Continuous Issue Tracking & Decision Evolution Protocol
+## 3. Continuous Task Tracking & Decision Evolution Protocol
 
 During any session:
-1. **Idea & Issue Capture:** When a new idea, feature request, design choice, or bug is discussed, invoke `report-issue.py` with `--session-id`, `--session-file`, and `--sync-session`.
-2. **Dynamic Evolution:** When earlier decisions or specs pivot (e.g. changing color from red to pastel, or changing database strategy), invoke `report-issue.py --update <path> --evolution-note "<reason>" --sync-session` so the issue's `## 🧠 Session Lineage & Deciding Factors` stays current.
+1. **Task & Idea Capture:** When an action item, follow-up, feature request, design choice, or bug is discussed, invoke `report-task.py` with `--session-id`, `--session-file`, and `--sync-session`.
+2. **Dynamic Evolution & Status Transitions:** When requirements pivot or tasks move through their lifecycle (`--start`, `--block`, `--done`, `--drop`), invoke `report-task.py --update <path> --evolution-note "<reason>" --sync-session` so the task's `## 🧠 Session Lineage & Deciding Factors` and the session note stay synchronized.
 
 ---
 
@@ -95,13 +95,14 @@ During any session:
 
 ### B. Listing Contexts (`/context list`)
 1. Read all files in `workforces/session-context/*.md`.
-2. Parse frontmatter (`sequence`, `created_at`, `topic`, `tags`, `tracked_issues`).
+2. Parse frontmatter (`sequence`, `created_at`, `topic`, `tags`, `tracked_tasks`).
 3. Output a summary table sorted by sequence descending.
 
 ### C. Loading Context (`/context load <seq|slug>`)
 1. Match `<seq|slug>` against existing session files (e.g. `1` or `001` or `dedup`).
 2. Read target session note.
-3. Extract `Executive Summary`, `Decisions & Reasoning`, and `Tracked Issues`.
+3. Extract `Executive Summary`, `Decisions & Reasoning`, and `Tracked Tasks`.
+4. Inject extracted context directly into active prompt memory.
 4. Inject extracted context directly into active prompt memory.
 
 ### D. Keyword Searching (`/context search <query>`)

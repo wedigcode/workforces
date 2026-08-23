@@ -18,23 +18,23 @@ Every AI agent and workforce orchestrator MUST enforce complete reference lineag
 ## 2. Subtask, Roadmap & Discovered Gap Tracking
 
 - When a created file, advisory consultation (`/advisor`), ideation sprint (`/ideate`), or execution step proposes new feature horizons, required follow-ups, pending dependencies, unhandled risks, or unchecked tasks (`- [ ]` items):
-  - The agent MUST report each item to the **issue inbox** using `report-issue.py` with session lineage:
+  - The agent MUST report each item to **tasks** using `report-task.py` with session lineage:
     ```bash
-    python3 .agents/skills/issue-tracker/scripts/report-issue.py \
-        --title "[Brief title or feature name]" \
-        --type [idea|bug|debt|design|refactor|security] \
-        --severity [P0|P1|P2|P3] \
+    python3 .agents/skills/task-tracker/scripts/report-task.py \
+        --title "[Brief title or task name]" \
+        --type [tag/category] \
+        --priority [P0|P1|P2|P3] \
         --reporter [agent-name] \
         --session-id "[seq]" \
         --session-file "workforces/session-context/<seq>_<date>_<slug>.md" \
-        --description "[Core problem, 10x value, or what was found]" \
+        --description "[Core problem, follow-up, 10x value, or what was found]" \
         --suggested-action "[Implementation plan or recommended next step]" \
         --sync-session
     ```
-    *(Fallback: `python3 skills/issue-tracker/scripts/report-issue.py` if running inside source toolkit root)*
-  - **Do NOT** leave proposed feature roadmaps or gap notes as un-triaged text in session notes or `workforces/workstate.md`. The inbox is the single source of truth for discovered issues and new feature horizons.
-  - `workforces/workstate.md` is reserved for **active task tracking** (tasks the team is currently executing), not gap discovery or unscheduled roadmaps. The project-manager promotes inbox items to workstate during triage.
-  - The agent MUST NOT declare a main task or advisory turn complete until all immediate child dependencies (files, assets, and inbox records) are satisfied.
+    *(Fallback: `python3 skills/task-tracker/scripts/report-task.py` if running inside source toolkit root)*
+  - **Do NOT** leave proposed feature roadmaps or gap notes as untracked text in session notes or `workforces/workstate.md`. `workforces/tasks/` is the single source of truth for discovered tasks and action items.
+  - `workforces/workstate.md` is reserved for **active sprint tracking** (tasks the team is currently executing).
+  - The agent MUST NOT declare a main task or advisory turn complete until all immediate child dependencies (files, assets, and task records) are satisfied.
 
 ## 3. Decision Escalation Threshold (Stop & Ask Rule)
 

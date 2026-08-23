@@ -1,49 +1,53 @@
 ---
-description: Report a deferred issue, bug, debt, or spontaneous feature idea to the inbox — then let the project-manager subagent triage it. Use when any agent or human finds something that can't be worked on right now.
+description: Report, update, evolve, and manage tasks and action items — with a simplified 5-state lifecycle (todo | in_progress | blocked | done | dropped), priority levels P0-P3, and deciding factor tracking.
 ---
 
-# /task — Issue & Feature Reporting, Evolution, and Triage
+# /task — Task & Action Item Reporting, Evolution, and Lifecycle
 
-Report any bug, design change, tech debt, or spontaneous feature idea to the workforce inbox with bidirectional session lineage. The `@scribe` tracks and evolves issues during conversations, and the `@project-manager` triages them into active work.
+Report any business follow-up, feature idea, bug, design change, or action item to the workforce tasks with bidirectional session lineage. The `@scribe` tracks and evolves tasks during conversations with deciding factor logs.
 
 ---
 
 ## Usage
 
 ```
-/task                           → Show inbox summary + pending triage count
-/task report                    → Interactive: report a new issue (guided prompts)
-/task update [id|path]          → Update existing issue with requirement changes/evolution notes
-/task reject [id|path] [reason] → Explicitly reject an idea, mark triage_status: 'rejected', and move to completed/
-/task triage                    → Invoke project-manager to triage all pending inbox items with session context
-/task list                      → List all issues (inbox + triaged + completed)
-/task list --inbox              → Show only untriaged inbox items
-/task list --type idea          → Filter by type: bug | debt | design | refactor | security | idea
-/task list --severity P0        → Filter by severity: P0 | P1 | P2 | P3
+/task                           → Show active tasks summary (todo + in_progress)
+/task add [title]               → Quick add a new task (e.g. /task add "Follow up with pilot lead" --priority P1 --type follow-up)
+/task start [id|path]           → Mark task as in_progress
+/task block [id|path] [reason]  → Mark task as blocked
+/task done [id|path]            → Mark task as done
+/task drop [id|path] [reason]   → Drop/reject a task with recorded deciding factors
+/task update [id|path]          → Update existing task with requirement changes/evolution notes
+/task list                      → List all tasks
+/task list --status todo        → Filter by status: todo | in_progress | blocked | done | dropped
+/task list --priority P1        → Filter by priority: P0 | P1 | P2 | P3
+/task list --type follow-up     → Filter by tag/type
 ```
 
 ---
 
-## `/task report` — Interactive Reporting
+## `/task add` / Interactive Reporting
 
-When an agent or human runs `/task report`, gather the following:
+When an agent or human runs `/task add` or reports an item, gather the following:
 
-1. **Title** — One sentence: what is the problem or feature idea? (required)
-2. **Type** — `bug` | `debt` | `design` | `refactor` | `security` | `idea` (default: `bug`)
-3. **Severity estimate** — P0–P3 (agent's best guess; PM will override)
-4. **Affected file(s)** — Which file(s) are involved? (optional)
-5. **Origin Session Context** — Active session sequence (e.g. `022`) or session note path (optional)
-6. **Description** — Full context: what was found/discussed, where, why it matters
-7. **Suggested action** — What should be done? (optional)
-8. **Deciding factor / Evolution note** — Initial reasoning or requirement summary
+1. **Title** — One sentence: what is the action item or task? (required)
+2. **Type** — Freeform tag (e.g. `follow-up`, `idea`, `bug`, `debt`, `design`, `ops`, `business`, `marketing`, `security`)
+3. **Priority** — `P0` (urgent), `P1` (high), `P2` (medium), `P3` (low)
+4. **Assignee** — Person or agent responsible (e.g. `@user`, `@me`, `@aaron`, `@scribe`)
+5. **Affected file(s)** — Which file(s) are involved? (optional)
+6. **Origin Session Context** — Active session sequence (e.g. `026`) or session note path (optional)
+7. **Description** — Full context: what needs to be done, why it matters
+8. **Suggested action** — Recommended implementation plan or next step
+9. **Deciding factor / Evolution note** — Initial reasoning or context
 
 Then call the script:
 
 ```bash
-python3 .agents/skills/issue-tracker/scripts/report-issue.py \
+python3 .agents/skills/task-tracker/scripts/report-task.py \
     --title "[title]" \
     --type [type] \
-    --severity [P0-P3] \
+    --priority [P0-P3] \
+    --assignee "@user" \
     --reporter [agent-name-or-human] \
     --session-id "[seq]" \
     --session-file "workforces/session-context/[seq]_[date]_[slug].md" \
@@ -54,50 +58,45 @@ python3 .agents/skills/issue-tracker/scripts/report-issue.py \
     --sync-session
 ```
 
-**Confirm to the user:** `✅ Issue logged: workforces/issues/inbox/[filename].md (Linked to Session #[seq])`
+**Confirm to the user:** `✅ Task created: workforces/tasks/[filename].md (Linked to Session #[seq])`
 
 ---
 
-## Updating Tracked Issues (Mid-Session Evolution)
+## In-Place Lifecycle Transitions
 
-When ideas or requirements change later in the conversation:
-
+### Starting a Task (`/task start`)
 ```bash
-python3 .agents/skills/issue-tracker/scripts/report-issue.py \
-    --update "[issue-path-or-slug]" \
-    --evolution-note "Requirement pivot: [reason for change]" \
+python3 .agents/skills/task-tracker/scripts/report-task.py \
+    --update "[task-path-or-slug]" \
+    --start \
+    --evolution-note "Started working on item." \
     --sync-session
 ```
 
-## Rejecting Issues (Explicit User Rejection)
-
-When the user rejects an idea or says it's a bad direction, archive it to `completed/` with `triage_status: "rejected"` to preserve the audit trail:
-
+### Blocking a Task (`/task block`)
 ```bash
-python3 .agents/skills/issue-tracker/scripts/report-issue.py \
-    --update "[issue-path-or-slug]" \
-    --reject "User explicitly rejected this idea: [reason]" \
+python3 .agents/skills/task-tracker/scripts/report-task.py \
+    --update "[task-path-or-slug]" \
+    --block "Waiting on client API key." \
     --sync-session
 ```
 
----
+### Completing a Task (`/task done`)
+```bash
+python3 .agents/skills/task-tracker/scripts/report-task.py \
+    --update "[task-path-or-slug]" \
+    --done \
+    --evolution-note "Completed deliverable." \
+    --sync-session
+```
 
-## `/task triage` — PM Triage with Cross-Session Rationale
-
-Invokes the `project-manager` as a subagent to process all pending inbox items:
-
-1. Read all files in `workforces/issues/inbox/`
-2. For each issue, the PM reviews the origin session context note and `## 🧠 Session Lineage & Deciding Factors` to understand the full history and trade-offs.
-3. For each issue, the PM decides:
-
-   | PM Decision | Action |
-   |-------------|--------|
-   | **P0/P1** | Create GitHub issue (with session link) → add to workstate → move to `triaged/` |
-   | **P2** | Add to workstate backlog (with session link) → move to `triaged/` |
-   | **P3** | Log in workstate backlog only → move to `triaged/` |
-   | **Wont-fix / Rejected / Duplicate** | Mark `triage_status: "rejected"` in frontmatter → move to `completed/` → no workstate entry |
-
-4. Present a triage summary table with origin session links and key rationales.
+### Dropping a Task (`/task drop`)
+```bash
+python3 .agents/skills/task-tracker/scripts/report-task.py \
+    --update "[task-path-or-slug]" \
+    --drop "Decided against feature after user feedback." \
+    --sync-session
+```
 5. Ask for user approval before writing to workstate or creating GitHub issues.
 
 ---
