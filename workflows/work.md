@@ -229,9 +229,12 @@ Breaks down goals or PRDs into deployable phases, time estimates, dependency map
 
 ### `/work sync`
 
-Invokes the `@project-manager` agent to run a sync/standup session. See [`workflows/sync.md`](./sync.md).
+Runs a structured team sync or strategic review session. See [`workflows/sync.md`](./sync.md).
 
-It reviews wins, losses, what's next, and blockers, then logs the session to `workforces/team-sync/YYYY-MM-DD.md`.
+- `/work sync` or `/work sync --daily` — 5-minute tactical standup led by `@project-manager` (24h wins, roadblocks, The One Thing, inbox triage).
+- `/work sync --strategy` — Deep strategic review led by `@advisor` (OKR pacing, SME round-table, hypothesis telemetry, kill/pivot thresholds, and 5-dimension diagnostics).
+- `/work sync --goals` — Interactive goal scaffolding led by `@advisor` and `@project-manager` (North Star, Q1–Q4 OKRs, monthly milestones).
+Logs sessions to `workforces/team-sync/YYYY-MM-DD.md`.
 
 ### `/work investigate [service]`
 

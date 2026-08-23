@@ -357,7 +357,9 @@ fi
 
 # ─── Setup Workspace folder (workforces/) ───
 WORKFORCES_DIR="$TARGET/workforces"
-mkdir -p "$WORKFORCES_DIR" "$WORKFORCES_DIR/goals" "$WORKFORCES_DIR/tmp" "$WORKFORCES_DIR/session-context"
+mkdir -p "$WORKFORCES_DIR" "$WORKFORCES_DIR/goals" "$WORKFORCES_DIR/tmp" "$WORKFORCES_DIR/session-context" \
+  "$WORKFORCES_DIR/hypotheses/draft" "$WORKFORCES_DIR/hypotheses/running" \
+  "$WORKFORCES_DIR/hypotheses/validated" "$WORKFORCES_DIR/hypotheses/invalidated" "$WORKFORCES_DIR/hypotheses/pivoted"
 touch "$WORKFORCES_DIR/session-context/.gitkeep"
 
 # ─── Ensure workforces/tmp and workforces/session-context in .gitignore ───
