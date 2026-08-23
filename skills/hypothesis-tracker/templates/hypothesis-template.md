@@ -14,6 +14,9 @@ updated_at: "{{UPDATED_AT}}"
 target_completion: "{{TARGET_COMPLETION}}"
 session_id: "{{SESSION_ID}}"
 session_file: "{{SESSION_FILE}}"
+recommended_tools: {{RECOMMENDED_TOOLS}}
+delegated_to: "{{DELEGATED_TO}}"
+github_labels: {{GITHUB_LABELS}}
 kill_threshold: "{{KILL_THRESHOLD}}"
 pivot_plan: "{{PIVOT_PLAN}}"
 metrics:
@@ -25,8 +28,8 @@ metrics:
 **Owner:** `@{{OWNER}}` | **Status:** `{{STATUS}}` (Week {{CURRENT_WEEK}} of {{TIMEFRAME_WEEKS}})  
 **Related Goal:** `{{GOAL_ID}}` — {{GOAL_TITLE}}  
 **Timeframe:** {{TIMEFRAME_WEEKS}} weeks (Target: {{TARGET_COMPLETION}})  
-**Origin Session:** [{{SESSION_FILE_BASENAME}}]({{SESSION_FILE_LINK}})
-
+**Origin Session:** [{{SESSION_FILE_BASENAME}}]({{SESSION_FILE_LINK}})  
+{{TOOL_DELEGATION_LINE}}
 ---
 
 ## 🔬 Scientific Hypothesis Statement

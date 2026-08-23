@@ -245,6 +245,9 @@ def build_issue_markdown(
     file_path: str = "",
     session_id: str = "",
     session_file: str = "",
+    recommended_tools: Optional[List[str]] = None,
+    delegated_to: Optional[str] = None,
+    github_labels: Optional[List[str]] = None,
     evolution_notes: Optional[List[str]] = None,
     created_at: Optional[datetime.datetime] = None,
     updated_at: Optional[datetime.datetime] = None,
@@ -267,6 +270,9 @@ def build_issue_markdown(
         "file": file_path or "",
         "session_id": session_id or None,
         "session_file": session_file or None,
+        "recommended_tools": recommended_tools or [],
+        "delegated_to": delegated_to or None,
+        "github_labels": github_labels or [],
         "triage_status": triage_status,
         "github_issue": github_issue,
     }
@@ -274,6 +280,17 @@ def build_issue_markdown(
     session_origin_link = ""
     if session_file:
         session_origin_link = f"**Origin Session:** [{os.path.basename(session_file)}]({session_file})\n"
+
+    tool_delegation_line = ""
+    parts_line = []
+    if recommended_tools:
+        parts_line.append(f"**Recommended Tools:** `{', '.join(recommended_tools)}`")
+    if delegated_to:
+        parts_line.append(f"**Delegated To:** `{delegated_to}`")
+    if github_labels:
+        parts_line.append(f"**GitHub Labels:** `{'`, `'.join(github_labels)}`")
+    if parts_line:
+        tool_delegation_line = " | ".join(parts_line) + "\n"
 
     evolution_lines = []
     if evolution_notes:
@@ -286,8 +303,7 @@ def build_issue_markdown(
 
 **Type:** `{issue_type}` | **Severity:** `{severity}` | **Reporter:** `{reporter}`  
 **Reported:** {now.strftime("%Y-%m-%d %H:%M")} | **Updated:** {up_now.strftime("%Y-%m-%d %H:%M")}  
-{session_origin_link}{f"**Affected file:** `{file_path}`" if file_path else ""}
-
+{session_origin_link}{f"**Affected file:** `{file_path}`\n" if file_path else ""}{tool_delegation_line}
 ## Description
 
 {description}
@@ -453,6 +469,18 @@ def main() -> None:
     parser.add_argument("--session-id", default="", help="Associated session sequence ID (e.g. '022')")
     parser.add_argument("--session-file", default="", help="Path to session context markdown note")
     parser.add_argument(
+        "--tools", "--recommended-tools", dest="recommended_tools",
+        help="Comma-separated list of recommended enabling tools or MCP servers (e.g. 'jules,google-stitch')",
+    )
+    parser.add_argument(
+        "--delegated-to",
+        help="Async subagent or external worker delegated to execute this task (e.g. 'jules')",
+    )
+    parser.add_argument(
+        "--github-labels",
+        help="Comma-separated list of GitHub labels to attach (e.g. 'tool:jules,status:async-pending')",
+    )
+    parser.add_argument(
         "--evolution-note",
         help="Decision note explaining requirement evolution, trade-offs, or changes discussed mid-session",
     )
@@ -571,6 +599,14 @@ def main() -> None:
             meta["session_file"] = args.session_file
         if args.status:
             meta["status"] = args.status
+        if args.recommended_tools:
+            tools_list = [t.strip() for t in args.recommended_tools.replace(",", " ").split() if t.strip()]
+            meta["recommended_tools"] = tools_list
+        if args.delegated_to:
+            meta["delegated_to"] = args.delegated_to
+        if args.github_labels:
+            labels_list = [l.strip() for l in args.github_labels.replace(",", " ").split() if l.strip()]
+            meta["github_labels"] = labels_list
         if args.triage_status:
             meta["triage_status"] = args.triage_status
         meta["updated_at"] = now.isoformat()
@@ -700,6 +736,9 @@ def main() -> None:
     if args.evolution_note:
         evolution_notes.append(f"**{now.strftime('%Y-%m-%d %H:%M')}:** {args.evolution_note}")
 
+    tools_list = [t.strip() for t in args.recommended_tools.replace(",", " ").split() if t.strip()] if args.recommended_tools else []
+    labels_list = [l.strip() for l in args.github_labels.replace(",", " ").split() if l.strip()] if args.github_labels else []
+
     content = build_issue_markdown(
         title=args.title,
         issue_type=args.type,
@@ -710,6 +749,9 @@ def main() -> None:
         file_path=args.file,
         session_id=args.session_id,
         session_file=args.session_file,
+        recommended_tools=tools_list,
+        delegated_to=args.delegated_to,
+        github_labels=labels_list,
         evolution_notes=evolution_notes,
         created_at=now,
         updated_at=now,
@@ -728,6 +770,9 @@ def main() -> None:
             "status": "inbox",
             "triage_status": "pending",
             "description": args.description,
+            "recommended_tools": tools_list,
+            "delegated_to": args.delegated_to,
+            "github_labels": labels_list,
         }
         sync_issue_to_session_file(
             args.session_file,

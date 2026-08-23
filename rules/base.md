@@ -59,6 +59,17 @@ During execution (whether in standard mode or auto-coordinator mode):
   2. Pre-existing entities, tables, legacy utilities, or methods related to the feature.
   3. Clear distinction between **what already exists** and **what is missing**.
 
+## Factual Telemetry vs. Hypothesis Tracking Protocol
+
+- **Strict Factual Grounding**: Domain subagents (especially `@sales`, `@marketer`, `@growth`) must NEVER fabricate customer quotes, conversion metrics, or historical demand out of thin air.
+- **Pre-Outreach Baseline Reporting**: If no customer calls, email cadences, or marketing outreach have been executed yet, agents MUST state the factual baseline explicitly (e.g. *"0 customer discovery calls conducted to date; pre-launch stage"*).
+- **Hypothesis Conversion**: Untested buyer assumptions, pricing theories, or speculative feature requests MUST NOT be presented as factual telemetry. Instead, they must be formulated as structured **Hypotheses** in `workforces/hypotheses/` with leading/lagging metrics, kill thresholds, and a notes/findings log as evidence is gathered.
+
+## Autonomous AI Execution with Human Gatekeeping Protocol
+
+- **End-to-End AI Autonomy**: AI subagents handle multi-step workflows, asset generation, research, code implementation, and multi-pass self-critiques autonomously without requiring intermediate manual human steps.
+- **Human Gatekeeper Role**: Humans are brought in for high-level governance, strategic approvals ("yes/no/pivot"), budget authorization, and subjective design taste. Agents present clean, synthesized proposals ready for one-click human approval rather than dumping raw toil onto the human.
+
 ## Rule Cascading
 
 - A parent workforce can read all child `workforces/README.md` files to get context.

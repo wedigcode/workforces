@@ -93,3 +93,22 @@ These visual and UI/UX design rules govern all website, web application, landing
 ## 9. Mandatory Design QA Review Gatekeeper
 - **Strict Rule**: After the dev team completes frontend UI components or pages, `@designer` must perform an explicit Design QA review.
 - **QA Verification**: Check the implementation against [`design-anti-patterns`](../skills/design-anti-patterns/SKILL.md) (verifying 0 emojis in UI, proper font pairings, layered surface depth, and layout asymmetry) before declaring the build task complete.
+
+---
+
+## 10. Mandatory Design Preferences & Anti-Preferences Memory
+- **Strict Requirement**: Before generating any visual concept, mockup, design token file (`tokens.css`), or frontend component, `@designer` and all frontend agents MUST read and strictly adhere to [`workforces/memory/design-preferences.md`](../workforces/memory/design-preferences.md).
+- **Prohibition of Recorded Negative Constraints**:
+  - Any color combination, aesthetic pattern, or layout explicitly rejected by the human user (e.g. *Yellow text or icons over white/light backgrounds*, *Neon orange CTA buttons*) is strictly prohibited.
+  - Zero repetitions of rejected patterns across sessions.
+- **Capturing Human Feedback**:
+  - Whenever the human provides design feedback (e.g. *"I hate that color"*, *"Yellow over white is unreadable"*), the agent MUST immediately append the negative constraint and rationale into `workforces/memory/design-preferences.md` and active session context so it permanently governs all future design output.
+
+---
+
+## 11. Internal Multi-Pass Self-Iterations Before Human Review
+- **Strict Rule**: The design team should never present unrefined first-pass drafts to human users.
+- **Iteration Protocol**:
+  1. **Pass 1 — Structural Blueprint & Palette**: Define layout hierarchy, asymmetric flow, and initial token variables.
+  2. **Pass 2 — Self-Critique & Anti-Pattern Defense**: Audit against [`design-anti-patterns`](../skills/design-anti-patterns/SKILL.md), verify WCAG AA contrast (ensuring 0 yellow-on-white or low-contrast text), and check against `workforces/memory/design-preferences.md`.
+  3. **Pass 3 — Polish & Gatekeeping**: Refine spacing, typography line-heights, and token inheritance before presenting structured options for human review.

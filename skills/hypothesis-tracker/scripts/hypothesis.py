@@ -370,6 +370,14 @@ def create_hypothesis(args: argparse.Namespace, root_dir: str) -> str:
     session_file_basename = os.path.basename(session_file) if session_file else "session"
     session_file_link = f"file://{os.path.abspath(session_file)}" if session_file else "#"
 
+    tools_list = []
+    if getattr(args, "recommended_tools", None):
+        tools_list = [t.strip() for t in args.recommended_tools.replace(",", " ").split() if t.strip()]
+    labels_list = []
+    if getattr(args, "github_labels", None):
+        labels_list = [l.strip() for l in args.github_labels.replace(",", " ").split() if l.strip()]
+    delegated_to = getattr(args, "delegated_to", None)
+
     metadata: Dict[str, Any] = {
         "id": hyp_id,
         "title": title,
@@ -385,6 +393,9 @@ def create_hypothesis(args: argparse.Namespace, root_dir: str) -> str:
         "target_completion": target_date,
         "session_id": session_id,
         "session_file": session_file,
+        "recommended_tools": tools_list,
+        "delegated_to": delegated_to,
+        "github_labels": labels_list,
         "kill_threshold": args.kill_threshold or "Target achievement < 20% by end of timeframe",
         "pivot_plan": args.pivot_plan or "Evaluate alternative hypothesis and reallocate resources",
         "metrics": metrics_list,
@@ -394,14 +405,25 @@ def create_hypothesis(args: argparse.Namespace, root_dir: str) -> str:
 
     statement = args.statement or f"We believe that executing '{title}' will achieve our key target metrics within {timeframe_weeks} weeks."
 
+    tool_delegation_line = ""
+    parts_line = []
+    if tools_list:
+        parts_line.append(f"**Recommended Tools:** `{', '.join(tools_list)}`")
+    if delegated_to:
+        parts_line.append(f"**Delegated To:** `{delegated_to}`")
+    if labels_list:
+        parts_line.append(f"**GitHub Labels:** `{'`, `'.join(labels_list)}`")
+    if parts_line:
+        tool_delegation_line = " | ".join(parts_line) + "\n"
+
     body = f"""
 # {hyp_id}: {title}
 
 **Owner:** `@{owner}` | **Status:** `{status}` (Week {current_week} of {timeframe_weeks})  
 **Related Goal:** `{metadata['goal_id']}` — {metadata['goal_title']}  
 **Timeframe:** {timeframe_weeks} weeks (Target: {target_date})  
-**Origin Session:** [{session_file_basename}]({session_file_link})
-
+**Origin Session:** [{session_file_basename}]({session_file_link})  
+{tool_delegation_line}
 ---
 
 ## 🔬 Scientific Hypothesis Statement
@@ -717,6 +739,8 @@ def generate_sync_review(root_dir: str) -> str:
             title = item.get("title", "")
             metrics = item.get("metrics", [])
             kill_thresh = item.get("kill_threshold", "—")
+            tools = item.get("recommended_tools", [])
+            delegated = item.get("delegated_to")
 
             kpi_str = "No metrics"
             badge = "🟢 On Track"
@@ -729,7 +753,13 @@ def generate_sync_review(root_dir: str) -> str:
                 prog, _, badge = calculate_metric_pacing(b, t, c, int(item.get("current_week", 1)), int(item.get("timeframe_weeks", 1)))
                 kpi_str = f"{m0.get('name')}: {c:g}/{t:g}{u} ({prog:.0f}%)"
 
-            lines.append(f"| **{h_id}** | {owner} | `{goal}` | {tf} | {kpi_str} | {badge} | *Kill if:* {kill_thresh} |")
+            tool_tag = ""
+            if delegated:
+                tool_tag = f" [Delegated: @{delegated}]"
+            elif tools:
+                tool_tag = f" [Tools: {', '.join(tools)}]"
+
+            lines.append(f"| **{h_id}** | {owner} | `{goal}` | {tf} | {kpi_str} | {badge} | *Kill if:* {kill_thresh}{tool_tag} |")
 
     lines.append("")
     return "\n".join(lines)
@@ -830,6 +860,12 @@ def main() -> None:
     parser.add_argument("--metrics", type=str, help="JSON list of metric dictionaries")
     parser.add_argument("--metrics-data", type=str, help="Key=Value updates for metrics e.g. 'Sends=50,Replies=5'")
     parser.add_argument("--status", type=str, help="Status (draft, running, validated, invalidated, pivoted)")
+    parser.add_argument(
+        "--tools", "--recommended-tools", dest="recommended_tools",
+        help="Comma-separated list of recommended enabling tools (e.g. 'google-vids,google-slides')"
+    )
+    parser.add_argument("--delegated-to", help="Async worker or subagent delegated to (e.g. 'jules')")
+    parser.add_argument("--github-labels", help="Comma-separated list of GitHub labels (e.g. 'tool:vids,type:hypothesis')")
     parser.add_argument("--insight", type=str, help="Emerging insight note")
     parser.add_argument("--rationale", type=str, help="Rationale for kill/pivot/validation")
     parser.add_argument("--session-id", type=str, help="Origin session ID")

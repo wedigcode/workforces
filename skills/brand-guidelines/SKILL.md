@@ -59,7 +59,8 @@ Define and enforce a strict color system:
 - Every color must have a hex code and defined usage
 - No "similar" colors — exact hex match always
 - Document both light and dark mode variants
-- Test all colors for accessibility contrast (WCAG AA)
+- Test all colors for accessibility contrast (WCAG AA) — zero low-contrast text (e.g. yellow on white is strictly prohibited)
+- Always check [`workforces/memory/design-preferences.md`](../../workforces/memory/design-preferences.md) for recorded user negative constraints and style preferences before setting palette tokens.
 
 ### 4. Typography
 

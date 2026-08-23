@@ -86,7 +86,7 @@ If the inbox has **1 or more** files, surface a prompt:
 
 If the inbox is empty, skip this block.
 
-### 2b — GitHub Queue
+### 2b — GitHub Queue & Async Worker Monitoring
 
 ```bash
 # Issues assigned to me
@@ -102,16 +102,23 @@ gh pr list --author @me --state open --limit 30
 jules remote list --session
 ```
 
-Flag **stale issues** (>30 days) — recommend push forward, delegate, or close.
+- **Async Worker Handoffs:** Scan `workforces/workstate.md` for tasks marked `delegated` or `async-pending` (e.g. delegated to Jules or external automation). If a Jules session or PR is `Completed` or `Needs Review`, surface the patch immediately to unblock downstream dependencies.
+- **GitHub Label Taxonomy:**
+  - `tool:<tool_name>` — e.g. `tool:jules`, `tool:google-stitch`, `tool:google-vids`
+  - `delegated:<target>` — e.g. `delegated:jules`, `delegated:copilot`
+  - `status:async-pending` / `status:needs-review`
+  - `type:hypothesis` — for scientific experiments tracked via `hypothesis-tracker`
+- Flag **stale issues** (>30 days) — recommend push forward, delegate, or close.
 
 **Present as:**
 
 ```markdown
-### 🔔 GitHub Queue
+### 🔔 GitHub Queue & Async Workers
 
-| Type | Repo | # | Title | Age | Action |
+| Type | Repo | # / Session | Title | Age / Status | Action |
 |------|------|---|-------|-----|--------|
 | Issue | repo | #12 | Fix login bug | 3d | Review |
+| Jules | repo | 891234 | Auth token cache refactor | Completed | Review & merge patch |
 
 **Stale (>30 days):**
 - [ ] #8 — Title (42d) → Close or delegate?

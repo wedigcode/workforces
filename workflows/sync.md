@@ -87,90 +87,101 @@ graph TD
 
 ---
 
-# Mode 2: Strategic Review & Hypothesis Pacing (`/sync --strategy`)
+# Mode 2: Strategic Review, Brainstorming & Hypothesis Discovery (`/sync --strategy`)
 
 **Meeting Leader:** `@advisor` (Co-pilot: `@project-manager`)  
 **Duration Target:** 10–15 minutes  
-**Primary Goal:** Align on macro OKRs, evaluate growth/sales hypotheses, enforce kill/pivot criteria, hear from SME subagents, and diagnose why targets are missed.
+**Primary Goal:** Brainstorm high-leverage opportunities for the next cycle, extract winning ideas into falsifiable hypotheses, enforce factual telemetry grounding, explore tool & subagent delegation (Jules, Copilot, Stitch, Flow/Vids/Slides), audit OKR pacing, and enforce kill/pivot criteria.
 
-### Step S1 — Ingest Macro Landscape
-1. **Strategic Goals:** Read `workforces/goals/` for current quarter objectives and key results. (If no goals exist, automatically offer to switch to `/sync --goals`).
-2. **Active Hypotheses:** Query `skills/hypothesis-tracker/scripts/hypothesis.py --review` for all active experiments in `workforces/hypotheses/running/`.
-3. **Velocity & Backlog:** Read `workforces/workstate.md` for completed vs backlog tasks.
-4. **Installed Teams:** Read `workforces/workrules.md` and `workforces/teams/` to identify all active domain experts.
+### Step S1 — Ingest Factual Business State & Grounding
+1. **Factual Telemetry Grounding:** Enforce the zero-hallucination rule. Check verified outreach logs, commit history, and analytics. If no customer outreach or ad campaigns have run, record the factual baseline (`0 outreach calls / 0 live ads; pre-launch stage`).
+2. **Strategic Goals:** Read `workforces/goals/` for current quarter objectives and key results.
+3. **Active Hypotheses:** Query `skills/hypothesis-tracker/scripts/hypothesis.py --review` for active experiments in `workforces/hypotheses/running/`.
+4. **Velocity & Backlog:** Read `workforces/workstate.md` for completed vs backlog tasks and async worker statuses.
+5. **Design Feedback Memory:** Read `workforces/memory/design-preferences.md` for negative constraints and approved aesthetic preferences.
 
-### Step S2 — The Cross-Functional SME Subagent Round-Table
-The meeting leader actively polls installed team agents for their 1-to-2 sentence domain telemetry, emerging risks, and operational observations:
+### Step S2 — Factual Team Status & Advisor Strategic Inquiry
+Domain agents report ONLY verified historical data. `@advisor` then actively queries each department with sharp consultative probes:
 
 ```markdown
-### 🎙️ Cross-Functional SME Round-Table
-- **💼 Sales (`@sales`):** Outbound reply rate at 8.2% on Campaign Alpha (target: 12%). CTOs are responding to direct metric teasers but ignoring long decks.
-- **📈 Growth (`@growth`):** Programmatic SEO indexation reached 450 pages; Google Search Console impressions +32% WoW. Activation drop-off detected on step 2 of signup funnel.
-- **💻 Engineering (`@programmer`):** Core API refactor 90% complete. Zero test regressions. Technical debt in auth service needs a 1-day cleanup before enterprise SSO launch.
-- **🎨 Design (`@designer`):** Mobile checkout design system tokens finalized. Zero custom CSS overrides.
-- **🛡️ Operations / Compliance (`@operations`):** Cloud infrastructure spend remains within budget ($120/mo). Data retention policy ready for GDPR sign-off.
+### 🎙️ Factual Status & Strategic Inquiry Round-Table
+- **💼 Sales (`@sales`):**
+  - *Factual Telemetry:* 0 prospect outreach calls completed to date (pre-launch / baseline stage).
+  - *Advisor Probe:* "Who is the single most desperate buyer archetype in our target market, and what specific pain hook will get an immediate reply once we launch outbound?"
+- **📈 Marketing & Growth (`@marketer` / `@growth`):**
+  - *Factual Telemetry:* Organic search protocols live; 0 ad spend deployed.
+  - *Advisor Probe:* "What high-converting content formats (e.g. interactive ROI calculators, short-form video teardowns) can we test next cycle to drive organic acquisition?"
+- **💻 Engineering (`@programmer`):**
+  - *Factual Telemetry:* Core MVP build passing 100% tests; auth service refactor complete.
+  - *Advisor Probe:* "What parts of the upcoming feature backlog can be offloaded to async coding workers like Google Jules or GitHub Copilot to accelerate delivery?"
+- **🎨 Design (`@designer`):**
+  - *Factual Telemetry:* Tokens aligned with `design-preferences.md` (0 yellow on light/white).
+  - *Advisor Probe:* "What interactive visual prototypes or design variations should we iterate internally before presenting to human review?"
 ```
 
-### Step S3 — Goal & OKR Pacing Analysis
-Compare current metrics against quarterly key results and calculate the **Goal Alignment & Coverage Index**:
+### Step S3 — Cross-Functional Brainstorming & Idea Extraction (Loop Process)
+The team engages in a structured brainstorming loop to extract winning ideas for the next cycle:
+1. **Unpack Market Assumptions:** Identify speculative ideas (e.g. *"Solo agents want 1-touch mobile checkout"* or *"Brokers want audit compliance dashboards"*).
+2. **Convert to Falsifiable Hypotheses:** Convert every speculative assumption into a structured experiment using `hypothesis.py --create`:
+   - Define Owner (`@sales`, `@marketer`, `@growth`, `@programmer`, `@designer`)
+   - Define Falsifiable Statement
+   - Define Leading Indicators (e.g. discovery calls booked, prototype signups) and Lagging Indicators (e.g. paid conversions)
+   - Define Kill / Pivot Thresholds
+   - Attach Recommended Tools (e.g. `google-vids`, `google-stitch`, `jules`) and GitHub labels (`tool:...`, `type:hypothesis`)
+3. **Capture Product / Technical Ideas:** Log technical or UX feature ideas into `workforces/issues/inbox/` using `report-issue.py --title "..." --type idea --tools "..." --sync-session`.
 
-| Goal / Key Result | Target | Current | Pacing | Goal Coverage | Linked Tasks in Flight |
+### Step S4 — Dynamic Tool Enablement & Delegation Inquiry
+`@advisor` probes the team on tool acceleration opportunities:
+> *"What tools, async subagents, or external systems (e.g. Google Jules / GitHub Copilot for dev, Google Stitch for UI, Google Flow/Vids/Slides for marketing, ad/analytics MCPs) could take work off your plate or 10x your throughput next cycle?"*
+
+- **Identified Tooling & Delegation Requests:**
+  - **Dev:** Delegate async refactoring tasks to Google Jules (`jules remote list --session`) or GitHub Copilot PRs (`delegated_to: jules`, label: `tool:jules`).
+  - **Marketing:** Leverage Google Flow / Google Vids / Google Slides for autonomous video script and presentation drafting (`tool:google-vids`).
+  - **Design:** Leverage Google Stitch or Figma MCP for rapid token and component scaffolding (`tool:google-stitch`).
+
+### Step S5 — Scientific Hypothesis & Experiment Review (Kill / Pivot Enforcer)
+Run `python3 skills/hypothesis-tracker/scripts/hypothesis.py --review`:
+- Audit weekly pacing on leading and lagging indicators for all running experiments.
+- **Kill Criteria Enforcement:** If an experiment elapsed time is up and metrics breached the kill threshold:
+  > *"🚨 **Kill Criteria Triggered:** Experiment `HYP-20260823-01` achieved 2.1% reply rate vs. 3% kill threshold. Recommending immediate sunset and pivoting resources."*
+
+### Step S6 — Goal & OKR Pacing Analysis
+Compare progress against quarterly key results and calculate the **Goal Alignment & Coverage Index**:
+
+| Goal / Key Result | Target | Current | Pacing | Goal Coverage | Linked Tasks / Hypotheses |
 |:---|:---|:---|:---|:---|:---|
-| **KR 1:** Acquire 25 pilot enterprise accounts | 25 | 11 | 🟡 At Risk | ✅ Covered | 3 active sprint tasks |
-| **KR 2:** Achieve $15k MRR | $15,000 | $6,200 | 🟢 On Track | ✅ Covered | 2 active sprint tasks |
-| **KR 3:** Launch self-serve developer API | 100% | 40% | 🔴 Off Track | ⚠️ Low Coverage | 1 active sprint task |
+| **KR 1:** Acquire 25 pilot accounts | 25 | 0 (Pre-launch) | 🟡 In Setup | ✅ Covered | HYP-01 (Outbound Test), 2 sprint tasks |
+| **KR 2:** Launch core MVP platform | 100% | 85% | 🟢 On Track | ✅ Covered | 3 sprint tasks |
 
-- **Rogue Task Audit:** Flag any P0/P1 tasks in `workstate.md` that have **zero lineage** back to an active KR.
+### Step S7 — The 5 Strategic Multipliers
+1. **Leading vs. Lagging Indicator Scrutiny:** Scrutinize leading telemetry (discovery calls, search impressions, commit velocity) weeks before revenue is impacted.
+2. **Kill Criteria & Anti-Zombie Discipline:** Formally archive failed hypotheses to prevent half-dead initiatives from draining attention.
+3. **Capacity & Bottleneck Heatmap (Theory of Constraints):** Identify the single system bottleneck across Dev, Design, Sales, Marketing, or Operations.
+4. **Voice of Customer (VoC) & Objection Pulse:** Surface top 2 raw buyer objections heard by `@sales` and UX friction points heard by `@advisor`.
+5. **Decision Log & Disagree-and-Commit Lineage:** Explicitly record strategic pivots, killed experiments, and rationale in `workforces/team-sync/` and active session notes.
 
-### Step S4 — Scientific Hypothesis & Experiment Review
-Run the `hypothesis-tracker` audit (`python3 skills/hypothesis-tracker/scripts/hypothesis.py --review`):
-- Review weekly pacing on leading and lagging indicators.
-- **Kill / Pivot Criteria Enforcement:** For any experiment where elapsed time is up and metrics breached the kill threshold:
-  > *"🚨 **Kill Criteria Triggered:** Experiment `HYP-20260823-01` achieved 2.1% reply rate vs. 3% kill threshold. Recommending immediate sunset and pivoting resources to contingency plan."*
+### Step S8 — Autonomous AI Execution Roadmap with Human Approval Gates
+Clearly demarcate what AI will execute autonomously next cycle vs. what requires human direction:
 
-### Step S5 — The 5 Strategic Multipliers
-
-1. **Leading vs. Lagging Indicator Scrutiny:**
-   - Verify that leading metrics (discovery calls booked, commit velocity, ad clicks) are healthy before lagging numbers (revenue, churn) suffer.
-2. **Kill Criteria & Anti-Zombie Discipline:**
-   - Formally archive failed hypotheses to prevent half-dead initiatives from draining attention.
-3. **Capacity & Bottleneck Heatmap (Theory of Constraints):**
-   - Identify the single company chokepoint (e.g. *Dev throughput*, *Lead generation volume*, or *Customer onboarding approvals*).
-4. **Voice of Customer (VoC) & Objection Pulse:**
-   - Surface the top 2 raw buyer objections heard by `@sales` and top UX complaints heard by `@advisor`.
-5. **Decision Log & Disagree-and-Commit Lineage:**
-   - Explicitly capture strategic pivots, reasons for killing experiments, and key trade-offs in `workforces/team-sync/YYYY-MM-DD-strategy.md` and session context.
-
-### Step S6 — The 5-Dimension Root-Cause Diagnostic
-If any primary goal or hypothesis is `🔴 Off Track` or `🟡 At Risk`, `@advisor` initiates the 5-Dimension Diagnostic:
-1. **Root Catalyst:** What changed? (Did market assumptions fail or did execution slip?)
-2. **Bleeding Friction:** Where is the bottleneck?
-3. **Competitor & Customer Reality:** What are customers doing instead?
-4. **Stakes of Inaction:** What happens if we do not course-correct in the next 14 days?
-5. **Course-Correction Options:** Formulate 2 actionable adjustment proposals with trade-offs.
-
-### Step S7 — Present Strategic Sync Summary
 ```markdown
-## 🧭 Strategic Review & Executive Sync — YYYY-MM-DD
+## 🧭 Strategic Review & Next-Cycle Action Plan — YYYY-MM-DD
 
-### 🎙️ SME Round-Table Highlights
-[Summary of @sales, @growth, @programmer, @designer, @operations inputs]
+### 💡 Brainstormed Hypotheses & Experiments for Next Cycle
+- [ ] **HYP-01 (@sales):** Test 50 personalized problem-first emails to solo agents. [Tools: email-crm, Label: `tool:sales-outreach`]
+- [ ] **HYP-02 (@marketer):** Test 3 video problem teasers for Instagram/TikTok. [Tools: google-vids, Label: `tool:google-vids`]
 
-### 🎯 Macro Goal & OKR Pacing
-[Goal Pacing Table + Goal Coverage Index]
+### 🧰 Tool Enablement & Async Delegation Requests
+- **Dev:** Assign auth token cache refactor to Google Jules (`jules remote list --session`, Label: `tool:jules`, `delegated:jules`).
+- **Marketing:** Enable Google Vids / Slides integration for automated video generation.
 
-### 🔬 Active Hypotheses & Growth Experiments
-[Hypothesis Telemetry Table + Kill/Pivot Alerts]
+### 🤖 Autonomous AI Next-Cycle Execution (No Human Intervention Needed)
+1. `@programmer`: Execute sprint tasks #12–#14, run test suites, and review Jules patch for auth refactor.
+2. `@designer`: Run multi-pass self-iterations on mobile checkout layout against `design-preferences.md`.
+3. `@marketer`: Draft 3 video scripts and prepare social distribution schedule.
 
-### 🔍 Primary System Bottleneck (Theory of Constraints)
-> **Current Chokepoint:** Sales demo booking throughput. Dev and Design have excess capacity; sales needs landing page collateral from marketing immediately.
-
-### 💡 Strategic Adjustments & Decisions
-1. **Pivot HYP-01:** Reallocate $500 from cold video outreach to targeted LinkedIn problem posts.
-2. **De-prioritize Rogue Task #4:** Move non-aligned admin dashboard refactor back to P3 backlog.
-
----
-Approve these strategic adjustments? (I will log to `workforces/team-sync/YYYY-MM-DD-strategy.md` and update `workforces/workstate.md`)
+### 🙋 Human Approval & Direction Gates (Your Decision Needed)
+1. Approve launching Hypothesis HYP-01 and HYP-02.
+2. Review final UI design options once `@designer` completes internal iteration passes.
 ```
 
 ---
