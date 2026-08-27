@@ -107,7 +107,7 @@ Full roster documentation available in [`docs/teams-and-agents.md`](docs/teams-a
 | `/work feature` / `/feature` | [`feature`](workflows/feature.md) | Multi-phase feature scoping, problem discovery, gap analysis, PRD generation |
 | `/work plan` / `/plan` | [`plan`](workflows/plan.md) | Phased project planning, task breakdown, estimates, and risk matrix |
 | `/work investigate` / `/investigate` | [`investigate`](workflows/investigate.md) | Incident triage, log streaming to scratch, postmortem generation |
-| `/work sync` | [`sync`](workflows/sync.md) | Aligns on wins, losses, next goals, and blockers; logs daily syncs |
+| `/work sync` | [`sync`](workflows/sync.md) | Multi-mode sync: daily standup (`--daily`), strategy review (`--strategy`), goals (`--goals`), & personal follow-ups (`--me`) |
 | `/update-workforces` | [`update-workforces`](workflows/update-workforces.md) | Dry-run, patch toolkit layer files, and summarize updates |
 
 

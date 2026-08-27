@@ -241,7 +241,8 @@ Runs a structured team sync or strategic review session. See [`workflows/sync.md
 - `/work sync` or `/work sync --daily` — 5-minute tactical standup led by `@project-manager` (24h wins, roadblocks, The One Thing, inbox triage).
 - `/work sync --strategy` — Deep strategic review led by `@advisor` (OKR pacing, SME round-table, hypothesis telemetry, kill/pivot thresholds, and 5-dimension diagnostics).
 - `/work sync --goals` — Interactive goal scaffolding led by `@advisor` and `@project-manager` (North Star, Q1–Q4 OKRs, monthly milestones).
-Logs sessions to `workforces/team-sync/YYYY-MM-DD.md`.
+- `/work sync --me` — Personal standup & follow-up radar led by `@project-manager` (git state, active tasks, follow-ups required from you vs waiting on others, emails, chats, meetings & prep, notes).
+Logs sessions to `workforces/team-sync/YYYY-MM-DD.md` (or `YYYY-MM-DD-me.md`).
 
 ### `/work investigate [service]`
 

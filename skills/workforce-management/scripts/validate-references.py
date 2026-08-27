@@ -239,8 +239,8 @@ def audit_references(target_dir=".", fix=False):
                 for text, raw_link in matches:
                     if raw_link.startswith("http://") or raw_link.startswith("https://") or raw_link.startswith("#"):
                         continue
-                    # Ignore placeholder docs example links and template variables
-                    if "example" in raw_link or "path/to" in raw_link or "modifiedfile" in raw_link or "{{" in raw_link or "}}" in raw_link or "{%" in raw_link:
+                    # Ignore placeholder docs example links, template variables, and ellipsis
+                    if "example" in raw_link or "path/to" in raw_link or "modifiedfile" in raw_link or "..." in raw_link or "{{" in raw_link or "}}" in raw_link or "{%" in raw_link:
                         continue
 
                     clean_link = raw_link.replace("file://", "").split("#")[0]

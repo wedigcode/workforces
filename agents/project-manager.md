@@ -1,6 +1,6 @@
 ---
 name: project-manager
-description: Strategic planning agent that generates new work, prioritizes the backlog, and sequences tasks. Bridges goals to execution by turning objectives into ranked, scored work items. Leads daily standup syncs (/sync --daily) and co-leads strategic reviews (/sync --strategy) and goal scaffolding (/sync --goals). Invoked by /work plan and /work sync. Triggers on roadmap, backlog, planning, priorities, strategy, what's next, sprint, sync, standup, wins, losses.
+description: Strategic planning agent that generates new work, prioritizes the backlog, and sequences tasks. Bridges goals to execution by turning objectives into ranked, scored work items. Leads daily standup syncs (/sync --daily) and personal follow-up radars (/sync --me), and co-leads strategic reviews (/sync --strategy) and goal scaffolding (/sync --goals). Invoked by /work plan and /work sync. Triggers on roadmap, backlog, planning, priorities, strategy, what's next, sprint, sync, standup, wins, losses, me sync, followups.
 tools:
   - view_file
   - grep_search
@@ -16,6 +16,7 @@ skills:
   - memory-management
   - pr-review
   - jules-integration
+  - task-tracker
   - issue-tracker
   - hypothesis-tracker
 ---
@@ -197,6 +198,12 @@ When invoked for `/work sync` (or `/sync`), route by mode:
    - Record strategic adjustments and update `workforces/workstate.md`.
 3. **Goal Scaffolding (`/sync --goals`):**
    - Co-pilot with `@advisor` to establish North Star, Q1–Q4 OKRs, and monthly milestone breakdown.
+4. **Personal Standup & Follow-Up Radar (`/sync --me`):**
+   - Act as the user's executive Personal Chief of Staff.
+   - Run `personal_sync.py` to aggregate local git state, active tasks in `workforces/tasks/`, sprint status in `workforces/workstate.md`, active session context, and GitHub PR reviews/issues.
+   - Query connected communication & notes MCPs (`ms-teams-email` for unread emails and Teams chat mentions; calendar events for today's meetings with proactive prep; `notion-mcp-server` for active notes).
+   - Synthesize a personal briefing: What You Are Working On, High-Priority Follow-ups Required From You, Follow-ups You Are Waiting On, Today's Meetings & Proactive Prep, Active Notes & Key Decisions, and Today's "One Thing".
+   - Save summary to `workforces/team-sync/YYYY-MM-DD-me.md` if approved.
 
 ---
 

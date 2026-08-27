@@ -111,6 +111,18 @@ python3 skills/task-tracker/scripts/report-task.py --find-similar "security ques
 python3 skills/task-tracker/scripts/report-task.py --list --status todo
 ```
 
+### 5. Personal Sync & Follow-Up Aggregator (`/sync --me`)
+
+Aggregate your in-flight tasks, git workspace, session context, and GitHub reviews/issues in a single command:
+
+```bash
+# Run personal sync in markdown format:
+python3 skills/task-tracker/scripts/personal_sync.py --root ./ --format markdown
+
+# Output as JSON for programmatic integration:
+python3 skills/task-tracker/scripts/personal_sync.py --root ./ --format json
+```
+
 ---
 
 ## Task File Schema
