@@ -7,12 +7,22 @@
 #
 # Options:
 #   --type <type>          Repo type: workforce or project
-#   --editor <type>        Editor type: antigravity, vscode, claude, auto (default: auto)
+#   --editor <type>        Editor type: antigravity, vscode, claude, grok, auto (default: auto)
 #   --teams <team-list>    Comma-separated list of teams to install (e.g., brand-marketing,sales-outreach, all, none)
 #   --non-interactive      Run without prompting the user for any inputs (ideal for AI assistants)
 #   --help, -h             Show this help menu
 
 set -euo pipefail
+
+# python3 is the usual name; Windows (including Grok Build) often only has `python`.
+# Ignore the Microsoft Store stub that prints "Python was not found".
+PYTHON=""
+for cand in python3 python; do
+  if command -v "$cand" >/dev/null 2>&1 && "$cand" -c "import sys" >/dev/null 2>&1; then
+    PYTHON="$cand"
+    break
+  fi
+done
 
 # Colors
 GREEN='\033[0;32m'
@@ -41,7 +51,7 @@ usage() {
   echo ""
   echo "Options:"
   echo "  --type <type>          Repo type: workforce or project"
-  echo "  --editor <type>        Editor type: antigravity, vscode, claude, auto (default: auto)"
+  echo "  --editor <type>        Editor type: antigravity, vscode, claude, grok, auto (default: auto)"
   echo "  --teams <team-list>    Teams to install (e.g. 'brand-marketing,sales-outreach', 'all', 'none')"
   echo "  --site-setup           Initialize Site Setup & Product Brief starter (for greenfield sites)"
   echo "  --skip-site-setup      Skip Site Setup initialization"
@@ -181,6 +191,13 @@ detect_editor() {
     return
   fi
 
+  # Only treat an existing .grok/ toolkit folder as a Grok host.
+  # Do not key off AGENTS.md — many Grok projects have that file without Workforces.
+  if [[ -d "$TARGET/.grok/skills" || -d "$TARGET/.grok/commands" || -d "$TARGET/.grok/agents" ]]; then
+    echo "grok"
+    return
+  fi
+
   # Default to antigravity
   echo "antigravity"
 }
@@ -192,16 +209,44 @@ get_base_dir() {
     antigravity) echo ".agents" ;;
     vscode)      echo ".github/copilot" ;;
     claude)      echo ".claude" ;;
+    grok)        echo ".grok" ;;
     *)           echo ".agents" ;;
   esac
 }
 
 BASE_DIR=$(get_base_dir)
 AGENTS_DIR="$TARGET/$BASE_DIR/agents"
-WORKFLOWS_DIR="$TARGET/$BASE_DIR/workflows"
+# Grok Build discovers slash-command markdown under commands/, not workflows/.
+if [[ "$DETECTED_EDITOR" == "grok" ]]; then
+  WORKFLOWS_DIR="$TARGET/$BASE_DIR/commands"
+else
+  WORKFLOWS_DIR="$TARGET/$BASE_DIR/workflows"
+fi
 SKILLS_DIR="$TARGET/$BASE_DIR/skills"
 RULES_DIR="$TARGET/$BASE_DIR/rules"
 PLUGINS_DIR="$TARGET/$BASE_DIR/plugins"
+
+# Grok already owns /plan (plan mode) and /context (token meter).
+workflow_dest_name() {
+  local basename="$1"
+  if [[ "$DETECTED_EDITOR" == "grok" ]]; then
+    case "$basename" in
+      plan.md)    echo "wf-plan.md" ;;
+      context.md) echo "wf-context.md" ;;
+      *)          echo "$basename" ;;
+    esac
+  else
+    echo "$basename"
+  fi
+}
+
+workflow_rel_dir() {
+  if [[ "$DETECTED_EDITOR" == "grok" ]]; then
+    echo "commands"
+  else
+    echo "workflows"
+  fi
+}
 
 # ─── Counters ───
 COPIED=0
@@ -240,11 +285,15 @@ echo ""
 
 # ─── Resolve Assets via Team Manifest Resolver ───
 RESOLVER_SCRIPT="$TOOLKIT_ROOT/skills/workforce-management/scripts/resolve_manifest.py"
-if [[ -f "$RESOLVER_SCRIPT" ]]; then
-  RESOLVER_OUTPUT=$(python3 "$RESOLVER_SCRIPT" --toolkit-root "$TOOLKIT_ROOT" --target "$TARGET" ${TEAMS_ARG:+--teams "$TEAMS_ARG"} --format bash-export)
-  eval "$RESOLVER_OUTPUT"
-else
-  # Fallback if resolver script not found
+RESOLVER_OK=false
+if [[ -f "$RESOLVER_SCRIPT" && -n "$PYTHON" ]]; then
+  if RESOLVER_OUTPUT=$("$PYTHON" "$RESOLVER_SCRIPT" --toolkit-root "$TOOLKIT_ROOT" --target "$TARGET" ${TEAMS_ARG:+--teams "$TEAMS_ARG"} --format bash-export); then
+    eval "$RESOLVER_OUTPUT"
+    RESOLVER_OK=true
+  fi
+fi
+if [[ "$RESOLVER_OK" != true ]]; then
+  # Fallback if resolver script, python, or the resolver run is unavailable
   ALLOWED_AGENTS="advisor.md project-manager.md scribe.md programmer.md designer.md"
   ALLOWED_RULES="base.md clean-coder.md design-standards.md mcp-protection.md session-context.md"
   ALLOWED_SKILLS="brand-guidelines clean-coder code-graph codebase-improvement design-anti-patterns doc-generator image-workflow issue-tracker jules-integration memory-management post-code-review pr-review session-context ui-ux-design usage-tracker visual-design-fundamentals workforce-management"
@@ -286,7 +335,9 @@ if [[ -d "$TOOLKIT_ROOT/workflows" ]]; then
     [[ -f "$f" ]] || continue
     basename=$(basename "$f")
     if [[ " $ALLOWED_WORKFLOWS " =~ " $basename " ]]; then
-      copy_file "$f" "$WORKFLOWS_DIR/$basename" "$BASE_DIR/workflows/$basename"
+      dest_name=$(workflow_dest_name "$basename")
+      rel_dir=$(workflow_rel_dir)
+      copy_file "$f" "$WORKFLOWS_DIR/$dest_name" "$BASE_DIR/$rel_dir/$dest_name"
     fi
   done
 fi
@@ -628,6 +679,25 @@ EOF
 This project utilizes the Workforces AI toolkit. Please refer to rules in \`.claude/rules/base.md\` and use workflows inside \`.claude/workflows/\`.
 EOF
       echo -e "  ${GREEN}CREATED:${NC} CLAUDE.md"
+    fi
+    ;;
+  grok)
+    if [[ ! -f "$TARGET/AGENTS.md" ]]; then
+      cat > "$TARGET/AGENTS.md" << EOF
+# Project Context
+
+This project uses the [workforces](https://github.com/wedigcode/workforces) AI toolkit, installed for Grok Build.
+
+## Toolkit Structures
+- Config, personas, skills, slash commands: \`.grok/\`
+- User workspace and state: \`workforces/\`
+
+## Instructions
+Refer to \`.grok/rules/base.md\` and run slash commands from \`.grok/commands/\`.
+Workforces \`/plan\` is \`/wf-plan\`. Workforces \`/context\` is \`/wf-context\`.
+See \`docs/grok.md\` in the Workforces repo for host mapping (tool names, python vs python3).
+EOF
+      echo -e "  ${GREEN}CREATED:${NC} AGENTS.md"
     fi
     ;;
 esac

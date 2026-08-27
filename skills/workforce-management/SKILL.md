@@ -10,7 +10,7 @@ Manage the lifecycle of the Workforces toolkit, including setup, automated updat
 ## Principles
 
 - **Zero Dependency:** The toolkit should operate purely via standard shell tools (`bash`, `git`, `find`, `cp`, `diff`) and standard Python 3. No external package installs.
-- **Toolkit Layer Isolation:** The AI runtime configuration, personas, workflows, and rules live under the editor configuration folder (`.agents/`, `.github/copilot/`, or `.claude/`). These are treated as a "read-only" toolkit layer and are safe to overwrite or prune.
+- **Toolkit Layer Isolation:** The AI runtime configuration, personas, workflows, and rules live under the editor configuration folder (`.agents/`, `.github/copilot/`, `.claude/`, or `.grok/` for Grok Build). These are treated as a "read-only" toolkit layer and are safe to overwrite or prune. Use `--editor grok` to install into `.grok/` (workflows land in `.grok/commands/`; `/plan` → `/wf-plan`, `/context` → `/wf-context`).
 - **Workspace Layer Ownership:** User configuration and state live under the `workforces/` directory in the project root. This folder contains:
   - `workrules.md` (fully user-owned preferences and rules)
   - `workstate.md` (runtime state and tracked parameters)

@@ -44,13 +44,13 @@ workforces/            ← Workspace Layer (user-owned configuration and state)
 ## Installation Guide
 
 ### For AI Assistants (Autopilot Install)
-If you are an AI assistant (Antigravity, Claude Code, or VS Code Copilot) tasked with installing this repo:
+If you are an AI assistant (Antigravity, Claude Code, VS Code Copilot, or Grok Build) tasked with installing this repo:
 1. Clone this repository to `/tmp/workforces`.
 2. Inspect the host environment and run:
    ```bash
    bash /tmp/workforces/skills/workforce-management/scripts/setup.sh ./ --editor <editor-type> --type <repo-type> --non-interactive
    ```
-   *Replace `<editor-type>` with `antigravity`, `vscode`, or `claude` depending on the user's workspace profile, and `<repo-type>` with `project` or `workforce`.*
+   *Replace `<editor-type>` with `antigravity`, `vscode`, `claude`, or `grok` depending on the user's workspace profile, and `<repo-type>` with `project` or `workforce`. Grok Build notes: [docs/grok.md](docs/grok.md).*
 3. Configure the user's response preferences inside `workforces/workrules.md` under `## AI Preferences`.
 
 ### For Humans (Manual Install)
