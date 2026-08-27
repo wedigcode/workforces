@@ -18,7 +18,9 @@ Manage the lifecycle of the Workforces toolkit, including setup, automated updat
   - `personas/` (custom project voice profiles and target audience cards)
   - `knowledge-catalog/` (project-specific documentation and OKF catalog)
   - `.version` (tracking file for installed version hash)
+  - `.manifest.json` (tracking manifest of installed toolkit files for safe obsolete asset pruning)
 - **Reference-Counted Pruning:** When removing a team pack, shared dependencies (skills, rules, workflows, plugins) required by remaining active teams are automatically preserved.
+- **Obsolete File Cleanup & User Asset Protection:** When updating the toolkit, obsolete files previously installed by Workforces are safely removed, while user-created files and custom directories in `.agents/` are strictly protected.
 - **Context & Persona Retention:** Workspace persona cards, custom tone definitions, and historical team context in `workforces/` are preserved by default when uninstalled.
 - **Non-Interactive Mode Support:** The installation and update scripts support command-line arguments to allow an AI agent to run them autonomously without blocking for user confirmation prompts.
 
@@ -39,6 +41,7 @@ workforces/            ← Workspace layer (user config, personas, and state)
 ├── workstate.md       ← Target repository configuration and run markers
 ├── personas/          ← User project voice profiles and target audience cards
 ├── goals/             ← Local planning files
+├── .manifest.json     ← Installed toolkit file manifest for clean updates
 └── .version           ← Current installed commit/version metadata
 ```
 

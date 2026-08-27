@@ -17,6 +17,7 @@
   ],
   "workflows": [
     "brand-context.md",
-    "site-setup.md"
+    "site-setup.md",
+    "image-duplicate.md"
   ]
 }

@@ -579,6 +579,11 @@ date: $(date -u +%Y-%m-%d)
 EOF
 echo -e "  ${GREEN}WRITTEN:${NC} workforces/.version (${INSTALLED_HASH})"
 
+if [[ -f "$RESOLVER_SCRIPT" ]]; then
+  python3 "$RESOLVER_SCRIPT" --toolkit-root "$TOOLKIT_ROOT" --target "$TARGET" ${TEAMS_ARG:+--teams "$TEAMS_ARG"} --save-manifest --version-hash "${INSTALLED_HASH}"
+  echo -e "  ${GREEN}WRITTEN:${NC} workforces/.manifest.json"
+fi
+
 # ─── Editor Config Generator ───
 case "$DETECTED_EDITOR" in
   antigravity)

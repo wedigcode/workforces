@@ -14,6 +14,9 @@ import re
 import argparse
 from resolve_manifest import (
     resolve_manifest,
+    resolve_installed_file_paths,
+    load_installed_manifest,
+    save_installed_manifest,
     get_installed_teams,
     get_team_pack_data,
     find_teams_dir,
@@ -322,6 +325,32 @@ def prune_team(team_name, target_dir=".", toolkit_root=None, purge_data=False, d
             print(f"  {YELLOW}[WOULD UPDATE]{NC} workforces/workstate.md (unregistered '{team_clean}')")
         else:
             print(f"  {GREEN}[UPDATED]{NC} workforces/workstate.md (unregistered '{team_clean}')")
+
+    # Update workforces/.manifest.json
+    if not dry_run:
+        version_hash = "unknown"
+        version_file = os.path.join(target_dir, "workforces", ".version")
+        if os.path.exists(version_file):
+            try:
+                with open(version_file, "r", encoding="utf-8") as vf:
+                    for l in vf:
+                        if l.startswith("commit:"):
+                            version_hash = l.split(":", 1)[1].strip()
+            except Exception:
+                pass
+        remaining_files = resolve_installed_file_paths(
+            toolkit_root=toolkit_root,
+            target_dir=target_dir,
+            base_dir=base_dir_rel,
+            teams_arg=','.join(remaining_teams) if remaining_teams else 'none'
+        )
+        save_installed_manifest(
+            target_dir=target_dir,
+            version=version_hash,
+            installed_teams=remaining_teams,
+            installed_files=remaining_files
+        )
+        print(f"  {GREEN}[UPDATED]{NC} workforces/.manifest.json")
 
     print("")
     print(f"{BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{NC}")

@@ -42,13 +42,13 @@ bash .agents/skills/workforce-management/scripts/update.sh ./ --dry --non-intera
 
 ## Step 3 — Apply Toolkit Layer Updates
 
-Execute the actual update script to copy the latest files:
+Execute the actual update script to prune obsolete toolkit assets and copy the latest files:
 
 ```bash
 bash .agents/skills/workforce-management/scripts/update.sh ./ --non-interactive
 ```
 
-This overwrites all `.agents/` files (agents, workflows, skills, rules, team pack building blocks) with the latest versions and updates the version hash inside `workforces/.version`.
+This safely removes obsolete toolkit files from `.agents/` (while strictly preserving user-created files), overwrites active toolkit files with the latest versions, and updates `workforces/.version` and `workforces/.manifest.json`.
 
 ---
 
@@ -62,8 +62,9 @@ Report what changed during the run in a structured layout:
 **Toolkit (.agents/ & .agents/teams/):**
 - Updated: X files
 - Skipped: Y files (identical)
+- Pruned: Z obsolete files
 
-**Version:** <old-hash> → <new-hash>
+**Manifest & Version:** <old-hash> → <new-hash>
 ```
 
 ---

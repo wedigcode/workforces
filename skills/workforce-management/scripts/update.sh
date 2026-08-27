@@ -291,6 +291,15 @@ fi
 echo -e "  Active Installed Teams: ${GREEN}${INSTALLED_TEAMS_LIST:-core}${NC}"
 echo ""
 
+# ─── Prune Obsolete Toolkit Assets ───
+if [[ -f "$RESOLVER_SCRIPT" ]]; then
+  echo -e "${BOLD}▸ Scanning for obsolete toolkit assets...${NC}"
+  PRUNE_FLAGS=(--toolkit-root "$SOURCE_DIR" --target "$TARGET" --prune-obsolete)
+  [[ "$DRY" == true ]] && PRUNE_FLAGS+=(--dry)
+  python3 "$RESOLVER_SCRIPT" "${PRUNE_FLAGS[@]}"
+  echo ""
+fi
+
 # ─── Copy Allowed Agents ───
 AGENTS_SRC=""
 if [[ -d "$SOURCE_DIR/agents" ]]; then
@@ -385,7 +394,7 @@ if [[ -d "$SOURCE_DIR/teams" ]]; then
 fi
 
 
-# ─── Write version hash ───
+# ─── Write version hash & manifest ───
 if [[ "$DRY" != true ]]; then
   cat > "$VERSION_FILE" << EOF
 # Workforces Version Info
@@ -394,6 +403,11 @@ commit: $LATEST_HASH
 date: $(date -u +%Y-%m-%d)
 EOF
   echo -e "  ${GREEN}WRITTEN:${NC} workforces/.version ($LATEST_HASH)"
+
+  if [[ -f "$RESOLVER_SCRIPT" ]]; then
+    python3 "$RESOLVER_SCRIPT" --toolkit-root "$SOURCE_DIR" --target "$TARGET" --save-manifest --version-hash "$LATEST_HASH"
+    echo -e "  ${GREEN}WRITTEN:${NC} workforces/.manifest.json"
+  fi
 fi
 
 echo ""
