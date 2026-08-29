@@ -157,12 +157,17 @@ Compare progress against quarterly key results and calculate the **Goal Alignmen
 | **KR 1:** Acquire 25 pilot accounts | 25 | 0 (Pre-launch) | 🟡 In Setup | ✅ Covered | HYP-01 (Outbound Test), 2 sprint tasks |
 | **KR 2:** Launch core MVP platform | 100% | 85% | 🟢 On Track | ✅ Covered | 3 sprint tasks |
 
-### Step S7 — The 5 Strategic Multipliers
-1. **Leading vs. Lagging Indicator Scrutiny:** Scrutinize leading telemetry (discovery calls, search impressions, commit velocity) weeks before revenue is impacted.
-2. **Kill Criteria & Anti-Zombie Discipline:** Formally archive failed hypotheses to prevent half-dead initiatives from draining attention.
-3. **Capacity & Bottleneck Heatmap (Theory of Constraints):** Identify the single system bottleneck across Dev, Design, Sales, Marketing, or Operations.
-4. **Voice of Customer (VoC) & Objection Pulse:** Surface top 2 raw buyer objections heard by `@sales` and UX friction points heard by `@advisor`.
-5. **Decision Log & Disagree-and-Commit Lineage:** Explicitly record strategic pivots, killed experiments, and rationale in `workforces/team-sync/` and active session notes.
+### Step S7 — The 4-Step Executive Decision Sequence & Strategic Multipliers
+`@advisor` and `@project-manager` audit the upcoming strategic roadmap against the **4-Step Decision Sequence (`skills/business-frameworks`)**:
+
+1. **JTBD & Customer Validation**: Verify all proposed features and outreach campaigns state explicit situational triggers and 3D jobs (Functional, Emotional, Social) rather than demographic assumptions.
+2. **Value Stick Audit**: Verify initiatives lengthen the total value stick (expanding customer **WTP** via delight or lowering partner/vendor **WTS** via tooling) rather than extracting zero-sum margin.
+3. **Growth Loops & Platform Dynamics**: Map initiatives into closed compounding feedback loops (viral, UGC, paid reinvestment, marketplace) and direct/indirect network effects.
+4. **Unit Economics & Execution (Sense-Seize-Transform)**:
+   - **Economic Hurdles**: Verify projected $\text{LTV:CAC} \ge 3.0\times$ and $\text{CAC Payback} < 12\text{ months}$.
+   - **Theory of Constraints**: Identify the single system bottleneck across Dev, Design, Sales, Marketing, or Operations.
+   - **Kill Criteria Enforcement**: Sunset experiments breaching kill thresholds via `hypothesis.py --kill`.
+   - **Decision Log & Lineage**: Explicitly record pivots and rationale in `workforces/team-sync/` and active session notes.
 
 ### Step S8 — Autonomous AI Execution Roadmap with Human Approval Gates
 Clearly demarcate what AI will execute autonomously next cycle vs. what requires human direction:

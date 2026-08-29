@@ -1,7 +1,7 @@
 {
   "name": "growth",
-  "title": "Growth, SEO & Generative Engine Optimization",
-  "description": "Search intent matching, technical/programmatic SEO, AI Search Engine Optimization (GEO/AISO), and conversion funnel acceleration.",
+  "title": "Growth, SEO & Growth Loops",
+  "description": "Search intent matching, self-reinforcing closed growth loops, AI Search Optimization (GEO/AISO), and multi-sided platform network effects.",
   "agents": [
     "growth"
   ],
@@ -11,6 +11,7 @@
   "skills": [
     "ai-search-optimization",
     "feature-research",
+    "business-frameworks",
     "doc-generator",
     "memory-management"
   ],

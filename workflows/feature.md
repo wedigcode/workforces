@@ -25,11 +25,13 @@ Turns a feature idea into a researched, documented, and task-broken deliverable 
 Load these skills before starting:
 
 1. **`feature-research`** — the pipeline definition, templates, and phase logic
-2. **`memory-management`** — for reading project knowledge catalog (`workforces/knowledge-catalog/`) and project memory
-3. **`github-project-planning`** — for issue creation and project board tracking
+2. **`business-frameworks`** — for JTBD situational triggers, Value Stick audits, and closed growth loops
+3. **`memory-management`** — for reading project knowledge catalog and memory
+4. **`github-project-planning`** — for issue creation and project board tracking
 
 ```
 Read: skills/feature-research/SKILL.md
+Read: skills/business-frameworks/SKILL.md
 Read: skills/memory-management/SKILL.md
 Read: skills/github-project-planning/SKILL.md
 ```
@@ -38,10 +40,11 @@ Read: skills/github-project-planning/SKILL.md
 
 ## Step 1 — Clarify & Problem Discovery (Phase 0 — `@advisor`)
 
-1. Engage with the user to unpack the core problem and pain points prompting the feature idea, following [`consultant-discovery-framework.md`](../skills/site-setup/templates/consultant-discovery-framework.md):
-   - What is the acute user/business pain point?
+1. Engage with the user to unpack the core problem and pain points prompting the feature idea, following **Jobs-to-be-Done (JTBD)** and **Value Stick** mechanics:
+   - What is the specific **situational trigger** prompting the user to hire this feature?
+   - What is the acute pain point across **Functional**, **Emotional**, and **Social** dimensions?
    - How are users coping today (current workarounds or hacks)?
-   - Why have existing solutions or tools failed?
+   - How does this feature lengthen the total value stick (expanding customer **WTP** or lowering partner **WTS**)?
    - What is the quantified cost of inaction if not solved?
 2. Produce a comprehensive **Feature Brief & Problem Lineage** using the template below:
 3. Present to the user for confirmation:
@@ -52,10 +55,12 @@ Read: skills/github-project-planning/SKILL.md
 **Feature:** [one-line description]
 **Target User:** [who benefits and feels the pain most acutely]
 **Target Project(s) / Repo(s):** [which projects/repos will be modified]
-**Core Problem & Pain Points:**
-- **Primary Pain Point (P0/P1):** [Specific blocker, operational drag, or user friction]
+**Core Problem & Situational Trigger:**
+- **Situational Trigger:** [When X occurs...]
+- **3D Job-to-be-Done:** [I want to Y so I can achieve Z (Functional, Emotional, Social)]
 - **Current Workaround:** [How the user/system copes today without this feature]
 - **Cost of Inaction:** [Quantified risk, lost time, or revenue impact if unsolved]
+**Value Stick & Growth Impact:** [Expands customer WTP by eliminating friction; feeds into viral/UGC growth loop]
 **Proposed Solution & 10x Breakthrough:** [How this feature solves the root cause]
 **Success Criteria & Metric of Relief:** [How we know it's working (e.g. latency < 3s, error rate 0%, 5 hrs saved/wk)]
 ```

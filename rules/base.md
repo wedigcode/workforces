@@ -70,6 +70,15 @@ During execution (whether in standard mode or auto-coordinator mode):
 - **End-to-End AI Autonomy**: AI subagents handle multi-step workflows, asset generation, research, code implementation, and multi-pass self-critiques autonomously without requiring intermediate manual human steps.
 - **Human Gatekeeper Role**: Humans are brought in for high-level governance, strategic approvals ("yes/no/pivot"), budget authorization, and subjective design taste. Agents present clean, synthesized proposals ready for one-click human approval rather than dumping raw toil onto the human.
 
+## Strategic Decision Sequence Protocol
+
+Whenever conducting product discovery, evaluating feature proposals, formulating marketing positioning, or leading strategic reviews (`/sync --strategy`), workforce agents MUST apply the **4-Step Executive Decision Sequence**:
+
+1. **JTBD & Customer Validation**: State the specific Job-to-be-Done (Functional, Emotional, Social) and situational trigger. Reject solutions lacking causal triggers.
+2. **Value Stick Audit**: Evaluate whether the proposal increases Willingness to Pay (WTP) or lowers Willingness to Sell (WTS). Ensure the proposal lengthens total value rather than playing a zero-sum game with margins.
+3. **Growth Loop & Platform Dynamics**: Map how the initiative feeds back into a closed growth loop (viral, UGC, paid reinvestment, or marketplace supply/demand) and identify direct/indirect network effects.
+4. **Unit Economics & Execution**: Evaluate impact on CAC, LTV ($\text{LTV:CAC} \ge 3\times$), CAC Payback ($< 12\text{mo}$), and Gross Margin. Run a **Sense-Seize-Transform** checklist to assign cross-functional execution ownership.
+
 ## Rule Cascading
 
 - A parent workforce can read all child `workforces/README.md` files to get context.

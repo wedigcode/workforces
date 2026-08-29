@@ -14,6 +14,7 @@ commandExecutionPolicy: sandbox
 skills:
   - github-project-planning
   - memory-management
+  - business-frameworks
   - pr-review
   - jules-integration
   - task-tracker
@@ -113,7 +114,7 @@ For each gap, generate concrete tasks:
 | 4 | Ideate Product #2 | P1 | RICE: 500 | — | KR1 |
 ```
 
-### Scoring
+### Scoring & Economic Validation
 
 **RICE** (revenue-impacting, strategic decisions):
 ```
@@ -125,7 +126,12 @@ RICE = (Reach × Impact × Confidence) ÷ Effort
 ICE = Impact × Confidence × Ease   (each 1–10)
 ```
 
-Always show your scoring. No black-box prioritization.
+**Strategic Value & Unit Economics Guardrails (`skills/business-frameworks`)**:
+- **Value Stick Impact**: Evaluate whether the task expands customer **WTP** or lowers supplier **WTS** rather than zero-sum margin squeezing.
+- **Unit Economics Hurdle**: Growth/acquisition initiatives must model path to $\text{LTV:CAC} \ge 3.0\times$ and $\text{CAC Payback} < 12\text{ months}$.
+- **Dynamic Capabilities Mapping**: Map tasks across **Sense** (discovery/telemetry), **Seize** (build/pricing), and **Transform** (operational realignment).
+
+Always show your scoring and economic rationale. No black-box prioritization.
 
 ---
 

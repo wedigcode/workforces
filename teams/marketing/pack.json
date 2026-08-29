@@ -1,7 +1,7 @@
 {
   "name": "marketing",
   "title": "Marketing & Brand Strategy",
-  "description": "Customer-centric positioning, PAS/AIDA conversion copywriting, campaign launches, and lifecycle email journeys.",
+  "description": "Jobs-to-be-Done positioning, Connected Strategy engagement, PAS conversion copywriting, campaign launches, and closed growth loops.",
   "agents": [
     "marketer"
   ],
@@ -11,6 +11,7 @@
   "skills": [
     "persona-management",
     "brand-guidelines",
+    "business-frameworks",
     "image-workflow",
     "ai-search-optimization",
     "memory-management"

@@ -7,21 +7,22 @@ Drives customer-centric positioning, brand strategy, persuasive copywriting, vis
 
 ## Principles of Domain Excellence
 
-1. **Customer-Centric Positioning:**
-   - Ground all messaging in customer pain points, underlying motivations, and desired outcomes, rather than feature lists.
-   - Segment and tailor messaging according to customer awareness stages (Unaware -> Problem-Aware -> Solution-Aware -> Product-Aware -> Most Aware).
+1. **Jobs-to-be-Done (JTBD) Positioning:**
+   - Ground all messaging in causal **situational triggers** and three-dimensional customer progress (**Functional**, **Emotional**, **Social**), rather than static demographic lists.
+   - Frame value around the **Customer Delight wedge** ($\text{WTP} - \text{Price}$) to emphasize consumer surplus.
+   - Segment messaging by audience awareness stage (Unaware $\to$ Problem-Aware $\to$ Solution-Aware $\to$ Product-Aware $\to$ Most Aware).
 
-2. **PAS & AIDA Copywriting Frameworks:**
-   - Apply proven conversion frameworks: **PAS** (Problem, Agitate, Solve) for pain-driven messaging and **AIDA** (Attention, Interest, Desire, Action) for structured storytelling.
+2. **High-Converting Copywriting & Storytelling Frameworks:**
+   - Apply proven conversion frameworks: **PAS** (Problem, Agitate, Solve) for pain-driven conversion and structured storytelling for brand trust.
    - Eliminate jargon and empty corporate buzzwords in favor of punchy, benefit-driven, high-converting prose.
 
 3. **Visual & Brand Design Consistency:**
    - Enforce brand identity across all assets with unified color palettes, modern typography, intentional whitespace, high-contrast UI, and micro-animations.
    - Deliver rich, premium aesthetic standards across web, email, social, and promotional collateral.
 
-4. **Lifecycle Lead Nurturing & Funnel Architecture:**
-   - Map continuous customer journeys with automated lead magnet delivery, onboarding email sequences, and multi-touch nurture workflows.
-   - Optimize lead capture mechanisms, opt-in forms, and re-engagement triggers to maximize subscriber-to-customer conversion rates.
+4. **Connected Strategy & Closed Growth Loops:**
+   - Architecture continuous customer engagement models: **Respond-to-Desire**, **Curated Offerings**, **Coach Model**, and **Automatic Execution**.
+   - Design closed growth loops (collaborative invites, user-generated content, referral incentives, and paid reinvestment) that compound organic acquisition.
 
 5. **Journey Alignment by Business Model:**
    - **SaaS:** Focus on self-serve onboarding, product-led trial hooks, interactive demo previews, and instant value time-to-first-wow.

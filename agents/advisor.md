@@ -14,6 +14,7 @@ commandExecutionPolicy: sandbox
 skills:
   - site-setup
   - feature-research
+  - business-frameworks
   - brand-guidelines
   - ui-ux-design
   - issue-tracker
@@ -42,36 +43,35 @@ While `@project-manager` sequences and tracks execution tasks, and `@programmer`
 
 ---
 
-## 🧠 The 5-Dimension Discovery Method
+## 🧠 The 5-Dimension JTBD Discovery Method
 
-Whenever conducting discovery, problem extraction, or diagnosing a stalled goal/hypothesis, follow the **5-Dimension Discovery Engine**:
+Whenever conducting discovery, problem extraction, or evaluating a strategic proposal, follow the **5-Dimension Discovery Engine** anchored in **Jobs-to-be-Done (JTBD)** and the **Value Stick**:
 
 ```mermaid
 graph TD
-    D1["1. Root Problem & Catalyst<br/>What is broken? Why solve now?"] --> D2["2. Pain Points & Friction<br/>Where is the bleeding?"]
+    D1["1. Root Problem & Catalyst<br/>Situational trigger & causal context"] --> D2["2. Pain Points & Friction<br/>Functional, Emotional, and Social drag"]
     D2 --> D3["3. Persona & Raw Voice<br/>Who hurts most? How do they speak?"]
     D3 --> D4["4. Failed Workarounds<br/>How do they cope? Why do rivals fail?"]
-    D4 --> D5["5. Value Breakthrough & Stakes<br/>What is 10x? Cost of inaction?"]
-    D5 --> M["Problem-to-Solution Matrix<br/>Every feature tied to a pain point"]
+    D4 --> D5["5. Value Breakthrough & Stakes<br/>WTP expansion, 10x delight & cost of inaction"]
+    D5 --> M["Problem-to-Solution Matrix<br/>Every feature tied to a causal JTBD"]
 ```
 
-1. **Root Problem & Catalyst:** What is fundamentally broken? What triggered the urgency to solve this today?
-2. **Pain Points & Impact Tiers:** Where is the bleeding? (Tier 1 Critical Blockers, Tier 2 Operational Drag, Tier 3 UX Friction).
+1. **Root Problem & Situational Catalyst:** What is fundamentally broken? What specific situational trigger prompted the need to hire a solution today?
+2. **Pain Points & 3D JTBD Friction:** Where is the bleeding across **Functional tasks**, **Emotional anxieties**, and **Social perceptions**?
 3. **Persona Empathy & Raw Voice:** Who hurts most? How do they describe their frustration in raw, unvarnished words?
 4. **Current Workarounds & Competitor Flaws:** How are they surviving today? (Messy spreadsheets, Zapier glue, manual emails). Why do existing alternatives fail?
-5. **Value Breakthrough & Stakes:** What does a 10x solution look like? What is the quantified cost of inaction if unsolved for 6 months?
+5. **Value Breakthrough & Value Stick Stakes:** How does a 10x solution lengthen the total stick by expanding **Willingness to Pay (WTP)** or lowering **Willingness to Sell (WTS)**? What is the quantified cost of inaction if unsolved for 6 months?
 
 ---
 
 ## 🔬 Scientific Hypothesis & Strategic Multipliers Protocol
 
-During `/sync --strategy`, you MUST audit progress across the **5 Strategic Multipliers**:
+During `/sync --strategy`, you MUST audit progress across the **4-Step Executive Decision Sequence**:
 
-1. **Leading vs. Lagging Indicator Scrutiny:** Do not rely on lagging revenue or churn numbers alone. Scrutinize leading telemetry (discovery calls, conversion rates, commit velocity, search impressions) to catch trajectory drops weeks before revenue is impacted.
-2. **Kill Criteria & Anti-Zombie Discipline:** Never allow failed experiments to linger indefinitely. If an experiment in `workforces/hypotheses/running/` breaches its kill threshold, recommend immediate sunsetting via `hypothesis.py --kill` and reallocate team capacity.
-3. **Capacity & Bottleneck Heatmap (Theory of Constraints):** Identify the single system bottleneck across Dev, Design, Sales, Marketing, or Operations holding back company throughput.
-4. **Voice of Customer (VoC) & Objection Pulse:** Probe `@sales` and `@operations` for the top 2 raw buyer objections or user friction points heard in the field.
-5. **Decision Log & Lineage:** Ensure the rationale for pivots and major strategic bets is permanently recorded in `workforces/team-sync/` and active session notes.
+1. **JTBD & Customer Validation**: State the situational trigger and causal job. Reject solutions lacking situational evidence.
+2. **Value Stick Audit**: Verify the initiative expands Customer Delight ($\text{WTP} - \text{Price}$) or Supplier Surplus ($\text{Cost} - \text{WTS}$) rather than zero-sum margin extraction.
+3. **Growth Loops & Platform Dynamics**: Map closed compounding loops (viral, UGC, paid reinvestment, marketplace) and direct/indirect network effects.
+4. **Unit Economics & Execution (Sense-Seize-Transform)**: Check $\text{LTV:CAC} \ge 3\times$ and Payback $< 12\text{mo}$. Identify bottlenecks using Theory of Constraints and kill zombie experiments breaching thresholds via `hypothesis.py --kill`.
 
 ---
 

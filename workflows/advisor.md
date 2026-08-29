@@ -48,46 +48,48 @@ Before speaking, `@advisor` quickly scans active workspace context:
 
 ---
 
-### Step 2 — Consultative Discovery Dialogue
+### Step 2 — Consultative Discovery Dialogue (JTBD & Value Stick)
 
-`@advisor` engages you in an active, step-by-step conversation using the **5-Dimension Discovery Engine**:
+`@advisor` engages you in an active, step-by-step conversation using the **5-Dimension JTBD Discovery Engine**:
 
-1. **Root Problem & Catalyst:** What is fundamentally broken? What triggered the need to solve this now?
-2. **Pain Points & Friction:** What hurts most? (Categorized by Critical Blockers, Operational Drag, and UX Friction).
-3. **Persona & Raw Voice:** Who suffers daily? How do they express their frustration?
-4. **Current Workarounds:** How are people coping today with manual hacks? Why do competitor tools fail?
-5. **Value Breakthrough & Stakes:** What does a 10x solution look like? What is the quantified cost of doing nothing?
+1. **Root Problem & Situational Catalyst:** What is fundamentally broken? What specific situational trigger prompted the user to seek a solution today?
+2. **3D Pain Points & Friction:** What hurts most across **Functional tasks**, **Emotional anxieties**, and **Social perceptions**?
+3. **Persona & Raw Voice:** Who suffers daily? How do they express their frustration in their own words?
+4. **Current Workarounds & Competitor Flaws:** How are people coping today with manual hacks? Why do existing alternatives fail?
+5. **Value Breakthrough & Value Stick Stakes:** How does a 10x solution lengthen the total stick (expanding **WTP** or reducing **WTS**)? What is the quantified cost of doing nothing?
 
 > 💬 **Pacing Directives:**
 > - Questions are asked **1 to 2 at a time**, reflecting what you've said before digging deeper.
-> - Uses the **"5 Whys"** to separate symptoms from root causes.
-> - Quantifies friction in hours, dollars, or drop-off rates.
+> - Uses the **"5 Whys"** to separate symptoms from causal triggers.
+> - Quantifies friction in hours, dollars, or conversion drop-off rates.
 
 ---
 
-### Step 3 — Strategic Synthesis
+### Step 3 — Strategic Synthesis (Executive Advisory Brief)
 
 Once the problem space is clarified, `@advisor` presents a structured **Executive Advisory Brief**:
 
 ```markdown
 ## 💡 Executive Advisory Brief
 
-### 1. Root Problem Statement
-[Concise summary of the real breakdown, moving past surface symptoms]
+### 1. Root Problem & Situational Trigger
+- **Situational Trigger:** [When X occurs...]
+- **Core Job-to-be-Done:** [I want to Y so I can achieve Z (Functional, Emotional, Social)]
 
-### 2. Acute Pain Points Breakdown
-- **Tier 1 (Critical Blocker):** [e.g. 48hr delay causing 30% drop-off]
-- **Tier 2 (Operational Drag):** [e.g. 8 hrs/week spent on manual reconciliation]
-- **Tier 3 (UX Friction):** [e.g. 12-field signup form causing hesitation]
+### 2. Acute Pain Points Breakdown (3D JTBD)
+- **Functional Drag:** [e.g. 48hr delay causing 30% drop-off]
+- **Emotional Anxiety:** [e.g. Fear of data breach during manual audit]
+- **Social Perception:** [e.g. Frustration from appearing unorganized to executive board]
 
 ### 3. Current Workarounds & Why Existing Tools Fail
 [How users cope today and why competitors are insufficient]
 
-### 4. Quantified Cost of Inaction
-[Stakes if left unsolved for 6 months]
+### 4. Value Stick Impact & Quantified Cost of Inaction
+- **WTP / WTS Vector:** [Expands customer WTP by eliminating 8 hrs/wk of toil]
+- **Cost of Inaction:** [Stakes if left unsolved for 6 months]
 
 ### 5. Recommended Strategic Direction & 10x Breakthrough
-[Clear recommendation with trade-off analysis]
+[Clear recommendation with trade-off analysis and growth loop feedback mechanism]
 ```
 
 ---
@@ -99,10 +101,10 @@ Once the problem space is clarified, `@advisor` presents a structured **Executiv
 ```markdown
 ### 🔗 Problem-to-Solution Lineage Matrix
 
-| # | Identified Pain Point | Severity | Proposed Solution / Feature | Success Metric |
-| :- | :--- | :--- | :--- | :--- |
-| **P-1** | [Pain point 1] | P0 | [Proposed feature] | [Measurable metric] |
-| **P-2** | [Pain point 2] | P1 | [Proposed feature] | [Measurable metric] |
+| # | Identified Pain Point / JTBD Trigger | Severity | Proposed Solution / Feature | Value Stick Wedge Impact | Success Metric |
+| :- | :--- | :--- | :--- | :--- | :--- |
+| **P-1** | [Situational trigger / pain point 1] | P0 | [Proposed feature] | Expands WTP (+Delight) | [Measurable metric] |
+| **P-2** | [Situational trigger / pain point 2] | P1 | [Proposed feature] | Lowers WTS (+Efficiency) | [Measurable metric] |
 ```
 
 > 🚨 **Mandatory Tool Call**: For every proposed feature, roadmap phase, or architectural solution agreed upon with the user, `@advisor` MUST execute `report-issue.py` with session lineage before presenting completion text:

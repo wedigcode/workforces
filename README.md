@@ -76,6 +76,7 @@ For more setup options and environment configuration, see the [Setup Guide](docs
 | [`memory-management`](skills/memory-management/SKILL.md) | Protocol for navigating OKF catalogs and managing workspace memories |
 | [`github-project-planning`](skills/github-project-planning/SKILL.md) | Create/update GitHub issues and interact with Project V2 boards |
 | [`workforce-management`](skills/workforce-management/SKILL.md) | Update, patch, and align settings for the Workforces toolkit |
+| [`business-frameworks`](skills/business-frameworks/SKILL.md) | Contemporary MBA strategy frameworks, Value Stick, JTBD, Growth Loops, and SaaS unit economics |
 | [`feature-research`](skills/feature-research/SKILL.md) | Research-first pipeline: gap analysis, PRD, and work breakdown across projects |
 | [`usage-tracker`](skills/usage-tracker/SKILL.md) | Real-time token, character, thought, and subagent usage tracking across agent sessions |
 
@@ -84,14 +85,14 @@ Full roster documentation available in [`docs/teams-and-agents.md`](docs/teams-a
 
 | Agent Tag | Role / Domain | Core Capabilities |
 | :--- | :--- | :--- |
-| [`@advisor`](agents/advisor.md) | Strategic Advisor | Consultative problem discovery, root cause extraction, and trade-off coaching |
-| [`@project-manager`](agents/project-manager.md) | Project Manager | Backlog prioritization, task sequencing, sprint syncs, and GitHub project sync |
+| [`@advisor`](agents/advisor.md) | Strategic Advisor | Consultative problem discovery, JTBD causal extraction, and Value Stick trade-off coaching |
+| [`@project-manager`](agents/project-manager.md) | Project Manager | Backlog prioritization, Value Stick scoring, SaaS unit economics, and GitHub sync |
 | [`@programmer`](agents/programmer.md) | Software Engineer | Clean code authoring, TDD, symbol graph index lookup, and post-edit reviews |
 | [`@designer`](agents/designer.md) | Visual & UI/UX Designer | Visual concept ideation, design tokens, layout specifications, and design QA reviews |
-| [`@marketer`](agents/marketer.md) | Marketer | Positioning, PAS/AIDA copywriting, email nurture funnels, and launch campaigns |
-| [`@sales`](agents/sales.md) | Sales Specialist | Prospect research, multi-touch outbound cadences, qualification, and closing |
+| [`@marketer`](agents/marketer.md) | Marketer | JTBD positioning, Connected Strategy models, PAS copywriting, and closed growth loops |
+| [`@sales`](agents/sales.md) | Sales Specialist | Prospect research, JTBD discovery, Customer Delight ROI framing, and closing |
 | [`@social`](agents/social.md) | Social Engager | Content discovery, cold-post triage, and high-engagement reply catalysts |
-| [`@growth`](agents/growth.md) | Growth & SEO Lead | Intent matching, programmatic SEO, and Generative Engine Optimization (GEO/AISO) |
+| [`@growth`](agents/growth.md) | Growth & SEO Lead | Intent matching, programmatic SEO, closed growth loops, and platform network effects |
 | [`@operations`](agents/operations.md) | Operations Lead | Metrics dashboards, telemetry tracking, sprint velocity, and workforce state |
 | [`@compliance`](agents/compliance.md) | Compliance Auditor | Reference lineage enforcement, zero ghost references, and policy compliance |
 | [`@researcher`](agents/researcher.md) | Feature Researcher | Gap analysis, competitive teardowns, and structured PRD specifications |

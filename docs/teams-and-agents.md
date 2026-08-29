@@ -43,15 +43,15 @@ A modular architecture for AI agent workforces. Instead of dumping all agents, r
 
 | Agent Tag | Name | Team | Primary Mission & Capabilities | Trigger Keywords |
 | :--- | :--- | :--- | :--- | :--- |
-| [`@advisor`](../agents/advisor.md) | Strategic Advisor | Core | Consultative problem extraction, root-cause diagnosis, 5 Whys, value breakthrough coaching. | `advise`, `consultant`, `strategy`, `pain points`, `why` |
-| [`@project-manager`](../agents/project-manager.md) | Project Manager | Core | Backlog prioritization, task sequencing, sprint syncs, and GitHub project sync. | `roadmap`, `backlog`, `planning`, `sprint`, `sync` |
+| [`@advisor`](../agents/advisor.md) | Strategic Advisor | Core | Consultative problem extraction, JTBD situational triggers, Value Stick audits, 5 Whys, value breakthrough coaching. | `advise`, `consultant`, `strategy`, `pain points`, `why` |
+| [`@project-manager`](../agents/project-manager.md) | Project Manager | Core | Backlog prioritization, Value Stick scoring, SaaS unit economics, sprint syncs, and GitHub project sync. | `roadmap`, `backlog`, `planning`, `sprint`, `sync` |
 | [`@scribe`](../agents/scribe.md) | Scribe | Core | Dense, zero-narrative session context recording and architectural decision persistence. | `context`, `session-context`, `save notes` |
 | [`@programmer`](../agents/programmer.md) | Programmer | `dev` | Software development, TDD, symbol graph lookup, diff compression, and automated post-edit reviews. | `code`, `programmer`, `dev`, `developer`, `refactor`, `bug fix` |
 | [`@designer`](../agents/designer.md) | Designer | `design` | Visual concept creation, design tokens, UI/UX architecture, layout specifications, and design QA reviews. | `designer`, `design`, `UI`, `UX`, `layout`, `visual`, `CSS` |
-| [`@marketer`](../agents/marketer.md) | Marketer | `marketing` | Brand positioning, PAS/AIDA copywriting, email nurture funnels, and campaign launches. | `marketing`, `marketer`, `copy`, `copywriting`, `campaign` |
-| [`@sales`](../agents/sales.md) | Sales Specialist | `sales` | Prospect research, multi-touch outbound cadences, BANT qualification, objection handling, closing. | `sales`, `prospect`, `outreach`, `cold email`, `objection` |
+| [`@marketer`](../agents/marketer.md) | Marketer | `marketing` | JTBD positioning, Connected Strategy engagement, PAS copywriting, email cadences, and closed growth loops. | `marketing`, `marketer`, `copy`, `copywriting`, `campaign` |
+| [`@sales`](../agents/sales.md) | Sales Specialist | `sales` | Prospect research, JTBD discovery, Customer Delight ROI framing, multi-touch outbound cadences, closing. | `sales`, `prospect`, `outreach`, `cold email`, `objection` |
 | [`@social`](../agents/social.md) | Social Engager | `social` | Content discovery, cold-post triage, multi-tier conversation catalysts, and community cultivation. | `social`, `engage`, `x.com`, `skool`, `linkedin`, `community` |
-| [`@growth`](../agents/growth.md) | Growth & SEO Lead | `growth` | Intent matching, programmatic SEO, Generative Engine Optimization (GEO/AISO), schema markup. | `growth`, `SEO`, `GEO`, `AISO`, `search volume`, `schema` |
+| [`@growth`](../agents/growth.md) | Growth & SEO Lead | `growth` | Intent matching, programmatic SEO, self-reinforcing closed growth loops, GEO/AISO, platform network dynamics. | `growth`, `SEO`, `GEO`, `AISO`, `search volume`, `schema` |
 | [`@operations`](../agents/operations.md) | Operations Lead | `operations` | Empirical metrics dashboards, telemetry tracking, sprint velocity, and workforce state. | `operations`, `ops`, `metrics`, `telemetry`, `velocity`, `KPIs` |
 | [`@compliance`](../agents/compliance.md) | Compliance Auditor | `compliance` | Reference lineage enforcement, zero ghost references, data privacy governance, subtask tracking. | `compliance`, `integrity`, `broken links`, `audit` |
 | [`@researcher`](../agents/researcher.md) | Feature Researcher | `growth` / `dev` | Research-first feature discovery, gap analysis, competitive teardowns, and structured PRD specs. | `researcher`, `feature`, `PRD`, `spec`, `requirement` |
@@ -77,12 +77,12 @@ Each domain team is configured via a structured `pack.json` and comprehensive `p
 ### 3. Marketing (`teams/marketing/`)
 - **Agents:** `@marketer`
 - **Rules:** `design-standards.md`
-- **Skills:** `persona-management`, `brand-guidelines`, `image-workflow`, `ai-search-optimization`, `memory-management`
+- **Skills:** `persona-management`, `brand-guidelines`, `business-frameworks`, `image-workflow`, `ai-search-optimization`, `memory-management`
 - **Workflows:** `/brand-context`
 
 ### 4. Sales (`teams/sales/`)
 - **Agents:** `@sales`
-- **Skills:** `persona-management`, `brand-guidelines`, `memory-management`
+- **Skills:** `persona-management`, `brand-guidelines`, `business-frameworks`, `memory-management`
 - **Workflows:** `/advisor`
 
 ### 5. Social (`teams/social/`)
@@ -94,7 +94,7 @@ Each domain team is configured via a structured `pack.json` and comprehensive `p
 ### 6. Growth & SEO (`teams/growth/`)
 - **Agents:** `@growth`, `@researcher`
 - **Rules:** `design-standards.md`
-- **Skills:** `persona-management`, `ai-search-optimization`, `feature-research`, `doc-generator`, `memory-management`
+- **Skills:** `persona-management`, `ai-search-optimization`, `business-frameworks`, `feature-research`, `doc-generator`, `memory-management`
 - **Workflows:** `/feature`
 
 ### 7. Operations (`teams/operations/`)
