@@ -15,10 +15,13 @@
     "feature-research",
     "brand-guidelines",
     "memory-management",
-    "issue-tracker"
+    "issue-tracker",
+    "hypothesis-tracker",
+    "market-validation"
   ],
   "workflows": [
     "advisor.md",
-    "ideate.md"
+    "ideate.md",
+    "validate-idea.md"
   ]
 }

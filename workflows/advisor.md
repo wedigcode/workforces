@@ -131,6 +131,7 @@ python3 .agents/skills/issue-tracker/scripts/report-issue.py \
 
 Based on the agreed direction, `@advisor` provides seamless transitions to the next workforce workflows:
 
+- **For Rapid Market Validation:** Hand off to `/validate-idea [idea]` to pretotype demand and test willingness to pay before building.
 - **For New Websites / SaaS Apps:** Hand off to `/site-setup` (Step 1 Marketing & Step 2 `@designer`).
 - **For New Features:** Hand off to `/feature [idea]` (Phase 1 Gap Analysis & Phase 3 PRD).
 - **For Strategic Task Execution:** Hand off to `/plan` or `/work`.

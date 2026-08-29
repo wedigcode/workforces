@@ -13,9 +13,12 @@
     "feature-research",
     "business-frameworks",
     "doc-generator",
-    "memory-management"
+    "memory-management",
+    "hypothesis-tracker",
+    "market-validation"
   ],
   "workflows": [
-    "feature.md"
+    "feature.md",
+    "validate-idea.md"
   ]
 }

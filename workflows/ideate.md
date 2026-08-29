@@ -144,7 +144,8 @@ python3 .agents/skills/issue-tracker/scripts/report-issue.py \
 
 ### Step 5 — Pipeline Handoff
 
-With the PRD generated and issue registered in the inbox, `@advisor` transitions directly into the build pipeline:
+With the PRD generated and issue registered in the inbox, `@advisor` transitions directly into the validation and build pipeline:
+- **Run `/validate-idea [concept]`** → Rapidly test buyer willingness to pay via pretotyping, smoke test landing pages, and Mom Test outreach before committing development hours.
 - **Run `/site-setup`** → Pre-populates `docs/brand-context.md`, defines design tokens with `@designer`, and scaffolds tech with `@programmer`.
 - **Run `/feature`** → For modular architectural breakdowns.
 - **Run `/work`** → Executes sprint tasks.

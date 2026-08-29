@@ -14,9 +14,12 @@
     "business-frameworks",
     "image-workflow",
     "ai-search-optimization",
-    "memory-management"
+    "memory-management",
+    "hypothesis-tracker",
+    "market-validation"
   ],
   "workflows": [
-    "brand-context.md"
+    "brand-context.md",
+    "validate-idea.md"
   ]
 }
