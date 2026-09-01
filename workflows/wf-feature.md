@@ -2,7 +2,7 @@
 description: Research-first feature pipeline — clarify, gap analysis, PRD, and work breakdown. Use when scoping a new feature across projects and workforces.
 ---
 
-# /feature — Feature Research Pipeline
+# /wf-feature — Feature Research Pipeline
 
 Turns a feature idea into a researched, documented, and task-broken deliverable — before any code gets written.
 
@@ -11,11 +11,11 @@ Turns a feature idea into a researched, documented, and task-broken deliverable 
 ## Usage
 
 ```
-/feature [idea]           → Start full pipeline (Phase 0–4)
-/feature [idea] --auto    → Full pipeline + automatically execute all work breakdown tasks end-to-end
-/feature --gap-only       → Stop after gap analysis (Phase 0–1)
-/feature --prd            → Skip to PRD (assumes gap analysis exists)
-/feature --breakdown      → Skip to work breakdown (assumes PRD exists)
+/wf-feature [idea]           → Start full pipeline (Phase 0–4)
+/wf-feature [idea] --auto    → Full pipeline + automatically execute all work breakdown tasks end-to-end
+/wf-feature --gap-only       → Stop after gap analysis (Phase 0–1)
+/wf-feature --prd            → Skip to PRD (assumes gap analysis exists)
+/wf-feature --breakdown      → Skip to work breakdown (assumes PRD exists)
 ```
 
 ---
@@ -134,8 +134,8 @@ Read: skills/github-project-planning/SKILL.md
 
 **⏸ PAUSE** — (Skipped if `--auto` flag is used or `auto_delegate: true` is configured).
 
-- **Standard Mode**: Ask user if they want to create GitHub issues for P0/P1 tasks, or generate an execution timeline via `/plan`.
-- **Auto Mode (`--auto`)**: Automatically hand off to `/plan --from-prd docs/prd-{feature-name}.md --push-to-work --auto` and begin executing all tasks immediately via Coordinator auto-delegation without requiring manual prompts.
+- **Standard Mode**: Ask user if they want to create GitHub issues for P0/P1 tasks, or generate an execution timeline via `/wf-plan`.
+- **Auto Mode (`--auto`)**: Automatically hand off to `/wf-plan --from-prd docs/prd-{feature-name}.md --push-to-work --auto` and begin executing all tasks immediately via Coordinator auto-delegation without requiring manual prompts.
 
 ---
 

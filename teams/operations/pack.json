@@ -16,8 +16,8 @@
     "issue-tracker"
   ],
   "workflows": [
-    "sync.md",
-    "context.md",
-    "task.md"
+    "wf-sync.md",
+    "wf-context.md",
+    "wf-task.md"
   ]
 }

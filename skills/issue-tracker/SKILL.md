@@ -174,7 +174,7 @@ Define design tokens in theme.css with muted primary and surface tokens.
 
 ## Triage Protocol (Project Manager)
 
-When invoked for triage (via `/task triage` or during `/work sync`):
+When invoked for triage (via `/wf-task triage` or during `/wf-sync`):
 
 1. **Read all inbox files:** `workforces/issues/inbox/*.md`
 2. **Review Session Context:** Read `session_file` and `## 🧠 Session Lineage & Deciding Factors` to understand the full rationale before prioritizing.
@@ -197,9 +197,9 @@ When invoked for triage (via `/task triage` or during `/work sync`):
 |--------|----------------|
 | `@scribe` agent | Automatically captures new ideas & evolves tracked issues mid-session |
 | `session-context` skill | Maintains `tracked_issues` in frontmatter and links in body |
-| `/work` | Surfaces "⚠️ N issues pending triage" in Step 2 |
-| `/work sync` | Project-manager reviews inbox and cross-session lineage during standups |
-| `/task` | Interactive reporting, listing, and triage for humans & agents |
+| `/wf-work` | Surfaces "⚠️ N issues pending triage" in Step 2 |
+| `/wf-sync` | Project-manager reviews inbox and cross-session lineage during standups |
+| `/wf-task` | Interactive reporting, listing, and triage for humans & agents |
 | `project-manager` agent | Triages inbox into workstate & GitHub with session context |
 | `programmer` & `designer` | Reports deferred code or design issues via `report-issue.py` |
 | `post-code-review` | Appends unfixable findings to inbox automatically |

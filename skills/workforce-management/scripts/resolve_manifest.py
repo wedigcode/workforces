@@ -17,7 +17,7 @@ import datetime
 CORE_AGENTS = {'advisor.md', 'project-manager.md', 'scribe.md'}
 CORE_RULES = {'base.md', 'mcp-protection.md', 'session-context.md', 'file-integrity.md'}
 CORE_SKILLS = {'workforce-management', 'memory-management', 'task-tracker', 'issue-tracker', 'session-context', 'usage-tracker', 'integrity-validator'}
-CORE_WORKFLOWS = {'work.md', 'plan.md', 'sync.md', 'task.md', 'advisor.md', 'ideate.md', 'teams.md', 'question-formulation.md', 'update-workforces.md', 'verify-integrity.md', 'context.md', 'feature.md', 'project-management.md'}
+CORE_WORKFLOWS = {'wf-work.md', 'wf-plan.md', 'wf-sync.md', 'wf-task.md', 'wf-advisor.md', 'wf-ideate.md', 'wf-teams.md', 'wf-question-formulation.md', 'wf-update.md', 'wf-verify-integrity.md', 'wf-context.md', 'wf-feature.md', 'wf-project-management.md'}
 CORE_PLUGINS = {'workforce-usage-plugin', 'workforce-integrity-plugin'}
 
 MANIFEST_REL_PATH = os.path.join("workforces", ".manifest.json")
@@ -37,7 +37,51 @@ LEGACY_OBSOLETE_SUBPATHS = [
     "teams/skills/design-anti-patterns/SKILL.md",
     "teams/skills/ui-ux-design/SKILL.md",
     "teams/skills/visual-design-fundamentals/SKILL.md",
+    "workflows/advisor.md",
+    "workflows/brand-context.md",
+    "workflows/clean.md",
+    "workflows/context.md",
+    "workflows/feature.md",
+    "workflows/ideate.md",
+    "workflows/image-duplicate.md",
+    "workflows/improve.md",
+    "workflows/investigate.md",
+    "workflows/plan.md",
+    "workflows/project-management.md",
+    "workflows/question-formulation.md",
     "workflows/site-brief.md",
+    "workflows/site-setup.md",
+    "workflows/social.md",
+    "workflows/sync.md",
+    "workflows/task.md",
+    "workflows/teams.md",
+    "workflows/update-workforces.md",
+    "workflows/validate-idea.md",
+    "workflows/verify-integrity.md",
+    "workflows/work.md",
+    "commands/advisor.md",
+    "commands/brand-context.md",
+    "commands/clean.md",
+    "commands/context.md",
+    "commands/feature.md",
+    "commands/ideate.md",
+    "commands/image-duplicate.md",
+    "commands/improve.md",
+    "commands/investigate.md",
+    "commands/plan.md",
+    "commands/project-management.md",
+    "commands/question-formulation.md",
+    "commands/site-setup.md",
+    "commands/social.md",
+    "commands/sync.md",
+    "commands/task.md",
+    "commands/teams.md",
+    "commands/update-workforces.md",
+    "commands/validate-idea.md",
+    "commands/verify-integrity.md",
+    "commands/work.md",
+    "commands/wf-update-workforces.md",
+    "workflows/wf-update-workforces.md",
     "workflows/workforces/tasks/20260822-073809-ideate-and-unbundle-atomic-saas-extractor.md",
     "workflows/workforces/tasks/20260822-073809-market-disruption-scout-disruptor-agent.md",
 ]
@@ -51,6 +95,8 @@ def detect_base_dir(target_dir):
         return os.path.join(".github", "copilot")
     if os.path.isdir(os.path.join(target_dir, ".claude")):
         return ".claude"
+    if os.path.isdir(os.path.join(target_dir, ".grok")):
+        return ".grok"
     return ".agents"
 
 def find_teams_dir(toolkit_root):
@@ -229,9 +275,10 @@ def resolve_installed_file_paths(toolkit_root, target_dir, base_dir=None, teams_
         if os.path.isdir(alt_wf):
             workflows_src = alt_wf
     if os.path.isdir(workflows_src):
+        wf_folder = "commands" if base_dir.endswith(".grok") else "workflows"
         for w in manifest.get('workflows', []):
             if os.path.exists(os.path.join(workflows_src, w)):
-                installed_files.append(os.path.normpath(os.path.join(base_dir, 'workflows', w)))
+                installed_files.append(os.path.normpath(os.path.join(base_dir, wf_folder, w)))
 
     # 3. Rules
     rules_src = os.path.join(toolkit_root, 'rules')
@@ -388,7 +435,9 @@ def prune_obsolete_files(target_dir, obsolete_files, dry_run=False):
     dirs_to_check = set()
 
     for f_rel in obsolete_files:
-        full_path = os.path.join(target_dir, f_rel)
+        full_path = os.path.abspath(os.path.join(target_dir, f_rel))
+        if not full_path.startswith(target_dir + os.sep):
+            continue
         if not os.path.exists(full_path):
             continue
         if dry_run:
@@ -462,13 +511,21 @@ def main():
     elif args.format == "files":
         print(json.dumps(installed_files, indent=2))
     elif args.format == "bash-export":
-        print(f"INSTALLED_TEAMS_LIST=\"{' '.join(manifest['installed_teams'])}\"")
-        print(f"ALLOWED_AGENTS=\"{' '.join(manifest['agents'])}\"")
-        print(f"ALLOWED_RULES=\"{' '.join(manifest['rules'])}\"")
-        print(f"ALLOWED_SKILLS=\"{' '.join(manifest['skills'])}\"")
-        print(f"ALLOWED_WORKFLOWS=\"{' '.join(manifest['workflows'])}\"")
-        print(f"ALLOWED_PLUGINS=\"{' '.join(manifest['plugins'])}\"")
-        print(f"ALLOWED_TEAMS=\"{' '.join(manifest['teams'])}\"")
+        def sanitize_bash(items):
+            clean = []
+            for item in items:
+                sanitized = re.sub(r'[^a-zA-Z0-9_./-]', '', str(item))
+                if sanitized:
+                    clean.append(sanitized)
+            return ' '.join(clean)
+
+        print(f"INSTALLED_TEAMS_LIST=\"{sanitize_bash(manifest['installed_teams'])}\"")
+        print(f"ALLOWED_AGENTS=\"{sanitize_bash(manifest['agents'])}\"")
+        print(f"ALLOWED_RULES=\"{sanitize_bash(manifest['rules'])}\"")
+        print(f"ALLOWED_SKILLS=\"{sanitize_bash(manifest['skills'])}\"")
+        print(f"ALLOWED_WORKFLOWS=\"{sanitize_bash(manifest['workflows'])}\"")
+        print(f"ALLOWED_PLUGINS=\"{sanitize_bash(manifest['plugins'])}\"")
+        print(f"ALLOWED_TEAMS=\"{sanitize_bash(manifest['teams'])}\"")
 
 if __name__ == "__main__":
     main()

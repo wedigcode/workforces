@@ -2,7 +2,7 @@
 description: Structured XML workflow to formulate questions requiring human decision-making, preventing AI cognitive offloading by directing the AI to act as an interviewer.
 ---
 
-# Workflow: Question Formulation
+# /wf-question-formulation — Question Formulation & Strategic Framing
 
 Use this workflow to structure and formulate questions that require human opinions, preferences, or design decisions. This workflow is designed to prevent cognitive offloading (i.e., when a recipient copy-pastes a question directly into an AI to let it make the decision or write the answer for them). 
 

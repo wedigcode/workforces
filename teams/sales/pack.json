@@ -12,6 +12,6 @@
     "memory-management"
   ],
   "workflows": [
-    "advisor.md"
+    "wf-advisor.md"
   ]
 }

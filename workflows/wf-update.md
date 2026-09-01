@@ -2,7 +2,7 @@
 description: Update workforces toolkit — auto-patch .agents/ files, interactively discover & offer new/updated Team Packs, and review workspace changes
 ---
 
-# /update-workforces — Workforces Updater
+# /wf-update — Workforces Updater
 
 Updates the installed Workforces toolkit in the current project using the `workforce-management` skill. It automatically patches all toolkit files under `.agents/` (safe to overwrite), updates version info, and interactively prompts the user to discover, add, or update workspace Team Packs.
 
@@ -10,7 +10,7 @@ Updates the installed Workforces toolkit in the current project using the `workf
 
 ## When to Use
 
-Run `/update-workforces` when:
+Run `/wf-update` (or `/update-workforces`) when:
 - You want the latest agents, workflows, or skills.
 - The upstream workforces repo has released changes or new Team Packs.
 - You want to check if your install is current and offer team upgrades.
@@ -86,5 +86,5 @@ After updating the core toolkit layer, **always interact with the user** to mana
      - *"Would you like to upgrade any of your existing active teams with the latest domain principles, personas, and SOP workflows?"*
 
 3. **Build Out & Register Selected Teams:**
-   - For any selected team, invoke `/teams add <team-name>` or synthesize full team assets inside `workforces/teams/<team-name>/` (`team.json`, `personas/`, `rules/`, `workflows/`).
+   - For any selected team, invoke `/wf-teams add <team-name>` or synthesize full team assets inside `workforces/teams/<team-name>/` (`team.json`, `personas/`, `rules/`, `workflows/`).
    - Register newly instantiated teams in `workforces/workstate.md` under `## Active Teams`.

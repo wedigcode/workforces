@@ -18,7 +18,7 @@
     "market-validation"
   ],
   "workflows": [
-    "feature.md",
-    "validate-idea.md"
+    "wf-feature.md",
+    "wf-validate-idea.md"
   ]
 }

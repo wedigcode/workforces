@@ -2,20 +2,20 @@
 description: Human-safe social engagement engine — discover, triage cold posts, evaluate relevance, draft multi-tier responses, and generate the interactive action dashboard.
 ---
 
-# /social — Social Engagement & Community Cultivation
+# /wf-social — Social Engagement & Community Cultivation
 
-The `/social` workflow discovers high-signal discussions on **X.com**, **Skool**, and **LinkedIn**, filters out dead posts with cold-caching, drafts high-leverage OP and sub-comment responses, and publishes an interactive **HTML Action Dashboard** with one-click copy buttons and live post links.
+The `/wf-social` workflow discovers high-signal discussions on **X.com**, **Skool**, and **LinkedIn**, filters out dead posts with cold-caching, drafts high-leverage OP and sub-comment responses, and publishes an interactive **HTML Action Dashboard** with one-click copy buttons and live post links.
 
 ---
 
 ## Usage
 
 ```
-/social                          → Generate & refresh interactive HTML dashboard and markdown queue
-/social evaluate <path/to/posts.json> → Score posts, triage cold items, and generate drafts
-/social list                     → List indexed posts with status and relevance score
-/social list --status drafted    → List pending draft items
-/social stats                    → Display database stats, indexed totals, and platform counts
+/wf-social                          → Generate & refresh interactive HTML dashboard and markdown queue
+/wf-social evaluate <path/to/posts.json> → Score posts, triage cold items, and generate drafts
+/wf-social list                     → List indexed posts with status and relevance score
+/wf-social list --status drafted    → List pending draft items
+/wf-social stats                    → Display database stats, indexed totals, and platform counts
 ```
 
 ---

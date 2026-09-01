@@ -2,7 +2,7 @@
 description: Multi-mode meeting orchestrator — daily standups (--daily), strategic & hypothesis reviews (--strategy), goal scaffolding (--goals), and personal status & follow-up radar (--me). Logs to workforces/team-sync/YYYY-MM-DD.md.
 ---
 
-# /work sync — Multi-Mode Team Sync & Strategic Alignment
+# /wf-sync — Multi-Mode Team Sync & Strategic Alignment
 
 A unified meeting engine for daily execution, strategic course-correction, goal scaffolding, hypothesis tracking, and personal follow-up intelligence. Led dynamically by `@project-manager` (for execution standups & personal syncs) or `@advisor` (for strategic reviews and diagnostics).
 
@@ -11,11 +11,11 @@ A unified meeting engine for daily execution, strategic course-correction, goal 
 ## 🧭 Meeting Modes & Usage
 
 ```bash
-/work sync                # Default: Daily Execution Standup (Led by @project-manager)
-/work sync --daily        # Explicit: 5-min tactical standup on 24h wins, blockers & "The One Thing"
-/work sync --strategy     # Strategic Review: OKRs, KPIs, Hypothesis Pacing, SME Round-Table (Led by @advisor)
-/work sync --goals        # Goal & Milestone Scaffolding: Setup/reset Annual North Star & Q1-Q4 OKRs
-/work sync --me           # Personal Standup & Follow-Up Radar: Tasks, Git, Follow-ups, Emails, Messages, Meetings & Notes
+/wf-sync                # Default: Daily Execution Standup (Led by @project-manager)
+/wf-sync --daily        # Explicit: 5-min tactical standup on 24h wins, blockers & "The One Thing"
+/wf-sync --strategy     # Strategic Review: OKRs, KPIs, Hypothesis Pacing, SME Round-Table (Led by @advisor)
+/wf-sync --goals        # Goal & Milestone Scaffolding: Setup/reset Annual North Star & Q1-Q4 OKRs
+/wf-sync --me           # Personal Standup & Follow-Up Radar: Tasks, Git, Follow-ups, Emails, Messages, Meetings & Notes
 ```
 
 ---
@@ -24,7 +24,7 @@ A unified meeting engine for daily execution, strategic course-correction, goal 
 
 ```mermaid
 graph TD
-    Trigger["/work sync [flag]"] --> Router{"Inspect Mode"}
+    Trigger["/wf-sync [flag]"] --> Router{"Inspect Mode"}
     
     Router -->|"--daily (Default)"| ModeDaily["Mode 1: Daily Standup<br/><b>Leader: @project-manager</b><br/>Focus: 24h Velocity & Blockers"]
     Router -->|"--strategy"| ModeStrat["Mode 2: Strategic Review<br/><b>Leader: @advisor</b><br/>Focus: OKRs, Hypotheses & Bottlenecks"]

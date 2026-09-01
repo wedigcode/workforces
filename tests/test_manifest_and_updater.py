@@ -73,7 +73,7 @@ class TestManifestAndUpdater(unittest.TestCase):
         # Check core files present
         self.assertIn(".agents/agents/advisor.md", files)
         self.assertIn(".agents/rules/base.md", files)
-        self.assertIn(".agents/workflows/work.md", files)
+        self.assertIn(".agents/workflows/wf-work.md", files)
         self.assertIn(".agents/skills/clean-coder/SKILL.md", files)
         self.assertIn(".agents/plugins/workforce-programming-plugin/plugin.json", files)
 

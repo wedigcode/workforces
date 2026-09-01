@@ -20,8 +20,8 @@
     "market-validation"
   ],
   "workflows": [
-    "advisor.md",
-    "ideate.md",
-    "validate-idea.md"
+    "wf-advisor.md",
+    "wf-ideate.md",
+    "wf-validate-idea.md"
   ]
 }

@@ -18,9 +18,9 @@
     "doc-generator"
   ],
   "workflows": [
-    "clean.md",
-    "improve.md",
-    "investigate.md"
+    "wf-clean.md",
+    "wf-improve.md",
+    "wf-investigate.md"
   ],
   "plugins": [
     "workforce-programming-plugin"

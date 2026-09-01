@@ -101,17 +101,15 @@ Full roster documentation available in [`docs/teams-and-agents.md`](docs/teams-a
 ### Workflows
 | Command | Workflow | Description |
 |---------|----------|-------------|
-| `/work` | [`work`](workflows/work.md) | Single command center: scans GitHub queue, surfaces top active tasks |
-| `/advisor` / `/consult` | [`advisor`](workflows/advisor.md) | Strategic advisory, consultative problem discovery & trade-off evaluation |
-| `/work site-setup` / `/site-setup` | [`site-setup`](workflows/site-setup.md) | Greenfield site setup & Product Brief pipeline with `@advisor` and `@designer` |
-| `/brand-context` | [`brand-context`](workflows/brand-context.md) | Brand identity foundation: voice, palette, typography, and tokens |
-| `/work feature` / `/feature` | [`feature`](workflows/feature.md) | Multi-phase feature scoping, problem discovery, gap analysis, PRD generation |
-| `/work plan` / `/plan` | [`plan`](workflows/plan.md) | Phased project planning, task breakdown, estimates, and risk matrix |
-| `/work investigate` / `/investigate` | [`investigate`](workflows/investigate.md) | Incident triage, log streaming to scratch, postmortem generation |
-| `/work sync` | [`sync`](workflows/sync.md) | Multi-mode sync: daily standup (`--daily`), strategy review (`--strategy`), goals (`--goals`), & personal follow-ups (`--me`) |
-| `/update-workforces` | [`update-workforces`](workflows/update-workforces.md) | Dry-run, patch toolkit layer files, and summarize updates |
-
-
+| `/wf-work` | [`wf-work`](workflows/wf-work.md) | Single command center: scans GitHub queue, surfaces top active tasks |
+| `/wf-advisor` / `/wf-consult` | [`wf-advisor`](workflows/wf-advisor.md) | Strategic advisory, consultative problem discovery & trade-off evaluation |
+| `/wf-work site-setup` / `/wf-site-setup` | [`wf-site-setup`](workflows/wf-site-setup.md) | Greenfield site setup & Product Brief pipeline with `@advisor` and `@designer` |
+| `/wf-brand-context` | [`wf-brand-context`](workflows/wf-brand-context.md) | Brand identity foundation: voice, palette, typography, and tokens |
+| `/wf-work feature` / `/wf-feature` | [`wf-feature`](workflows/wf-feature.md) | Multi-phase feature scoping, problem discovery, gap analysis, PRD generation |
+| `/wf-work plan` / `/wf-plan` | [`wf-plan`](workflows/wf-plan.md) | Phased project planning, task breakdown, estimates, and risk matrix |
+| `/wf-work investigate` / `/wf-investigate` | [`wf-investigate`](workflows/wf-investigate.md) | Incident triage, log streaming to scratch, postmortem generation |
+| `/wf-work sync` / `/wf-sync` | [`wf-sync`](workflows/wf-sync.md) | Multi-mode sync: daily standup (`--daily`), strategy review (`--strategy`), goals (`--goals`), & personal follow-ups (`--me`) |
+| `/wf-update` | [`wf-update`](workflows/wf-update.md) | Dry-run, patch toolkit layer files, and summarize updates |
 
 ---
 
@@ -121,23 +119,23 @@ The toolkit connects feature research, planning, incident triage, and execution 
 
 ```mermaid
 graph LR
-    A["/feature<br/>Research & PRD"] -->|--from-prd| B["/plan<br/>Phases & Estimates"]
-    B -->|--push-to-work| C["/work<br/>Execution & GitHub Issues"]
-    D["/investigate<br/>Incident Triage"] -->|--push-to-work| C
+    A["/wf-feature<br/>Research & PRD"] -->|--from-prd| B["/wf-plan<br/>Phases & Estimates"]
+    B -->|--push-to-work| C["/wf-work<br/>Execution & GitHub Issues"]
+    D["/wf-investigate<br/>Incident Triage"] -->|--push-to-work| C
     D -->|--from-incident| B
 ```
 
 ### End-to-End Workflow Lifecycles
 
 1. **Feature Scoping ➔ Planning ➔ Execution**
-   - **Research & Spec**: Run `/feature "Feature Idea"` (or `/work feature`) to run gap analysis and output a PRD (`docs/prd-*.md`).
-   - **Phase & Estimate**: Run `/work plan --from-prd docs/prd-feature.md` to split the PRD into deployable phases, tasks, and time estimates.
+   - **Research & Spec**: Run `/wf-feature "Feature Idea"` (or `/wf-work feature`) to run gap analysis and output a PRD (`docs/prd-*.md`).
+   - **Phase & Estimate**: Run `/wf-work plan --from-prd docs/prd-feature.md` to split the PRD into deployable phases, tasks, and time estimates.
    - **Push to Execution**: Use the `--push-to-work` flag (or accept the prompt) to sync Phase 1 tasks into `workforces/workstate.md` and create tracked GitHub issues.
-   - **Execute**: Run `/work` to view the queue and execute the top priority task.
+   - **Execute**: Run `/wf-work` to view the queue and execute the top priority task.
 
 2. **Incident Triage ➔ Remediation**
-   - **Triage & Diagnose**: Run `/investigate [service-name]` (or `/work investigate`) to stream logs into workspace scratch space (`workforces/tmp/`), classify root cause, and generate a postmortem (`workforces/incidents/`).
-   - **Remediate**: Pass `--push-to-work` to push P0/P1 fixes into your active tasks, or run `/plan --from-incident` to build a full remediation plan.
+   - **Triage & Diagnose**: Run `/wf-investigate [service-name]` (or `/wf-work investigate`) to stream logs into workspace scratch space (`workforces/tmp/`), classify root cause, and generate a postmortem (`workforces/incidents/`).
+   - **Remediate**: Pass `--push-to-work` to push P0/P1 fixes into your active tasks, or run `/wf-plan --from-incident` to build a full remediation plan.
 
 ---
 
@@ -153,4 +151,4 @@ bash .agents/skills/workforce-management/scripts/update.sh ./ --dry
 bash .agents/skills/workforce-management/scripts/update.sh ./
 ```
 
-Or ask your AI assistant: `/update-workforces`.
+Or ask your AI assistant: `/wf-update`.

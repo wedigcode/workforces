@@ -2,7 +2,7 @@
 description: Interactive Site Setup & Product Brief pipeline — guides you through business model, consultative problem discovery with @advisor, audience extraction, visual concept & token specification, tech stack selection with scaffolding safeguards, and framework-aware AI search protocol setup.
 ---
 
-# /site-setup — Greenfield Site Setup & Product Brief Pipeline
+# /wf-site-setup — Greenfield Site Setup & Product Brief Pipeline
 
 The end-to-end conversational onboarding workflow for launching a new website, web app, or SaaS property in an empty codebase. 
 
@@ -14,7 +14,7 @@ Coordinated by the **Project Manager** (`@project-manager`) with specialized han
 
 ```mermaid
 graph TD
-    A0["Step -1: Pre-Flight Ideation (/ideate)<br/>@unbundler & @disruptor Dual-Engine"] -.->|If idea needed| A["Step 0: @project-manager<br/>Discovery & Scope Intake"]
+    A0["Step -1: Pre-Flight Ideation (/wf-ideate)<br/>@unbundler & @disruptor Dual-Engine"] -.->|If idea needed| A["Step 0: @project-manager<br/>Discovery & Scope Intake"]
     A --> A2["Step 0b: @advisor<br/>Consultative Problem & Pain Point Discovery"]
     A2 --> B["Step 1: Marketing & SEO<br/>Audience, Keywords, Value Prop"]
     B --> C["Step 2: @designer<br/>Visual Concept & Tokens"]
@@ -28,8 +28,8 @@ graph TD
 ## Step -1 — Pre-Flight Ideation & Unbundling Hook (Optional)
 
 > 💡 **Need an idea or starting from scratch?**
-> If the user does not have a defined product or business concept yet, run **`/ideate`** first. 
-> `/ideate` dispatches the **Atomic SaaS Extractor** (`@unbundler`) and **Market Disruption Scout** (`@disruptor`) in parallel to evaluate spreadsheet moats, billion-dollar market formulas, and build-ready PRDs before initiating site setup.
+> If the user does not have a defined product or business concept yet, run **`/wf-ideate`** first. 
+> `/wf-ideate` dispatches the **Atomic SaaS Extractor** (`@unbundler`) and **Market Disruption Scout** (`@disruptor`) in parallel to evaluate spreadsheet moats, billion-dollar market formulas, and build-ready PRDs before initiating site setup.
 
 ---
 

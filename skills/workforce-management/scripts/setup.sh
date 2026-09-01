@@ -226,20 +226,6 @@ SKILLS_DIR="$TARGET/$BASE_DIR/skills"
 RULES_DIR="$TARGET/$BASE_DIR/rules"
 PLUGINS_DIR="$TARGET/$BASE_DIR/plugins"
 
-# Grok already owns /plan (plan mode) and /context (token meter).
-workflow_dest_name() {
-  local basename="$1"
-  if [[ "$DETECTED_EDITOR" == "grok" ]]; then
-    case "$basename" in
-      plan.md)    echo "wf-plan.md" ;;
-      context.md) echo "wf-context.md" ;;
-      *)          echo "$basename" ;;
-    esac
-  else
-    echo "$basename"
-  fi
-}
-
 workflow_rel_dir() {
   if [[ "$DETECTED_EDITOR" == "grok" ]]; then
     echo "commands"
@@ -297,7 +283,7 @@ if [[ "$RESOLVER_OK" != true ]]; then
   ALLOWED_AGENTS="advisor.md project-manager.md scribe.md programmer.md designer.md"
   ALLOWED_RULES="base.md clean-coder.md design-standards.md mcp-protection.md session-context.md"
   ALLOWED_SKILLS="brand-guidelines clean-coder code-graph codebase-improvement design-anti-patterns doc-generator image-workflow issue-tracker jules-integration memory-management post-code-review pr-review session-context ui-ux-design usage-tracker visual-design-fundamentals workforce-management"
-  ALLOWED_WORKFLOWS="advisor.md brand-context.md clean.md improve.md investigate.md plan.md question-formulation.md site-setup.md sync.md task.md teams.md update-workforces.md verify-integrity.md work.md"
+  ALLOWED_WORKFLOWS="wf-advisor.md wf-brand-context.md wf-clean.md wf-improve.md wf-investigate.md wf-plan.md wf-question-formulation.md wf-site-setup.md wf-sync.md wf-task.md wf-teams.md wf-update.md wf-verify-integrity.md wf-work.md"
   ALLOWED_PLUGINS="workforce-programming-plugin workforce-usage-plugin"
   ALLOWED_TEAMS="dev design"
   INSTALLED_TEAMS_LIST="dev design"
@@ -335,9 +321,8 @@ if [[ -d "$TOOLKIT_ROOT/workflows" ]]; then
     [[ -f "$f" ]] || continue
     basename=$(basename "$f")
     if [[ " $ALLOWED_WORKFLOWS " =~ " $basename " ]]; then
-      dest_name=$(workflow_dest_name "$basename")
       rel_dir=$(workflow_rel_dir)
-      copy_file "$f" "$WORKFLOWS_DIR/$dest_name" "$BASE_DIR/$rel_dir/$dest_name"
+      copy_file "$f" "$WORKFLOWS_DIR/$basename" "$BASE_DIR/$rel_dir/$basename"
     fi
   done
 fi
@@ -630,8 +615,8 @@ date: $(date -u +%Y-%m-%d)
 EOF
 echo -e "  ${GREEN}WRITTEN:${NC} workforces/.version (${INSTALLED_HASH})"
 
-if [[ -f "$RESOLVER_SCRIPT" ]]; then
-  python3 "$RESOLVER_SCRIPT" --toolkit-root "$TOOLKIT_ROOT" --target "$TARGET" ${TEAMS_ARG:+--teams "$TEAMS_ARG"} --save-manifest --version-hash "${INSTALLED_HASH}"
+if [[ -f "$RESOLVER_SCRIPT" && -n "$PYTHON" ]]; then
+  "$PYTHON" "$RESOLVER_SCRIPT" --toolkit-root "$TOOLKIT_ROOT" --target "$TARGET" ${TEAMS_ARG:+--teams "$TEAMS_ARG"} --save-manifest --version-hash "${INSTALLED_HASH}"
   echo -e "  ${GREEN}WRITTEN:${NC} workforces/.manifest.json"
 fi
 
@@ -649,7 +634,7 @@ This project uses the [workforces](https://github.com/wedigcode/workforces) AI t
 - User Workspace & State: \`workforces/\`
 
 ## Instructions
-Refer to \`.agents/rules/base.md\` and run workflows under \`.agents/workflows/\` to perform tasks.
+Refer to \`.agents/rules/base.md\` and run workflows under \`.agents/workflows/\` (e.g. \`/wf-work\`, \`/wf-plan\`, \`/wf-sync\`) to perform tasks.
 EOF
       echo -e "  ${GREEN}CREATED:${NC} GEMINI.md"
     fi
@@ -671,7 +656,7 @@ EOF
       cat > "$TARGET/.github/copilot/instructions.md" << EOF
 # VS Code Copilot Instructions
 
-This project utilizes the Workforces AI toolkit. Please refer to rules in \`.github/copilot/rules/base.md\` and use workflows inside \`.github/copilot/workflows/\`.
+This project utilizes the Workforces AI toolkit. Please refer to rules in \`.github/copilot/rules/base.md\` and use workflows inside \`.github/copilot/workflows/\` (e.g. \`/wf-work\`, \`/wf-plan\`, \`/wf-sync\`).
 EOF
       echo -e "  ${GREEN}CREATED:${NC} .github/copilot/instructions.md"
     fi
@@ -681,7 +666,7 @@ EOF
       cat > "$TARGET/CLAUDE.md" << EOF
 # Claude Code Instructions
 
-This project utilizes the Workforces AI toolkit. Please refer to rules in \`.claude/rules/base.md\` and use workflows inside \`.claude/workflows/\`.
+This project utilizes the Workforces AI toolkit. Please refer to rules in \`.claude/rules/base.md\` and use workflows inside \`.claude/workflows/\` (e.g. \`/wf-work\`, \`/wf-plan\`, \`/wf-sync\`).
 EOF
       echo -e "  ${GREEN}CREATED:${NC} CLAUDE.md"
     fi
@@ -698,8 +683,7 @@ This project uses the [workforces](https://github.com/wedigcode/workforces) AI t
 - User workspace and state: \`workforces/\`
 
 ## Instructions
-Refer to \`.grok/rules/base.md\` and run slash commands from \`.grok/commands/\`.
-Workforces \`/plan\` is \`/wf-plan\`. Workforces \`/context\` is \`/wf-context\`.
+Refer to \`.grok/rules/base.md\` and run slash commands from \`.grok/commands/\` (e.g. \`/wf-work\`, \`/wf-plan\`, \`/wf-sync\`).
 See \`docs/grok.md\` in the Workforces repo for host mapping (tool names, python vs python3).
 EOF
       echo -e "  ${GREEN}CREATED:${NC} AGENTS.md"
@@ -719,7 +703,7 @@ echo -e "  ${GREEN}✓ Workforces toolkit installed successfully!${NC}"
 if [[ "$SITE_SETUP" == true ]]; then
   echo ""
   echo -e "  ${BOLD}${CYAN}🚀 Site Setup Initialized:${NC}"
-  echo -e "     Run ${BOLD}/site-setup${NC} (or invoke ${BOLD}@advisor${NC} / ${BOLD}@designer${NC}) in your AI assistant to:"
+  echo -e "     Run ${BOLD}/wf-site-setup${NC} (or invoke ${BOLD}@advisor${NC} / ${BOLD}@designer${NC}) in your AI assistant to:"
 
   echo -e "     1. Consult with @advisor to unpack root problems, pain points & stakes"
   echo -e "     2. Brainstorm creative design concepts & define design tokens"

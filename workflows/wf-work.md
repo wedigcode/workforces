@@ -2,7 +2,7 @@
 description: Core workforce orchestrator — GitHub queue, active tasks, and planning in one command
 ---
 
-# /work — Workforce Orchestrator
+# /wf-work — Workforce Orchestrator
 
 Your single command center. Scans your GitHub queue, surfaces the top task, and connects to planning when needed — all from `workforces/workstate.md`.
 
@@ -11,19 +11,19 @@ Your single command center. Scans your GitHub queue, surfaces the top task, and 
 ## Usage
 
 ```
-/work                    → Full run: GitHub queue + issue inbox + top task
-/work --auto (or --all)  → Auto-coordinator mode: execute all active/pending tasks end-to-end
-/work site-setup         → Greenfield site setup & Product Brief pipeline (delegates to /site-setup)
-/work feature [idea]     → Start feature research & PRD pipeline (delegates to /feature)
-/work feature [idea] --auto → Research, plan, and automatically execute all tasks end-to-end
-/work plan [goal]        → Create execution plan & estimates (delegates to /plan)
-/work plan --from-prd    → Convert recent PRD into execution plan & estimates
-/work investigate [svc]  → Incident triage & postmortem (delegates to /investigate)
-/work improve [pillar]   → Audit & continuous improvement across cleanup, performance, security, health, testing (delegates to /work improve)
-/work sync               → Run standup sync: wins, losses, next goals, and blockers
-/work status             → Show all active and pending tasks
-/work done [#]           → Mark a task complete (unblocks dependent tasks)
-/work skip [#]           → Skip a task (won't re-show)
+/wf-work                    → Full run: GitHub queue + issue inbox + top task
+/wf-work --auto (or --all)  → Auto-coordinator mode: execute all active/pending tasks end-to-end
+/wf-work site-setup         → Greenfield site setup & Product Brief pipeline (delegates to /wf-site-setup)
+/wf-work feature [idea]     → Start feature research & PRD pipeline (delegates to /wf-feature)
+/wf-work feature [idea] --auto → Research, plan, and automatically execute all tasks end-to-end
+/wf-work plan [goal]        → Create execution plan & estimates (delegates to /wf-plan)
+/wf-work plan --from-prd    → Convert recent PRD into execution plan & estimates
+/wf-work investigate [svc]  → Incident triage & postmortem (delegates to /wf-investigate)
+/wf-work improve [pillar]   → Audit & continuous improvement across cleanup, performance, security, health, testing (delegates to /wf-improve)
+/wf-work sync               → Run standup sync: wins, losses, next goals, and blockers
+/wf-work status             → Show all active and pending tasks
+/wf-work done [#]           → Mark a task complete (unblocks dependent tasks)
+/wf-work skip [#]           → Skip a task (won't re-show)
 ```
 
 ---
@@ -81,7 +81,7 @@ If the inbox has **1 or more** files, surface a prompt:
 | 20260813-... | Dead code in utils.py | debt | P2 | programmer | 2h |
 
 
-💡 Run `/task triage` to let the Project Manager review these.
+💡 Run `/wf-task triage` to let the Project Manager review these.
 ```
 
 If the inbox is empty, skip this block.
@@ -133,7 +133,7 @@ _Queue clear_ → ✅
 Present the highest-priority task from `workforces/workstate.md`:
 
 ```markdown
-## 📋 /work
+## 📋 /wf-work
 
 ### 🔔 GitHub Queue
 | Type | Repo | # | Title | Age |
@@ -151,7 +151,7 @@ Present the highest-priority task from `workforces/workstate.md`:
 > _Reason: Highest priority active task. 2 tasks blocked until this ships._
 
 ---
-`/work sync` · `/work plan` · `/work status` · `/work done 1`
+`/wf-work sync` · `/wf-work plan` · `/wf-work status` · `/wf-work done 1`
 ```
 
 ---
@@ -200,66 +200,66 @@ When invoked with `--auto`/`--all` or when `auto_delegate: true` is configured i
 
 ## Subcommands
 
-### `/task [subcommand]`
+### `/wf-task [subcommand]`
 
 Report deferred issues, bugs, design problems, and ideas. Invokes the `project-manager` subagent for triage.
-See [`workflows/task.md`](./task.md) for the full command reference.
+See [`workflows/wf-task.md`](./wf-task.md) for the full command reference.
 
 ```
-/task                  → Show inbox summary
-/task report           → Guided issue reporting
-/task triage           → PM triages all pending inbox items
-/task list             → Browse all issues
+/wf-task                  → Show inbox summary
+/wf-task report           → Guided issue reporting
+/wf-task triage           → PM triages all pending inbox items
+/wf-task list             → Browse all issues
 ```
 
 ---
 
-### `/work site-setup`
+### `/wf-work site-setup`
 
-Triggers the greenfield site setup and Product Brief pipeline. See [`workflows/site-setup.md`](./site-setup.md).
+Triggers the greenfield site setup and Product Brief pipeline. See [`workflows/wf-site-setup.md`](./wf-site-setup.md).
 
 Coordinates multi-team handoffs across `@project-manager`, Marketing (`@marketer`), Design (`@designer` — inspiration, layout specs, tokens), Compliance (`@compliance`), and Engineering (`@programmer` — tech stack scaffolding under installer safeguard rules and language-specific AI protocol generation).
 
 
-### `/work feature [idea]`
+### `/wf-work feature [idea]`
 
-Triggers the research & specification pipeline. See [`workflows/feature.md`](./feature.md).
+Triggers the research & specification pipeline. See [`workflows/wf-feature.md`](./wf-feature.md).
 
 
-Runs gap analysis, produces feature brief & PRD, breaks down tasks, and optionally hands off to `/plan --from-prd`.
+Runs gap analysis, produces feature brief & PRD, breaks down tasks, and optionally hands off to `/wf-plan --from-prd`.
 
-### `/work plan [goal]`
+### `/wf-work plan [goal]`
 
-Triggers execution planning & estimation. See [`workflows/plan.md`](./plan.md).
+Triggers execution planning & estimation. See [`workflows/wf-plan.md`](./wf-plan.md).
 
-Breaks down goals or PRDs into deployable phases, time estimates, dependency maps, and risk assessments. Supports `--push-to-work` to automatically populate `workforces/workstate.md` and create GitHub issues via [`workflows/project-management.md`](./project-management.md).
+Breaks down goals or PRDs into deployable phases, time estimates, dependency maps, and risk assessments. Supports `--push-to-work` to automatically populate `workforces/workstate.md` and create GitHub issues via [`workflows/wf-project-management.md`](./wf-project-management.md).
 
-### `/work sync`
+### `/wf-work sync`
 
-Runs a structured team sync or strategic review session. See [`workflows/sync.md`](./sync.md).
+Runs a structured team sync or strategic review session. See [`workflows/wf-sync.md`](./wf-sync.md).
 
-- `/work sync` or `/work sync --daily` — 5-minute tactical standup led by `@project-manager` (24h wins, roadblocks, The One Thing, inbox triage).
-- `/work sync --strategy` — Deep strategic review led by `@advisor` (OKR pacing, SME round-table, hypothesis telemetry, kill/pivot thresholds, and 5-dimension diagnostics).
-- `/work sync --goals` — Interactive goal scaffolding led by `@advisor` and `@project-manager` (North Star, Q1–Q4 OKRs, monthly milestones).
-- `/work sync --me` — Personal standup & follow-up radar led by `@project-manager` (git state, active tasks, follow-ups required from you vs waiting on others, emails, chats, meetings & prep, notes).
+- `/wf-work sync` or `/wf-work sync --daily` — 5-minute tactical standup led by `@project-manager` (24h wins, roadblocks, The One Thing, inbox triage).
+- `/wf-work sync --strategy` — Deep strategic review led by `@advisor` (OKR pacing, SME round-table, hypothesis telemetry, kill/pivot thresholds, and 5-dimension diagnostics).
+- `/wf-work sync --goals` — Interactive goal scaffolding led by `@advisor` and `@project-manager` (North Star, Q1–Q4 OKRs, monthly milestones).
+- `/wf-work sync --me` — Personal standup & follow-up radar led by `@project-manager` (git state, active tasks, follow-ups required from you vs waiting on others, emails, chats, meetings & prep, notes).
 Logs sessions to `workforces/team-sync/YYYY-MM-DD.md` (or `YYYY-MM-DD-me.md`).
 
-### `/work investigate [service]`
+### `/wf-work investigate [service]`
 
-Triggers incident triage and root-cause classification. See [`workflows/investigate.md`](./investigate.md).
+Triggers incident triage and root-cause classification. See [`workflows/wf-investigate.md`](./wf-investigate.md).
 
-Streams log output to workspace scratch space (`workforces/tmp/`), classifies root cause, generates incident postmortem, and optionally pushes P0/P1 fixes directly into `/plan` or `workforces/workstate.md`.
+Streams log output to workspace scratch space (`workforces/tmp/`), classifies root cause, generates incident postmortem, and optionally pushes P0/P1 fixes directly into `/wf-plan` or `workforces/workstate.md`.
 
-### `/work status`
+### `/wf-work status`
 
 Show all tasks: active, pending, and completed.
 
-### `/work done [#]`
+### `/wf-work done [#]`
 
 1. Move task to Completed in workstate
 2. Check if any task was blocked on this → unblock it
 3. Show updated queue
 
-### `/work skip [#]`
+### `/wf-work skip [#]`
 
 Set status to `skipped` — won't re-appear in the top task surface.

@@ -110,4 +110,4 @@ Provide a grounded, bottom-up business analysis:
 - **Direct, crisp, and analytical.** Avoid generic SaaS fluff like *"streamline workflows"* or *"boost productivity."*
 - **Grounded in bottom-up math.** Avoid unrealistic top-down market sizing numbers.
 - **Opinionated on UX.** Always recommend eliminating clicks, fields, and configuration steps.
-- **Builder-Focused.** Format outputs so they can be fed directly into `/site-setup`, `@designer`, or `@programmer`.
+- **Builder-Focused.** Format outputs so they can be fed directly into `/wf-site-setup`, `@designer`, or `@programmer`.

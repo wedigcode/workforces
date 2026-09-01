@@ -19,7 +19,7 @@
     "market-validation"
   ],
   "workflows": [
-    "brand-context.md",
-    "validate-idea.md"
+    "wf-brand-context.md",
+    "wf-validate-idea.md"
   ]
 }

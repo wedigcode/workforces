@@ -45,6 +45,8 @@ def detect_base_dir(target_dir):
         return os.path.join(".github", "copilot")
     if os.path.isdir(os.path.join(target_dir, ".claude")):
         return ".claude"
+    if os.path.isdir(os.path.join(target_dir, ".grok")):
+        return ".grok"
     return ".agents"
 
 def update_workrules(target_dir, remaining_teams, dry_run=False):
@@ -123,6 +125,10 @@ def prune_team(team_name, target_dir=".", toolkit_root=None, purge_data=False, d
     base_dir = os.path.join(target_dir, base_dir_rel)
 
     team_clean = team_name.strip().lower()
+    if not re.match(r'^[a-zA-Z0-9_-]+$', team_clean):
+        print(f"{RED}Error: Invalid team identifier '{team_clean}'. Only alphanumeric characters, hyphens, and underscores are allowed.{NC}")
+        return False
+
     installed_teams = get_installed_teams(target_dir, toolkit_root)
 
     print("")
@@ -243,22 +249,23 @@ def prune_team(team_name, target_dir=".", toolkit_root=None, purge_data=False, d
                 pruned_count += 1
 
     # 4. Workflows
+    wf_folder = "commands" if base_dir_rel == ".grok" else "workflows"
     team_workflows = target_team_data.get('workflows', [])
     for w in team_workflows:
         w_file = w if w.endswith('.md') else f'{w}.md'
-        target_wf_path = os.path.join(base_dir, 'workflows', w_file)
+        target_wf_path = os.path.join(base_dir, wf_folder, w_file)
         if w_file in manifest['workflows']:
             deps = asset_deps['workflows'].get(w_file, [])
             dep_str = f"shared workflow needed by: {', '.join(deps)}" if deps else "core workflow requirement"
-            print(f"  {GREEN}[PRESERVED WORKFLOW]{NC} {base_dir_rel}/workflows/{w_file} ({dep_str})")
+            print(f"  {GREEN}[PRESERVED WORKFLOW]{NC} {base_dir_rel}/{wf_folder}/{w_file} ({dep_str})")
             preserved_count += 1
         else:
             if os.path.exists(target_wf_path):
                 if dry_run:
-                    print(f"  {YELLOW}[WOULD PRUNE WORKFLOW]{NC} {base_dir_rel}/workflows/{w_file}")
+                    print(f"  {YELLOW}[WOULD PRUNE WORKFLOW]{NC} {base_dir_rel}/{wf_folder}/{w_file}")
                 else:
                     os.remove(target_wf_path)
-                    print(f"  {RED}[PRUNED WORKFLOW]{NC} {base_dir_rel}/workflows/{w_file}")
+                    print(f"  {RED}[PRUNED WORKFLOW]{NC} {base_dir_rel}/{wf_folder}/{w_file}")
                 pruned_count += 1
 
     # 5. Plugins

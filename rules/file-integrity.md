@@ -17,7 +17,7 @@ Every AI agent and workforce orchestrator MUST enforce complete reference lineag
 
 ## 2. Subtask, Roadmap & Discovered Gap Tracking
 
-- When a created file, advisory consultation (`/advisor`), ideation sprint (`/ideate`), or execution step proposes new feature horizons, required follow-ups, pending dependencies, unhandled risks, or unchecked tasks (`- [ ]` items):
+- When a created file, advisory consultation (`/wf-advisor`), ideation sprint (`/wf-ideate`), or execution step proposes new feature horizons, required follow-ups, pending dependencies, unhandled risks, or unchecked tasks (`- [ ]` items):
   - The agent MUST report each item to **tasks** using `report-task.py` with session lineage:
     ```bash
     python3 .agents/skills/task-tracker/scripts/report-task.py \

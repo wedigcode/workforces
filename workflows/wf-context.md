@@ -2,7 +2,7 @@
 description: Transient session context manager — save, list, load, and search session notes across sub-sessions with tracked issues and decision evolution
 ---
 
-# /context — Session Context Manager
+# /wf-context — Session Context Manager
 
 Preserves transient chat context, architectural decisions, product briefs, and spontaneous feature ideas across sub-sessions. Prevents loss of rationale and forgotten tasks when moving between chats or when context windows truncate.
 
@@ -14,18 +14,18 @@ Preserves transient chat context, architectural decisions, product briefs, and s
 ## Usage
 
 ```
-/context                     → Show active session context & recent notes list
-/context save [topic]        → Distill current session, capture/update issues, and save next sequential note
-/context list                → List all saved session notes numerically with topics, tags, and tracked issues
-/context load [seq|slug]     → Hydrate specific past session context and tracked issues into current prompt memory
-/context search [query]      → Ripgrep keywords, tags, and tracked issues across session notes
+/wf-context                     → Show active session context & recent notes list
+/wf-context save [topic]        → Distill current session, capture/update issues, and save next sequential note
+/wf-context list                → List all saved session notes numerically with topics, tags, and tracked issues
+/wf-context load [seq|slug]     → Hydrate specific past session context and tracked issues into current prompt memory
+/wf-context search [query]      → Ripgrep keywords, tags, and tracked issues across session notes
 ```
 
 ---
 
 ## Commands & Workflows
 
-### 1. `/context save [topic]`
+### 1. `/wf-context save [topic]`
 1. Spawns `@scribe` agent.
 2. Traverses current session trajectory for:
    - Executive Summary / Product Brief
@@ -44,7 +44,7 @@ Preserves transient chat context, architectural decisions, product briefs, and s
    📋 Tracked Issues: 2 issues linked
    ```
 
-### 2. `/context list`
+### 2. `/wf-context list`
 1. Reads all markdown files in `workforces/session-context/`.
 2. Extracts sequence, date, topic, tags, and tracked issues count.
 3. Renders structured list:
@@ -58,13 +58,13 @@ Preserves transient chat context, architectural decisions, product briefs, and s
 | #021 | 2026-08-21 | Refero Design Overhaul | `[design, refero]` | 1 | [021_...md](file:///path/to/021.md) |
 ```
 
-### 3. `/context load [seq|slug]`
+### 3. `/wf-context load [seq|slug]`
 1. Locates target file matching sequence number (e.g., `22`, `022`) or slug substring in `workforces/session-context/`.
 2. Reads contents using `view_file`.
 3. Extracts `🎯 Executive Summary & Product Brief`, `🧠 Decisions & Reasoning ("Why")`, and `📋 Tracked Issues & Feature Ideas`.
 4. Hydrates current session context memory with target session details and tracked issue links.
 
-### 4. `/context search [query]`
+### 4. `/wf-context search [query]`
 1. Uses `grep_search` to query `workforces/session-context/` for exact terms, tags, or file references.
 2. Displays matching session titles, sequence numbers, snippet context, and linked issues.
 
@@ -77,4 +77,4 @@ If the user says:
 - *"Pull context from session X"*
 - *"Based on our last session..."*
 
-The workforce automatically runs `/context search` or `/context load` to reclaim relevant context before responding.
+The workforce automatically runs `/wf-context search` or `/wf-context load` to reclaim relevant context before responding.

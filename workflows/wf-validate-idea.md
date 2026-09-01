@@ -2,7 +2,7 @@
 description: Fast-track idea-to-revenue market validation pipeline. Formulates Alberto Savoia XYZ Hypotheses, generates smoke test landing pages or Mom Test outreach scripts, registers bets with hypothesis-tracker, and enforces PM Go/Pivot/Kill gatekeeping within 7 days.
 ---
 
-# /validate-idea — Rapid Idea-to-Revenue Market Validation Pipeline
+# /wf-validate-idea — Rapid Idea-to-Revenue Market Validation Pipeline
 
 The prescriptive, step-by-step market validation pipeline for Workforces. Takes speculative software or business ideas and proves market interest and willingness to pay **before** writing code or investing heavy engineering time.
 
@@ -19,7 +19,7 @@ graph TD
     C --> D["Step 3: Automated Experiment Registration<br/>Register with hypothesis.py & report-task.py"]
     D --> E["Step 4: 72-96h Market Signal Injection<br/>Micro-Ads ($50-$100) | Community | Cold Outreach | Build in Public"]
     E --> F["Step 5: PM Skin-in-the-Game Audit & Gatekeeping<br/>Scoring Currency > Compliments (Go / Pivot / Kill)"]
-    F -->|Validated (Level 3-4)| G["Handoff to /site-setup & /work (Build MVP)"]
+    F -->|Validated (Level 3-4)| G["Handoff to /wf-site-setup & /wf-work (Build MVP)"]
     F -->|Pivot Signal| H["Refine Value Prop / Re-test 72h"]
     F -->|Invalidated / Missed| I["Kill Project & Archive in Knowledge Catalog"]
 ```
@@ -29,10 +29,10 @@ graph TD
 ## 💬 Usage
 
 ```bash
-/validate-idea [idea]        # Run the full 5-step rapid market validation pipeline
-/validate-idea --smoke-test  # Focus specifically on smoke test landing page + micro-ad specs
-/validate-idea --mom-test    # Focus specifically on B2B cold outreach & past behavior discovery
-/validate-idea --audit       # PM review of running validation experiments against kill thresholds
+/wf-validate-idea [idea]        # Run the full 5-step rapid market validation pipeline
+/wf-validate-idea --smoke-test  # Focus specifically on smoke test landing page + micro-ad specs
+/wf-validate-idea --mom-test    # Focus specifically on B2B cold outreach & past behavior discovery
+/wf-validate-idea --audit       # PM review of running validation experiments against kill thresholds
 ```
 
 ---
@@ -147,7 +147,7 @@ The Project Manager (`@project-manager`) reviews the telemetry against the **Ski
 | **Primary Conversion Rate** | $\ge [Target]\%$ | $[Actual]\%$ | 🟢 / 🔴 |
 
 ### Gatekeeper Decision:
-- 🟢 **VALIDATE & BUILD MVP:** Proceed immediately to `/site-setup` (Step 1 Marketing & Step 2 `@designer`) followed by `/work` to build the functional MVP for early adopters.
+- 🟢 **VALIDATE & BUILD MVP:** Proceed immediately to `/wf-site-setup` (Step 1 Marketing & Step 2 `@designer`) followed by `/wf-work` to build the functional MVP for early adopters.
 - 🔄 **PIVOT VALUE PROP:** Moderate engagement (Level 1/2) but low commercial commitment. Pivot copy, pricing tier, or ICP and run a 72-hour re-test.
 - 💀 **KILL EXPERIMENT:** Kill threshold breached. Sunset experiment via `hypothesis.py --kill` to prevent zombie project drag.
 ```
@@ -156,6 +156,6 @@ The Project Manager (`@project-manager`) reviews the telemetry against the **Ski
 
 ## 🌟 Integration with Other Workflows
 
-- **Triggered from `/ideate`:** Winning unbundled micro-SaaS concepts pass directly into `/validate-idea` for pre-build demand testing.
-- **Reviewed in `/sync --strategy`:** Active validation bets appear in the weekly strategic sync review.
-- **Graduated to `/site-setup` & `/work`:** Validated ideas with Level 3–4 commitments graduate straight into frontend scaffolding and sprint development.
+- **Triggered from `/wf-ideate`:** Winning unbundled micro-SaaS concepts pass directly into `/wf-validate-idea` for pre-build demand testing.
+- **Reviewed in `/wf-sync --strategy`:** Active validation bets appear in the weekly strategic sync review.
+- **Graduated to `/wf-site-setup` & `/wf-work`:** Validated ideas with Level 3–4 commitments graduate straight into frontend scaffolding and sprint development.

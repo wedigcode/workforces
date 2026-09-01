@@ -2,7 +2,7 @@
 description: Continuous Codebase Improvement command — audit and refactor across cleanup, performance, security, health, and testing
 ---
 
-# /work improve — Continuous Codebase Improvement
+# /wf-improve — Continuous Codebase Improvement
 
 Audits the codebase and executes continuous refactoring across the 5 core pillars.
 
@@ -11,15 +11,15 @@ Audits the codebase and executes continuous refactoring across the 5 core pillar
 ## Usage
 
 ```
-/work improve                    → Audit all 5 pillars and surface top recommendations
-/work improve cleanup            → Focus audit and refactoring on cleanup & dead code
-/work improve performance        → Audit performance bottlenecks, async, memory
-/work improve security           → Audit input validation, secrets, CVEs
-/work improve health             → Refactor SOLID/DRY/KISS violations & method duplication
-/work improve testing            → Expand test coverage and write missing TDD suites
-/work improve pr                 → Audit open GitHub PRs, post review comments, escalate blockers
-/work improve jules              → Audit and review code in active Google Jules sessions
-/work improve --auto             → Automatically perform low-risk refactoring across all pillars
+/wf-improve                    → Audit all 5 pillars and surface top recommendations
+/wf-improve cleanup            → Focus audit and refactoring on cleanup & dead code
+/wf-improve performance        → Audit performance bottlenecks, async, memory
+/wf-improve security           → Audit input validation, secrets, CVEs
+/wf-improve health             → Refactor SOLID/DRY/KISS violations & method duplication
+/wf-improve testing            → Expand test coverage and write missing TDD suites
+/wf-improve pr                 → Audit open GitHub PRs, post review comments, escalate blockers
+/wf-improve jules              → Audit and review code in active Google Jules sessions
+/wf-improve --auto             → Automatically perform low-risk refactoring across all pillars
 ```
 
 ---

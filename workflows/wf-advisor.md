@@ -2,7 +2,7 @@
 description: On-demand strategic advisory & consultative problem extraction session with @advisor. Use when evaluating product direction, diagnosing bottlenecks, untangling complex trade-offs, or unpacking user pain points before planning.
 ---
 
-# /advisor — Strategic Advisory & Problem Discovery
+# /wf-advisor — Strategic Advisory & Problem Discovery
 
 Engage with the **Strategic Advisor** (`@advisor`) in an interactive, consultative dialogue to unpack what problems are really being solved, identify acute pain points, evaluate strategic trade-offs, and establish clear direction before building.
 
@@ -20,9 +20,9 @@ Engage with the **Strategic Advisor** (`@advisor`) in an interactive, consultati
 ## 💬 Usage
 
 ```bash
-/advisor                              # Start an open-ended strategic advisory conversation
-/advisor [topic or dilemma]          # Focus the consultation on a specific problem or idea
-/consult [topic or dilemma]          # Alias for /advisor
+/wf-advisor                              # Start an open-ended strategic advisory conversation
+/wf-advisor [topic or dilemma]          # Focus the consultation on a specific problem or idea
+/wf-consult [topic or dilemma]          # Alias for /wf-advisor
 ```
 
 ---
@@ -34,7 +34,7 @@ graph TD
     A["Step 1: Context Ingestion<br/>Read goals, state & catalogs"] --> B["Step 2: Consultative Dialogue<br/>5-Dimension Problem Discovery (1-2 Qs/turn)"]
     B --> C["Step 3: Synthesis & Trade-off Analysis<br/>Root problem, pain points & cost of inaction"]
     C --> D["Step 4: Strategic Recommendation<br/>Clear direction & Problem-to-Solution Matrix"]
-    D --> E["Step 5: Pipeline Handoff<br/>Hand off to /site-setup, /feature, or /plan"]
+    D --> E["Step 5: Pipeline Handoff<br/>Hand off to /wf-site-setup, /wf-feature, or /wf-plan"]
 ```
 
 ---
@@ -119,7 +119,7 @@ python3 .agents/skills/issue-tracker/scripts/report-issue.py \
     --session-id "[seq]" \
     --session-file "workforces/session-context/<seq>_<date>_<slug>.md" \
     --description "[Core problem, acute pain, and 10x value proposition]" \
-    --suggested-action "[Implementation plan & target workflow (e.g. /site-setup, /feature)]" \
+    --suggested-action "[Implementation plan & target workflow (e.g. /wf-site-setup, /wf-feature)]" \
     --evolution-note "Advisory conclusion: validated against pain point matrix." \
     --sync-session
 ```
@@ -131,9 +131,7 @@ python3 .agents/skills/issue-tracker/scripts/report-issue.py \
 
 Based on the agreed direction, `@advisor` provides seamless transitions to the next workforce workflows:
 
-- **For Rapid Market Validation:** Hand off to `/validate-idea [idea]` to pretotype demand and test willingness to pay before building.
-- **For New Websites / SaaS Apps:** Hand off to `/site-setup` (Step 1 Marketing & Step 2 `@designer`).
-- **For New Features:** Hand off to `/feature [idea]` (Phase 1 Gap Analysis & Phase 3 PRD).
-- **For Strategic Task Execution:** Hand off to `/plan` or `/work`.
-
-
+- **For Rapid Market Validation:** Hand off to `/wf-validate-idea [idea]` to pretotype demand and test willingness to pay before building.
+- **For New Websites / SaaS Apps:** Hand off to `/wf-site-setup` (Step 1 Marketing & Step 2 `@designer`).
+- **For New Features:** Hand off to `/wf-feature [idea]` (Phase 1 Gap Analysis & Phase 3 PRD).
+- **For Strategic Task Execution:** Hand off to `/wf-plan` or `/wf-work`.

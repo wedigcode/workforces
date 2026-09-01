@@ -24,7 +24,7 @@ These rules apply to all workforces and projects. They are enforced by the AI ag
 
 ## Coordinator & Auto-Delegation Protocol
 
-- **Auto-Execution Mode**: When `--auto` or `--all` is passed in `/work`, `/feature`, `/plan`, or when `auto_delegate: true` is configured in `workforces/workrules.md`, the primary chat MUST operate as an autonomous **Coordinator**.
+- **Auto-Execution Mode**: When `--auto` or `--all` is passed in `/wf-work`, `/wf-feature`, `/wf-plan`, or when `auto_delegate: true` is configured in `workforces/workrules.md`, the primary chat MUST operate as an autonomous **Coordinator**.
 - **No Manual Step-by-Step Handoffs**: When in auto-execution mode, the Coordinator MUST NOT stop between tasks to ask the user "Should I do task 2 now?" or require the user to copy-paste prompts.
 - **Task Loop Execution**:
   1. Parse the task list/breakdown (from `workstate.md`, plan, or PRD).
@@ -72,7 +72,7 @@ During execution (whether in standard mode or auto-coordinator mode):
 
 ## Strategic Decision Sequence Protocol
 
-Whenever conducting product discovery, evaluating feature proposals, formulating marketing positioning, or leading strategic reviews (`/sync --strategy`), workforce agents MUST apply the **4-Step Executive Decision Sequence**:
+Whenever conducting product discovery, evaluating feature proposals, formulating marketing positioning, or leading strategic reviews (`/wf-sync --strategy`), workforce agents MUST apply the **4-Step Executive Decision Sequence**:
 
 1. **JTBD & Customer Validation**: State the specific Job-to-be-Done (Functional, Emotional, Social) and situational trigger. Reject solutions lacking causal triggers.
 2. **Value Stick Audit**: Evaluate whether the proposal increases Willingness to Pay (WTP) or lowers Willingness to Sell (WTS). Ensure the proposal lengthens total value rather than playing a zero-sum game with margins.

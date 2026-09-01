@@ -15,7 +15,7 @@
     "memory-management"
   ],
   "workflows": [
-    "social.md"
+    "wf-social.md"
   ],
   "plugins": [
     "workforce-social-plugin"

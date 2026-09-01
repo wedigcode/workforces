@@ -96,7 +96,7 @@ Audit the concept against the 4 High-Leverage Model criteria:
 ---
 
 ## Phase 5: Opportunity Brief Generation
-*Produce an execution brief saved to `docs/opportunity-[concept-name].md` ready to hand off to `@advisor` and `/site-setup`:*
+*Produce an execution brief saved to `docs/opportunity-[concept-name].md` ready to hand off to `@advisor` and `/wf-site-setup`:*
 
 ### Brief Structure:
 1. **Opportunity Name & Thesis**
@@ -104,4 +104,4 @@ Audit the concept against the 4 High-Leverage Model criteria:
 3. **4-Point High-Leverage Model Scorecard**
 4. **What-How-Who Positioning Strategy**
 5. **Lean Learning Loop Validation Plan**
-6. **Next Steps for `/site-setup` & Scaffolding**
+6. **Next Steps for `/wf-site-setup` & Scaffolding**

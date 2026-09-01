@@ -2,7 +2,7 @@
 description: Dynamic Team Architect — lists, installs, prunes, and manages modular Team Packs (dev, design, marketing, sales, operations, social, growth, compliance) for your workspace.
 ---
 
-# /teams — Modular Team Architect & Pack Manager
+# /wf-teams — Modular Team Architect & Pack Manager
 
 Lists installed teams, installs additional domain team packs on-demand from upstream `workforces`, prunes unneeded teams to eliminate prompt bloat while preserving shared dependencies, or generates custom project-specific teams.
 
@@ -11,10 +11,10 @@ Lists installed teams, installs additional domain team packs on-demand from upst
 ## Commands & Usage
 
 ```
-/teams                                       → List installed teams, active agents, and available upstream packs
-/teams add <domain-name>                     → Install an upstream team pack (e.g. marketing, sales, social, dev, growth, compliance)
-/teams remove <domain-name>                  → Safely prune a team pack, eliminating runtime bloat while keeping shared dependencies
-/teams "I need a custom team for..."          → Dynamically synthesize a custom project team in workforces/teams/<team-name>/
+/wf-teams                                       → List installed teams, active agents, and available upstream packs
+/wf-teams add <domain-name>                     → Install an upstream team pack (e.g. marketing, sales, social, dev, growth, compliance)
+/wf-teams remove <domain-name>                  → Safely prune a team pack, eliminating runtime bloat while keeping shared dependencies
+/wf-teams "I need a custom team for..."          → Dynamically synthesize a custom project team in workforces/teams/<team-name>/
 ```
 
 ---

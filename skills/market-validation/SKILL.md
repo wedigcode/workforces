@@ -184,7 +184,7 @@ Best,
 | **Cost Per Validated Lead** | $\le \$[Target]$ | $\$[Actual]$ | 🟢 / 🔴 |
 
 ### Gatekeeper Verdict:
-- 🟢 **VALIDATE & SCALE (Build MVP):** Target metrics achieved; proven willingness to pay. Hand off to `/site-setup` and `/work`.
+- 🟢 **VALIDATE & SCALE (Build MVP):** Target metrics achieved; proven willingness to pay. Hand off to `/wf-site-setup` and `/wf-work`.
 - 🔄 **PIVOT OFFER:** Strong engagement but low commitment currency. Adjust positioning, pricing tier, or target persona and re-test for 72h.
 - 💀 **KILL EXPERIMENT:** Kill threshold breached. Sunset idea immediately and log findings in `workforces/hypotheses/invalidated/`.
 ```

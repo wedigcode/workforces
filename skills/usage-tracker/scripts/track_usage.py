@@ -54,7 +54,7 @@ def parse_transcript_file(file_path):
                 # Detect workflow invocations in user inputs or planner responses
                 if entry_type == "USER_INPUT" and isinstance(content, str):
                     metrics["user_input_chars"] += len(content)
-                    for wf in ["/work", "/feature", "/plan", "/investigate", "/sync", "/update-workforces"]:
+                    for wf in ["/wf-work", "/wf-feature", "/wf-plan", "/wf-investigate", "/wf-sync", "/wf-update", "/wf-advisor", "/wf-ideate", "/wf-task", "/wf-site-setup", "/work", "/feature", "/plan", "/investigate", "/sync", "/update-workforces"]:
                         if wf in content:
                             metrics["workflows_triggered"].add(wf)
                 elif source == "MODEL" and entry_type == "PLANNER_RESPONSE":

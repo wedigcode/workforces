@@ -2,7 +2,7 @@
 description: Investigate a performance or error incident on any cloud service. Discovers the service automatically, pulls logs and metrics, classifies the root cause, and outputs a prioritized fix list.
 ---
 
-# /investigate — Incident Investigation
+# /wf-investigate — Incident Investigation
 
 A general-purpose incident triage workflow. Works with any cloud service that has observable logs and metrics (AWS App Runner, ECS, Lambda, GCP Cloud Run, etc.).
 
@@ -13,11 +13,11 @@ Investigation only. **Do NOT change any configuration, code, or infrastructure.*
 ## Usage
 
 ```
-/investigate [service-name]            → Investigate recent incident for a service
-/investigate --service [arn/url]       → Target a specific service identifier
-/investigate --window [30m|1h|6h|24h]  → Set explicit time window (default: auto-detect)
-/investigate --push-to-work            → Sync P0/P1 fixes into workstate.md & GH issues
-/investigate --postmortem              → Save formal report to workforces/incidents/
+/wf-investigate [service-name]            → Investigate recent incident for a service
+/wf-investigate --service [arn/url]       → Target a specific service identifier
+/wf-investigate --window [30m|1h|6h|24h]  → Set explicit time window (default: auto-detect)
+/wf-investigate --push-to-work            → Sync P0/P1 fixes into workstate.md & GH issues
+/wf-investigate --postmortem              → Save formal report to workforces/incidents/
 ```
 
 ---
@@ -128,10 +128,10 @@ Run Phase 6 of the skill:
 | P1 | ... | ... | ... |
 ```
 
-**⏸ PAUSE** — Ask user if they want to push P0/P1 recommendations into `/plan` or `/work` execution state:
+**⏸ PAUSE** — Ask user if they want to push P0/P1 recommendations into `/wf-plan` or `/wf-work` execution state:
 
-- Run `/plan --from-incident workforces/incidents/YYYY-MM-DD-[service].md` to turn fixes into an execution plan
-- Or run `/investigate --push-to-work` (appends P0/P1 tasks to `workforces/workstate.md` and triggers GitHub issue creation via `github-project-planning` skill).
+- Run `/wf-plan --from-incident workforces/incidents/YYYY-MM-DD-[service].md` to turn fixes into an execution plan
+- Or run `/wf-investigate --push-to-work` (appends P0/P1 tasks to `workforces/workstate.md` and triggers GitHub issue creation via `github-project-planning` skill).
 
 ---
 

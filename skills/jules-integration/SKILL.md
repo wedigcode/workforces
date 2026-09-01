@@ -68,7 +68,7 @@ When Jules completes or progresses on a session:
 
 ## 4. Project Manager & Standup Sync Integration
 
-During scheduled tasks or `/work sync`:
+During scheduled tasks or `/wf-sync`:
 - Query `jules remote list --session`.
 - Strictly filter for sessions matching the current active workspace repository (`$CURRENT_REPO`) or repos listed in `workforces/workrules.md`.
 - Filter for active code review tasks where `Status != 'Completed'` (e.g. `In Progress`, `""` [empty/pending], `Needs Review`).

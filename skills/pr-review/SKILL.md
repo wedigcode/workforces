@@ -57,6 +57,6 @@ gh pr review <pr_number> --comment -b "### 🔍 Workforce Automated PR Review
 ```
 
 ### Step 4: Scheduled Run & Project Manager Escalation
-During scheduled tasks or `/work sync`:
+During scheduled tasks or `/wf-sync`:
 - If a PR has requested changes, is stale (>7 days), or has unresolved blocking feedback, flag it for the `@project-manager` agent:
   > *"🔴 **PR Review Escalation:** PR #<number> ([title]) has open review notes. Added to standup sync for human review."*

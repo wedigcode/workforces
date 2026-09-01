@@ -16,8 +16,8 @@
     "usage-tracker"
   ],
   "workflows": [
-    "verify-integrity.md",
-    "task.md"
+    "wf-verify-integrity.md",
+    "wf-task.md"
   ],
   "plugins": [
     "workforce-integrity-plugin"

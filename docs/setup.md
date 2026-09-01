@@ -61,7 +61,7 @@ bash /tmp/workforces/skills/workforce-management/scripts/setup.sh ./ --skip-site
 | Location in Target | Contents |
 |--------------------|----------|
 | `<editor-dir>/agents/` | Persona configurations (e.g. `project-manager.md`) |
-| `<editor-dir>/workflows/` | Workflow slash commands (e.g. `work.md`, `update-workforces.md`). **Grok Build** uses `<editor-dir>/commands/` instead, with `/plan` → `wf-plan` and `/context` → `wf-context`. |
+| `<editor-dir>/workflows/` | Workflow slash commands (e.g. `wf-work.md`, `wf-update.md`). **Grok Build** uses `<editor-dir>/commands/` (e.g. `wf-work.md`, `wf-plan.md`). |
 | `<editor-dir>/skills/` | Modular capability directories containing `SKILL.md` and supporting tools (e.g. `workforce-management/`) |
 | `<editor-dir>/rules/` | Global rules and constraints (e.g. `base.md`) |
 | `workforces/` | Workspace configurations: objectives, states, version info, and `tmp/` scratch directory |

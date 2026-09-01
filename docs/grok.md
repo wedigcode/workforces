@@ -23,20 +23,25 @@ Then start a new Grok session in the target project so it picks up `.grok/` and 
 | `AGENTS.md` | Project context (created if missing) |
 | `workforces/` | Workspace layer (same as other hosts) |
 
-Grok discovers project slash commands as flat `*.md` files under `.grok/commands/`. The filename stem is the command name (`work.md` → `/work`).
+Grok discovers project slash commands as flat `*.md` files under `.grok/commands/`. The filename stem is the command name (`wf-work.md` → `/wf-work`).
 
 ---
 
-## Command name collisions
+## Command Namespace & Collision Avoidance
 
-Grok already owns some slash names. Workforces remaps those two on install and update:
+All Workforces workflows use the standard `wf-` prefix natively across all platforms to prevent collisions with host-reserved keywords (such as Grok's built-in `/plan`, `/context`, and `/workflows`):
 
-| Workforces original | Installed as |
-|---------------------|--------------|
-| `/plan` | `/wf-plan` |
-| `/context` | `/wf-context` |
+| Workforces Command | Role |
+|---------------------|------|
+| `/wf-work` | Workforce Orchestrator & Task Execution Center |
+| `/wf-plan` | Phased Project Planner & Estimates |
+| `/wf-sync` | Multi-Mode Meeting & Standup Sync |
+| `/wf-context` | Scribe Session Context Manager |
+| `/wf-update` | Toolkit Updater |
+| `/wf-advisor` | Strategic Advisory & Problem Discovery |
+| `/wf-task` | Universal Task Tracker |
 
-Grok’s own `/plan` stays plan mode. Grok’s `/context` stays the token meter. Grok’s `/workflows` is Grok’s Rhai runner — that is a different system from Workforces markdown workflows.
+Grok’s own `/plan` stays plan mode. Grok’s `/context` stays the token meter. Grok’s `/workflows` remains Grok’s native Rhai runner.
 
 ---
 
@@ -73,4 +78,4 @@ bash .grok/skills/workforce-management/scripts/update.sh ./ --dry
 bash .grok/skills/workforce-management/scripts/update.sh ./
 ```
 
-Or run `/update-workforces` after install.
+Or run `/wf-update` after install.

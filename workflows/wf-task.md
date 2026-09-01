@@ -2,7 +2,7 @@
 description: Report, update, evolve, and manage tasks and action items — with a simplified 5-state lifecycle (todo | in_progress | blocked | done | dropped), priority levels P0-P3, and deciding factor tracking.
 ---
 
-# /task — Task & Action Item Reporting, Evolution, and Lifecycle
+# /wf-task — Task & Action Item Reporting, Evolution, and Lifecycle
 
 Report any business follow-up, feature idea, bug, design change, or action item to the workforce tasks with bidirectional session lineage. The `@scribe` tracks and evolves tasks during conversations with deciding factor logs.
 
@@ -11,22 +11,22 @@ Report any business follow-up, feature idea, bug, design change, or action item 
 ## Usage
 
 ```
-/task                           → Show active tasks summary (todo + in_progress)
-/task add [title]               → Quick add a new task (e.g. /task add "Follow up with pilot lead" --priority P1 --type follow-up)
-/task start [id|path]           → Mark task as in_progress
-/task block [id|path] [reason]  → Mark task as blocked
-/task done [id|path]            → Mark task as done
-/task drop [id|path] [reason]   → Drop/reject a task with recorded deciding factors
-/task update [id|path]          → Update existing task with requirement changes/evolution notes
-/task list                      → List all tasks
-/task list --status todo        → Filter by status: todo | in_progress | blocked | done | dropped
-/task list --priority P1        → Filter by priority: P0 | P1 | P2 | P3
-/task list --type follow-up     → Filter by tag/type
+/wf-task                           → Show active tasks summary (todo + in_progress)
+/wf-task add [title]               → Quick add a new task (e.g. /wf-task add "Follow up with pilot lead" --priority P1 --type follow-up)
+/wf-task start [id|path]           → Mark task as in_progress
+/wf-task block [id|path] [reason]  → Mark task as blocked
+/wf-task done [id|path]            → Mark task as done
+/wf-task drop [id|path] [reason]   → Drop/reject a task with recorded deciding factors
+/wf-task update [id|path]          → Update existing task with requirement changes/evolution notes
+/wf-task list                      → List all tasks
+/wf-task list --status todo        → Filter by status: todo | in_progress | blocked | done | dropped
+/wf-task list --priority P1        → Filter by priority: P0 | P1 | P2 | P3
+/wf-task list --type follow-up     → Filter by tag/type
 ```
 
 ---
 
-## `/task add` / Interactive Reporting
+## `/wf-task add` / Interactive Reporting
 
 When an agent or human runs `/task add` or reports an item, gather the following:
 

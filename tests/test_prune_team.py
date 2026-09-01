@@ -52,7 +52,7 @@ class TestPruneTeam(unittest.TestCase):
             f.write("# Work State\n\n## Active Teams\n| ID | Name |\n|---|---|\n| design | Design |\n| marketing | Marketing |\n")
 
         # Create files for design team
-        # design uses: agents: [designer], rules: [design-standards.md], skills: [ui-ux-design, brand-guidelines, image-workflow, visual-design-fundamentals, design-anti-patterns], workflows: [brand-context.md, site-setup.md]
+        # design uses: agents: [designer], rules: [design-standards.md], skills: [ui-ux-design, brand-guidelines, image-workflow, visual-design-fundamentals, design-anti-patterns], workflows: [wf-brand-context.md, wf-site-setup.md, wf-image-duplicate.md]
         with open(os.path.join(self.base_dir, "agents", "designer.md"), "w") as f:
             f.write("# Designer\n")
         with open(os.path.join(self.base_dir, "rules", "design-standards.md"), "w") as f:
@@ -61,13 +61,13 @@ class TestPruneTeam(unittest.TestCase):
             os.makedirs(os.path.join(self.base_dir, "skills", s), exist_ok=True)
             with open(os.path.join(self.base_dir, "skills", s, "SKILL.md"), "w") as f:
                 f.write(f"# Skill {s}\n")
-        with open(os.path.join(self.base_dir, "workflows", "brand-context.md"), "w") as f:
+        with open(os.path.join(self.base_dir, "workflows", "wf-brand-context.md"), "w") as f:
             f.write("# Brand Context\n")
-        with open(os.path.join(self.base_dir, "workflows", "site-setup.md"), "w") as f:
+        with open(os.path.join(self.base_dir, "workflows", "wf-site-setup.md"), "w") as f:
             f.write("# Site Setup\n")
 
         # Create files for marketing team
-        # marketing uses: agents: [marketer], rules: [design-standards.md], skills: [persona-management, brand-guidelines, image-workflow, ai-search-optimization, memory-management], workflows: [brand-context.md]
+        # marketing uses: agents: [marketer], rules: [design-standards.md], skills: [persona-management, brand-guidelines, image-workflow, ai-search-optimization, memory-management], workflows: [wf-brand-context.md]
         with open(os.path.join(self.base_dir, "agents", "marketer.md"), "w") as f:
             f.write("# Marketer\n")
         for s in ["persona-management", "ai-search-optimization"]:

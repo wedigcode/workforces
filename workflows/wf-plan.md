@@ -2,7 +2,7 @@
 description: Multi-phase project planning with task breakdown, estimation, and dependency mapping. Use when scoping work, planning sprints, or breaking down epics.
 ---
 
-# /plan — Project Planner
+# /wf-plan — Project Planner
 
 Breaks down work into phased, actionable tasks with estimates, dependencies, and risk assessment.
 
@@ -11,12 +11,12 @@ Breaks down work into phased, actionable tasks with estimates, dependencies, and
 ## Usage
 
 ```
-/plan [goal]                     → Create a plan for a goal
-/plan [goal] --auto              → Create plan, push to workstate, and automatically execute all tasks end-to-end
-/plan --from-prd [path] --auto   → Import PRD, build plan, push tasks to workstate, and auto-execute all tasks
-/plan --push-to-work             → Sync Phase 1 tasks into workforces/workstate.md & GH issues
-/plan --estimate                 → Add time estimates to existing plan
-/plan --risks                    → Add risk assessment to existing plan
+/wf-plan [goal]                     → Create a plan for a goal
+/wf-plan [goal] --auto              → Create plan, push to workstate, and automatically execute all tasks end-to-end
+/wf-plan --from-prd [path] --auto   → Import PRD, build plan, push tasks to workstate, and auto-execute all tasks
+/wf-plan --push-to-work             → Sync Phase 1 tasks into workforces/workstate.md & GH issues
+/wf-plan --estimate                 → Add time estimates to existing plan
+/wf-plan --risks                    → Add risk assessment to existing plan
 ```
 
 ---
@@ -149,11 +149,11 @@ Critical path: the longest chain of dependent tasks = minimum timeline.
 **⏸ PAUSE** — (Skipped if `--auto` flag is used or `auto_delegate: true` is configured).
 
 If `--auto` flag is present:
-- Automatically run `/plan --push-to-work` (appends tasks to `workforces/workstate.md` and creates GitHub issues).
-- Immediately hand off to `/work --auto` to begin executing all tasks via Coordinator auto-delegation.
+- Automatically run `/wf-plan --push-to-work` (appends tasks to `workforces/workstate.md` and creates GitHub issues).
+- Immediately hand off to `/wf-work --auto` to begin executing all tasks via Coordinator auto-delegation.
 
 If standard mode:
-- Ask user if they want to push Phase 1 tasks into `/work` execution state (`workforces/workstate.md`).
+- Ask user if they want to push Phase 1 tasks into `/wf-work` execution state (`workforces/workstate.md`).
 
 ---
 

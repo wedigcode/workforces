@@ -2,9 +2,9 @@
 description: Dual-engine ideation, unbundling, and market disruption workflow. Dispatches @unbundler (Atomic SaaS Extractor) and @disruptor (Market Disruption Scout) in parallel, synthesizes top concepts via @advisor, and feeds winning specs into /site-setup and PRD generation.
 ---
 
-# /ideate — Dual-Engine Product Ideation & Incubation Pipeline
+# /wf-ideate — Dual-Engine Product Ideation & Incubation Pipeline
 
-The end-to-end ideation and concept incubation engine for Workforces. Whether unbundling bloated software giants or uncovering high-margin market disruptions, `/ideate` leverages parallel subagent research to deliver build-ready, revenue-tested micro-SaaS opportunities.
+The end-to-end ideation and concept incubation engine for Workforces. Whether unbundling bloated software giants or uncovering high-margin market disruptions, `/wf-ideate` leverages parallel subagent research to deliver build-ready, revenue-tested micro-SaaS opportunities.
 
 Coordinated by the **Strategic Advisor** (`@advisor`) with specialized parallel execution by the **Atomic SaaS Extractor** (`@unbundler`) and the **Market Disruption Scout** (`@disruptor`).
 
@@ -25,7 +25,7 @@ graph TD
     DA --> C
     C --> D["Step 3: Stress-Testing & Validation<br/>'Why Not a Spreadsheet?' + 3 Trap Features + Lean Loop"]
     D --> E["Step 4: PRD Generation<br/>docs/prd-[concept].md"]
-    E --> F["Step 5: Pipeline Handoff<br/>Hand off to /site-setup, @designer, @programmer"]
+    E --> F["Step 5: Pipeline Handoff<br/>Hand off to /wf-site-setup, @designer, @programmer"]
 ```
 
 ---
@@ -33,10 +33,10 @@ graph TD
 ## 💬 Usage
 
 ```bash
-/ideate                              # Open-ended dual-engine ideation across both methodologies
-/ideate [niche or industry]          # Research atomic & disruptive opportunities in a target market
-/ideate unbundle [bloated tool]      # Target a specific incumbent for atomic feature extraction (@unbundler)
-/ideate disrupt [macro trend]        # Target macro industry waves and high-leverage market gaps (@disruptor)
+/wf-ideate                              # Open-ended dual-engine ideation across both methodologies
+/wf-ideate [niche or industry]          # Research atomic & disruptive opportunities in a target market
+/wf-ideate unbundle [bloated tool]      # Target a specific incumbent for atomic feature extraction (@unbundler)
+/wf-ideate disrupt [macro trend]        # Target macro industry waves and high-leverage market gaps (@disruptor)
 ```
 
 ---
@@ -145,10 +145,10 @@ python3 .agents/skills/issue-tracker/scripts/report-issue.py \
 ### Step 5 — Pipeline Handoff
 
 With the PRD generated and issue registered in the inbox, `@advisor` transitions directly into the validation and build pipeline:
-- **Run `/validate-idea [concept]`** → Rapidly test buyer willingness to pay via pretotyping, smoke test landing pages, and Mom Test outreach before committing development hours.
-- **Run `/site-setup`** → Pre-populates `docs/brand-context.md`, defines design tokens with `@designer`, and scaffolds tech with `@programmer`.
-- **Run `/feature`** → For modular architectural breakdowns.
-- **Run `/work`** → Executes sprint tasks.
+- **Run `/wf-validate-idea [concept]`** → Rapidly test buyer willingness to pay via pretotyping, smoke test landing pages, and Mom Test outreach before committing development hours.
+- **Run `/wf-site-setup`** → Pre-populates `docs/brand-context.md`, defines design tokens with `@designer`, and scaffolds tech with `@programmer`.
+- **Run `/wf-feature`** → For modular architectural breakdowns.
+- **Run `/wf-work`** → Executes sprint tasks.
 
 
 ---
@@ -158,6 +158,6 @@ With the PRD generated and issue registered in the inbox, `@advisor` transitions
 When Workforces is installed in a fresh codebase, the AI checks if project files exist. If the codebase is empty, it greets the user with:
 
 > *"Welcome to Workforces! I notice this is a fresh project. How would you like to begin?"*
-> 1. 💡 **Explore Winning SaaS Ideas:** Run `/ideate` to discover unbundled atomic micro-SaaS and market disruption opportunities.
-> 2. 🧭 **Hash Out Strategy for an Existing Idea:** Run `/advisor` to conduct a 5-dimension problem discovery interview.
-> 3. 🏗️ **Start Direct Setup & Scaffolding:** Run `/site-setup` to configure brand context, design tokens, and scaffolding.
+> 1. 💡 **Explore Winning SaaS Ideas:** Run `/wf-ideate` to discover unbundled atomic micro-SaaS and market disruption opportunities.
+> 2. 🧭 **Hash Out Strategy for an Existing Idea:** Run `/wf-advisor` to conduct a 5-dimension problem discovery interview.
+> 3. 🏗️ **Start Direct Setup & Scaffolding:** Run `/wf-site-setup` to configure brand context, design tokens, and scaffolding.

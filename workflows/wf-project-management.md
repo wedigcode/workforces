@@ -2,9 +2,9 @@
 description: Strategic planning workflow — invokes @project-manager to generate, prioritize, and sync work to GitHub
 ---
 
-# Project Management Workflow
+# /wf-project-management — Task Generation & Issue Creation Pipeline
 
-Invoked by `/work plan` or `/project-management`. Runs a full planning cycle: reads goals and state, performs gap analysis, generates and scores new tasks, then creates GitHub Issues for P0/P1 work.
+Invoked by `/wf-work plan` or `/wf-project-management`. Runs a full planning cycle: reads goals and state, performs gap analysis, generates and scores new tasks, then creates GitHub Issues for P0/P1 work.
 
 **Agent:** `@project-manager` (see `agents/project-manager.md`)
 

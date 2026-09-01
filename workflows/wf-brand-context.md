@@ -2,7 +2,7 @@
 description: Establishes brand identity, voice, visual system, and audience context for any new project. Produces docs/brand-context.md — required before design, marketing, or UI work begins.
 ---
 
-# /brand-context — Brand Identity Foundation
+# /wf-brand-context — Brand Identity Foundation
 
 Captures and documents the brand identity for a project before any design, marketing, or UI work begins. Run this at the start of any new project — or when a brand refresh is needed.
 

@@ -80,7 +80,7 @@ These visual and UI/UX design rules govern all website, web application, landing
 ---
 
 ## 8. Mandatory Visible Designer Agent Handoff & `DESIGN.md` Specification
-- **Strict Rule**: When designing or scaffolding any new web property, the Designer Agent (`@designer`) must explicitly lead Step 2 of `/site-setup` and generate a concrete `DESIGN.md` specification (and `src/styles/tokens.css`).
+- **Strict Rule**: When designing or scaffolding any new web property, the Designer Agent (`@designer`) must explicitly lead Step 2 of `/wf-site-setup` and generate a concrete `DESIGN.md` specification (and `src/styles/tokens.css`).
 - **Required `DESIGN.md` Content**:
   1. **Refero Style Archetype**: Named aesthetic benchmark from [styles.refero.design](https://styles.refero.design/).
   2. **Typography System**: Display font + Body font with Google Fonts / Fontshare import links, weight scale, and line-heights.

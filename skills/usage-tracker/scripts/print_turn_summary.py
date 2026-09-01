@@ -77,7 +77,7 @@ def print_summary():
 
                 if entry_type == "USER_INPUT" and isinstance(content, str):
                     user_chars += len(content)
-                    for wf in ["/work", "/feature", "/plan", "/investigate", "/sync", "/update-workforces"]:
+                    for wf in ["/wf-work", "/wf-feature", "/wf-plan", "/wf-investigate", "/wf-sync", "/wf-update", "/wf-advisor", "/wf-ideate", "/wf-task", "/wf-site-setup", "/work", "/feature", "/plan", "/investigate", "/sync", "/update-workforces"]:
                         if wf in content:
                             workflows_triggered.add(wf)
                 elif entry_type == "PLANNER_RESPONSE":

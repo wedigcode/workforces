@@ -2,7 +2,7 @@
 description: Verify file references, link integrity, and extract pending subtasks across workspace files
 ---
 
-# /verify-integrity — Workspace Reference & Task Lineage Auditor
+# /wf-verify-integrity — Workspace Reference & Task Lineage Auditor
 
 Scans all workspace markdown files (`.md`) and JSON manifests (`.json`) to audit link integrity, detect dangling references, extract unchecked subtasks, and auto-generate missing dependency files.
 
@@ -13,7 +13,7 @@ Scans all workspace markdown files (`.md`) and JSON manifests (`.json`) to audit
 
 ## When to Use
 
-Run `/verify-integrity` when:
+Run `/wf-verify-integrity` when:
 - You created or updated documentation, plans, PRDs, or team packs and want to ensure 0 broken links.
 - You want to verify that all files referenced in manifests or markdown files exist on disk.
 - You want to extract pending `- [ ]` subtasks into `workforces/workstate.md`.

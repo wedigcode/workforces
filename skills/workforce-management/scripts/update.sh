@@ -145,25 +145,11 @@ else
 fi
 
 # Grok Build discovers slash-command markdown under commands/, not workflows/.
-# Grok already owns /plan (plan mode) and /context (token meter).
 if [[ "$BASE_DIR" == ".grok" ]]; then
   WORKFLOW_DEST_DIR="commands"
 else
   WORKFLOW_DEST_DIR="workflows"
 fi
-
-workflow_dest_name() {
-  local basename="$1"
-  if [[ "$BASE_DIR" == ".grok" ]]; then
-    case "$basename" in
-      plan.md)    echo "wf-plan.md" ;;
-      context.md) echo "wf-context.md" ;;
-      *)          echo "$basename" ;;
-    esac
-  else
-    echo "$basename"
-  fi
-}
 
 # ─── Ensure workforces/tmp and workforces/session-context in .gitignore ───
 GITIGNORE_FILE="$TARGET/.gitignore"
@@ -327,7 +313,7 @@ if [[ "$RESOLVER_OK" != true ]]; then
   ALLOWED_AGENTS="advisor.md project-manager.md scribe.md programmer.md designer.md"
   ALLOWED_RULES="base.md clean-coder.md design-standards.md mcp-protection.md session-context.md"
   ALLOWED_SKILLS="brand-guidelines clean-coder code-graph codebase-improvement design-anti-patterns doc-generator image-workflow issue-tracker jules-integration memory-management post-code-review pr-review session-context ui-ux-design usage-tracker visual-design-fundamentals workforce-management"
-  ALLOWED_WORKFLOWS="advisor.md brand-context.md clean.md improve.md investigate.md plan.md question-formulation.md site-setup.md sync.md task.md teams.md update-workforces.md verify-integrity.md work.md"
+  ALLOWED_WORKFLOWS="wf-advisor.md wf-brand-context.md wf-clean.md wf-improve.md wf-investigate.md wf-plan.md wf-question-formulation.md wf-site-setup.md wf-sync.md wf-task.md wf-teams.md wf-update.md wf-verify-integrity.md wf-work.md"
   ALLOWED_PLUGINS="workforce-programming-plugin workforce-usage-plugin"
   ALLOWED_TEAMS="dev design"
   INSTALLED_TEAMS_LIST="dev design"
@@ -337,11 +323,11 @@ echo -e "  Active Installed Teams: ${GREEN}${INSTALLED_TEAMS_LIST:-core}${NC}"
 echo ""
 
 # ─── Prune Obsolete Toolkit Assets ───
-if [[ -f "$RESOLVER_SCRIPT" ]]; then
+if [[ -f "$RESOLVER_SCRIPT" && -n "$PYTHON" ]]; then
   echo -e "${BOLD}▸ Scanning for obsolete toolkit assets...${NC}"
   PRUNE_FLAGS=(--toolkit-root "$SOURCE_DIR" --target "$TARGET" --prune-obsolete)
   [[ "$DRY" == true ]] && PRUNE_FLAGS+=(--dry)
-  python3 "$RESOLVER_SCRIPT" "${PRUNE_FLAGS[@]}"
+  "$PYTHON" "$RESOLVER_SCRIPT" "${PRUNE_FLAGS[@]}"
   echo ""
 fi
 
@@ -369,8 +355,7 @@ if [[ -d "$SOURCE_DIR/workflows" ]]; then
     [[ -f "$f" ]] || continue
     basename=$(basename "$f")
     if [[ " $ALLOWED_WORKFLOWS " =~ " $basename " ]]; then
-      dest_name=$(workflow_dest_name "$basename")
-      copy_file "$f" "$TARGET/$BASE_DIR/$WORKFLOW_DEST_DIR/$dest_name" "$BASE_DIR/$WORKFLOW_DEST_DIR/$dest_name"
+      copy_file "$f" "$TARGET/$BASE_DIR/$WORKFLOW_DEST_DIR/$basename" "$BASE_DIR/$WORKFLOW_DEST_DIR/$basename"
     fi
   done
 fi
@@ -450,8 +435,8 @@ date: $(date -u +%Y-%m-%d)
 EOF
   echo -e "  ${GREEN}WRITTEN:${NC} workforces/.version ($LATEST_HASH)"
 
-  if [[ -f "$RESOLVER_SCRIPT" ]]; then
-    python3 "$RESOLVER_SCRIPT" --toolkit-root "$SOURCE_DIR" --target "$TARGET" --save-manifest --version-hash "$LATEST_HASH"
+  if [[ -f "$RESOLVER_SCRIPT" && -n "$PYTHON" ]]; then
+    "$PYTHON" "$RESOLVER_SCRIPT" --toolkit-root "$SOURCE_DIR" --target "$TARGET" --save-manifest --version-hash "$LATEST_HASH"
     echo -e "  ${GREEN}WRITTEN:${NC} workforces/.manifest.json"
   fi
 fi

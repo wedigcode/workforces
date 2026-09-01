@@ -66,48 +66,48 @@ Each domain team is configured via a structured `pack.json` and comprehensive `p
 - **Agents:** `@programmer`
 - **Rules:** `clean-coder.md` (TDD, symbol deduplication, diff compression, error handling)
 - **Skills:** `clean-coder`, `code-graph`, `post-code-review`, `codebase-improvement`, `jules-integration`, `pr-review`, `doc-generator`
-- **Workflows:** `/clean`, `/improve`, `/investigate`
+- **Workflows:** `/wf-clean`, `/wf-improve`, `/wf-investigate`
 
 ### 2. Design (`teams/design/`)
 - **Agents:** `@designer`
 - **Rules:** `design-standards.md` (0 emojis as UI icons, vector packs, Refero styles, DESIGN.md spec, progressive disclosure)
 - **Skills:** `ui-ux-design`, `visual-design-fundamentals`, `design-anti-patterns`, `brand-guidelines`, `image-workflow`
-- **Workflows:** `/brand-context`, `/site-setup` (Step 2)
+- **Workflows:** `/wf-brand-context`, `/wf-site-setup` (Step 2), `/wf-image-duplicate`
 
 ### 3. Marketing (`teams/marketing/`)
 - **Agents:** `@marketer`
 - **Rules:** `design-standards.md`
 - **Skills:** `persona-management`, `brand-guidelines`, `business-frameworks`, `image-workflow`, `ai-search-optimization`, `memory-management`
-- **Workflows:** `/brand-context`
+- **Workflows:** `/wf-brand-context`, `/wf-validate-idea`
 
 ### 4. Sales (`teams/sales/`)
 - **Agents:** `@sales`
 - **Skills:** `persona-management`, `brand-guidelines`, `business-frameworks`, `memory-management`
-- **Workflows:** `/advisor`
+- **Workflows:** `/wf-advisor`
 
 ### 5. Social (`teams/social/`)
 - **Agents:** `@social`
 - **Rules:** `social-engagement.md` (Anti-bot safety, value-first comments, multi-tier threads, cold-post triage)
 - **Skills:** `social-engagement`, `persona-management`, `brand-guidelines`, `memory-management`
-- **Workflows:** `/social`
+- **Workflows:** `/wf-social`
 
 ### 6. Growth & SEO (`teams/growth/`)
 - **Agents:** `@growth`, `@researcher`
 - **Rules:** `design-standards.md`
 - **Skills:** `persona-management`, `ai-search-optimization`, `business-frameworks`, `feature-research`, `doc-generator`, `memory-management`
-- **Workflows:** `/feature`
+- **Workflows:** `/wf-feature`, `/wf-validate-idea`
 
 ### 7. Operations (`teams/operations/`)
 - **Agents:** `@operations`
 - **Rules:** `base.md`, `session-context.md`
 - **Skills:** `usage-tracker`, `session-context`, `memory-management`, `issue-tracker`
-- **Workflows:** `/sync`, `/context`, `/task`
+- **Workflows:** `/wf-sync`, `/wf-context`, `/wf-task`
 
 ### 8. Compliance (`teams/compliance/`)
 - **Agents:** `@compliance`
 - **Rules:** `file-integrity.md`, `mcp-protection.md`
 - **Skills:** `integrity-validator`, `issue-tracker`, `session-context`, `usage-tracker`
-- **Workflows:** `/verify-integrity`, `/task`
+- **Workflows:** `/wf-verify-integrity`, `/wf-task`
 
 ---
 

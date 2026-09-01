@@ -2,7 +2,7 @@
 description: Codebase hygiene, background knowledge refresh, OKF catalog build, and code cleanliness audit.
 ---
 
-# Workflow: `/clean` (Codebase Hygiene & Knowledge Maintenance)
+# Workflow: `/wf-clean` (Codebase Hygiene & Knowledge Maintenance)
 
 Run codebase maintenance to keep the Code Graph, OKF Knowledge Catalog, and workspace hygiene in top condition.
 
@@ -64,5 +64,5 @@ Outputs a clean summary matrix:
 | **OKF Knowledge Catalog** | ✅ Rebuilt | Catalog synced at `workforces/knowledge-catalog/code/index.md` |
 | **Dead Code / Unused Symbols** | ⚠️ 2 found | `unused_helper()` (src/utils.ts:L14) |
 | **Workspace Scratch Clean** | ✅ Clean | 0 stale files removed |
-| **Issues Reported to Inbox** | 📬 2 logged | Run `/task triage` for PM review |
+| **Issues Reported to Inbox** | 📬 2 logged | Run `/wf-task triage` for PM review |
 ```

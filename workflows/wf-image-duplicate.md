@@ -2,7 +2,7 @@
 description: Deconstructs a reference image into a high-fidelity JSON Image Duplicate Prompt with editable elements at top, ready for Nano Banana or generative diffusion tools.
 ---
 
-# Workflow: `/image-duplicate` (JSON Image Duplicate Prompt)
+# Workflow: `/wf-image-duplicate` (JSON Image Duplicate Prompt)
 
 Deconstructs any pasted or referenced image into a precise, production-ready JSON prompt specification formatted for **Nano Banana**, **Flux**, **Midjourney**, **Imagen 3**, or **Antigravity `generate_image`**.
 
