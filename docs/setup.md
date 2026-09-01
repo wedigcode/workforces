@@ -18,7 +18,7 @@ rm -rf /tmp/workforces
 
 ## Quick Install (For AI Agents)
 
-If you are an AI assistant (such as Antigravity, Claude Code, or VS Code Copilot) tasked with installing this toolkit:
+If you are an AI assistant (such as Antigravity, Claude Code, VS Code Copilot, or Grok Build) tasked with installing this toolkit:
 
 1. **Clone the Repo:** Clone this repository (`https://github.com/wedigcode/workforces.git`) to a temporary path.
 2. **Detect Target & Environment:**
@@ -26,6 +26,7 @@ If you are an AI assistant (such as Antigravity, Claude Code, or VS Code Copilot
      - If `.gemini/` or `GEMINI.md` exists, use `--editor antigravity` (uses `.agents/`).
      - If `.vscode/` or `copilot` config exists, use `--editor vscode` (uses `.github/copilot/`).
      - If `CLAUDE.md` exists, use `--editor claude` (uses `.claude/`).
+     - If `.grok/skills`, `.grok/commands`, or `.grok/agents` already exist, use `--editor grok` (uses `.grok/`; workflows install as `commands/`). Do not treat a lone `AGENTS.md` as a Grok signal. See [Grok Build](grok.md).
 3. **Execute Non-Interactively:** Run the setup script using the `--non-interactive` flag:
    ```bash
    bash /tmp/workforces/skills/workforce-management/scripts/setup.sh <target-path> --editor <detected-editor> --type project --non-interactive
@@ -41,6 +42,7 @@ If you are an AI assistant (such as Antigravity, Claude Code, or VS Code Copilot
 bash /tmp/workforces/skills/workforce-management/scripts/setup.sh ./ --editor antigravity   # Antigravity/Gemini (uses .agents/)
 bash /tmp/workforces/skills/workforce-management/scripts/setup.sh ./ --editor vscode        # VS Code + Copilot (uses .github/copilot/)
 bash /tmp/workforces/skills/workforce-management/scripts/setup.sh ./ --editor claude        # Claude Code (uses .claude/)
+bash /tmp/workforces/skills/workforce-management/scripts/setup.sh ./ --editor grok          # Grok Build (uses .grok/; workflows → commands/)
 
 # Specify repository role
 bash /tmp/workforces/skills/workforce-management/scripts/setup.sh ./ --type project         # Standard project codebase
@@ -59,7 +61,7 @@ bash /tmp/workforces/skills/workforce-management/scripts/setup.sh ./ --skip-site
 | Location in Target | Contents |
 |--------------------|----------|
 | `<editor-dir>/agents/` | Persona configurations (e.g. `project-manager.md`) |
-| `<editor-dir>/workflows/` | Workflow slash commands (e.g. `work.md`, `update-workforces.md`) |
+| `<editor-dir>/workflows/` | Workflow slash commands (e.g. `work.md`, `update-workforces.md`). **Grok Build** uses `<editor-dir>/commands/` instead, with `/plan` → `wf-plan` and `/context` → `wf-context`. |
 | `<editor-dir>/skills/` | Modular capability directories containing `SKILL.md` and supporting tools (e.g. `workforce-management/`) |
 | `<editor-dir>/rules/` | Global rules and constraints (e.g. `base.md`) |
 | `workforces/` | Workspace configurations: objectives, states, version info, and `tmp/` scratch directory |
@@ -77,6 +79,9 @@ bash .agents/skills/workforce-management/scripts/update.sh ./ --dry
 
 # Apply updates
 bash .agents/skills/workforce-management/scripts/update.sh ./
+
+# Grok Build (toolkit lives under .grok/)
+bash .grok/skills/workforce-management/scripts/update.sh ./ --dry
 ```
 
 Or trigger `/update-workforces` inside your AI agent chat to execute the workflow interactively.

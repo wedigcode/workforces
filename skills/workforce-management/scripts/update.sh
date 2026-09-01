@@ -12,6 +12,16 @@
 
 set -euo pipefail
 
+# python3 is the usual name; Windows (including Grok Build) often only has `python`.
+# Ignore the Microsoft Store stub that prints "Python was not found".
+PYTHON=""
+for cand in python3 python; do
+  if command -v "$cand" >/dev/null 2>&1 && "$cand" -c "import sys" >/dev/null 2>&1; then
+    PYTHON="$cand"
+    break
+  fi
+done
+
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -128,9 +138,32 @@ elif [[ -d "$TARGET/.github/copilot" ]]; then
   BASE_DIR=".github/copilot"
 elif [[ -d "$TARGET/.claude" ]]; then
   BASE_DIR=".claude"
+elif [[ -d "$TARGET/.grok/skills" || -d "$TARGET/.grok/commands" || -d "$TARGET/.grok/agents" ]]; then
+  BASE_DIR=".grok"
 else
   BASE_DIR=".agents"
 fi
+
+# Grok Build discovers slash-command markdown under commands/, not workflows/.
+# Grok already owns /plan (plan mode) and /context (token meter).
+if [[ "$BASE_DIR" == ".grok" ]]; then
+  WORKFLOW_DEST_DIR="commands"
+else
+  WORKFLOW_DEST_DIR="workflows"
+fi
+
+workflow_dest_name() {
+  local basename="$1"
+  if [[ "$BASE_DIR" == ".grok" ]]; then
+    case "$basename" in
+      plan.md)    echo "wf-plan.md" ;;
+      context.md) echo "wf-context.md" ;;
+      *)          echo "$basename" ;;
+    esac
+  else
+    echo "$basename"
+  fi
+}
 
 # ─── Ensure workforces/tmp and workforces/session-context in .gitignore ───
 GITIGNORE_FILE="$TARGET/.gitignore"
@@ -164,8 +197,12 @@ remove_gitignore_entry() {
     if [[ "$DRY" == true ]]; then
       echo -e "  ${YELLOW}WOULD REMOVE:${NC} '$label' from .gitignore"
     else
-      python3 -c "import sys; path, target = sys.argv[1], sys.argv[2]; lines = [l for l in open(path).read().splitlines() if target not in l]; open(path, 'w').write('\n'.join(lines) + ('\n' if lines else ''))" "$GITIGNORE_FILE" "$entry"
-      echo -e "  ${GREEN}REMOVED:${NC} '$label' from .gitignore"
+      if [[ -n "$PYTHON" ]]; then
+        "$PYTHON" -c "import sys; path, target = sys.argv[1], sys.argv[2]; lines = [l for l in open(path).read().splitlines() if target not in l]; open(path, 'w').write('\n'.join(lines) + ('\n' if lines else ''))" "$GITIGNORE_FILE" "$entry"
+        echo -e "  ${GREEN}REMOVED:${NC} '$label' from .gitignore"
+      else
+        echo -e "  ${YELLOW}SKIPPED:${NC} could not remove '$label' from .gitignore (no working python)"
+      fi
     fi
   fi
 }
@@ -182,7 +219,11 @@ fi
 
 MISSING_CORE_DIRS=false
 for d in plugins agents workflows rules skills teams; do
-  if [[ -d "$SOURCE_DIR/$d" && ! -d "$TARGET/$BASE_DIR/$d" ]]; then
+  dest_d="$d"
+  if [[ "$d" == "workflows" ]]; then
+    dest_d="$WORKFLOW_DEST_DIR"
+  fi
+  if [[ -d "$SOURCE_DIR/$d" && ! -d "$TARGET/$BASE_DIR/$dest_d" ]]; then
     MISSING_CORE_DIRS=true
     break
   fi
@@ -275,10 +316,14 @@ copy_file() {
 
 # ─── Resolve Assets via Team Manifest Resolver ───
 RESOLVER_SCRIPT="$SOURCE_DIR/skills/workforce-management/scripts/resolve_manifest.py"
-if [[ -f "$RESOLVER_SCRIPT" ]]; then
-  RESOLVER_OUTPUT=$(python3 "$RESOLVER_SCRIPT" --toolkit-root "$SOURCE_DIR" --target "$TARGET" --format bash-export)
-  eval "$RESOLVER_OUTPUT"
-else
+RESOLVER_OK=false
+if [[ -f "$RESOLVER_SCRIPT" && -n "$PYTHON" ]]; then
+  if RESOLVER_OUTPUT=$("$PYTHON" "$RESOLVER_SCRIPT" --toolkit-root "$SOURCE_DIR" --target "$TARGET" --format bash-export); then
+    eval "$RESOLVER_OUTPUT"
+    RESOLVER_OK=true
+  fi
+fi
+if [[ "$RESOLVER_OK" != true ]]; then
   ALLOWED_AGENTS="advisor.md project-manager.md scribe.md programmer.md designer.md"
   ALLOWED_RULES="base.md clean-coder.md design-standards.md mcp-protection.md session-context.md"
   ALLOWED_SKILLS="brand-guidelines clean-coder code-graph codebase-improvement design-anti-patterns doc-generator image-workflow issue-tracker jules-integration memory-management post-code-review pr-review session-context ui-ux-design usage-tracker visual-design-fundamentals workforce-management"
@@ -324,7 +369,8 @@ if [[ -d "$SOURCE_DIR/workflows" ]]; then
     [[ -f "$f" ]] || continue
     basename=$(basename "$f")
     if [[ " $ALLOWED_WORKFLOWS " =~ " $basename " ]]; then
-      copy_file "$f" "$TARGET/$BASE_DIR/workflows/$basename" "$BASE_DIR/workflows/$basename"
+      dest_name=$(workflow_dest_name "$basename")
+      copy_file "$f" "$TARGET/$BASE_DIR/$WORKFLOW_DEST_DIR/$dest_name" "$BASE_DIR/$WORKFLOW_DEST_DIR/$dest_name"
     fi
   done
 fi
