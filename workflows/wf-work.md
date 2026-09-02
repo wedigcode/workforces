@@ -86,22 +86,22 @@ If the inbox has **1 or more** files, surface a prompt:
 
 If the inbox is empty, skip this block.
 
-### 2b — GitHub Queue & Async Worker Monitoring
+### 2b — Multi-Repo GitHub Queue & Async Worker Monitoring
 
 ```bash
-# Issues assigned to me
-gh issue list --assignee @me --state open --limit 30
+# Query multi-repo GitHub queues and auto-reconcile merged PRs
+python3 skills/task-tracker/scripts/personal_sync.py --root ./
 
-# PRs needing my review
-gh pr list --search "review-requested:@me" --state open --limit 30
-
-# My open PRs
-gh pr list --author @me --state open --limit 30
+# Or query directly across tracked_repos (e.g. acme-org/backend-service)
+gh issue list --repo <tracked_repo> --assignee @me --state open --limit 30
+gh pr list --repo <tracked_repo> --search "review-requested:@me" --state open --limit 30
+gh pr list --repo <tracked_repo> --author @me --state open --limit 30
 
 # Google Jules active sessions & scheduled tasks (if jules CLI is installed)
 jules remote list --session
 ```
 
+- **Remote GitHub Auto-Reconciliation:** When a PR linked to a task in `workforces/tasks/*.md` merges or closes on GitHub, `personal_sync.py` automatically marks the local task as `done` and synchronizes `workforces/workstate.md`.
 - **Async Worker Handoffs:** Scan `workforces/workstate.md` for tasks marked `delegated` or `async-pending` (e.g. delegated to Jules or external automation). If a Jules session or PR is `Completed` or `Needs Review`, surface the patch immediately to unblock downstream dependencies.
 - **GitHub Label Taxonomy:**
   - `tool:<tool_name>` — e.g. `tool:jules`, `tool:google-stitch`, `tool:google-vids`

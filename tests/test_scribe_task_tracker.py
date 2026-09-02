@@ -236,6 +236,46 @@ tracked_tasks: []
         self.assertIn("~~Evaluate Monolithic Framework~~", s_body)
         self.assertIn("❌ **Dropped:**", s_body)
 
+    def test_task_creation_and_update_auto_syncs_workstate(self):
+        """Test that creating and updating a task automatically updates workforces/workstate.md."""
+        # 1. Create a task with --pr flag
+        res_create = subprocess.run([
+            sys.executable,
+            TASK_SCRIPT,
+            "--title", "Setup Micro-Frontend Architecture",
+            "--type", "feature",
+            "--priority", "P1",
+            "--pr", "https://github.com/acme-org/frontend-app/pull/342",
+            "--description", "PR 342 scaffolds micro-frontends.",
+            "--out-dir", self.tasks_dir,
+        ], capture_output=True, text=True)
+        self.assertEqual(res_create.returncode, 0)
+
+        # Verify workstate.md exists and has the task in Active Tasks
+        workstate_path = os.path.join(self.test_dir, "workforces", "workstate.md")
+        self.assertTrue(os.path.isfile(workstate_path))
+        with open(workstate_path, "r", encoding="utf-8") as f:
+            ws_content = f.read()
+        self.assertIn("Setup Micro-Frontend Architecture", ws_content)
+        self.assertIn("PR #342", ws_content)
+
+        # 2. Complete the task and check that workstate.md moves it to Completed Tasks
+        task_files = [f for f in os.listdir(self.tasks_dir) if f.endswith(".md")]
+        task_path = os.path.join(self.tasks_dir, task_files[0])
+        res_done = subprocess.run([
+            sys.executable,
+            TASK_SCRIPT,
+            "--update", task_path,
+            "--done",
+            "--evolution-note", "PR 342 merged successfully.",
+        ], capture_output=True, text=True)
+        self.assertEqual(res_done.returncode, 0)
+
+        with open(workstate_path, "r", encoding="utf-8") as f:
+            ws_updated = f.read()
+        self.assertIn("## Completed Tasks (Recent)", ws_updated)
+        self.assertIn("Setup Micro-Frontend Architecture", ws_updated)
+
 
 if __name__ == "__main__":
     unittest.main()

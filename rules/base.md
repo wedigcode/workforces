@@ -8,9 +8,11 @@ These rules apply to all workforces and projects. They are enforced by the AI ag
 
 ---
 
-## GitHub Rules & Repository Scoping
+## GitHub Rules & Multi-Repository Scoping
 
-- **Strict Workforce Repo Scoping**: All GitHub issue/PR queries, PR code reviews, and Google Jules (`@google/jules`) session reviews MUST filter strictly for the active target repository or repos explicitly configured in `workforces/workrules.md` / `workstate.md`. Ignore any PRs or Jules sessions from unrelated personal repos outside the active workforce scope.
+- **Strict Workforce Multi-Repo Scoping**: All GitHub issue/PR queries, PR code reviews, and Google Jules (`@google/jules`) session reviews MUST iterate across all repositories configured in `workforces/workrules.md` / `workstate.md` under `tracked_repos` (passing `--repo <owner/repo>` to `gh`). Ignore any PRs or Jules sessions from unrelated personal repos outside the active workforce scope.
+- **Automated Remote GitHub Reconciliation**: During standups (`/wf-sync`), personal syncs (`/wf-sync --me`), or task operations, the system automatically checks linked PRs/issues on GitHub. When a remote PR is merged or closed, the corresponding local task in `workforces/tasks/` is automatically transitioned to `done` and synced to `workforces/workstate.md`.
+- **Single Source of Truth Task Architecture**: `workforces/tasks/*.md` is the authoritative single source of truth for all tasks, decisions, priorities, and lineage. `workforces/workstate.md` is a projected dashboard view dynamically maintained in parity by `report-task.py` and `personal_sync.py`.
 - **Jules Active Session Status Filter**: When scanning for active Jules code review tasks, filter strictly for sessions where `Status != 'Completed'` (e.g. `In Progress`, `""` [empty string/pending], `Needs Review`). Archived/completed sessions are excluded from active work queues.
 - **All new GitHub repositories MUST be created as private** unless the user explicitly requests a public repo.
 - Assigned issues and PRs are discovered by reading `workforces/workrules.md` (and the `workstate.md` tracker).
@@ -27,10 +29,10 @@ These rules apply to all workforces and projects. They are enforced by the AI ag
 - **Auto-Execution Mode**: When `--auto` or `--all` is passed in `/wf-work`, `/wf-feature`, `/wf-plan`, or when `auto_delegate: true` is configured in `workforces/workrules.md`, the primary chat MUST operate as an autonomous **Coordinator**.
 - **No Manual Step-by-Step Handoffs**: When in auto-execution mode, the Coordinator MUST NOT stop between tasks to ask the user "Should I do task 2 now?" or require the user to copy-paste prompts.
 - **Task Loop Execution**:
-  1. Parse the task list/breakdown (from `workstate.md`, plan, or PRD).
+  1. Parse the task list/breakdown (from `workforces/tasks/`, `workstate.md`, plan, or PRD).
   2. Identify independent/unblocked tasks and execute them sequentially or via parallel sub-processes (`run_command` async or subagents).
   3. Validate implementation (compile, run tests, check linters).
-  4. Mark completed in `workforces/workstate.md` and unblock dependent tasks.
+  4. Mark completed in `workforces/tasks/` and `workforces/workstate.md` and unblock dependent tasks.
   5. Loop to the next unblocked task until all tasks are complete.
   6. Present a final consolidated **Execution Summary Report**.
 

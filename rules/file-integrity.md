@@ -32,8 +32,8 @@ Every AI agent and workforce orchestrator MUST enforce complete reference lineag
         --sync-session
     ```
     *(Fallback: `python3 skills/task-tracker/scripts/report-task.py` if running inside source toolkit root)*
-  - **Do NOT** leave proposed feature roadmaps or gap notes as untracked text in session notes or `workforces/workstate.md`. `workforces/tasks/` is the single source of truth for discovered tasks and action items.
-  - `workforces/workstate.md` is reserved for **active sprint tracking** (tasks the team is currently executing).
+  - **Do NOT** leave proposed feature roadmaps or gap notes as untracked text in session notes or `workforces/workstate.md`. `workforces/tasks/` is the authoritative single source of truth for all tasks and action items.
+  - `workforces/workstate.md` is a **projected dashboard view** dynamically synchronized with `workforces/tasks/` by `report-task.py` and `personal_sync.py`.
   - The agent MUST NOT declare a main task or advisory turn complete until all immediate child dependencies (files, assets, and task records) are satisfied.
 
 ## 3. Decision Escalation Threshold (Stop & Ask Rule)

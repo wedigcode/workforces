@@ -51,6 +51,20 @@ import re
 import sys
 from typing import Any, Dict, List, Optional, Tuple
 
+try:
+    from personal_sync import sync_workstate_from_tasks, reconcile_github_tasks
+except ImportError:
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    if script_dir not in sys.path:
+        sys.path.insert(0, script_dir)
+    try:
+        from personal_sync import sync_workstate_from_tasks, reconcile_github_tasks
+    except ImportError:
+        def sync_workstate_from_tasks(root_dir: str) -> bool:
+            return False
+        def reconcile_github_tasks(root_dir: str, **kwargs) -> list:
+            return []
+
 VALID_STATUSES = ["todo", "in_progress", "blocked", "done", "dropped"]
 VALID_PRIORITIES = ["P0", "P1", "P2", "P3"]
 
@@ -266,6 +280,7 @@ def build_task_markdown(
     delegated_to: Optional[str] = None,
     github_labels: Optional[List[str]] = None,
     github_issue: Optional[str] = None,
+    github_pr: Optional[str] = None,
     evolution_notes: Optional[List[str]] = None,
     created_at: Optional[datetime.datetime] = None,
     updated_at: Optional[datetime.datetime] = None,
@@ -290,6 +305,7 @@ def build_task_markdown(
         "delegated_to": delegated_to or None,
         "github_labels": github_labels or [],
         "github_issue": github_issue or None,
+        "github_pr": github_pr or None,
     }
 
     session_origin_link = ""
@@ -552,6 +568,18 @@ def main() -> None:
         help="Linked GitHub issue number/url if synced",
     )
     parser.add_argument(
+        "--pr", "--github-pr", dest="github_pr",
+        help="Linked GitHub PR number/url (e.g. '1495' or 'https://github.com/org/repo/pull/1495')",
+    )
+    parser.add_argument(
+        "--reconcile-github", action="store_true",
+        help="Reconcile active tasks against remote GitHub PR/issue states",
+    )
+    parser.add_argument(
+        "--no-sync-workstate", action="store_true",
+        help="Skip automatically synchronizing workforces/workstate.md",
+    )
+    parser.add_argument(
         "--evolution-note",
         help="Decision note explaining requirement evolution, trade-offs, or updates mid-session",
     )
@@ -610,6 +638,23 @@ def main() -> None:
 
     # Resolve priority
     effective_priority = args.priority_alias or args.priority
+
+    # MODE 0: Reconcile GitHub Tasks
+    if args.reconcile_github:
+        root_dir = os.path.abspath(os.path.join(tasks_dir, "..", "..")) if ("workforces" in tasks_dir or ".scribe" in tasks_dir) else os.getcwd()
+        reconciled = reconcile_github_tasks(root_dir)
+        if not args.no_sync_workstate:
+            sync_workstate_from_tasks(root_dir)
+        if args.json:
+            print(json.dumps(reconciled, indent=2))
+        else:
+            if not reconciled:
+                print("Zero tasks needed reconciliation against GitHub.")
+            else:
+                print(f"🔄 Reconciled {len(reconciled)} task(s) against GitHub:")
+                for r in reconciled:
+                    print(f"  - [{r['status']}] {r['title']} ({r['reason']})")
+        return
 
     # MODE 1: Find Similar Tasks
     if args.find_similar:
@@ -725,6 +770,18 @@ def main() -> None:
             meta["github_labels"] = labels_list
         if args.github_issue:
             meta["github_issue"] = args.github_issue
+        if args.github_pr:
+            meta["github_pr"] = args.github_pr
+        elif not meta.get("github_pr"):
+            # Auto-detect PR from description or evolution note
+            search_text = f"{args.description or ''} {args.suggested_action or ''} {args.evolution_note or ''}"
+            url_match = re.search(r"https://github\.com/[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+/pull/\d+", search_text)
+            if url_match:
+                meta["github_pr"] = url_match.group(0)
+            else:
+                pr_match = re.search(r"(?:PR\s*#?|pull/)(\d{2,6})", search_text, re.IGNORECASE)
+                if pr_match:
+                    meta["github_pr"] = pr_match.group(1)
 
         # Handle status transitions
         if args.status:
@@ -802,6 +859,11 @@ def main() -> None:
             )
             print(f"🔗 Synced to session context: {session_file}")
 
+        # Synchronize workforces/workstate.md
+        if not args.no_sync_workstate:
+            root_dir = os.path.abspath(os.path.join(tasks_dir, "..", "..")) if ("workforces" in tasks_dir or ".scribe" in tasks_dir) else os.getcwd()
+            sync_workstate_from_tasks(root_dir)
+
         return
 
     # MODE 4: Create New Task
@@ -841,6 +903,18 @@ def main() -> None:
 
     init_status = args.status or ("in_progress" if args.start_task else "todo")
 
+    # Auto-detect PR if not passed explicitly
+    detected_pr = args.github_pr
+    if not detected_pr:
+        search_text = f"{args.description or ''} {args.suggested_action or ''} {args.evolution_note or ''}"
+        url_match = re.search(r"https://github\.com/[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+/pull/\d+", search_text)
+        if url_match:
+            detected_pr = url_match.group(0)
+        else:
+            pr_match = re.search(r"(?:PR\s*#?|pull/)(\d{2,6})", search_text, re.IGNORECASE)
+            if pr_match:
+                detected_pr = pr_match.group(1)
+
     content = build_task_markdown(
         title=args.title,
         task_type=args.type,
@@ -857,6 +931,7 @@ def main() -> None:
         delegated_to=args.delegated_to,
         github_labels=labels_list,
         github_issue=args.github_issue,
+        github_pr=detected_pr,
         evolution_notes=evolution_notes,
         created_at=now,
         updated_at=now,
@@ -878,6 +953,7 @@ def main() -> None:
             "recommended_tools": tools_list,
             "delegated_to": args.delegated_to,
             "github_labels": labels_list,
+            "github_pr": detected_pr,
         }
         sync_task_to_session_file(
             args.session_file,
@@ -886,6 +962,11 @@ def main() -> None:
             evolution_summary=args.evolution_note or args.description[:100]
         )
         print(f"🔗 Synced to session context: {args.session_file}")
+
+    # Synchronize workforces/workstate.md
+    if not args.no_sync_workstate:
+        root_dir = os.path.abspath(os.path.join(tasks_dir, "..", "..")) if ("workforces" in tasks_dir or ".scribe" in tasks_dir) else os.getcwd()
+        sync_workstate_from_tasks(root_dir)
 
 
 if __name__ == "__main__":

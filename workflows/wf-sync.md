@@ -50,10 +50,11 @@ graph TD
 **Duration Target:** 2–5 minutes  
 **Primary Goal:** Unblock the team, lock in today's single most critical commitment, and triage incoming issues.
 
-### Step D1 — Ingest Daily State
-1. Read `workforces/workstate.md` for active, pending, and completed sprint tasks.
-2. Read `workforces/issues/inbox/` for new bugs, tech debt, or spontaneous ideas logged by agents or user.
-3. Check GitHub queue (`gh pr list`, `gh issue list`) for external PR review requests.
+### Step D1 — Ingest Daily State & Remote PR Reconciliation
+1. **Reconcile & Project Tasks:** Run `python3 skills/task-tracker/scripts/personal_sync.py --root ./` to reconcile tasks against remote GitHub PRs, auto-mark merged PRs as `done`, and synchronize `workforces/workstate.md` from `workforces/tasks/*.md`.
+2. Read `workforces/tasks/` and projected `workforces/workstate.md` for active, pending, and completed sprint tasks.
+3. Read `workforces/issues/inbox/` for new bugs, tech debt, or spontaneous ideas logged by agents or user.
+4. Check multi-repo GitHub queue across all `tracked_repos` (`gh pr list --repo <r>`, `gh issue list --repo <r>`) for external PR review requests and assigned issues.
 
 ### Step D2 — Review 24h Wins & Roadblocks
 - **🏆 Wins:** What was marked completed in `workstate.md` since the last standup?
