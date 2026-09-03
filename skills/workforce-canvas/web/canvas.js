@@ -1,6 +1,6 @@
 /**
  * Workforce Command Canvas - Interactive Engine
- * Zero npm dependencies (Vanilla JS + SVG Bezier Splines)
+ * Zero npm dependencies (Vanilla JS + SVG Bezier Splines + Marked)
  */
 
 (function () {
@@ -8,13 +8,20 @@
 
   // State Management
   const state = {
-    viewMode: 'workstate', // 'workstate' | 'blast_radius'
+    viewMode: 'workstate', // 'workstate' | 'task_focus' | 'session_focus' | 'commit_focus' | 'blast_radius'
+    activeFocalSymbol: null,
+    focusedTask: null,
+    focusedSession: null,
+    focusedCommit: null,
+    navStack: [], // Array of { mode, data, label }
     panX: 80,
     panY: 80,
     zoom: 0.95,
     isPanning: false,
     startX: 0,
     startY: 0,
+    dragStartPos: null,
+    hasDragged: false,
     nodes: new Map(), // id -> { id, element, x, y, width, height, data }
     edges: [],        // [ { source, target, type, label, element } ]
     selectedNodeId: null,
@@ -23,8 +30,10 @@
     connectingFrom: null, // { nodeId, portType, element }
     tempCable: null,
     tasks: [],
+    sessions: [],
     hypotheses: [],
     goals: [],
+    availableSymbols: [],
     stats: {},
   };
 
@@ -42,7 +51,7 @@
     setupControls();
     setupSearch();
     await fetchWorkforceState();
-    renderView();
+    navigateTo('workstate', null, 'Radar', false);
     if (window.lucide) {
       window.lucide.createIcons();
     }
@@ -56,12 +65,25 @@
       if (!res.ok) throw new Error('Failed to fetch state');
       const data = await res.json();
       state.tasks = data.tasks || [];
+      state.sessions = data.sessions || [];
       state.hypotheses = data.hypotheses || [];
       state.goals = data.goals || [];
+      state.availableSymbols = data.symbols || [];
       state.stats = data.stats || {};
       updateTopBarStats();
     } catch (err) {
       console.error('Fetch error:', err);
+    }
+  }
+
+  async function fetchCommitDetails(hash) {
+    try {
+      const res = await fetch(`/api/commit?hash=${encodeURIComponent(hash)}`);
+      if (!res.ok) throw new Error('Failed to fetch commit');
+      return await res.json();
+    } catch (err) {
+      console.error('Commit fetch error:', err);
+      return null;
     }
   }
 
@@ -88,7 +110,7 @@
       });
       if (!res.ok) throw new Error('Task update failed');
       await fetchWorkforceState();
-      renderView();
+      renderCurrentView();
     } catch (err) {
       alert(`Update failed: ${err.message}`);
     }
@@ -103,7 +125,7 @@
       });
       if (!res.ok) throw new Error('Connect failed');
       await fetchWorkforceState();
-      renderView();
+      renderCurrentView();
     } catch (err) {
       alert(`Connection failed: ${err.message}`);
     }
@@ -117,7 +139,6 @@
 
   function setupPanAndZoom() {
     viewport.addEventListener('mousedown', (e) => {
-      // Pan when clicking background or holding space
       if (e.target === viewport || e.target === container || e.target === connectionsLayer || e.code === 'Space' || e.button === 1) {
         state.isPanning = true;
         state.startX = e.clientX - state.panX;
@@ -132,6 +153,12 @@
         state.panY = e.clientY - state.startY;
         applyTransform();
       } else if (state.draggedNode) {
+        if (state.dragStartPos) {
+          const dist = Math.hypot(e.clientX - state.dragStartPos.x, e.clientY - state.dragStartPos.y);
+          if (dist > 4) {
+            state.hasDragged = true;
+          }
+        }
         const x = (e.clientX - state.panX) / state.zoom - state.dragOffset.x;
         const y = (e.clientY - state.panY) / state.zoom - state.dragOffset.y;
         state.draggedNode.x = Math.round(x);
@@ -150,59 +177,270 @@
       }
       if (state.draggedNode) {
         state.draggedNode = null;
+        setTimeout(() => {
+          state.hasDragged = false;
+          state.dragStartPos = null;
+        }, 80);
       }
       if (state.connectingFrom) {
         if (state.tempCable) {
-          state.tempCable.remove();
+          if (state.tempCable.path && state.tempCable.path.parentNode) {
+            state.tempCable.path.remove();
+          }
           state.tempCable = null;
         }
         state.connectingFrom = null;
       }
     });
 
+    // Capture-phase click interceptor: suppress accidental click triggers when dragging nodes
+    window.addEventListener('click', (e) => {
+      if (state.hasDragged) {
+        e.stopPropagation();
+        e.preventDefault();
+      }
+    }, true);
+
+    let wheelGesture = {
+      mode: 'idle', // 'idle' | 'zoom' | 'pan'
+      accumX: 0,
+      accumY: 0,
+      timer: null
+    };
+
     viewport.addEventListener('wheel', (e) => {
+      // Allow native scrolling inside scrollable containers (e.g. drawer, commit lists)
+      if (e.target.closest('#inspect-drawer') || e.target.closest('.overflow-y-auto')) {
+        return;
+      }
+
       e.preventDefault();
-      const zoomFactor = 1.08;
-      const oldZoom = state.zoom;
-      let newZoom = e.deltaY < 0 ? oldZoom * zoomFactor : oldZoom / zoomFactor;
-      newZoom = Math.max(0.2, Math.min(2.5, newZoom));
+      clearTimeout(wheelGesture.timer);
 
-      // Zoom towards mouse position
-      const rect = viewport.getBoundingClientRect();
-      const mouseX = e.clientX - rect.left;
-      const mouseY = e.clientY - rect.top;
+      // Pinch-to-zoom (ctrlKey or metaKey on macOS trackpads)
+      if (e.ctrlKey || e.metaKey) {
+        wheelGesture.mode = 'zoom';
+        const factor = Math.exp(-e.deltaY * 0.0075);
+        zoomAroundPoint(factor, e.clientX, e.clientY);
+      } else if (wheelGesture.mode === 'pan') {
+        // Once horizontal motion initiates pan, drag canvas in ANY direction (X and Y)
+        state.panX -= e.deltaX;
+        state.panY -= e.deltaY;
+        applyTransform();
+        updateCables();
+      } else if (wheelGesture.mode === 'zoom') {
+        // In vertical zoom gesture
+        const factor = Math.exp(-e.deltaY * 0.0028);
+        zoomAroundPoint(factor, e.clientX, e.clientY);
+      } else {
+        // In 'idle': accumulate initial deltas to detect user intent
+        wheelGesture.accumX += e.deltaX;
+        wheelGesture.accumY += e.deltaY;
+        const absX = Math.abs(wheelGesture.accumX);
+        const absY = Math.abs(wheelGesture.accumY);
 
-      state.panX = mouseX - (mouseX - state.panX) * (newZoom / oldZoom);
-      state.panY = mouseY - (mouseY - state.panY) * (newZoom / oldZoom);
-      state.zoom = newZoom;
+        // Threshold to distinguish intent
+        if (absX > 3 || absY > 3) {
+          if (absX > absY) {
+            // Left/right motion initiates full two-finger drag/pan in any direction
+            wheelGesture.mode = 'pan';
+            state.panX -= wheelGesture.accumX;
+            state.panY -= wheelGesture.accumY;
+            applyTransform();
+            updateCables();
+          } else {
+            // Up/down motion engages zoom
+            wheelGesture.mode = 'zoom';
+            const factor = Math.exp(-wheelGesture.accumY * 0.0028);
+            zoomAroundPoint(factor, e.clientX, e.clientY);
+          }
+        }
+      }
 
-      applyTransform();
-      document.getElementById('zoom-label').innerText = `${Math.round(state.zoom * 100)}%`;
+      // Reset gesture mode after fingers are lifted
+      wheelGesture.timer = setTimeout(() => {
+        wheelGesture.mode = 'idle';
+        wheelGesture.accumX = 0;
+        wheelGesture.accumY = 0;
+      }, 160);
     }, { passive: false });
   }
 
-  // --- Rendering & Layouts ---
+  function zoomAroundPoint(factor, clientX, clientY) {
+    const oldZoom = state.zoom;
+    const newZoom = Math.max(0.15, Math.min(2.8, oldZoom * factor));
+    if (Math.abs(newZoom - oldZoom) < 0.0001) return;
 
-  function renderView() {
+    const rect = viewport.getBoundingClientRect();
+    const mouseX = clientX !== undefined ? (clientX - rect.left) : (rect.width / 2);
+    const mouseY = clientY !== undefined ? (clientY - rect.top) : (rect.height / 2);
+
+    state.panX = mouseX - (mouseX - state.panX) * (newZoom / oldZoom);
+    state.panY = mouseY - (mouseY - state.panY) * (newZoom / oldZoom);
+    state.zoom = newZoom;
+
+    applyTransform();
+    const label = document.getElementById('zoom-label');
+    if (label) label.innerText = `${Math.round(state.zoom * 100)}%`;
+  }
+
+  function fitViewToBoundingBox(padding = 55) {
+    if (state.nodes.size === 0) return;
+
+    let minX = Infinity, maxX = -Infinity;
+    let minY = Infinity, maxY = -Infinity;
+
+    state.nodes.forEach(node => {
+      minX = Math.min(minX, node.x);
+      maxX = Math.max(maxX, node.x + (node.width || 320));
+      minY = Math.min(minY, node.y);
+      maxY = Math.max(maxY, node.y + (node.height || 120));
+    });
+
+    const boxWidth = maxX - minX;
+    const boxHeight = maxY - minY;
+    if (boxWidth <= 0 || boxHeight <= 0) return;
+
+    // Detect if task details drawer is currently open (width = 400px)
+    const drawerOpen = inspectDrawer && inspectDrawer.classList.contains('is-open');
+    const drawerWidth = drawerOpen ? 410 : 0;
+
+    const availWidth = Math.max(320, viewport.clientWidth - drawerWidth);
+    const availHeight = Math.max(320, viewport.clientHeight - 60);
+
+    const zoomX = (availWidth - padding * 2) / boxWidth;
+    const zoomY = (availHeight - padding * 2) / boxHeight;
+    const newZoom = Math.max(0.4, Math.min(1.0, Math.min(zoomX, zoomY)));
+
+    const boxCenterX = minX + boxWidth / 2;
+    const boxCenterY = minY + boxHeight / 2;
+
+    const availCenterX = availWidth / 2;
+    const availCenterY = 56 + availHeight / 2;
+
+    state.zoom = newZoom;
+    state.panX = Math.round(availCenterX - boxCenterX * newZoom);
+    state.panY = Math.round(availCenterY - boxCenterY * newZoom);
+
+    // Apply smooth glide transition when auto-centering
+    container.style.transition = 'transform 0.28s cubic-bezier(0.16, 1, 0.3, 1)';
+    applyTransform();
+    setTimeout(() => {
+      container.style.transition = '';
+    }, 300);
+
+    const label = document.getElementById('zoom-label');
+    if (label) label.innerText = `${Math.round(state.zoom * 100)}%`;
+  }
+
+  // --- Transitive Navigation & Perspective Stack ---
+
+  function navigateTo(mode, data, label, addToStack = true) {
+    if (addToStack) {
+      // Prevent consecutive duplicate pushes
+      const last = state.navStack[state.navStack.length - 1];
+      if (!last || last.mode !== mode || last.data !== data) {
+        state.navStack.push({ mode, data, label: label || mode });
+      }
+    } else if (state.navStack.length === 0) {
+      state.navStack = [{ mode: 'workstate', data: null, label: 'Radar' }];
+    }
+
+    state.viewMode = mode;
+    if (mode === 'task_focus') state.focusedTask = data;
+    if (mode === 'session_focus') state.focusedSession = data;
+    if (mode === 'commit_focus') state.focusedCommit = data;
+    if (mode === 'blast_radius') state.activeFocalSymbol = data;
+
+    updateHeaderNavigation();
+    renderCurrentView();
+  }
+
+  function popNavigation() {
+    if (state.navStack.length > 1) {
+      state.navStack.pop(); // Remove current
+      const prev = state.navStack[state.navStack.length - 1];
+      navigateTo(prev.mode, prev.data, prev.label, false);
+    } else {
+      navigateTo('workstate', null, 'Radar', false);
+    }
+  }
+
+  function updateHeaderNavigation() {
+    const modePills = document.getElementById('mode-pills-bar');
+    const focusNav = document.getElementById('focus-nav-bar');
+    const btnExitText = document.getElementById('btn-exit-focus-text');
+    const crumbsContainer = document.getElementById('nav-breadcrumbs');
+
+    if (state.viewMode === 'workstate') {
+      focusNav.classList.add('hidden');
+      focusNav.classList.remove('flex');
+      modePills.classList.remove('hidden');
+    } else {
+      modePills.classList.add('hidden');
+      focusNav.classList.remove('hidden');
+      focusNav.classList.add('flex');
+
+      if (btnExitText) {
+        btnExitText.innerText = state.navStack.length > 1 ? 'Back' : 'Radar';
+      }
+
+      if (crumbsContainer) {
+        crumbsContainer.innerHTML = '';
+        state.navStack.forEach((entry, idx) => {
+          const isLast = idx === state.navStack.length - 1;
+          const crumb = document.createElement('span');
+          crumb.className = `nav-crumb ${isLast ? 'is-current' : ''}`;
+          crumb.innerText = entry.label;
+
+          if (!isLast) {
+            crumb.onclick = () => {
+              state.navStack = state.navStack.slice(0, idx + 1);
+              navigateTo(entry.mode, entry.data, entry.label, false);
+            };
+          }
+
+          crumbsContainer.appendChild(crumb);
+          if (!isLast) {
+            const sep = document.createElement('span');
+            sep.className = 'text-zinc-600';
+            sep.innerText = '›';
+            crumbsContainer.appendChild(sep);
+          }
+        });
+      }
+    }
+  }
+
+  function renderCurrentView() {
+    clearCanvas();
+
+    if (state.viewMode === 'workstate') {
+      renderWorkstateLayout();
+    } else if (state.viewMode === 'task_focus') {
+      renderTaskFocusLayout(state.focusedTask);
+    } else if (state.viewMode === 'session_focus') {
+      renderSessionFocusLayout(state.focusedSession);
+    } else if (state.viewMode === 'commit_focus') {
+      renderCommitFocusLayout(state.focusedCommit);
+    } else if (state.viewMode === 'blast_radius') {
+      renderBlastRadiusLayout(state.activeFocalSymbol);
+    }
+
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  function clearCanvas() {
     nodesLayer.innerHTML = '';
     connectionsLayer.innerHTML = '';
     framesLayer.innerHTML = '';
     state.nodes.clear();
     state.edges = [];
-
-    if (state.viewMode === 'workstate') {
-      renderWorkstateLayout();
-    } else {
-      renderBlastRadiusLayout();
-    }
-
-    if (window.lucide) {
-      window.lucide.createIcons();
-    }
   }
 
+  // --- Workstate Radar Layout ---
+
   function renderWorkstateLayout() {
-    // Column Groups: To Do, In Progress, Blocked, Done
     const columns = [
       { id: 'in_progress', label: 'In Progress (Active Focus)', status: 'in_progress', x: 400, color: 'var(--status-in-progress)' },
       { id: 'blocked', label: 'Blocked / Needs Unblocking', status: 'blocked', x: 800, color: 'var(--status-blocked)' },
@@ -210,7 +448,6 @@
       { id: 'done', label: 'Completed Deliverables', status: 'done', x: 1200, color: 'var(--status-done)' }
     ];
 
-    // Render grouped frames
     columns.forEach(col => {
       const colTasks = state.tasks.filter(t => t.status === col.status);
       const frameHeight = Math.max(500, colTasks.length * 160 + 80);
@@ -228,7 +465,6 @@
       frame.appendChild(label);
       framesLayer.appendChild(frame);
 
-      // Render cards in column
       colTasks.forEach((task, index) => {
         const cardX = col.x;
         const cardY = 70 + index * 160;
@@ -236,7 +472,6 @@
       });
     });
 
-    // Build edges for blocked_by
     const taskMap = new Map(state.tasks.map(t => [t.id, t]));
     state.tasks.forEach(task => {
       (task.blocked_by || []).forEach(blockerId => {
@@ -249,42 +484,530 @@
     updateCables();
   }
 
-  async function renderBlastRadiusLayout(symbolName) {
-    const symbolToQuery = symbolName || 'setUp';
-    const data = await fetchBlastRadius(symbolToQuery);
+  // --- Task Perspective Layout ---
 
-    if (!data || !data.found) {
-      alert(`Symbol '${symbolToQuery}' not found in code-graph.json`);
-      state.viewMode = 'workstate';
-      renderView();
+  function renderTaskFocusLayout(task) {
+    if (!task) return;
+    clearCanvas();
+
+    const mainX = 440;
+    const mainY = 220;
+    const mainCard = createTaskCard(task, mainX, mainY, true);
+    mainCard.classList.add('is-focused-main');
+
+    // 1. Origin Session Satellite (Clickable to pivot)
+    const sessionObj = findSessionForTask(task);
+    const sessionFile = task.session_file || (sessionObj ? sessionObj.file : null);
+    if (sessionFile || sessionObj) {
+      const sessCardId = `sat-session-${task.id}`;
+      const sessCard = createSatelliteCard({
+        id: sessCardId,
+        x: 60,
+        y: 120,
+        width: 300,
+        badgeText: 'Origin Session',
+        badgeColor: 'bg-sky-500/20 text-sky-400 border-sky-500/30',
+        title: sessionObj ? sessionObj.topic : sessionFile.split('/').pop().replace(/\.md$/, ''),
+        subtitle: `Lineage Context Note (#${task.session_id || (sessionObj ? sessionObj.id : '000')})`,
+        actionLabel: 'Pivot to Session View &rarr;',
+        icon: 'file-text'
+      });
+
+      sessCard.addEventListener('click', (e) => {
+        if (state.hasDragged) return;
+        const btn = e.target.closest('[data-action="satellite-action"]');
+        if (btn) {
+          const targetSess = sessionObj || {
+            id: task.session_id || '000',
+            file: sessionFile,
+            topic: task.title + ' Context'
+          };
+          navigateTo('session_focus', targetSess, `Session #${targetSess.id}`);
+        }
+      });
+
+      createEdge(sessCardId, task.id, 'session');
+    }
+
+    // 2. GitHub Issue / PR Satellite
+    if (task.github_pr || task.github_issue) {
+      const ghCardId = `sat-gh-${task.id}`;
+      createSatelliteCard({
+        id: ghCardId,
+        x: 60,
+        y: 320,
+        width: 300,
+        badgeText: 'GitHub Lineage',
+        badgeColor: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+        title: task.github_pr ? `PR #${task.github_pr}` : `Issue #${task.github_issue}`,
+        subtitle: 'Remote Repository Tracking',
+        actionLabel: 'Open GitHub ↗',
+        actionUrl: 'https://github.com',
+        icon: 'git-pull-request'
+      });
+      createEdge(ghCardId, task.id, 'github');
+    }
+
+    // 3. Associated Git Commits Satellite (Clickable rows)
+    const commits = task.linked_commits || [];
+    if (commits.length > 0) {
+      const commitCardId = `sat-commits-${task.id}`;
+      const commitsHtml = commits.map(c => `
+        <div class="py-1.5 px-2 hover:bg-white/5 rounded transition-colors cursor-pointer border-b border-white/5 last:border-0" data-action="pivot-commit" data-hash="${c.hash}">
+          <div class="flex items-center justify-between text-[11px]">
+            <span class="font-mono text-emerald-400 font-medium">${c.hash}</span>
+            <span class="text-[10px] text-zinc-500">${c.date}</span>
+          </div>
+          <div class="text-[11px] text-zinc-300 truncate mt-0.5" title="${c.message}">${c.message}</div>
+        </div>
+      `).join('');
+
+      const comCard = createCustomSatelliteCard({
+        id: commitCardId,
+        x: 840,
+        y: 60,
+        width: 340,
+        badgeText: `Git Commits (${commits.length})`,
+        badgeColor: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+        bodyHtml: commitsHtml,
+        icon: 'git-commit'
+      });
+
+      comCard.addEventListener('click', (e) => {
+        const row = e.target.closest('[data-action="pivot-commit"]');
+        if (row) {
+          const hash = row.dataset.hash;
+          if (hash) navigateTo('commit_focus', hash, `Commit ${hash}`);
+        }
+      });
+
+      createEdge(task.id, commitCardId, 'commit');
+    }
+
+    // 4. Linked Docs & Specs Satellite
+    const docs = task.linked_docs || [];
+    if (docs.length > 0) {
+      const docCardId = `sat-docs-${task.id}`;
+      const docsHtml = docs.map(d => `
+        <a href="${d.url}" target="_blank" class="block py-1 text-[11px] text-indigo-400 hover:text-indigo-300 underline truncate">
+          ${d.title || d.url} ↗
+        </a>
+      `).join('');
+
+      createCustomSatelliteCard({
+        id: docCardId,
+        x: 840,
+        y: 320,
+        width: 340,
+        badgeText: 'Linked Docs & Specs',
+        badgeColor: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',
+        bodyHtml: docsHtml,
+        icon: 'external-link'
+      });
+      createEdge(task.id, docCardId, 'doc');
+    }
+
+    // 5. Touched AST Code Symbols Satellite
+    const symbols = task.linked_symbols || [];
+    if (symbols.length > 0) {
+      const symCardId = `sat-symbols-${task.id}`;
+      const symsHtml = symbols.map(s => `
+        <div class="py-1.5 flex items-center justify-between border-b border-white/5 last:border-0 text-[11px]">
+          <span class="font-mono text-amber-300 truncate max-w-[180px]">${s.name}()</span>
+          <button class="text-sky-400 hover:text-sky-300 text-[10px] font-medium" data-symbol="${s.name}" data-action="explore-symbol">
+            Blast Radius &rarr;
+          </button>
+        </div>
+      `).join('');
+
+      createCustomSatelliteCard({
+        id: symCardId,
+        x: 1240,
+        y: 160,
+        width: 300,
+        badgeText: `Touched Symbols (${symbols.length})`,
+        badgeColor: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+        bodyHtml: symsHtml,
+        icon: 'code-2'
+      });
+      createEdge(task.id, symCardId, 'blast');
+    }
+
+    updateCables();
+    fitViewToBoundingBox(55);
+  }
+
+  // --- Session Perspective Layout ---
+
+  function renderSessionFocusLayout(session) {
+    if (!session) return;
+    clearCanvas();
+
+    const mainX = 500;
+    const mainY = 220;
+
+    // Focal Session Card
+    const sessCard = document.createElement('div');
+    sessCard.className = 'canvas-card is-focused-main p-4 text-left';
+    sessCard.id = `node-session-${session.id}`;
+    sessCard.style.width = '360px';
+    sessCard.style.transform = `translate3d(${mainX}px, ${mainY}px, 0)`;
+    sessCard.style.borderLeft = '3px solid #38bdf8';
+
+    const tagsHtml = (session.tags || []).map(t => `<span class="text-[10px] px-2 py-0.5 rounded bg-sky-500/10 text-sky-300 border border-sky-500/20">#${t}</span>`).join(' ');
+
+    sessCard.innerHTML = `
+      <div class="flex items-center justify-between pb-2 border-b border-white/5">
+        <span class="text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded border bg-sky-500/20 text-sky-400 border-sky-500/30 font-mono">
+          Session #${session.id}
+        </span>
+        <span class="text-[11px] text-zinc-500 font-mono">${(session.created_at || '').slice(0, 10)}</span>
+      </div>
+      <div class="mt-3">
+        <h3 class="text-sm font-semibold text-white leading-snug">${session.topic || session.title}</h3>
+        <p class="font-mono text-[11px] text-zinc-500 mt-1 truncate">${session.file}</p>
+      </div>
+      ${tagsHtml ? `<div class="mt-2.5 flex flex-wrap gap-1">${tagsHtml}</div>` : ''}
+      <div class="mt-3 pt-2.5 border-t border-white/5 flex items-center justify-between">
+        <a href="/${session.file}" target="_blank" class="text-sky-400 hover:text-sky-300 text-xs font-medium flex items-center gap-1">
+          Open Markdown Notes ↗
+        </a>
+      </div>
+    `;
+
+    const inputPort = document.createElement('div');
+    inputPort.className = 'port port-input';
+    const outputPort = document.createElement('div');
+    outputPort.className = 'port port-output';
+    sessCard.appendChild(inputPort);
+    sessCard.appendChild(outputPort);
+    nodesLayer.appendChild(sessCard);
+
+    state.nodes.set(sessCard.id, {
+      id: sessCard.id,
+      element: sessCard,
+      x: mainX,
+      y: mainY,
+      width: 360,
+      height: 160,
+      inputPort,
+      outputPort
+    });
+    setupCardDrag(sessCard, sessCard.id);
+
+    // 1. Upstream Parent Session (Left)
+    if (session.parent_session_id) {
+      const parentSess = state.sessions.find(s => s.id === session.parent_session_id);
+      const pCardId = `sat-parent-${session.id}`;
+      const pCard = createSatelliteCard({
+        id: pCardId,
+        x: 100,
+        y: 200,
+        width: 300,
+        badgeText: 'Preceding Session',
+        badgeColor: 'bg-zinc-500/20 text-zinc-300 border-zinc-500/30',
+        title: parentSess ? parentSess.topic : `Session #${session.parent_session_id}`,
+        subtitle: 'Upstream Lineage Predecessor',
+        actionLabel: 'Pivot to Parent Session &rarr;',
+        icon: 'git-commit'
+      });
+
+      pCard.addEventListener('click', (e) => {
+        if (state.hasDragged) return;
+        const btn = e.target.closest('[data-action="satellite-action"]');
+        if (btn && parentSess) {
+          navigateTo('session_focus', parentSess, `Session #${parentSess.id}`);
+        }
+      });
+      createEdge(pCardId, sessCard.id, 'session');
+    }
+
+    // 2. Downstream Tasks Created/Tracked in this Session (Right)
+    const trackedTasks = state.tasks.filter(t => t.session_id === session.id || (session.tracked_tasks && session.tracked_tasks.some(st => st.id === t.id || st.file === t.file)));
+    if (trackedTasks.length > 0) {
+      const tasksCardId = `sat-tasks-${session.id}`;
+      const tasksHtml = trackedTasks.map(t => `
+        <div class="py-2 px-2 hover:bg-white/5 rounded transition-colors cursor-pointer border-b border-white/5 last:border-0" data-action="pivot-task" data-id="${t.id}">
+          <div class="flex items-center justify-between text-[11px]">
+            <span class="badge-team badge-${t.team}">${t.team}</span>
+            <span class="status-pill status-${t.status}">${t.status.replace('_', ' ')}</span>
+          </div>
+          <div class="text-xs font-semibold text-white truncate mt-1">${t.title}</div>
+        </div>
+      `).join('');
+
+      const tCard = createCustomSatelliteCard({
+        id: tasksCardId,
+        x: 950,
+        y: 80,
+        width: 340,
+        badgeText: `Tracked Deliverables (${trackedTasks.length})`,
+        badgeColor: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',
+        bodyHtml: tasksHtml,
+        icon: 'check-square'
+      });
+
+      tCard.addEventListener('click', (e) => {
+        const row = e.target.closest('[data-action="pivot-task"]');
+        if (row) {
+          const task = state.tasks.find(t => t.id === row.dataset.id);
+          if (task) navigateTo('task_focus', task, task.title);
+        }
+      });
+      createEdge(sessCard.id, tasksCardId, 'dependency');
+    }
+
+    // 3. Active Files Touched Satellite (Bottom Right)
+    const activeFiles = session.active_files || [];
+    if (activeFiles.length > 0) {
+      const filesCardId = `sat-files-${session.id}`;
+      const filesHtml = activeFiles.map(f => `
+        <div class="py-1 text-[11px] font-mono text-zinc-300 truncate" title="${f}">
+          📄 ${f}
+        </div>
+      `).join('');
+
+      createCustomSatelliteCard({
+        id: filesCardId,
+        x: 950,
+        y: 330,
+        width: 340,
+        badgeText: `Active Files Touched (${activeFiles.length})`,
+        badgeColor: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+        bodyHtml: filesHtml,
+        icon: 'file-code'
+      });
+      createEdge(sessCard.id, filesCardId, 'doc');
+    }
+
+    updateCables();
+    fitViewToBoundingBox(55);
+  }
+
+  // --- Git Commit Perspective Layout ---
+
+  async function renderCommitFocusLayout(commitHash) {
+    if (!commitHash) return;
+    clearCanvas();
+
+    const commitData = await fetchCommitDetails(commitHash);
+    if (!commitData || commitData.error) {
+      alert(`Could not load details for commit ${commitHash}`);
+      popNavigation();
       return;
     }
 
-    // Focal Node in Center
+    const mainX = 500;
+    const mainY = 220;
+
+    // Focal Commit Card
+    const comCard = document.createElement('div');
+    comCard.className = 'canvas-card is-focused-main p-4 text-left';
+    comCard.id = `node-commit-${commitData.hash}`;
+    comCard.style.width = '360px';
+    comCard.style.transform = `translate3d(${mainX}px, ${mainY}px, 0)`;
+    comCard.style.borderLeft = '3px solid #10b981';
+
+    comCard.innerHTML = `
+      <div class="flex items-center justify-between pb-2 border-b border-white/5">
+        <span class="text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded border bg-emerald-500/20 text-emerald-400 border-emerald-500/30 font-mono">
+          Git Commit ${commitData.hash}
+        </span>
+        <span class="text-[11px] text-zinc-500 font-mono">${(commitData.date || '').slice(0, 16)}</span>
+      </div>
+      <div class="mt-3">
+        <h3 class="text-sm font-semibold text-white leading-snug">${commitData.message}</h3>
+        <p class="text-[11px] text-zinc-400 mt-1">Author: <span class="text-zinc-200">${commitData.author}</span></p>
+      </div>
+    `;
+
+    const inputPort = document.createElement('div');
+    inputPort.className = 'port port-input';
+    const outputPort = document.createElement('div');
+    outputPort.className = 'port port-output';
+    comCard.appendChild(inputPort);
+    comCard.appendChild(outputPort);
+    nodesLayer.appendChild(comCard);
+
+    state.nodes.set(comCard.id, {
+      id: comCard.id,
+      element: comCard,
+      x: mainX,
+      y: mainY,
+      width: 360,
+      height: 140,
+      inputPort,
+      outputPort
+    });
+    setupCardDrag(comCard, comCard.id);
+
+    // 1. Associated Tasks (Left / Intent)
+    const matchingTasks = state.tasks.filter(t => (t.linked_commits || []).some(c => c.hash === commitData.hash));
+    if (matchingTasks.length > 0) {
+      const taskSatId = `sat-ctasks-${commitData.hash}`;
+      const tasksHtml = matchingTasks.map(t => `
+        <div class="py-1.5 px-2 hover:bg-white/5 rounded transition-colors cursor-pointer border-b border-white/5 last:border-0" data-action="pivot-task" data-id="${t.id}">
+          <div class="flex items-center justify-between text-[11px]">
+            <span class="badge-team badge-${t.team}">${t.team}</span>
+            <span class="status-pill status-${t.status}">${t.status.replace('_', ' ')}</span>
+          </div>
+          <div class="text-xs font-semibold text-white truncate mt-1">${t.title}</div>
+        </div>
+      `).join('');
+
+      const tCard = createCustomSatelliteCard({
+        id: taskSatId,
+        x: 100,
+        y: 180,
+        width: 320,
+        badgeText: `Triggering Tasks (${matchingTasks.length})`,
+        badgeColor: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',
+        bodyHtml: tasksHtml,
+        icon: 'target'
+      });
+
+      tCard.addEventListener('click', (e) => {
+        const row = e.target.closest('[data-action="pivot-task"]');
+        if (row) {
+          const task = state.tasks.find(t => t.id === row.dataset.id);
+          if (task) navigateTo('task_focus', task, task.title);
+        }
+      });
+      createEdge(taskSatId, comCard.id, 'commit');
+    }
+
+    // 2. Files Changed (Right)
+    const files = commitData.files || [];
+    if (files.length > 0) {
+      const filesSatId = `sat-cfiles-${commitData.hash}`;
+      const filesHtml = files.map(f => `
+        <div class="py-1 text-[11px] font-mono text-zinc-300 truncate" title="${f}">
+          📄 ${f}
+        </div>
+      `).join('');
+
+      createCustomSatelliteCard({
+        id: filesSatId,
+        x: 940,
+        y: 80,
+        width: 340,
+        badgeText: `Files Changed (${files.length})`,
+        badgeColor: 'bg-zinc-500/20 text-zinc-300 border-zinc-500/30',
+        bodyHtml: filesHtml,
+        icon: 'file-diff'
+      });
+      createEdge(comCard.id, filesSatId, 'doc');
+    }
+
+    // 3. Touched AST Code Symbols (Far Right)
+    const symbols = commitData.symbols || [];
+    if (symbols.length > 0) {
+      const symSatId = `sat-csyms-${commitData.hash}`;
+      const symsHtml = symbols.slice(0, 8).map(s => `
+        <div class="py-1.5 flex items-center justify-between border-b border-white/5 last:border-0 text-[11px]">
+          <span class="font-mono text-amber-300 truncate max-w-[180px]">${s.name}()</span>
+          <button class="text-sky-400 hover:text-sky-300 text-[10px] font-medium" data-symbol="${s.name}" data-action="explore-symbol">
+            Blast Radius &rarr;
+          </button>
+        </div>
+      `).join('');
+
+      createCustomSatelliteCard({
+        id: symSatId,
+        x: 1330,
+        y: 160,
+        width: 300,
+        badgeText: `Touched Symbols (${symbols.length})`,
+        badgeColor: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+        bodyHtml: symsHtml,
+        icon: 'code-2'
+      });
+      createEdge(comCard.id, symSatId, 'blast');
+    }
+
+    updateCables();
+    fitViewToBoundingBox(55);
+  }
+
+  // --- Code Blast Radius Layout ---
+
+  async function renderBlastRadiusLayout(symbolName) {
+    clearCanvas();
+
+    let symbolToQuery = symbolName || state.activeFocalSymbol;
+    if (!symbolToQuery) {
+      const coreSymbols = ['sync_workstate_from_tasks', 'get_workstate_summary', 'resolve_manifest', 'prune_team', 'get_tracked_repos', 'run_server'];
+      for (const cs of coreSymbols) {
+        if (state.availableSymbols && state.availableSymbols.some(s => s.name === cs)) {
+          symbolToQuery = cs;
+          break;
+        }
+      }
+      if (!symbolToQuery && state.availableSymbols && state.availableSymbols.length > 0) {
+        symbolToQuery = state.availableSymbols[0].name;
+      }
+    }
+
+    state.activeFocalSymbol = symbolToQuery;
+    const data = await fetchBlastRadius(symbolToQuery);
+
+    if (!data || !data.found) {
+      alert(`Symbol '${symbolToQuery || ''}' not found in code-graph.json. Search symbols in top bar.`);
+      popNavigation();
+      return;
+    }
+
+    const callers = data.downstream_callers || [];
+    const isLeaf = callers.length === 0;
+
     const target = data.target;
     const centerX = 550;
     const centerY = 240;
-    createSymbolCard(target, centerX, centerY, true);
+    createSymbolCard(target, centerX, centerY, true, null, isLeaf);
 
-    // Upstream callees on Left (what target calls)
-    const callees = data.upstream_callees.slice(0, 6); // Cap at 6 to avoid noise
-    callees.forEach((c, idx) => {
-      const cx = 150;
-      const cy = 100 + idx * 110;
-      const cardId = `callee-${c.name}-${idx}`;
-      createSymbolCard(c, cx, cy, false, cardId);
-      createEdge(cardId, target.name, 'upstream');
-    });
-
-    // Downstream callers on Right (Blast Radius: who calls target)
-    const callers = data.downstream_callers.slice(0, 6);
-    if (callers.length === 0) {
-      // Empty blast radius card
-      createPlaceholderCard('No downstream callers detected (Isolated Leaf)', 950, centerY);
+    const callees = data.upstream_callees || [];
+    if (callees.length === 0) {
+      const dummyId = 'no-internal-callees';
+      const dummyCard = createSatelliteCard({
+        id: dummyId,
+        x: 150,
+        y: 220,
+        width: 280,
+        badgeText: 'Internal Dependencies',
+        badgeColor: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30',
+        title: '0 Internal Callees',
+        subtitle: 'Pure logic or standard library built-ins',
+        icon: 'check-circle'
+      });
+      createEdge(dummyId, target.name, 'upstream');
     } else {
-      callers.forEach((c, idx) => {
+      callees.slice(0, 12).forEach((c, idx) => {
+        const cx = 150;
+        const cy = 80 + idx * 105;
+        const cardId = `callee-${c.name}-${idx}`;
+        createSymbolCard(c, cx, cy, false, cardId);
+        createEdge(cardId, target.name, 'upstream');
+      });
+    }
+
+    if (callers.length === 0) {
+      const dummyId = 'no-internal-callers';
+      const dummyCard = createSatelliteCard({
+        id: dummyId,
+        x: 950,
+        y: 220,
+        width: 280,
+        badgeText: 'Blast Radius (Callers)',
+        badgeColor: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30',
+        title: '0 Downstream Callers',
+        subtitle: 'Entrypoint or top-level script/handler',
+        icon: 'terminal'
+      });
+      createEdge(target.name, dummyId, 'blast');
+    } else {
+      callers.slice(0, 12).forEach((c, idx) => {
         const cx = 950;
-        const cy = 100 + idx * 110;
+        const cy = 80 + idx * 105;
         const cardId = `caller-${c.name}-${idx}`;
         createSymbolCard(c, cx, cy, false, cardId);
         createEdge(target.name, cardId, 'blast');
@@ -292,26 +1015,45 @@
     }
 
     updateCables();
+    fitViewToBoundingBox(55);
+    if (window.lucide) window.lucide.createIcons();
   }
 
-  // --- Node & Card Factories ---
+  // --- Helpers & Card Factories ---
 
-  function createTaskCard(task, x, y) {
+  function findSessionForTask(task) {
+    if (!state.sessions || state.sessions.length === 0) return null;
+    if (task.session_id) {
+      const match = state.sessions.find(s => s.id === task.session_id || s.id === String(task.session_id));
+      if (match) return match;
+    }
+    if (task.session_file) {
+      const match = state.sessions.find(s => s.file === task.session_file || task.session_file.includes(s.file));
+      if (match) return match;
+    }
+    return null;
+  }
+
+  function createTaskCard(task, x, y, isFocused) {
     const card = document.createElement('div');
-    card.className = 'canvas-card';
+    card.className = `canvas-card ${isFocused ? 'is-focused-main' : ''}`;
     card.id = `node-${task.id}`;
     card.style.transform = `translate3d(${x}px, ${y}px, 0)`;
-
-    // Team Accent Border
     card.style.borderLeft = `3px solid var(--team-${task.team})`;
 
-    // Header
+    const symbolsCount = (task.linked_symbols || []).length;
+    const commitsCount = (task.linked_commits || []).length;
+    const hasGitHub = task.github_pr || task.github_issue;
+
     const header = document.createElement('div');
     header.className = 'card-header';
     header.innerHTML = `
       <div class="flex items-center gap-2">
         <span class="badge-team badge-${task.team}">${task.team}</span>
         <span class="text-xs text-muted font-mono font-medium">${task.priority}</span>
+        ${symbolsCount > 0 ? `<span title="${symbolsCount} touched AST symbols" class="text-[10px] text-amber-400 font-mono flex items-center gap-0.5 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20"><i data-lucide="code-2" class="w-3 h-3"></i>${symbolsCount}</span>` : ''}
+        ${commitsCount > 0 ? `<span title="${commitsCount} linked commits" class="text-[10px] text-zinc-400 font-mono flex items-center gap-0.5 bg-zinc-800/80 px-1.5 py-0.5 rounded border border-white/5"><i data-lucide="git-commit" class="w-3 h-3 text-emerald-400"></i>${commitsCount}</span>` : ''}
+        ${hasGitHub ? `<span title="GitHub linked" class="text-[10px] text-purple-400 bg-purple-500/10 px-1.5 py-0.5 rounded border border-purple-500/20"><i data-lucide="git-pull-request" class="w-3 h-3"></i></span>` : ''}
       </div>
       <div class="flex items-center gap-1.5">
         <span class="status-pill status-${task.status}" data-action="toggle-status">
@@ -320,20 +1062,15 @@
       </div>
     `;
 
-    // Body
     const body = document.createElement('div');
     body.className = 'p-3 text-left';
     body.innerHTML = `
       <div class="card-title">${task.title}</div>
-      <div class="mt-2 flex items-center justify-between text-xs text-muted">
-        <span class="font-mono text-[11px] truncate max-w-[170px]">${task.file.split('/').pop()}</span>
-        <button class="text-sky-400 hover:text-sky-300 font-medium text-[11px] flex items-center gap-1" data-action="inspect-impact">
-          Code Trail &rarr;
-        </button>
+      <div class="mt-2.5 flex items-center justify-between text-xs text-muted">
+        <span class="font-mono text-[11px] truncate max-w-[260px]">${task.file.split('/').pop()}</span>
       </div>
     `;
 
-    // Ports
     const inputPort = document.createElement('div');
     inputPort.className = 'port port-input';
     inputPort.title = 'Dependency In (Blocked By)';
@@ -351,7 +1088,6 @@
     card.appendChild(header);
     card.appendChild(body);
 
-    // Event Bindings
     setupCardInteractions(card, task, x, y, inputPort, outputPort);
     nodesLayer.appendChild(card);
 
@@ -366,27 +1102,57 @@
       outputPort,
       data: task
     });
+
+    return card;
   }
 
-  function createSymbolCard(symbol, x, y, isFocal, overrideId) {
+  function createSymbolCard(symbol, x, y, isFocal, overrideId, isLeaf) {
     const cardId = overrideId || symbol.name;
+    const existing = document.getElementById(`node-${cardId}`);
+    if (existing) existing.remove();
+
     const card = document.createElement('div');
     card.className = `canvas-card ${isFocal ? 'is-target-focal' : ''}`;
     card.style.width = '280px';
     card.id = `node-${cardId}`;
     card.style.transform = `translate3d(${x}px, ${y}px, 0)`;
 
+    const isCrossRepo = symbol.repo && symbol.repo !== 'workforces';
+    const repoBadge = isCrossRepo
+      ? `<span class="badge-team badge-compliance font-mono text-[10px]">${symbol.repo}</span>`
+      : `<span class="badge-team badge-dev font-mono text-[10px]">${symbol.kind || 'function'}</span>`;
+
     card.innerHTML = `
-      <div class="card-header">
-        <span class="badge-team badge-dev font-mono">${symbol.kind || 'function'}</span>
-        <span class="text-xs font-mono text-muted">L${symbol.line || 0}</span>
+      <div class="card-header flex items-center justify-between">
+        <div class="flex items-center gap-1.5">
+          ${repoBadge}
+          ${isCrossRepo ? `<span class="text-[10px] text-zinc-500 font-mono">${symbol.kind || 'fn'}</span>` : ''}
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="text-xs font-mono text-muted">L${symbol.line || 0}</span>
+          ${!isFocal ? `
+            <button class="px-2 py-0.5 rounded text-[10px] font-semibold bg-sky-500/15 hover:bg-sky-500/30 text-sky-400 hover:text-sky-200 border border-sky-500/30 transition-all flex items-center gap-1 cursor-pointer" data-action="pivot-symbol" data-symbol="${symbol.name}" title="Drill into ${symbol.name}() blast radius">
+              <span>Drill &rarr;</span>
+            </button>
+          ` : ''}
+        </div>
       </div>
       <div class="p-3 text-left">
-        <div class="font-mono text-xs font-semibold text-white truncate">${symbol.name}()</div>
-        <div class="mt-1 font-mono text-[11px] text-muted truncate">${symbol.file || 'internal'}</div>
+        <div class="font-mono text-xs font-semibold text-white truncate" title="${symbol.name}()">${symbol.name}()</div>
+        <div class="mt-1 font-mono text-[11px] text-muted truncate" title="${symbol.file || 'internal'}">${symbol.file || 'internal'}</div>
         ${isFocal ? '<div class="mt-2 text-[10px] text-amber-400 font-semibold tracking-wide uppercase">Target Impact Focal Point</div>' : ''}
+        ${isLeaf ? '<div class="mt-1.5 text-[10px] text-zinc-400 font-mono flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-zinc-500"></span>Isolated Leaf (0 Callers)</div>' : ''}
       </div>
     `;
+
+    card.addEventListener('click', (e) => {
+      if (state.hasDragged) return;
+      const pivotBtn = e.target.closest('[data-action="pivot-symbol"]');
+      if (pivotBtn) {
+        e.stopPropagation();
+        navigateTo('blast_radius', symbol.name, `${symbol.name}()`);
+      }
+    });
 
     const inputPort = document.createElement('div');
     inputPort.className = 'port port-input';
@@ -403,21 +1169,116 @@
       x: x,
       y: y,
       width: 280,
-      height: 90,
+      height: 95,
       inputPort,
       outputPort,
       data: symbol
     });
 
     setupCardDrag(card, cardId);
+    return card;
   }
 
-  function createPlaceholderCard(text, x, y) {
+  function createSatelliteCard(cfg) {
     const card = document.createElement('div');
-    card.className = 'canvas-card opacity-60 border-dashed';
-    card.style.transform = `translate3d(${x}px, ${y}px, 0)`;
-    card.innerHTML = `<div class="p-6 text-center text-xs text-muted font-mono">${text}</div>`;
+    card.className = 'satellite-card p-3.5 text-left cursor-pointer';
+    card.id = `node-${cfg.id}`;
+    card.style.width = `${cfg.width || 280}px`;
+    card.style.transform = `translate3d(${cfg.x}px, ${cfg.y}px, 0)`;
+
+    card.innerHTML = `
+      <div class="flex items-center justify-between pb-2 border-b border-white/5">
+        <span class="text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded border ${cfg.badgeColor}">
+          ${cfg.badgeText}
+        </span>
+        <i data-lucide="${cfg.icon || 'link'}" class="w-3.5 h-3.5 text-zinc-400"></i>
+      </div>
+      <div class="mt-2.5">
+        <div class="text-xs font-semibold text-white truncate" title="${cfg.title}">${cfg.title}</div>
+        <div class="text-[11px] text-zinc-400 truncate mt-0.5">${cfg.subtitle || ''}</div>
+      </div>
+      ${cfg.actionLabel ? `
+        <div class="mt-2.5 pt-2 border-t border-white/5">
+          <button class="text-sky-400 hover:text-sky-300 text-[11px] font-medium flex items-center gap-1 cursor-pointer bg-sky-500/10 hover:bg-sky-500/20 px-2 py-0.5 rounded border border-sky-500/20 transition-all" data-action="satellite-action">
+            ${cfg.actionLabel}
+          </button>
+        </div>
+      ` : ''}
+    `;
+
+    const inputPort = document.createElement('div');
+    inputPort.className = 'port port-input';
+    const outputPort = document.createElement('div');
+    outputPort.className = 'port port-output';
+
+    card.appendChild(inputPort);
+    card.appendChild(outputPort);
     nodesLayer.appendChild(card);
+
+    state.nodes.set(cfg.id, {
+      id: cfg.id,
+      element: card,
+      x: cfg.x,
+      y: cfg.y,
+      width: cfg.width || 280,
+      height: 110,
+      inputPort,
+      outputPort
+    });
+
+    setupCardDrag(card, cfg.id);
+    return card;
+  }
+
+  function createCustomSatelliteCard(cfg) {
+    const card = document.createElement('div');
+    card.className = 'satellite-card p-3.5 text-left';
+    card.id = `node-${cfg.id}`;
+    card.style.width = `${cfg.width || 280}px`;
+    card.style.transform = `translate3d(${cfg.x}px, ${cfg.y}px, 0)`;
+
+    card.innerHTML = `
+      <div class="flex items-center justify-between pb-2 border-b border-white/5">
+        <span class="text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded border ${cfg.badgeColor}">
+          ${cfg.badgeText}
+        </span>
+        <i data-lucide="${cfg.icon || 'link'}" class="w-3.5 h-3.5 text-zinc-400"></i>
+      </div>
+      <div class="mt-2.5 max-h-48 overflow-y-auto space-y-1">
+        ${cfg.bodyHtml}
+      </div>
+    `;
+
+    card.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-action="explore-symbol"]');
+      if (btn) {
+        const symbol = btn.dataset.symbol;
+        if (symbol) navigateTo('blast_radius', symbol, `${symbol}()`);
+      }
+    });
+
+    const inputPort = document.createElement('div');
+    inputPort.className = 'port port-input';
+    const outputPort = document.createElement('div');
+    outputPort.className = 'port port-output';
+
+    card.appendChild(inputPort);
+    card.appendChild(outputPort);
+    nodesLayer.appendChild(card);
+
+    state.nodes.set(cfg.id, {
+      id: cfg.id,
+      element: card,
+      x: cfg.x,
+      y: cfg.y,
+      width: cfg.width || 280,
+      height: 130,
+      inputPort,
+      outputPort
+    });
+
+    setupCardDrag(card, cfg.id);
+    return card;
   }
 
   // --- Interactions & Connectors ---
@@ -425,26 +1286,18 @@
   function setupCardInteractions(card, task, x, y, inPort, outPort) {
     setupCardDrag(card, task.id);
 
-    // Click handling
     card.addEventListener('click', (e) => {
       const toggleBtn = e.target.closest('[data-action="toggle-status"]');
-      const impactBtn = e.target.closest('[data-action="inspect-impact"]');
 
       if (toggleBtn) {
         cycleTaskStatus(task);
         return;
       }
-      if (impactBtn) {
-        state.viewMode = 'blast_radius';
-        document.getElementById('btn-mode-blast').click();
-        renderBlastRadiusLayout('setUp');
-        return;
-      }
 
       openInspectDrawer(task);
+      navigateTo('task_focus', task, task.title);
     });
 
-    // Port drag-to-connect
     outPort.addEventListener('mousedown', (e) => {
       e.stopPropagation();
       startConnecting(task.id, 'output', outPort);
@@ -457,13 +1310,14 @@
   }
 
   function setupCardDrag(card, id) {
-    const header = card.querySelector('.card-header') || card;
-    header.addEventListener('mousedown', (e) => {
-      if (e.target.closest('.port') || e.target.closest('button') || e.target.closest('[data-action]')) return;
+    card.addEventListener('mousedown', (e) => {
+      if (e.target.closest('.port') || e.target.closest('button') || e.target.closest('a') || e.target.closest('[data-action]')) return;
       e.stopPropagation();
       const node = state.nodes.get(id);
       if (!node) return;
       state.draggedNode = node;
+      state.dragStartPos = { x: e.clientX, y: e.clientY };
+      state.hasDragged = false;
       const rect = card.getBoundingClientRect();
       state.dragOffset.x = (e.clientX - rect.left) / state.zoom;
       state.dragOffset.y = (e.clientY - rect.top) / state.zoom;
@@ -517,6 +1371,11 @@
     let cssClass = 'cable-path';
     if (type === 'blast') cssClass += ' is-blast';
     if (type === 'dependency') cssClass += ' is-blocked';
+    if (type === 'session') cssClass += ' is-session';
+    if (type === 'commit') cssClass += ' is-commit';
+    if (type === 'doc') cssClass += ' is-doc';
+    if (type === 'github') cssClass += ' is-github';
+
     path.setAttribute('class', cssClass);
     connectionsLayer.appendChild(path);
 
@@ -561,9 +1420,18 @@
     document.getElementById('drawer-team').innerText = task.team.toUpperCase();
     document.getElementById('drawer-status').value = task.status;
     document.getElementById('drawer-priority').value = task.priority;
-    document.getElementById('drawer-body').innerText = task.body || 'No task description available.';
 
-    // Save button
+    const bodyEl = document.getElementById('drawer-body');
+    if (window.marked) {
+      bodyEl.innerHTML = window.marked.parse(task.body || '*No task description available.*');
+      bodyEl.querySelectorAll('a').forEach(a => {
+        a.setAttribute('target', '_blank');
+        a.setAttribute('rel', 'noopener noreferrer');
+      });
+    } else {
+      bodyEl.innerText = task.body || 'No task description available.';
+    }
+
     const saveBtn = document.getElementById('drawer-save-btn');
     saveBtn.onclick = () => {
       const newStatus = document.getElementById('drawer-status').value;
@@ -578,28 +1446,24 @@
     };
 
     inspectDrawer.classList.add('is-open');
+    if (state.viewMode !== 'workstate') {
+      setTimeout(() => fitViewToBoundingBox(55), 50);
+    }
   }
 
   function closeInspectDrawer() {
     inspectDrawer.classList.remove('is-open');
     document.getElementById('drawer-note-input').value = '';
+    if (state.viewMode !== 'workstate') {
+      setTimeout(() => fitViewToBoundingBox(55), 50);
+    }
   }
 
   // --- Controls & UI Setup ---
 
   function setupControls() {
-    document.getElementById('btn-zoom-in').onclick = () => {
-      state.zoom = Math.min(2.5, state.zoom * 1.15);
-      applyTransform();
-      document.getElementById('zoom-label').innerText = `${Math.round(state.zoom * 100)}%`;
-    };
-
-    document.getElementById('btn-zoom-out').onclick = () => {
-      state.zoom = Math.max(0.2, state.zoom / 1.15);
-      applyTransform();
-      document.getElementById('zoom-label').innerText = `${Math.round(state.zoom * 100)}%`;
-    };
-
+    document.getElementById('btn-zoom-in').onclick = () => zoomAroundPoint(1.2);
+    document.getElementById('btn-zoom-out').onclick = () => zoomAroundPoint(1 / 1.2);
     document.getElementById('btn-zoom-reset').onclick = () => {
       state.panX = 80;
       state.panY = 80;
@@ -608,31 +1472,33 @@
       document.getElementById('zoom-label').innerText = '95%';
     };
 
-    // Mode Switchers
     const btnWorkstate = document.getElementById('btn-mode-workstate');
     const btnBlast = document.getElementById('btn-mode-blast');
+    const btnExitFocus = document.getElementById('btn-exit-focus');
 
-    btnWorkstate.onclick = () => {
-      state.viewMode = 'workstate';
-      btnWorkstate.classList.add('bg-zinc-800', 'text-white');
-      btnBlast.classList.remove('bg-zinc-800', 'text-white');
-      btnBlast.classList.add('text-zinc-400');
-      renderView();
-    };
+    btnWorkstate.onclick = () => navigateTo('workstate', null, 'Radar', false);
+    btnBlast.onclick = () => navigateTo('blast_radius', state.activeFocalSymbol || 'sync_workstate_from_tasks', 'Blast Radius');
 
-    btnBlast.onclick = () => {
-      state.viewMode = 'blast_radius';
-      btnBlast.classList.add('bg-zinc-800', 'text-white');
-      btnWorkstate.classList.remove('bg-zinc-800', 'text-white');
-      btnWorkstate.classList.add('text-zinc-400');
-      renderBlastRadiusLayout('setUp');
-    };
+    if (btnExitFocus) {
+      btnExitFocus.onclick = () => popNavigation();
+    }
 
     document.getElementById('drawer-close-btn').onclick = closeInspectDrawer;
 
-    // Keyboard Shortcuts
+    window.addEventListener('resize', () => {
+      if (state.viewMode !== 'workstate') {
+        fitViewToBoundingBox(55);
+      }
+    });
+
     window.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') closeInspectDrawer();
+      if (e.key === 'Escape') {
+        if (state.viewMode !== 'workstate') {
+          popNavigation();
+        } else {
+          closeInspectDrawer();
+        }
+      }
       if (e.key === 'r' && !e.target.matches('input, textarea')) {
         document.getElementById('btn-zoom-reset').click();
       }
@@ -645,19 +1511,19 @@
       if (e.key === 'Enter') {
         const query = searchInput.value.trim();
         if (!query) return;
-        if (state.viewMode === 'blast_radius') {
-          renderBlastRadiusLayout(query);
+
+        // Check if query matches a symbol in code-graph
+        const matchedSymbol = state.availableSymbols
+          ? state.availableSymbols.find(s => s.name.toLowerCase().includes(query.toLowerCase()))
+          : null;
+
+        if (matchedSymbol || state.viewMode === 'blast_radius') {
+          navigateTo('blast_radius', matchedSymbol ? matchedSymbol.name : query, `${matchedSymbol ? matchedSymbol.name : query}()`);
         } else {
-          // Find task
           const match = state.tasks.find(t => t.title.toLowerCase().includes(query.toLowerCase()));
           if (match) {
-            const node = state.nodes.get(match.id);
-            if (node) {
-              state.panX = viewport.clientWidth / 2 - node.x * state.zoom - 160;
-              state.panY = viewport.clientHeight / 2 - node.y * state.zoom - 60;
-              applyTransform();
-              openInspectDrawer(match);
-            }
+            navigateTo('task_focus', match, match.title);
+            openInspectDrawer(match);
           }
         }
       }

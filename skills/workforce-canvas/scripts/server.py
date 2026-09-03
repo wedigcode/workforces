@@ -149,14 +149,95 @@ def get_all_tasks(root_dir: Path) -> List[Dict[str, Any]]:
             "reporter": meta.get("reporter") or "@human",
             "assignee": meta.get("assignee") or "",
             "session_id": meta.get("session_id") or "",
+            "session_file": meta.get("session_file") or meta.get("origin_session") or "",
+            "github_issue": meta.get("github_issue") or "",
+            "github_pr": meta.get("github_pr") or "",
             "blocked_by": meta.get("blocked_by") or [],
             "delegated_to": meta.get("delegated_to") or "",
             "deciding_factors": meta.get("deciding_factors") or [],
             "body": meta.get("_body") or "",
             "updated_at": meta.get("updated_at") or meta.get("created_at") or "",
+            "linked_commits": [],
+            "linked_docs": [],
+            "linked_symbols": [],
         }
         tasks.append(task_node)
     return tasks
+
+
+def get_recent_commits(root_dir: Path, limit: int = 60) -> List[Dict[str, Any]]:
+    """Extract recent git commits for task correlation."""
+    try:
+        output = subprocess.check_output(
+            ["git", "log", f"-n", str(limit), "--format=%h|%an|%ad|%s", "--date=short"],
+            cwd=str(root_dir),
+            text=True,
+            stderr=subprocess.DEVNULL
+        )
+        commits = []
+        for line in output.strip().split("\n"):
+            parts = line.split("|", 3)
+            if len(parts) == 4:
+                commits.append({
+                    "hash": parts[0],
+                    "author": parts[1],
+                    "date": parts[2],
+                    "message": parts[3]
+                })
+        return commits
+    except Exception:
+        return []
+
+
+def link_task_relationships(tasks: List[Dict[str, Any]], available_symbols: List[Dict[str, Any]], commits: List[Dict[str, Any]]) -> None:
+    """Detect and attach linked commits, documents, and code symbols to each task."""
+    stop_words = {'and', 'the', 'for', 'with', 'task', 'model', 'into', 'from', 'that', 'this', 'workflow', 'engine'}
+    for t in tasks:
+        title = t.get("title", "")
+        body = t.get("body", "")
+        combined_text = f"{title} {body}".lower()
+
+        # 1. Correlate Commits
+        matched_commits = []
+        words = [w.lower() for w in re.findall(r'[a-zA-Z0-9_-]{4,}', title) if w.lower() not in stop_words]
+        for c in commits:
+            msg_lower = c["message"].lower()
+            matches = [w for w in words if w in msg_lower]
+            if len(matches) >= 2 or (len(words) <= 2 and len(matches) >= 1):
+                matched_commits.append(c)
+        t["linked_commits"] = matched_commits[:4]
+
+        # 2. Extract Document & File References
+        doc_matches = re.findall(r'\[([^\]]+)\]\(([^)]+)\)', body)
+        linked_docs = []
+        for text, url in doc_matches:
+            if "session-context" in url:
+                continue
+            linked_docs.append({"title": text.strip(), "url": url.strip()})
+        t["linked_docs"] = linked_docs[:6]
+
+        # 3. Detect AST Code Symbols (excluding test files and fixtures)
+        matched_symbols = []
+        for s in available_symbols:
+            name = s.get("name", "")
+            file_path = s.get("file", "")
+            if name in ("setUp", "tearDown") or name.startswith("test_"):
+                continue
+            if "tests/" in file_path or "/test_" in file_path:
+                continue
+            if len(name) >= 4 and name.lower() in combined_text:
+                matched_symbols.append(s)
+            elif file_path:
+                base_name = Path(file_path).stem.lower()
+                if len(base_name) >= 4 and base_name in combined_text:
+                    matched_symbols.append(s)
+        seen_syms = set()
+        deduped_syms = []
+        for s in matched_symbols:
+            if s["name"] not in seen_syms:
+                seen_syms.add(s["name"])
+                deduped_syms.append(s)
+        t["linked_symbols"] = deduped_syms[:6]
 
 
 def get_all_hypotheses(root_dir: Path) -> List[Dict[str, Any]]:
@@ -186,6 +267,94 @@ def get_all_hypotheses(root_dir: Path) -> List[Dict[str, Any]]:
     return hypotheses
 
 
+def get_all_sessions(root_dir: Path) -> List[Dict[str, Any]]:
+    """Scan workforces/session-context/*.md and extract session notes."""
+    sessions = []
+    sess_dir = root_dir / "workforces" / "session-context"
+    if not sess_dir.exists():
+        sess_dir = root_dir / "session-context"
+    if not sess_dir.exists():
+        return sessions
+
+    for sess_file in sorted(sess_dir.glob("*.md")):
+        if sess_file.name == ".gitkeep" or sess_file.name.startswith("."):
+            continue
+        meta = parse_yaml_frontmatter(sess_file)
+        if not meta:
+            continue
+
+        session_id = str(meta.get("session_id") or meta.get("sequence") or sess_file.stem.split("_")[0])
+        topic = meta.get("topic") or sess_file.stem
+        parent = meta.get("parent_session_id")
+        active_files = meta.get("active_files") or []
+        tracked_tasks = meta.get("tracked_tasks") or []
+        tags = meta.get("tags") or []
+        created_at = meta.get("created_at") or ""
+
+        sessions.append({
+            "id": session_id,
+            "file": str(sess_file.relative_to(root_dir)),
+            "title": topic,
+            "topic": topic,
+            "parent_session_id": str(parent) if parent else None,
+            "active_files": active_files,
+            "tracked_tasks": tracked_tasks,
+            "tags": tags,
+            "created_at": created_at,
+            "body": meta.get("_body") or "",
+        })
+    return sessions
+
+
+def get_commit_details(root_dir: Path, commit_hash: Optional[str]) -> Dict[str, Any]:
+    """Inspect a git commit, touched files, and AST symbols."""
+    if not commit_hash:
+        return {"error": "Missing commit hash"}
+    try:
+        out = subprocess.check_output(
+            ["git", "show", "--name-only", "--format=%h|%an|%ad|%s", commit_hash],
+            cwd=str(root_dir),
+            text=True,
+            stderr=subprocess.DEVNULL
+        )
+        lines = out.strip().split("\n")
+        header = lines[0].split("|", 3)
+        files = [l.strip() for l in lines[1:] if l.strip()]
+
+        commit_info = {
+            "hash": header[0] if len(header) > 0 else commit_hash,
+            "author": header[1] if len(header) > 1 else "Unknown",
+            "date": header[2] if len(header) > 2 else "",
+            "message": header[3] if len(header) > 3 else "",
+            "files": files,
+            "symbols": [],
+        }
+
+        # Find symbols in touched files from code-graph.json
+        code_graph_file = root_dir / "workforces" / "code-graph.json"
+        if not code_graph_file.exists():
+            code_graph_file = root_dir / "code-graph.json"
+        if code_graph_file.exists():
+            try:
+                cg_data = json.loads(code_graph_file.read_text(encoding="utf-8"))
+                touched_set = set(files)
+                for s in cg_data.get("symbols", []):
+                    s_file = s.get("file", "")
+                    if s_file in touched_set or any(f.endswith(s_file) or s_file.endswith(f) for f in files):
+                        commit_info["symbols"].append({
+                            "name": s["name"],
+                            "file": s_file,
+                            "line": s.get("line", 0),
+                            "kind": s.get("kind", "function")
+                        })
+            except Exception:
+                pass
+
+        return commit_info
+    except Exception as e:
+        return {"error": str(e), "hash": commit_hash}
+
+
 def get_all_goals(root_dir: Path) -> List[Dict[str, Any]]:
     """Scan workforces/goals/*.md and extract macro business goals."""
     goals = []
@@ -208,33 +377,80 @@ def get_all_goals(root_dir: Path) -> List[Dict[str, Any]]:
     return goals
 
 
+def load_multi_repo_symbols(root_dir: Path) -> List[Dict[str, Any]]:
+    """
+    Load AST symbols from primary repository, internal projects, and internal sibling repos.
+    Enables cross-repository blast radius analysis for organizations controlling multiple repos.
+    """
+    symbols = []
+    seen = set()
+
+    def add_from_file(cg_file: Path, repo_name: str, prefix_path: bool = False):
+        if not cg_file.exists():
+            return
+        try:
+            data = json.loads(cg_file.read_text(encoding="utf-8"))
+            for s in data.get("symbols", []):
+                s_copy = dict(s)
+                s_copy["repo"] = repo_name
+                if prefix_path:
+                    s_copy["file"] = f"{repo_name}/{s.get('file', '')}"
+                key = (repo_name, s_copy.get("name"), s_copy.get("file"))
+                if key not in seen:
+                    seen.add(key)
+                    symbols.append(s_copy)
+        except Exception:
+            pass
+
+    # 1. Primary repository
+    for p in [root_dir / "workforces" / "code-graph.json", root_dir / "code-graph.json"]:
+        if p.exists():
+            add_from_file(p, root_dir.name, prefix_path=False)
+            break
+
+    # 2. Projects subfolder if present
+    proj_dir = root_dir / "projects"
+    if proj_dir.exists():
+        for p_sub in proj_dir.iterdir():
+            if p_sub.is_dir() and not p_sub.name.startswith("."):
+                for p in [p_sub / "workforces" / "code-graph.json", p_sub / "code-graph.json"]:
+                    if p.exists():
+                        add_from_file(p, p_sub.name, prefix_path=True)
+                        break
+
+    # 3. Sibling repositories under parent directory
+    if root_dir.parent.exists():
+        for sib in root_dir.parent.iterdir():
+            if sib.is_dir() and sib.name != root_dir.name and not sib.name.startswith("."):
+                for p in [sib / "workforces" / "code-graph.json", sib / "code-graph.json"]:
+                    if p.exists():
+                        add_from_file(p, sib.name, prefix_path=True)
+                        break
+
+    return symbols
+
+
 def get_code_blast_radius(root_dir: Path, symbol_name: Optional[str] = None, file_path: Optional[str] = None) -> Dict[str, Any]:
     """
-    Extract upstream callers and downstream blast radius for a given symbol or file.
-    Reuses symbols from code-graph.json and logic aligned with pre_impact_analyzer.
+    Extract upstream internal callees and downstream blast radius callers for a given symbol.
+    Excludes external standard library built-ins to maintain focused internal dependency maps.
+    Aware of internal multi-repo symbols across repositories we control.
     """
-    code_graph_file = root_dir / "workforces" / "code-graph.json"
-    if not code_graph_file.exists():
-        code_graph_file = root_dir / "code-graph.json"
+    symbols = load_multi_repo_symbols(root_dir)
 
-    symbols = []
-    if code_graph_file.exists():
-        try:
-            data = json.loads(code_graph_file.read_text(encoding="utf-8"))
-            symbols = data.get("symbols", [])
-        except Exception as err:
-            sys.stderr.write(f"Failed to read code-graph: {err}\n")
-
-    # Map by name for fast lookup
-    symbol_map = {s.get("name"): s for s in symbols if s.get("name")}
+    # Build symbol map prioritizing local repo in case of identical names
+    symbol_map: Dict[str, Dict[str, Any]] = {}
+    for s in symbols:
+        name = s.get("name")
+        if name and (name not in symbol_map or s.get("repo") == root_dir.name):
+            symbol_map[name] = s
 
     target_symbol = None
     if symbol_name and symbol_name in symbol_map:
         target_symbol = symbol_map[symbol_name]
     elif file_path:
-        # Find first symbol in target file
         for s in symbols:
-            if s.get("file") == file_path:
+            if s.get("file") == file_path or file_path.endswith(s.get("file", "---")):
                 target_symbol = s
                 break
 
@@ -249,31 +465,36 @@ def get_code_blast_radius(root_dir: Path, symbol_name: Optional[str] = None, fil
 
     target_name = target_symbol.get("name")
     target_file = target_symbol.get("file")
+    target_repo = target_symbol.get("repo", root_dir.name)
 
-    # Upstream: functions called BY target_symbol
+    # Upstream: ONLY internal methods called BY target_symbol (filtering out external/stdlib noise)
     upstream_callees = []
+    seen_callees = set()
     calls = target_symbol.get("calls", [])
     for call_name in calls:
         if call_name in symbol_map:
-            upstream_callees.append(symbol_map[call_name])
-        else:
-            upstream_callees.append({
-                "name": call_name,
-                "kind": "external",
-                "file": "standard_lib_or_external",
-                "line": 0
-            })
+            callee = symbol_map[call_name]
+            callee_key = (callee.get("name"), callee.get("file"))
+            if callee_key not in seen_callees:
+                seen_callees.add(callee_key)
+                upstream_callees.append(callee)
+        # Note: External standard library and built-ins (abspath, append, get, etc.)
+        # are intentionally omitted to focus strictly on internal architectural dependencies.
 
-    # Downstream: other functions that CALL target_name (Blast Radius)
+    # Downstream: other internal functions that CALL target_name (Blast Radius)
     downstream_callers = []
+    seen_callers = set()
     affected_files = set()
     for s in symbols:
-        if s.get("name") == target_name and s.get("file") == target_file:
+        if s.get("name") == target_name and s.get("file") == target_file and s.get("repo") == target_repo:
             continue
         if target_name in s.get("calls", []):
-            downstream_callers.append(s)
-            if s.get("file"):
-                affected_files.add(s.get("file"))
+            caller_key = (s.get("name"), s.get("file"))
+            if caller_key not in seen_callers:
+                seen_callers.add(caller_key)
+                downstream_callers.append(s)
+                if s.get("file"):
+                    affected_files.add(s.get("file"))
 
     return {
         "found": True,
@@ -379,6 +600,9 @@ class WorkforceCanvasHandler(http.server.SimpleHTTPRequestHandler):
 
         if path == "/api/state":
             self.send_json_response(self.handle_get_state())
+        elif path == "/api/commit":
+            commit_hash = query.get("hash", [None])[0]
+            self.send_json_response(get_commit_details(self.root_dir, commit_hash))
         elif path == "/api/impact":
             symbol = query.get("symbol", [None])[0]
             file_param = query.get("file", [None])[0]
@@ -389,6 +613,53 @@ class WorkforceCanvasHandler(http.server.SimpleHTTPRequestHandler):
             self.serve_file(self.web_dir / "canvas.css", "text/css")
         elif path == "/canvas.js":
             self.serve_file(self.web_dir / "canvas.js", "application/javascript")
+        elif path.startswith("/workforces/"):
+            target = (self.root_dir / path.lstrip("/")).resolve()
+            if target.exists() and str(target).startswith(str(self.root_dir)):
+                if target.suffix == ".md":
+                    content = target.read_text(encoding="utf-8")
+                    html_content = f"""<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{target.name}</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+body {{ background: #0c0d11; color: #cbd5e1; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 40px 24px; max-width: 820px; margin: 0 auto; line-height: 1.65; }}
+a {{ color: #818cf8; text-decoration: underline; text-underline-offset: 2px; }}
+a:hover {{ color: #a5b4fc; }}
+code {{ background: rgba(255,255,255,0.08); color: #fbbf24; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 13px; }}
+pre {{ background: #111318; border: 1px solid rgba(255,255,255,0.08); padding: 14px; border-radius: 8px; overflow-x: auto; margin: 16px 0; }}
+pre code {{ background: transparent; padding: 0; color: #e2e8f0; }}
+h1, h2, h3, h4 {{ color: #f8fafc; font-weight: 600; margin-top: 24px; margin-bottom: 8px; }}
+h1 {{ font-size: 22px; }}
+h2 {{ font-size: 18px; }}
+h3 {{ font-size: 15px; }}
+hr {{ border-color: rgba(255,255,255,0.1); margin: 24px 0; }}
+ul, ol {{ padding-left: 20px; margin: 10px 0; }}
+li {{ margin: 4px 0; }}
+</style></head>
+<body>
+<div class="mb-6 flex items-center justify-between pb-3 border-b border-white/10 text-xs text-zinc-400">
+  <span>📄 {target.name}</span>
+  <a href="javascript:window.close()" class="no-underline text-zinc-400 hover:text-white">&larr; Close</a>
+</div>
+<div id="content"></div>
+<script>
+  document.getElementById('content').innerHTML = marked.parse({json.dumps(content)});
+</script>
+</body></html>"""
+                    body_bytes = html_content.encode("utf-8")
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/html; charset=utf-8")
+                    self.send_header("Content-Length", str(len(body_bytes)))
+                    self.end_headers()
+                    self.wfile.write(body_bytes)
+                    return
+                else:
+                    self.serve_file(target, "text/plain")
+                    return
+            else:
+                self.send_error(404, "File Not Found")
         else:
             # Fallback to serving files from web_dir
             target = (self.web_dir / path.lstrip("/")).resolve()
@@ -487,6 +758,16 @@ class WorkforceCanvasHandler(http.server.SimpleHTTPRequestHandler):
                         "label": "blocks"
                     })
 
+        # Extract available symbols across internal repositories
+        available_symbols = load_multi_repo_symbols(self.root_dir)
+
+        # Correlate linked commits, docs, and code symbols for each task
+        commits = get_recent_commits(self.root_dir)
+        link_task_relationships(tasks, available_symbols, commits)
+
+        # Scan all session context notes
+        sessions = get_all_sessions(self.root_dir)
+
         # Summary telemetry
         stats = {
             "total_tasks": len(tasks),
@@ -494,14 +775,18 @@ class WorkforceCanvasHandler(http.server.SimpleHTTPRequestHandler):
             "in_progress": len([t for t in tasks if t["status"] == "in_progress"]),
             "blocked": len([t for t in tasks if t["status"] == "blocked"]),
             "done": len([t for t in tasks if t["status"] == "done"]),
+            "sessions_count": len(sessions),
             "hypotheses_count": len(hypotheses),
             "goals_count": len(goals),
+            "symbols_count": len(available_symbols),
         }
 
         return {
             "tasks": tasks,
+            "sessions": sessions,
             "hypotheses": hypotheses,
             "goals": goals,
+            "symbols": available_symbols,
             "edges": edges,
             "custom_order": custom_order,
             "stats": stats,

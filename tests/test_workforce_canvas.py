@@ -80,7 +80,7 @@ Ad campaigns on Google and Twitter.
                     "kind": "function",
                     "file": "src/auth.py",
                     "line": 42,
-                    "calls": ["verify_token", "db_lookup"]
+                    "calls": ["verify_token", "db_lookup", "isinstance", "len"]
                 },
                 {
                     "name": "verify_token",
@@ -88,6 +88,13 @@ Ad campaigns on Google and Twitter.
                     "file": "src/tokens.py",
                     "line": 15,
                     "calls": ["hash_secret"]
+                },
+                {
+                    "name": "db_lookup",
+                    "kind": "function",
+                    "file": "src/database.py",
+                    "line": 88,
+                    "calls": []
                 },
                 {
                     "name": "api_gateway",
@@ -121,10 +128,13 @@ Ad campaigns on Google and Twitter.
         self.assertTrue(blast["found"])
         self.assertEqual(blast["target"]["name"], "login_handler")
 
-        # Upstream callees (what login_handler calls)
+        # Upstream callees (what login_handler calls - only internal methods)
         callee_names = [c["name"] for c in blast["upstream_callees"]]
         self.assertIn("verify_token", callee_names)
         self.assertIn("db_lookup", callee_names)
+        # Assert external/stdlib noise is filtered out
+        self.assertNotIn("isinstance", callee_names)
+        self.assertNotIn("len", callee_names)
 
         # Downstream callers (blast radius: who calls login_handler)
         caller_names = [c["name"] for c in blast["downstream_callers"]]
@@ -165,6 +175,34 @@ Ad campaigns on Google and Twitter.
         updated_tasks = server.get_all_tasks(self.root_path)
         updated_task2 = next(t for t in updated_tasks if t["id"] == "task-mkt-01")
         self.assertIn("task-external-dep", updated_task2["blocked_by"])
+
+    def test_task_relationship_and_commit_linking(self):
+        """Test linking git commits, symbols, and docs to tasks."""
+        tasks = [
+            {
+                "id": "task-test-01",
+                "title": "Interactive Workforce Canvas Engine",
+                "body": "Implemented canvas in [docs/canvas.md](docs/canvas.md) using sync_workstate_from_tasks."
+            }
+        ]
+        available_symbols = [
+            {"name": "sync_workstate_from_tasks", "file": "personal_sync.py", "line": 40},
+            {"name": "setUp", "file": "tests/test_foo.py", "line": 10}  # Should be filtered out
+        ]
+        commits = [
+            {"hash": "6e8f477", "author": "Aaron", "date": "2026-09-03", "message": "feat(canvas): add interactive workforce canvas engine"}
+        ]
+
+        server.link_task_relationships(tasks, available_symbols, commits)
+
+        task = tasks[0]
+        self.assertEqual(len(task["linked_commits"]), 1)
+        self.assertEqual(task["linked_commits"][0]["hash"], "6e8f477")
+        self.assertEqual(len(task["linked_docs"]), 1)
+        self.assertEqual(task["linked_docs"][0]["url"], "docs/canvas.md")
+        sym_names = [s["name"] for s in task["linked_symbols"]]
+        self.assertIn("sync_workstate_from_tasks", sym_names)
+        self.assertNotIn("setUp", sym_names)
 
     def test_universal_core_installation_across_all_team_configurations(self):
         """Assert that workforce-canvas and wf-canvas are part of CORE manifest regardless of installed teams."""
