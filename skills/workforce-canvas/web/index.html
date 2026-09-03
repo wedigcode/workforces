@@ -56,14 +56,46 @@
       </div>
     </div>
 
-    <!-- Search & Filters -->
-    <div class="flex items-center gap-3">
-      <div class="relative w-64">
+    <!-- Search & Controls -->
+    <div class="flex items-center gap-2.5">
+      <div class="relative w-56 sm:w-64">
         <i data-lucide="search" class="w-3.5 h-3.5 text-[#828282] absolute left-3 top-1/2 -translate-y-1/2"></i>
         <input id="global-search" type="text" placeholder="Search tasks or symbols..." class="w-full bg-white border border-[#e2e0dc] rounded-full pl-9 pr-3 py-1.5 text-xs text-[#202020] placeholder-[#828282] focus:outline-none focus:border-[#c2410c] transition-colors">
       </div>
+
+      <!-- Server Connection & Power Control -->
+      <div class="flex items-center gap-1.5 pl-2 border-l border-[#e2e0dc]">
+        <div id="heartbeat-badge" title="Heartbeat active (auto-shuts down after 5m of inactivity)" class="flex items-center gap-1.5 px-2 py-1 rounded-full bg-[#f4f4f5] text-[11px] font-mono text-[#828282] border border-[#e2e0dc]">
+          <span id="heartbeat-dot" class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span id="heartbeat-label" class="hidden sm:inline">5m Idle</span>
+        </div>
+        <button id="btn-stop-server" title="Stop Canvas Server & Release Port" class="p-1.5 rounded-full text-[#828282] hover:text-[#b91c1c] hover:bg-[#fee2e2] transition-colors border border-transparent hover:border-[#fca5a5]">
+          <i data-lucide="power" class="w-3.5 h-3.5"></i>
+        </button>
+      </div>
     </div>
   </header>
+
+  <!-- Disconnected Overlay (Shown when server is shut down or idle timeout occurs) -->
+  <div id="disconnected-overlay" class="hidden fixed inset-0 z-50 bg-[#202020]/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white border border-[#e2e0dc] rounded-xl max-w-md w-full p-6 shadow-2xl text-center">
+      <div class="w-12 h-12 rounded-full bg-[#fee2e2] text-[#b91c1c] flex items-center justify-center mx-auto mb-4 border border-[#fca5a5]">
+        <i data-lucide="power-off" class="w-6 h-6"></i>
+      </div>
+      <h3 class="text-base font-semibold text-[#202020] mb-2" id="disconnected-title">Canvas Server Stopped</h3>
+      <p class="text-xs text-[#828282] leading-relaxed mb-5" id="disconnected-desc">
+        The backend Python server was shut down and the port has been released. You can safely close this browser window.
+      </p>
+      <div class="flex items-center justify-center gap-3">
+        <button id="btn-reconnect" class="px-4 py-2 rounded-lg bg-[#202020] text-white text-xs font-medium hover:bg-[#333] transition-colors">
+          Reconnect
+        </button>
+        <button onclick="window.close()" class="px-4 py-2 rounded-lg bg-[#f4f4f5] text-[#4d4d4d] text-xs font-medium hover:bg-[#e5e5e5] transition-colors">
+          Close Window
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- Infinite Canvas Viewport -->
   <main id="canvas-viewport">

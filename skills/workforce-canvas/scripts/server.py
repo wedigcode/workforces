@@ -21,6 +21,8 @@ import re
 import socketserver
 import subprocess
 import sys
+import threading
+import time
 import urllib.parse
 from pathlib import Path
 from typing import Dict, List, Any, Optional
@@ -584,6 +586,33 @@ class WorkforceCanvasHandler(http.server.SimpleHTTPRequestHandler):
 
     root_dir: Path = Path.cwd()
     web_dir: Path = Path(__file__).resolve().parent.parent / "web"
+    last_activity_time: float = 0.0
+    idle_timeout: int = 300  # Default 5 minutes (300 seconds)
+    httpd_instance: Any = None
+    is_shutting_down: bool = False
+
+    @classmethod
+    def record_activity(cls):
+        """Reset the activity timestamp whenever an HTTP request or heartbeat is received."""
+        cls.last_activity_time = time.time()
+
+    @classmethod
+    def trigger_shutdown(cls, delay: float = 0.5):
+        """Gracefully stop the HTTP server on a separate background thread."""
+        if cls.is_shutting_down:
+            return
+        cls.is_shutting_down = True
+
+        def _stop():
+            time.sleep(delay)
+            if cls.httpd_instance:
+                try:
+                    cls.httpd_instance.shutdown()
+                except Exception as err:
+                    sys.stderr.write(f"Shutdown error: {err}\n")
+
+        shutdown_thread = threading.Thread(target=_stop, daemon=True)
+        shutdown_thread.start()
 
     def do_OPTIONS(self):
         """Handle CORS pre-flight requests."""
@@ -594,11 +623,22 @@ class WorkforceCanvasHandler(http.server.SimpleHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
+        self.record_activity()
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
         query = urllib.parse.parse_qs(parsed.query)
 
-        if path == "/api/state":
+        if path in ("/api/heartbeat", "/api/ping"):
+            elapsed = time.time() - self.last_activity_time
+            time_remaining = max(0, self.idle_timeout - elapsed) if self.idle_timeout > 0 else -1
+            self.send_json_response({
+                "status": "alive",
+                "idle_timeout": self.idle_timeout,
+                "time_remaining": int(time_remaining),
+                "server_pid": os.getpid(),
+                "timestamp": datetime.datetime.now().isoformat(),
+            })
+        elif path == "/api/state":
             self.send_json_response(self.handle_get_state())
         elif path == "/api/commit":
             commit_hash = query.get("hash", [None])[0]
@@ -678,8 +718,30 @@ li {{ margin: 4px 0; }}
                 self.send_error(404, "Not Found")
 
     def do_POST(self):
+        self.record_activity()
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
+
+        if path in ("/api/heartbeat", "/api/ping"):
+            elapsed = time.time() - self.last_activity_time
+            time_remaining = max(0, self.idle_timeout - elapsed) if self.idle_timeout > 0 else -1
+            self.send_json_response({
+                "status": "alive",
+                "idle_timeout": self.idle_timeout,
+                "time_remaining": int(time_remaining),
+                "server_pid": os.getpid(),
+                "timestamp": datetime.datetime.now().isoformat(),
+            })
+            return
+
+        elif path == "/api/shutdown":
+            self.send_json_response({
+                "success": True,
+                "message": "Canvas server is shutting down. Port will be released.",
+                "server_pid": os.getpid(),
+            })
+            self.trigger_shutdown(delay=0.3)
+            return
 
         content_len = int(self.headers.get("Content-Length", 0))
         post_body = self.rfile.read(content_len).decode("utf-8") if content_len > 0 else "{}"
@@ -819,9 +881,18 @@ li {{ margin: 4px 0; }}
         sys.stderr.write(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] {format % args}\n")
 
 
-def run_server(port: int = 8765, host: str = "127.0.0.1", root_dir: Optional[str] = None, open_browser: bool = False):
+def run_server(
+    port: int = 8765,
+    host: str = "127.0.0.1",
+    root_dir: Optional[str] = None,
+    open_browser: bool = False,
+    idle_timeout: int = 300,
+):
     resolved_root = Path(root_dir).resolve() if root_dir else Path.cwd().resolve()
     WorkforceCanvasHandler.root_dir = resolved_root
+    WorkforceCanvasHandler.idle_timeout = idle_timeout
+    WorkforceCanvasHandler.last_activity_time = time.time()
+    WorkforceCanvasHandler.is_shutting_down = False
 
     class ReusableTCPServer(socketserver.TCPServer):
         allow_reuse_address = True
@@ -842,6 +913,26 @@ def run_server(port: int = 8765, host: str = "127.0.0.1", root_dir: Optional[str
         sys.stderr.write(f"Error: Could not find an available port in range {port}-{port+50}.\n")
         sys.exit(1)
 
+    WorkforceCanvasHandler.httpd_instance = httpd
+
+    # Start background idle watchdog thread
+    if idle_timeout > 0:
+        def _idle_watchdog():
+            while not WorkforceCanvasHandler.is_shutting_down:
+                time.sleep(2)
+                if WorkforceCanvasHandler.is_shutting_down:
+                    break
+                if WorkforceCanvasHandler.idle_timeout > 0:
+                    elapsed = time.time() - WorkforceCanvasHandler.last_activity_time
+                    if elapsed >= WorkforceCanvasHandler.idle_timeout:
+                        print(f"\n⏰ Idle timeout ({int(elapsed)}s with no active browser tab).")
+                        print(f"🛑 Automatically shutting down canvas server to release port {selected_port}.\n")
+                        WorkforceCanvasHandler.trigger_shutdown(delay=0.1)
+                        break
+
+        watchdog_thread = threading.Thread(target=_idle_watchdog, daemon=True)
+        watchdog_thread.start()
+
     with httpd:
         url = f"http://{host}:{selected_port}/"
         if selected_port != port:
@@ -849,7 +940,11 @@ def run_server(port: int = 8765, host: str = "127.0.0.1", root_dir: Optional[str
             print(f"👉 Automatically allocated port: {selected_port}")
         print(f"\n🚀 Workforce Command Canvas active at: {url}")
         print(f"📁 Root workspace: {resolved_root}")
-        print("Press Ctrl+C to stop the server.\n")
+        if idle_timeout > 0:
+            print(f"⏱️  Auto-shutdown watchdog: {idle_timeout}s idle timeout (auto-stops when browser tab closes)")
+        else:
+            print("⏱️  Auto-shutdown watchdog: disabled (runs continuously)")
+        print("Press Ctrl+C or use the canvas UI power button to stop the server.\n")
 
         if open_browser:
             try:
@@ -862,6 +957,8 @@ def run_server(port: int = 8765, host: str = "127.0.0.1", root_dir: Optional[str
             httpd.serve_forever()
         except KeyboardInterrupt:
             print("\nShutting down canvas server.")
+        finally:
+            WorkforceCanvasHandler.is_shutting_down = True
 
 
 if __name__ == "__main__":
@@ -870,6 +967,7 @@ if __name__ == "__main__":
     parser.add_argument("--host", type=str, default="127.0.0.1", help="Host address (default: 127.0.0.1)")
     parser.add_argument("--root", type=str, default="./", help="Root workforce directory")
     parser.add_argument("--open", action="store_true", help="Automatically open canvas in default browser")
+    parser.add_argument("--idle-timeout", type=int, default=300, help="Idle timeout in seconds before auto-shutdown (default: 300 / 5 minutes, 0 to disable)")
 
     args = parser.parse_args()
-    run_server(port=args.port, host=args.host, root_dir=args.root, open_browser=args.open)
+    run_server(port=args.port, host=args.host, root_dir=args.root, open_browser=args.open, idle_timeout=args.idle_timeout)

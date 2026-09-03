@@ -287,6 +287,75 @@ Test description.
             self.assertTrue(data["success"])
             self.assertEqual(data["task"]["status"], "in_progress")
 
+    def test_heartbeat_endpoints(self):
+        # GET /api/heartbeat
+        url_get = f"http://127.0.0.1:{self.port}/api/heartbeat"
+        req_get = urllib.request.Request(url_get)
+        with urllib.request.urlopen(req_get, timeout=3) as resp:
+            self.assertEqual(resp.status, 200)
+            data = json.loads(resp.read().decode("utf-8"))
+            self.assertEqual(data["status"], "alive")
+            self.assertIn("idle_timeout", data)
+            self.assertIn("time_remaining", data)
+            self.assertIn("server_pid", data)
+
+        # POST /api/heartbeat
+        url_post = f"http://127.0.0.1:{self.port}/api/heartbeat"
+        req_post = urllib.request.Request(url_post, data=b"{}", headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req_post, timeout=3) as resp:
+            self.assertEqual(resp.status, 200)
+            data = json.loads(resp.read().decode("utf-8"))
+            self.assertEqual(data["status"], "alive")
+
+    def test_shutdown_endpoint(self):
+        class TestTCPServer(server.socketserver.TCPServer):
+            allow_reuse_address = True
+
+        test_httpd = TestTCPServer(("127.0.0.1", 0), server.WorkforceCanvasHandler)
+        test_port = test_httpd.server_address[1]
+        server.WorkforceCanvasHandler.httpd_instance = test_httpd
+        server.WorkforceCanvasHandler.is_shutting_down = False
+        t = threading.Thread(target=test_httpd.serve_forever)
+        t.daemon = True
+        t.start()
+        time.sleep(0.1)
+
+        shut_url = f"http://127.0.0.1:{test_port}/api/shutdown"
+        shut_req = urllib.request.Request(shut_url, data=b"{}", headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(shut_req, timeout=3) as resp:
+            self.assertEqual(resp.status, 200)
+            data = json.loads(resp.read().decode("utf-8"))
+            self.assertTrue(data["success"])
+
+        t.join(timeout=2)
+        test_httpd.server_close()
+        self.assertFalse(t.is_alive())
+
+    def test_idle_watchdog_auto_shutdown(self):
+        class TestTCPServer(server.socketserver.TCPServer):
+            allow_reuse_address = True
+
+        test_httpd = TestTCPServer(("127.0.0.1", 0), server.WorkforceCanvasHandler)
+        server.WorkforceCanvasHandler.httpd_instance = test_httpd
+        server.WorkforceCanvasHandler.idle_timeout = 1  # 1 second timeout
+        server.WorkforceCanvasHandler.last_activity_time = time.time() - 2  # Already expired
+        server.WorkforceCanvasHandler.is_shutting_down = False
+
+        t = threading.Thread(target=test_httpd.serve_forever)
+        t.daemon = True
+        t.start()
+        time.sleep(0.05)
+
+        # Trigger watchdog logic
+        elapsed = time.time() - server.WorkforceCanvasHandler.last_activity_time
+        if elapsed >= server.WorkforceCanvasHandler.idle_timeout:
+            server.WorkforceCanvasHandler.trigger_shutdown(delay=0.05)
+
+        t.join(timeout=2)
+        test_httpd.server_close()
+        self.assertFalse(t.is_alive())
+
 
 if __name__ == "__main__":
     unittest.main()
+

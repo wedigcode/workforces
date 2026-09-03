@@ -50,6 +50,7 @@
     setupPanAndZoom();
     setupControls();
     setupSearch();
+    setupHeartbeatAndPower();
     await fetchWorkforceState();
     navigateTo('workstate', null, 'Radar', false);
     if (window.lucide) {
@@ -1534,6 +1535,114 @@
     document.getElementById('stat-total-tasks').innerText = `${state.stats.total_tasks || 0} Tasks`;
     document.getElementById('stat-in-progress').innerText = `${state.stats.in_progress || 0} In Progress`;
     document.getElementById('stat-blocked').innerText = `${state.stats.blocked || 0} Blocked`;
+  }
+
+  // --- Heartbeat & Auto-Shutdown Management ---
+
+  let heartbeatInterval = null;
+  let isServerDisconnected = false;
+
+  function setupHeartbeatAndPower() {
+    // 1. Initial heartbeat after 500ms, then every 30s
+    setTimeout(sendHeartbeat, 500);
+    heartbeatInterval = setInterval(sendHeartbeat, 30000);
+
+    // 2. Power / Stop button handler
+    const stopBtn = document.getElementById('btn-stop-server');
+    if (stopBtn) {
+      stopBtn.onclick = async () => {
+        if (!confirm('Stop the Workforce Command Canvas server and release port 8765?')) {
+          return;
+        }
+        stopBtn.disabled = true;
+        try {
+          await fetch('/api/shutdown', { method: 'POST' });
+        } catch (e) {
+          // Expected network drop on server shutdown
+        }
+        showDisconnectedOverlay('Server Stopped Manually', 'The backend Python server was shut down and port 8765 has been released. You can safely close this browser window.');
+      };
+    }
+
+    // 3. Reconnect button in disconnected overlay
+    const reconnectBtn = document.getElementById('btn-reconnect');
+    if (reconnectBtn) {
+      reconnectBtn.onclick = async () => {
+        reconnectBtn.innerText = 'Connecting...';
+        try {
+          const res = await fetch('/api/heartbeat');
+          if (res.ok) {
+            window.location.reload();
+            return;
+          }
+        } catch (e) {
+          // Still down
+        }
+        setTimeout(() => {
+          reconnectBtn.innerText = 'Reconnect';
+          alert('Server is not running yet. Run `python skills/workforce-canvas/scripts/server.py` in your terminal to start it again.');
+        }, 600);
+      };
+    }
+
+    // 4. Send beacon when window is closed
+    window.addEventListener('beforeunload', () => {
+      if (!isServerDisconnected && navigator.sendBeacon) {
+        navigator.sendBeacon('/api/heartbeat?closing=true');
+      }
+    });
+  }
+
+  async function sendHeartbeat() {
+    if (isServerDisconnected) return;
+    try {
+      const res = await fetch('/api/heartbeat', { method: 'POST' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      updateHeartbeatBadge(true, data);
+    } catch (err) {
+      updateHeartbeatBadge(false);
+    }
+  }
+
+  function updateHeartbeatBadge(online, data) {
+    const dot = document.getElementById('heartbeat-dot');
+    const label = document.getElementById('heartbeat-label');
+    const badge = document.getElementById('heartbeat-badge');
+    if (!dot || !label) return;
+
+    if (online) {
+      dot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse';
+      if (data && data.time_remaining !== undefined && data.time_remaining >= 0) {
+        const mins = Math.floor(data.time_remaining / 60);
+        const secs = data.time_remaining % 60;
+        const timeStr = mins > 0 ? `${mins}m` : `${secs}s`;
+        label.innerText = `${timeStr} Idle`;
+        badge.title = `Canvas active. Auto-shuts down after ${timeStr} of inactivity if tabs close.`;
+      } else {
+        label.innerText = 'Live';
+      }
+    } else {
+      dot.className = 'w-1.5 h-1.5 rounded-full bg-rose-500';
+      label.innerText = 'Offline';
+      badge.title = 'Server disconnected or stopped.';
+    }
+  }
+
+  function showDisconnectedOverlay(title, description) {
+    isServerDisconnected = true;
+    if (heartbeatInterval) clearInterval(heartbeatInterval);
+    updateHeartbeatBadge(false);
+
+    const overlay = document.getElementById('disconnected-overlay');
+    const titleEl = document.getElementById('disconnected-title');
+    const descEl = document.getElementById('disconnected-desc');
+    if (titleEl && title) titleEl.innerText = title;
+    if (descEl && description) descEl.innerText = description;
+    if (overlay) {
+      overlay.classList.remove('hidden');
+      if (window.lucide) window.lucide.createIcons();
+    }
   }
 
   // Self-start on DOM ready
