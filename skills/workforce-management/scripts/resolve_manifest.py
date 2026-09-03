@@ -16,8 +16,8 @@ import datetime
 
 CORE_AGENTS = {'advisor.md', 'project-manager.md', 'scribe.md'}
 CORE_RULES = {'base.md', 'mcp-protection.md', 'session-context.md', 'file-integrity.md'}
-CORE_SKILLS = {'workforce-management', 'memory-management', 'task-tracker', 'issue-tracker', 'session-context', 'usage-tracker', 'integrity-validator'}
-CORE_WORKFLOWS = {'wf-work.md', 'wf-plan.md', 'wf-sync.md', 'wf-task.md', 'wf-advisor.md', 'wf-ideate.md', 'wf-teams.md', 'wf-question-formulation.md', 'wf-update.md', 'wf-verify-integrity.md', 'wf-context.md', 'wf-feature.md', 'wf-project-management.md'}
+CORE_SKILLS = {'workforce-management', 'memory-management', 'task-tracker', 'issue-tracker', 'session-context', 'usage-tracker', 'integrity-validator', 'workforce-canvas'}
+CORE_WORKFLOWS = {'wf-work.md', 'wf-plan.md', 'wf-sync.md', 'wf-task.md', 'wf-advisor.md', 'wf-ideate.md', 'wf-teams.md', 'wf-question-formulation.md', 'wf-update.md', 'wf-verify-integrity.md', 'wf-context.md', 'wf-feature.md', 'wf-project-management.md', 'wf-canvas.md'}
 CORE_PLUGINS = {'workforce-usage-plugin', 'workforce-integrity-plugin'}
 
 MANIFEST_REL_PATH = os.path.join("workforces", ".manifest.json")

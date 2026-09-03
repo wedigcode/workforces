@@ -282,8 +282,8 @@ if [[ "$RESOLVER_OK" != true ]]; then
   # Fallback if resolver script, python, or the resolver run is unavailable
   ALLOWED_AGENTS="advisor.md project-manager.md scribe.md programmer.md designer.md"
   ALLOWED_RULES="base.md clean-coder.md design-standards.md mcp-protection.md session-context.md"
-  ALLOWED_SKILLS="brand-guidelines clean-coder code-graph codebase-improvement design-anti-patterns doc-generator image-workflow issue-tracker jules-integration memory-management post-code-review pr-review session-context ui-ux-design usage-tracker visual-design-fundamentals workforce-management"
-  ALLOWED_WORKFLOWS="wf-advisor.md wf-brand-context.md wf-clean.md wf-improve.md wf-investigate.md wf-plan.md wf-question-formulation.md wf-site-setup.md wf-sync.md wf-task.md wf-teams.md wf-update.md wf-verify-integrity.md wf-work.md"
+  ALLOWED_SKILLS="brand-guidelines clean-coder code-graph codebase-improvement design-anti-patterns doc-generator image-workflow issue-tracker jules-integration memory-management post-code-review pr-review session-context ui-ux-design usage-tracker visual-design-fundamentals workforce-management workforce-canvas"
+  ALLOWED_WORKFLOWS="wf-advisor.md wf-brand-context.md wf-clean.md wf-improve.md wf-investigate.md wf-plan.md wf-question-formulation.md wf-site-setup.md wf-sync.md wf-task.md wf-teams.md wf-update.md wf-verify-integrity.md wf-work.md wf-canvas.md"
   ALLOWED_PLUGINS="workforce-programming-plugin workforce-usage-plugin"
   ALLOWED_TEAMS="dev design"
   INSTALLED_TEAMS_LIST="dev design"
