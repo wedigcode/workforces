@@ -24,15 +24,19 @@ An interactive, zero-npm visual command canvas for the workforce. Bridges high-l
 
 ---
 
-## 🚀 Launching the Canvas
+## 🤖 Autonomous AI Agent Protocol
 
-```bash
-# Launch server and automatically open in browser
-python3 .agents/skills/workforce-canvas/scripts/server.py --port 8765 --open
-
-# Fallback (from repository root)
-python3 skills/workforce-canvas/scripts/server.py --port 8765 --open
-```
+When the user invokes `/wf-canvas`, or asks to *"open the canvas"*, *"show the canvas"*, *"visualize workstate"*, or *"inspect blast radius"*:
+1. **Never Ask the User to Run the Command Manually**:
+   The AI agent MUST immediately launch the background daemon on behalf of the user using `run_command` with `IsDaemon=True`:
+   ```bash
+   python3 .agents/skills/workforce-canvas/scripts/server.py --open
+   ```
+   *(Fallback: `python3 skills/workforce-canvas/scripts/server.py --open`)*
+2. **Confirm Launch & Link**:
+   Provide the clickable browser link `http://127.0.0.1:8765/` (or allocated port) and report active workstate stats.
+3. **Planning & Standup Integration**:
+   During `/wf-plan`, `/wf-sync`, or before making major refactors, the agent should offer or proactively launch the canvas to visually showcase the affected blast radius.
 
 ---
 
