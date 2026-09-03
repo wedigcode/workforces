@@ -541,8 +541,27 @@ def run_server(port: int = 8765, host: str = "127.0.0.1", root_dir: Optional[str
     class ReusableTCPServer(socketserver.TCPServer):
         allow_reuse_address = True
 
-    with ReusableTCPServer((host, port), WorkforceCanvasHandler) as httpd:
-        url = f"http://{host}:{port}/"
+    httpd = None
+    selected_port = port
+    for p in range(port, port + 50):
+        try:
+            httpd = ReusableTCPServer((host, p), WorkforceCanvasHandler)
+            selected_port = p
+            break
+        except OSError as e:
+            if e.errno in (48, 98):  # macOS 48 / Linux 98: Address already in use
+                continue
+            raise
+
+    if not httpd:
+        sys.stderr.write(f"Error: Could not find an available port in range {port}-{port+50}.\n")
+        sys.exit(1)
+
+    with httpd:
+        url = f"http://{host}:{selected_port}/"
+        if selected_port != port:
+            print(f"\n⚠️  Port {port} is occupied by another instance.")
+            print(f"👉 Automatically allocated port: {selected_port}")
         print(f"\n🚀 Workforce Command Canvas active at: {url}")
         print(f"📁 Root workspace: {resolved_root}")
         print("Press Ctrl+C to stop the server.\n")
