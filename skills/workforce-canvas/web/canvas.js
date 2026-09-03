@@ -403,7 +403,7 @@
           crumbsContainer.appendChild(crumb);
           if (!isLast) {
             const sep = document.createElement('span');
-            sep.className = 'text-zinc-600';
+            sep.className = 'text-[#d1cfca]';
             sep.innerText = '›';
             crumbsContainer.appendChild(sep);
           }
@@ -506,7 +506,7 @@
         y: 120,
         width: 300,
         badgeText: 'Origin Session',
-        badgeColor: 'bg-sky-500/20 text-sky-400 border-sky-500/30',
+        badgeColor: 'bg-[#e0f2fe] text-[#0369a1] border-[#bae6fd]',
         title: sessionObj ? sessionObj.topic : sessionFile.split('/').pop().replace(/\.md$/, ''),
         subtitle: `Lineage Context Note (#${task.session_id || (sessionObj ? sessionObj.id : '000')})`,
         actionLabel: 'Pivot to Session View &rarr;',
@@ -538,7 +538,7 @@
         y: 320,
         width: 300,
         badgeText: 'GitHub Lineage',
-        badgeColor: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+        badgeColor: 'bg-[#f5f3ff] text-[#7c3aed] border-[#ddd6fe]',
         title: task.github_pr ? `PR #${task.github_pr}` : `Issue #${task.github_issue}`,
         subtitle: 'Remote Repository Tracking',
         actionLabel: 'Open GitHub ↗',
@@ -553,12 +553,12 @@
     if (commits.length > 0) {
       const commitCardId = `sat-commits-${task.id}`;
       const commitsHtml = commits.map(c => `
-        <div class="py-1.5 px-2 hover:bg-white/5 rounded transition-colors cursor-pointer border-b border-white/5 last:border-0" data-action="pivot-commit" data-hash="${c.hash}">
+        <div class="py-1.5 px-2 hover:bg-[#f5f5f5] rounded transition-colors cursor-pointer border-b border-[#e2e0dc] last:border-0" data-action="pivot-commit" data-hash="${c.hash}">
           <div class="flex items-center justify-between text-[11px]">
-            <span class="font-mono text-emerald-400 font-medium">${c.hash}</span>
-            <span class="text-[10px] text-zinc-500">${c.date}</span>
+            <span class="font-mono text-[#047857] font-semibold">${c.hash}</span>
+            <span class="text-[10px] text-[#828282]">${c.date}</span>
           </div>
-          <div class="text-[11px] text-zinc-300 truncate mt-0.5" title="${c.message}">${c.message}</div>
+          <div class="text-[11px] text-[#4d4d4d] truncate mt-0.5" title="${c.message}">${c.message}</div>
         </div>
       `).join('');
 
@@ -568,7 +568,7 @@
         y: 60,
         width: 340,
         badgeText: `Git Commits (${commits.length})`,
-        badgeColor: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+        badgeColor: 'bg-[#ecfdf5] text-[#047857] border-[#a7f3d0]',
         bodyHtml: commitsHtml,
         icon: 'git-commit'
       });
@@ -589,7 +589,7 @@
     if (docs.length > 0) {
       const docCardId = `sat-docs-${task.id}`;
       const docsHtml = docs.map(d => `
-        <a href="${d.url}" target="_blank" class="block py-1 text-[11px] text-indigo-400 hover:text-indigo-300 underline truncate">
+        <a href="${d.url}" target="_blank" class="block py-1 text-[11px] text-[#c2410c] hover:text-[#9a3412] underline truncate">
           ${d.title || d.url} ↗
         </a>
       `).join('');
@@ -600,7 +600,7 @@
         y: 320,
         width: 340,
         badgeText: 'Linked Docs & Specs',
-        badgeColor: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',
+        badgeColor: 'bg-[#eff6ff] text-[#2563eb] border-[#bfdbfe]',
         bodyHtml: docsHtml,
         icon: 'external-link'
       });
@@ -612,9 +612,9 @@
     if (symbols.length > 0) {
       const symCardId = `sat-symbols-${task.id}`;
       const symsHtml = symbols.map(s => `
-        <div class="py-1.5 flex items-center justify-between border-b border-white/5 last:border-0 text-[11px]">
-          <span class="font-mono text-amber-300 truncate max-w-[180px]">${s.name}()</span>
-          <button class="text-sky-400 hover:text-sky-300 text-[10px] font-medium" data-symbol="${s.name}" data-action="explore-symbol">
+        <div class="py-1.5 flex items-center justify-between border-b border-[#e2e0dc] last:border-0 text-[11px]">
+          <span class="font-mono text-[#202020] font-medium truncate max-w-[180px]">${s.name}()</span>
+          <button class="text-[#c2410c] hover:text-[#9a3412] text-[10px] font-semibold cursor-pointer" data-symbol="${s.name}" data-action="explore-symbol">
             Blast Radius &rarr;
           </button>
         </div>
@@ -626,7 +626,7 @@
         y: 160,
         width: 300,
         badgeText: `Touched Symbols (${symbols.length})`,
-        badgeColor: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+        badgeColor: 'bg-[#fff7ed] text-[#816729] border-[#fed7aa]',
         bodyHtml: symsHtml,
         icon: 'code-2'
       });
@@ -652,24 +652,24 @@
     sessCard.id = `node-session-${session.id}`;
     sessCard.style.width = '360px';
     sessCard.style.transform = `translate3d(${mainX}px, ${mainY}px, 0)`;
-    sessCard.style.borderLeft = '3px solid #38bdf8';
+    sessCard.style.borderLeft = '3px solid #0369a1';
 
-    const tagsHtml = (session.tags || []).map(t => `<span class="text-[10px] px-2 py-0.5 rounded bg-sky-500/10 text-sky-300 border border-sky-500/20">#${t}</span>`).join(' ');
+    const tagsHtml = (session.tags || []).map(t => `<span class="text-[10px] px-2 py-0.5 rounded-full bg-[#e0f2fe] text-[#0369a1] border border-[#bae6fd]">#${t}</span>`).join(' ');
 
     sessCard.innerHTML = `
-      <div class="flex items-center justify-between pb-2 border-b border-white/5">
-        <span class="text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded border bg-sky-500/20 text-sky-400 border-sky-500/30 font-mono">
+      <div class="flex items-center justify-between pb-2 border-b border-[#e2e0dc]">
+        <span class="text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full border bg-[#e0f2fe] text-[#0369a1] border-[#bae6fd] font-mono">
           Session #${session.id}
         </span>
-        <span class="text-[11px] text-zinc-500 font-mono">${(session.created_at || '').slice(0, 10)}</span>
+        <span class="text-[11px] text-[#828282] font-mono">${(session.created_at || '').slice(0, 10)}</span>
       </div>
       <div class="mt-3">
-        <h3 class="text-sm font-semibold text-white leading-snug">${session.topic || session.title}</h3>
-        <p class="font-mono text-[11px] text-zinc-500 mt-1 truncate">${session.file}</p>
+        <h3 class="text-sm font-semibold text-[#202020] leading-snug">${session.topic || session.title}</h3>
+        <p class="font-mono text-[11px] text-[#828282] mt-1 truncate">${session.file}</p>
       </div>
       ${tagsHtml ? `<div class="mt-2.5 flex flex-wrap gap-1">${tagsHtml}</div>` : ''}
-      <div class="mt-3 pt-2.5 border-t border-white/5 flex items-center justify-between">
-        <a href="/${session.file}" target="_blank" class="text-sky-400 hover:text-sky-300 text-xs font-medium flex items-center gap-1">
+      <div class="mt-3 pt-2.5 border-t border-[#e2e0dc] flex items-center justify-between">
+        <a href="/${session.file}" target="_blank" class="text-[#c2410c] hover:text-[#9a3412] text-xs font-semibold flex items-center gap-1">
           Open Markdown Notes ↗
         </a>
       </div>
@@ -705,7 +705,7 @@
         y: 200,
         width: 300,
         badgeText: 'Preceding Session',
-        badgeColor: 'bg-zinc-500/20 text-zinc-300 border-zinc-500/30',
+        badgeColor: 'bg-[#f4f4f5] text-[#52525b] border-[#e4e4e7]',
         title: parentSess ? parentSess.topic : `Session #${session.parent_session_id}`,
         subtitle: 'Upstream Lineage Predecessor',
         actionLabel: 'Pivot to Parent Session &rarr;',
@@ -727,12 +727,12 @@
     if (trackedTasks.length > 0) {
       const tasksCardId = `sat-tasks-${session.id}`;
       const tasksHtml = trackedTasks.map(t => `
-        <div class="py-2 px-2 hover:bg-white/5 rounded transition-colors cursor-pointer border-b border-white/5 last:border-0" data-action="pivot-task" data-id="${t.id}">
+        <div class="py-2 px-2 hover:bg-[#f5f5f5] rounded transition-colors cursor-pointer border-b border-[#e2e0dc] last:border-0" data-action="pivot-task" data-id="${t.id}">
           <div class="flex items-center justify-between text-[11px]">
             <span class="badge-team badge-${t.team}">${t.team}</span>
             <span class="status-pill status-${t.status}">${t.status.replace('_', ' ')}</span>
           </div>
-          <div class="text-xs font-semibold text-white truncate mt-1">${t.title}</div>
+          <div class="text-xs font-semibold text-[#202020] truncate mt-1">${t.title}</div>
         </div>
       `).join('');
 
@@ -742,7 +742,7 @@
         y: 80,
         width: 340,
         badgeText: `Tracked Deliverables (${trackedTasks.length})`,
-        badgeColor: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',
+        badgeColor: 'bg-[#eff6ff] text-[#2563eb] border-[#bfdbfe]',
         bodyHtml: tasksHtml,
         icon: 'check-square'
       });
@@ -762,7 +762,7 @@
     if (activeFiles.length > 0) {
       const filesCardId = `sat-files-${session.id}`;
       const filesHtml = activeFiles.map(f => `
-        <div class="py-1 text-[11px] font-mono text-zinc-300 truncate" title="${f}">
+        <div class="py-1 text-[11px] font-mono text-[#4d4d4d] truncate" title="${f}">
           📄 ${f}
         </div>
       `).join('');
@@ -773,7 +773,7 @@
         y: 330,
         width: 340,
         badgeText: `Active Files Touched (${activeFiles.length})`,
-        badgeColor: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+        badgeColor: 'bg-[#fff7ed] text-[#816729] border-[#fed7aa]',
         bodyHtml: filesHtml,
         icon: 'file-code'
       });
@@ -806,18 +806,18 @@
     comCard.id = `node-commit-${commitData.hash}`;
     comCard.style.width = '360px';
     comCard.style.transform = `translate3d(${mainX}px, ${mainY}px, 0)`;
-    comCard.style.borderLeft = '3px solid #10b981';
+    comCard.style.borderLeft = '3px solid #047857';
 
     comCard.innerHTML = `
-      <div class="flex items-center justify-between pb-2 border-b border-white/5">
-        <span class="text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded border bg-emerald-500/20 text-emerald-400 border-emerald-500/30 font-mono">
+      <div class="flex items-center justify-between pb-2 border-b border-[#e2e0dc]">
+        <span class="text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full border bg-[#ecfdf5] text-[#047857] border-[#a7f3d0] font-mono">
           Git Commit ${commitData.hash}
         </span>
-        <span class="text-[11px] text-zinc-500 font-mono">${(commitData.date || '').slice(0, 16)}</span>
+        <span class="text-[11px] text-[#828282] font-mono">${(commitData.date || '').slice(0, 16)}</span>
       </div>
       <div class="mt-3">
-        <h3 class="text-sm font-semibold text-white leading-snug">${commitData.message}</h3>
-        <p class="text-[11px] text-zinc-400 mt-1">Author: <span class="text-zinc-200">${commitData.author}</span></p>
+        <h3 class="text-sm font-semibold text-[#202020] leading-snug">${commitData.message}</h3>
+        <p class="text-[11px] text-[#4d4d4d] mt-1">Author: <span class="text-[#202020] font-medium">${commitData.author}</span></p>
       </div>
     `;
 
@@ -846,12 +846,12 @@
     if (matchingTasks.length > 0) {
       const taskSatId = `sat-ctasks-${commitData.hash}`;
       const tasksHtml = matchingTasks.map(t => `
-        <div class="py-1.5 px-2 hover:bg-white/5 rounded transition-colors cursor-pointer border-b border-white/5 last:border-0" data-action="pivot-task" data-id="${t.id}">
+        <div class="py-1.5 px-2 hover:bg-[#f5f5f5] rounded transition-colors cursor-pointer border-b border-[#e2e0dc] last:border-0" data-action="pivot-task" data-id="${t.id}">
           <div class="flex items-center justify-between text-[11px]">
             <span class="badge-team badge-${t.team}">${t.team}</span>
             <span class="status-pill status-${t.status}">${t.status.replace('_', ' ')}</span>
           </div>
-          <div class="text-xs font-semibold text-white truncate mt-1">${t.title}</div>
+          <div class="text-xs font-semibold text-[#202020] truncate mt-1">${t.title}</div>
         </div>
       `).join('');
 
@@ -861,7 +861,7 @@
         y: 180,
         width: 320,
         badgeText: `Triggering Tasks (${matchingTasks.length})`,
-        badgeColor: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',
+        badgeColor: 'bg-[#eff6ff] text-[#2563eb] border-[#bfdbfe]',
         bodyHtml: tasksHtml,
         icon: 'target'
       });
@@ -881,7 +881,7 @@
     if (files.length > 0) {
       const filesSatId = `sat-cfiles-${commitData.hash}`;
       const filesHtml = files.map(f => `
-        <div class="py-1 text-[11px] font-mono text-zinc-300 truncate" title="${f}">
+        <div class="py-1 text-[11px] font-mono text-[#4d4d4d] truncate" title="${f}">
           📄 ${f}
         </div>
       `).join('');
@@ -892,7 +892,7 @@
         y: 80,
         width: 340,
         badgeText: `Files Changed (${files.length})`,
-        badgeColor: 'bg-zinc-500/20 text-zinc-300 border-zinc-500/30',
+        badgeColor: 'bg-[#f4f4f5] text-[#52525b] border-[#e4e4e7]',
         bodyHtml: filesHtml,
         icon: 'file-diff'
       });
@@ -904,9 +904,9 @@
     if (symbols.length > 0) {
       const symSatId = `sat-csyms-${commitData.hash}`;
       const symsHtml = symbols.slice(0, 8).map(s => `
-        <div class="py-1.5 flex items-center justify-between border-b border-white/5 last:border-0 text-[11px]">
-          <span class="font-mono text-amber-300 truncate max-w-[180px]">${s.name}()</span>
-          <button class="text-sky-400 hover:text-sky-300 text-[10px] font-medium" data-symbol="${s.name}" data-action="explore-symbol">
+        <div class="py-1.5 flex items-center justify-between border-b border-[#e2e0dc] last:border-0 text-[11px]">
+          <span class="font-mono text-[#202020] font-medium truncate max-w-[180px]">${s.name}()</span>
+          <button class="text-[#c2410c] hover:text-[#9a3412] text-[10px] font-semibold cursor-pointer" data-symbol="${s.name}" data-action="explore-symbol">
             Blast Radius &rarr;
           </button>
         </div>
@@ -918,7 +918,7 @@
         y: 160,
         width: 300,
         badgeText: `Touched Symbols (${symbols.length})`,
-        badgeColor: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+        badgeColor: 'bg-[#fff7ed] text-[#816729] border-[#fed7aa]',
         bodyHtml: symsHtml,
         icon: 'code-2'
       });
@@ -974,7 +974,7 @@
         y: 220,
         width: 280,
         badgeText: 'Internal Dependencies',
-        badgeColor: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30',
+        badgeColor: 'bg-[#f4f4f5] text-[#52525b] border-[#e4e4e7]',
         title: '0 Internal Callees',
         subtitle: 'Pure logic or standard library built-ins',
         icon: 'check-circle'
@@ -998,7 +998,7 @@
         y: 220,
         width: 280,
         badgeText: 'Blast Radius (Callers)',
-        badgeColor: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30',
+        badgeColor: 'bg-[#f4f4f5] text-[#52525b] border-[#e4e4e7]',
         title: '0 Downstream Callers',
         subtitle: 'Entrypoint or top-level script/handler',
         icon: 'terminal'
@@ -1050,10 +1050,10 @@
     header.innerHTML = `
       <div class="flex items-center gap-2">
         <span class="badge-team badge-${task.team}">${task.team}</span>
-        <span class="text-xs text-muted font-mono font-medium">${task.priority}</span>
-        ${symbolsCount > 0 ? `<span title="${symbolsCount} touched AST symbols" class="text-[10px] text-amber-400 font-mono flex items-center gap-0.5 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20"><i data-lucide="code-2" class="w-3 h-3"></i>${symbolsCount}</span>` : ''}
-        ${commitsCount > 0 ? `<span title="${commitsCount} linked commits" class="text-[10px] text-zinc-400 font-mono flex items-center gap-0.5 bg-zinc-800/80 px-1.5 py-0.5 rounded border border-white/5"><i data-lucide="git-commit" class="w-3 h-3 text-emerald-400"></i>${commitsCount}</span>` : ''}
-        ${hasGitHub ? `<span title="GitHub linked" class="text-[10px] text-purple-400 bg-purple-500/10 px-1.5 py-0.5 rounded border border-purple-500/20"><i data-lucide="git-pull-request" class="w-3 h-3"></i></span>` : ''}
+        <span class="text-xs text-[#4d4d4d] font-mono font-medium">${task.priority}</span>
+        ${symbolsCount > 0 ? `<span title="${symbolsCount} touched AST symbols" class="text-[10px] text-[#816729] font-mono flex items-center gap-0.5 bg-[#fff7ed] px-1.5 py-0.5 rounded-full border border-[#fed7aa]"><i data-lucide="code-2" class="w-3 h-3"></i>${symbolsCount}</span>` : ''}
+        ${commitsCount > 0 ? `<span title="${commitsCount} linked commits" class="text-[10px] text-[#047857] font-mono flex items-center gap-0.5 bg-[#ecfdf5] px-1.5 py-0.5 rounded-full border border-[#a7f3d0]"><i data-lucide="git-commit" class="w-3 h-3 text-[#047857]"></i>${commitsCount}</span>` : ''}
+        ${hasGitHub ? `<span title="GitHub linked" class="text-[10px] text-[#7c3aed] bg-[#f5f3ff] px-1.5 py-0.5 rounded-full border border-[#ddd6fe]"><i data-lucide="git-pull-request" class="w-3 h-3"></i></span>` : ''}
       </div>
       <div class="flex items-center gap-1.5">
         <span class="status-pill status-${task.status}" data-action="toggle-status">
@@ -1066,7 +1066,7 @@
     body.className = 'p-3 text-left';
     body.innerHTML = `
       <div class="card-title">${task.title}</div>
-      <div class="mt-2.5 flex items-center justify-between text-xs text-muted">
+      <div class="mt-2.5 flex items-center justify-between text-xs text-[#828282]">
         <span class="font-mono text-[11px] truncate max-w-[260px]">${task.file.split('/').pop()}</span>
       </div>
     `;
@@ -1126,22 +1126,22 @@
       <div class="card-header flex items-center justify-between">
         <div class="flex items-center gap-1.5">
           ${repoBadge}
-          ${isCrossRepo ? `<span class="text-[10px] text-zinc-500 font-mono">${symbol.kind || 'fn'}</span>` : ''}
+          ${isCrossRepo ? `<span class="text-[10px] text-[#828282] font-mono">${symbol.kind || 'fn'}</span>` : ''}
         </div>
         <div class="flex items-center gap-1.5">
-          <span class="text-xs font-mono text-muted">L${symbol.line || 0}</span>
+          <span class="text-xs font-mono text-[#828282]">L${symbol.line || 0}</span>
           ${!isFocal ? `
-            <button class="px-2 py-0.5 rounded text-[10px] font-semibold bg-sky-500/15 hover:bg-sky-500/30 text-sky-400 hover:text-sky-200 border border-sky-500/30 transition-all flex items-center gap-1 cursor-pointer" data-action="pivot-symbol" data-symbol="${symbol.name}" title="Drill into ${symbol.name}() blast radius">
+            <button class="px-2 py-0.5 rounded-none text-[10px] font-semibold bg-[#202020] hover:bg-[#383838] text-white transition-all flex items-center gap-1 cursor-pointer btn-sharp" data-action="pivot-symbol" data-symbol="${symbol.name}" title="Drill into ${symbol.name}() blast radius">
               <span>Drill &rarr;</span>
             </button>
           ` : ''}
         </div>
       </div>
       <div class="p-3 text-left">
-        <div class="font-mono text-xs font-semibold text-white truncate" title="${symbol.name}()">${symbol.name}()</div>
-        <div class="mt-1 font-mono text-[11px] text-muted truncate" title="${symbol.file || 'internal'}">${symbol.file || 'internal'}</div>
-        ${isFocal ? '<div class="mt-2 text-[10px] text-amber-400 font-semibold tracking-wide uppercase">Target Impact Focal Point</div>' : ''}
-        ${isLeaf ? '<div class="mt-1.5 text-[10px] text-zinc-400 font-mono flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-zinc-500"></span>Isolated Leaf (0 Callers)</div>' : ''}
+        <div class="font-mono text-xs font-semibold text-[#202020] truncate" title="${symbol.name}()">${symbol.name}()</div>
+        <div class="mt-1 font-mono text-[11px] text-[#828282] truncate" title="${symbol.file || 'internal'}">${symbol.file || 'internal'}</div>
+        ${isFocal ? '<div class="mt-2 text-[10px] text-[#816729] font-semibold tracking-wide uppercase">Target Impact Focal Point</div>' : ''}
+        ${isLeaf ? '<div class="mt-1.5 text-[10px] text-[#828282] font-mono flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-[#828282]"></span>Isolated Leaf (0 Callers)</div>' : ''}
       </div>
     `;
 
@@ -1187,19 +1187,19 @@
     card.style.transform = `translate3d(${cfg.x}px, ${cfg.y}px, 0)`;
 
     card.innerHTML = `
-      <div class="flex items-center justify-between pb-2 border-b border-white/5">
-        <span class="text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded border ${cfg.badgeColor}">
+      <div class="flex items-center justify-between pb-2 border-b border-[#e2e0dc]">
+        <span class="text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full border ${cfg.badgeColor}">
           ${cfg.badgeText}
         </span>
-        <i data-lucide="${cfg.icon || 'link'}" class="w-3.5 h-3.5 text-zinc-400"></i>
+        <i data-lucide="${cfg.icon || 'link'}" class="w-3.5 h-3.5 text-[#828282]"></i>
       </div>
       <div class="mt-2.5">
-        <div class="text-xs font-semibold text-white truncate" title="${cfg.title}">${cfg.title}</div>
-        <div class="text-[11px] text-zinc-400 truncate mt-0.5">${cfg.subtitle || ''}</div>
+        <div class="text-xs font-semibold text-[#202020] truncate" title="${cfg.title}">${cfg.title}</div>
+        <div class="text-[11px] text-[#828282] truncate mt-0.5">${cfg.subtitle || ''}</div>
       </div>
       ${cfg.actionLabel ? `
-        <div class="mt-2.5 pt-2 border-t border-white/5">
-          <button class="text-sky-400 hover:text-sky-300 text-[11px] font-medium flex items-center gap-1 cursor-pointer bg-sky-500/10 hover:bg-sky-500/20 px-2 py-0.5 rounded border border-sky-500/20 transition-all" data-action="satellite-action">
+        <div class="mt-2.5 pt-2 border-t border-[#e2e0dc]">
+          <button class="text-[#c2410c] hover:text-[#9a3412] text-[11px] font-semibold flex items-center gap-1 cursor-pointer bg-[#fff7ed] hover:bg-[#ffedd5] px-2.5 py-1 rounded-none border border-[#fed7aa] transition-all btn-sharp" data-action="satellite-action">
             ${cfg.actionLabel}
           </button>
         </div>
@@ -1238,11 +1238,11 @@
     card.style.transform = `translate3d(${cfg.x}px, ${cfg.y}px, 0)`;
 
     card.innerHTML = `
-      <div class="flex items-center justify-between pb-2 border-b border-white/5">
-        <span class="text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded border ${cfg.badgeColor}">
+      <div class="flex items-center justify-between pb-2 border-b border-[#e2e0dc]">
+        <span class="text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full border ${cfg.badgeColor}">
           ${cfg.badgeText}
         </span>
-        <i data-lucide="${cfg.icon || 'link'}" class="w-3.5 h-3.5 text-zinc-400"></i>
+        <i data-lucide="${cfg.icon || 'link'}" class="w-3.5 h-3.5 text-[#828282]"></i>
       </div>
       <div class="mt-2.5 max-h-48 overflow-y-auto space-y-1">
         ${cfg.bodyHtml}

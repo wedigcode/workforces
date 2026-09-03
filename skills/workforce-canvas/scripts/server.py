@@ -624,24 +624,24 @@ class WorkforceCanvasHandler(http.server.SimpleHTTPRequestHandler):
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <style>
-body {{ background: #0c0d11; color: #cbd5e1; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 40px 24px; max-width: 820px; margin: 0 auto; line-height: 1.65; }}
-a {{ color: #818cf8; text-decoration: underline; text-underline-offset: 2px; }}
-a:hover {{ color: #a5b4fc; }}
-code {{ background: rgba(255,255,255,0.08); color: #fbbf24; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 13px; }}
-pre {{ background: #111318; border: 1px solid rgba(255,255,255,0.08); padding: 14px; border-radius: 8px; overflow-x: auto; margin: 16px 0; }}
-pre code {{ background: transparent; padding: 0; color: #e2e8f0; }}
-h1, h2, h3, h4 {{ color: #f8fafc; font-weight: 600; margin-top: 24px; margin-bottom: 8px; }}
+body {{ background: #faf9f5; color: #4d4d4d; font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 40px 24px; max-width: 820px; margin: 0 auto; line-height: 1.65; }}
+a {{ color: #c2410c; text-decoration: underline; text-underline-offset: 2px; }}
+a:hover {{ color: #9a3412; }}
+code {{ background: #f4f4f5; color: #c2410c; padding: 2px 6px; border-radius: 2px; font-family: monospace; font-size: 13px; }}
+pre {{ background: #f8f8f8; border: 1px solid #e2e0dc; padding: 14px; border-radius: 4px; overflow-x: auto; margin: 16px 0; }}
+pre code {{ background: transparent; padding: 0; color: #202020; }}
+h1, h2, h3, h4 {{ color: #202020; font-weight: 600; margin-top: 24px; margin-bottom: 8px; }}
 h1 {{ font-size: 22px; }}
 h2 {{ font-size: 18px; }}
 h3 {{ font-size: 15px; }}
-hr {{ border-color: rgba(255,255,255,0.1); margin: 24px 0; }}
+hr {{ border-color: #e2e0dc; margin: 24px 0; }}
 ul, ol {{ padding-left: 20px; margin: 10px 0; }}
 li {{ margin: 4px 0; }}
 </style></head>
 <body>
-<div class="mb-6 flex items-center justify-between pb-3 border-b border-white/10 text-xs text-zinc-400">
+<div class="mb-6 flex items-center justify-between pb-3 border-b border-[#e2e0dc] text-xs text-[#828282]">
   <span>📄 {target.name}</span>
-  <a href="javascript:window.close()" class="no-underline text-zinc-400 hover:text-white">&larr; Close</a>
+  <a href="javascript:window.close()" class="no-underline text-[#828282] hover:text-[#202020]">&larr; Close</a>
 </div>
 <div id="content"></div>
 <script>

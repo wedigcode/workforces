@@ -1,42 +1,85 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 :root {
-  --bg-canvas: #0c0d11;
-  --bg-surface: #14161d;
-  --bg-card: #191b24;
-  --bg-card-hover: #1f222e;
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-focus: rgba(255, 255, 255, 0.22);
-  --text-main: #f3f4f6;
-  --text-muted: #9ca3af;
-  --text-dim: #6b7280;
+  /* Refero Ventriloc Surfaces (Warm Paper & Monochrome Precision) */
+  --bg-canvas: #faf9f5;
+  --bg-surface: #efefef;
+  --bg-surface-nested: #f5f5f5;
+  --bg-ivory: #ebe6dd;
+  --bg-card: #ffffff;
+  --bg-card-hover: #ffffff;
+  --border-subtle: #e2e0dc;
+  --border-focus: #c2410c;
+  
+  /* Text & Ink Tokens */
+  --text-main: #202020;
+  --text-muted: #4d4d4d;
+  --text-dim: #828282;
 
-  /* Team Accent Tokens */
-  --team-dev: #6366f1;
-  --team-dev-bg: rgba(99, 102, 241, 0.12);
-  --team-marketing: #10b981;
-  --team-marketing-bg: rgba(16, 185, 129, 0.12);
-  --team-social: #a855f7;
-  --team-social-bg: rgba(168, 85, 247, 0.12);
-  --team-design: #ec4899;
-  --team-design-bg: rgba(236, 72, 153, 0.12);
-  --team-strategy: #f59e0b;
-  --team-strategy-bg: rgba(245, 158, 11, 0.12);
-  --team-ops: #06b6d4;
-  --team-ops-bg: rgba(6, 182, 212, 0.12);
+  /* Ventriloc Signature Accents (Rationed, WCAG AA Compliant) */
+  --accent-ember-text: #c2410c;       /* Burnt Ember for text/links (4.88:1 contrast on white) */
+  --accent-ember-graphic: #ff682c;    /* Ember Graphic for vector wire strokes & outlines */
+  --accent-brass: #816729;           /* Deep Antique Brass for code blast radius (5.35:1 contrast) */
 
-  /* Status Colors */
-  --status-todo: #64748b;
-  --status-in-progress: #38bdf8;
-  --status-blocked: #f43f5e;
-  --status-done: #34d399;
-  --status-dropped: #475569;
+  /* Team Accent Tokens (Refined ink strokes on archival tints) */
+  --team-dev: #2563eb;
+  --team-dev-bg: #eff6ff;
+  --team-dev-border: #bfdbfe;
 
-  /* Cable Colors */
-  --cable-default: rgba(255, 255, 255, 0.18);
-  --cable-highlight: #38bdf8;
-  --cable-blocked: #f43f5e;
-  --cable-blast: #f59e0b;
+  --team-marketing: #059669;
+  --team-marketing-bg: #ecfdf5;
+  --team-marketing-border: #a7f3d0;
+
+  --team-social: #7c3aed;
+  --team-social-bg: #f5f3ff;
+  --team-social-border: #ddd6fe;
+
+  --team-design: #db2777;
+  --team-design-bg: #fdf2f8;
+  --team-design-border: #fbcfe8;
+
+  --team-strategy: #c2410c;
+  --team-strategy-bg: #fff7ed;
+  --team-strategy-border: #fed7aa;
+
+  --team-ops: #0891b2;
+  --team-ops-bg: #ecfeff;
+  --team-ops-border: #a5f3fc;
+
+  --team-compliance: #475569;
+  --team-compliance-bg: #f1f5f9;
+  --team-compliance-border: #cbd5e1;
+
+  /* Archival Status Indicators (WCAG AA Compliant) */
+  --status-todo: #52525b;
+  --status-todo-bg: #f4f4f5;
+  --status-todo-border: #e4e4e7;
+
+  --status-in-progress: #0369a1;
+  --status-in-progress-bg: #e0f2fe;
+  --status-in-progress-border: #bae6fd;
+
+  --status-blocked: #b91c1c;
+  --status-blocked-bg: #fee2e2;
+  --status-blocked-border: #fecaca;
+
+  --status-done: #047857;
+  --status-done-bg: #ecfdf5;
+  --status-done-border: #a7f3d0;
+
+  --status-dropped: #71717a;
+  --status-dropped-bg: #f4f4f5;
+  --status-dropped-border: #e4e4e7;
+
+  /* Architectural Drafting Cable Tokens */
+  --cable-default: #d1cfca;
+  --cable-highlight: #ff682c;
+  --cable-blocked: #b91c1c;
+  --cable-blast: #816729;
+  --cable-session: #0369a1;
+  --cable-commit: #047857;
+  --cable-doc: #4f46e5;
+  --cable-github: #7c3aed;
 }
 
 * {
@@ -52,18 +95,18 @@ body, html {
   overflow: hidden;
   background-color: var(--bg-canvas);
   color: var(--text-main);
-  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Infinite Dot Grid Canvas */
+/* Infinite Dot Grid Canvas (Warm Paper Texture) */
 #canvas-viewport {
   position: absolute;
   inset: 0;
   overflow: hidden;
   cursor: grab;
   background-color: var(--bg-canvas);
-  background-image: radial-gradient(rgba(255, 255, 255, 0.12) 1.2px, transparent 1.2px);
+  background-image: radial-gradient(#d5d3ce 1.2px, transparent 1.2px);
   background-size: 28px 28px;
 }
 
@@ -79,7 +122,7 @@ body, html {
   will-change: transform;
 }
 
-/* SVG Connector Overlay */
+/* SVG Architectural Vector Connector Overlay */
 #connections-layer {
   position: absolute;
   top: 0;
@@ -94,71 +137,74 @@ body, html {
 .cable-path {
   fill: none;
   stroke: var(--cable-default);
-  stroke-width: 2px;
+  stroke-width: 1.25px;
   stroke-linecap: round;
-  transition: stroke 0.2s ease, stroke-width 0.2s ease;
+  filter: none !important;
+  transition: stroke 0.15s ease, stroke-width 0.15s ease;
 }
 
 .cable-path.is-active {
   stroke: var(--cable-highlight);
-  stroke-width: 3px;
-  filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.5));
+  stroke-width: 2.25px;
+  filter: none !important;
 }
 
 .cable-path.is-blocked {
   stroke: var(--cable-blocked);
-  stroke-width: 2.5px;
-  stroke-dasharray: 6 4;
+  stroke-width: 1.5px;
+  stroke-dasharray: 5 4;
+  filter: none !important;
 }
 
 .cable-path.is-blast {
   stroke: var(--cable-blast);
-  stroke-width: 3px;
-  filter: drop-shadow(0 0 8px rgba(245, 158, 11, 0.6));
+  stroke-width: 2px;
+  filter: none !important;
 }
 
 .cable-path.is-session {
-  stroke: #38bdf8;
-  stroke-width: 2.5px;
-  filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.4));
+  stroke: var(--cable-session);
+  stroke-width: 1.5px;
+  filter: none !important;
 }
 
 .cable-path.is-commit {
-  stroke: #34d399;
-  stroke-width: 2.5px;
-  filter: drop-shadow(0 0 6px rgba(52, 211, 153, 0.4));
+  stroke: var(--cable-commit);
+  stroke-width: 1.5px;
+  filter: none !important;
 }
 
 .cable-path.is-doc {
-  stroke: #818cf8;
-  stroke-width: 2.5px;
-  filter: drop-shadow(0 0 6px rgba(129, 140, 248, 0.4));
+  stroke: var(--cable-doc);
+  stroke-width: 1.5px;
+  filter: none !important;
 }
 
 .cable-path.is-github {
-  stroke: #c084fc;
-  stroke-width: 2.5px;
-  filter: drop-shadow(0 0 6px rgba(192, 132, 252, 0.4));
+  stroke: var(--cable-github);
+  stroke-width: 1.5px;
+  filter: none !important;
 }
 
+/* Physical Archival Satellite Slips (Zero Box-Shadows) */
 .satellite-card {
   position: absolute;
-  background: rgba(18, 20, 27, 0.94);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.5);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px 0px 8px 0px; /* Ventriloc asymmetric cut */
+  box-shadow: none !important;
+  color: var(--text-main);
   transition: transform 0.08s ease, border-color 0.15s ease;
 }
 
 .satellite-card:hover {
-  border-color: rgba(255, 255, 255, 0.25);
+  border-color: #b0ada6;
 }
 
 .canvas-card.is-focused-main {
-  box-shadow: 0 0 0 2px #6366f1, 0 16px 48px -8px rgba(99, 102, 241, 0.35);
-  border-color: #6366f1;
+  border-color: var(--accent-ember-graphic) !important;
+  outline: 2px solid var(--accent-ember-graphic) !important;
+  box-shadow: none !important;
 }
 
 /* Breadcrumb Navigation */
@@ -167,25 +213,26 @@ body, html {
   align-items: center;
   gap: 4px;
   padding: 2px 8px;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: #94a3b8;
+  border-radius: 200px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
   cursor: pointer;
   transition: all 0.15s ease;
   white-space: nowrap;
 }
 
 .nav-crumb:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #f8fafc;
-  border-color: rgba(255, 255, 255, 0.2);
+  background: var(--bg-surface-nested);
+  color: var(--text-main);
+  border-color: #b0ada6;
 }
 
 .nav-crumb.is-current {
-  background: rgba(99, 102, 241, 0.15);
-  border-color: rgba(99, 102, 241, 0.4);
-  color: #c7d2fe;
+  background: #fff7ed;
+  border-color: var(--accent-ember-graphic);
+  color: var(--accent-ember-text);
+  font-weight: 600;
   cursor: default;
 }
 
@@ -202,38 +249,37 @@ body, html {
   width: 320px;
   background-color: var(--bg-card);
   border: 1px solid var(--border-subtle);
-  border-radius: 16px;
-  box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.6), 0 2px 6px rgba(0, 0, 0, 0.4);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.08s ease;
+  border-radius: 8px 0px 8px 0px; /* Ventriloc Asymmetric Corner Signature */
+  box-shadow: none !important;
+  transition: border-color 0.15s ease, outline 0.15s ease, transform 0.08s ease;
   cursor: default;
 }
 
 .canvas-card:hover {
-  border-color: var(--border-focus);
-  box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.8), 0 0 0 1px var(--border-focus);
+  border-color: #b0ada6;
 }
 
 .canvas-card.is-selected {
-  border-color: var(--cable-highlight);
-  box-shadow: 0 0 0 2px var(--cable-highlight), 0 20px 48px -10px rgba(56, 189, 248, 0.35);
+  border-color: var(--accent-ember-graphic);
+  outline: 2px solid var(--accent-ember-graphic);
 }
 
 .canvas-card.is-target-focal {
-  border-color: var(--team-strategy);
-  box-shadow: 0 0 0 2px var(--team-strategy), 0 20px 48px -10px rgba(245, 158, 11, 0.4);
+  border-color: var(--accent-brass);
+  outline: 2px solid var(--accent-brass);
 }
 
-/* Card Header Drag Handle */
+/* Card Header Drag Handle (Ash Tone Surface Step) */
 .card-header {
-  padding: 12px 16px;
+  padding: 10px 14px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid var(--border-subtle);
   cursor: move;
-  border-top-left-radius: 16px;
-  border-top-right-radius: 16px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, transparent 100%);
+  border-top-left-radius: 8px;
+  border-top-right-radius: 0px;
+  background: var(--bg-surface);
 }
 
 .card-title {
@@ -244,14 +290,14 @@ body, html {
   margin-top: 4px;
 }
 
-/* Connection Ports */
+/* Connection Ports (Drafting Rings) */
 .port {
   position: absolute;
-  width: 13px;
-  height: 13px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
-  background-color: var(--bg-surface);
-  border: 2px solid #52525b;
+  background-color: #ffffff;
+  border: 2px solid var(--text-dim);
   cursor: crosshair;
   z-index: 30;
   transition: transform 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
@@ -259,46 +305,46 @@ body, html {
 
 .port:hover {
   transform: scale(1.35);
-  border-color: var(--cable-highlight);
-  background-color: var(--cable-highlight);
-  box-shadow: 0 0 10px var(--cable-highlight);
+  border-color: var(--accent-ember-graphic);
+  background-color: var(--accent-ember-graphic);
+  box-shadow: none !important;
 }
 
 .port-input {
-  left: -7px;
+  left: -6px;
   top: 50%;
   transform: translateY(-50%);
 }
 
 .port-output {
-  right: -7px;
+  right: -6px;
   top: 50%;
   transform: translateY(-50%);
 }
 
-/* Glassmorphic Grouping Frames (Referencing Image 4) */
+/* Grouping Frames (Kanban Bands on Warm Paper) */
 .group-frame {
   position: absolute;
-  border: 1px dashed rgba(255, 255, 255, 0.14);
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.015);
+  border: 1px dashed #dedbd4;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.015);
   pointer-events: none;
   z-index: 5;
 }
 
 .group-frame-label {
   position: absolute;
-  top: -14px;
-  left: 20px;
+  top: -12px;
+  left: 18px;
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
-  border-radius: 6px;
+  border-radius: 200px;
   padding: 2px 10px;
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--text-muted);
+  color: var(--text-main);
 }
 
 /* Team Pill Badges */
@@ -308,35 +354,37 @@ body, html {
   text-transform: uppercase;
   letter-spacing: 0.04em;
   padding: 2px 8px;
-  border-radius: 20px;
+  border-radius: 200px;
+  border: 1px solid transparent;
 }
 
-.badge-dev { color: var(--team-dev); background-color: var(--team-dev-bg); }
-.badge-marketing { color: var(--team-marketing); background-color: var(--team-marketing-bg); }
-.badge-social { color: var(--team-social); background-color: var(--team-social-bg); }
-.badge-design { color: var(--team-design); background-color: var(--team-design-bg); }
-.badge-strategy { color: var(--team-strategy); background-color: var(--team-strategy-bg); }
-.badge-ops { color: var(--team-ops); background-color: var(--team-ops-bg); }
+.badge-dev { color: var(--team-dev); background-color: var(--team-dev-bg); border-color: var(--team-dev-border); }
+.badge-marketing { color: var(--team-marketing); background-color: var(--team-marketing-bg); border-color: var(--team-marketing-border); }
+.badge-social { color: var(--team-social); background-color: var(--team-social-bg); border-color: var(--team-social-border); }
+.badge-design { color: var(--team-design); background-color: var(--team-design-bg); border-color: var(--team-design-border); }
+.badge-strategy { color: var(--team-strategy); background-color: var(--team-strategy-bg); border-color: var(--team-strategy-border); }
+.badge-ops { color: var(--team-ops); background-color: var(--team-ops-bg); border-color: var(--team-ops-border); }
+.badge-compliance { color: var(--team-compliance); background-color: var(--team-compliance-bg); border-color: var(--team-compliance-border); }
 
-/* Status Toggle Button */
+/* Archival Status Toggle Button (WCAG AA Compliant) */
 .status-pill {
   font-size: 11px;
   font-weight: 600;
-  padding: 3px 8px;
-  border-radius: 8px;
+  padding: 2px 8px;
+  border-radius: 200px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   transition: all 0.15s ease;
   border: 1px solid transparent;
 }
 
-.status-todo { background: rgba(100, 116, 139, 0.15); color: var(--status-todo); border-color: rgba(100, 116, 139, 0.3); }
-.status-in_progress { background: rgba(56, 189, 248, 0.15); color: var(--status-in-progress); border-color: rgba(56, 189, 248, 0.4); }
-.status-blocked { background: rgba(244, 63, 94, 0.15); color: var(--status-blocked); border-color: rgba(244, 63, 94, 0.4); }
-.status-done { background: rgba(52, 211, 153, 0.15); color: var(--status-done); border-color: rgba(52, 211, 153, 0.4); }
-.status-dropped { background: rgba(71, 85, 105, 0.15); color: var(--status-dropped); border-color: rgba(71, 85, 105, 0.3); }
+.status-todo { background: var(--status-todo-bg); color: var(--status-todo); border-color: var(--status-todo-border); }
+.status-in_progress { background: var(--status-in-progress-bg); color: var(--status-in-progress); border-color: var(--status-in-progress-border); }
+.status-blocked { background: var(--status-blocked-bg); color: var(--status-blocked); border-color: var(--status-blocked-border); }
+.status-done { background: var(--status-done-bg); color: var(--status-done); border-color: var(--status-done-border); }
+.status-dropped { background: var(--status-dropped-bg); color: var(--status-dropped); border-color: var(--status-dropped-border); }
 
 /* Floating Controls (Bottom-Left) */
 .floating-dock {
@@ -346,48 +394,44 @@ body, html {
   z-index: 100;
   display: flex;
   align-items: center;
-  gap: 6px;
-  background: rgba(20, 22, 29, 0.85);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  gap: 4px;
+  background: #ffffff;
   border: 1px solid var(--border-subtle);
-  border-radius: 12px;
-  padding: 6px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  border-radius: 8px;
+  padding: 4px;
+  box-shadow: none !important;
 }
 
 .dock-btn {
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
+  border-radius: 0px; /* Ventriloc sharp button radius */
   background: transparent;
   border: none;
-  color: var(--text-muted);
+  color: var(--text-main);
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .dock-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--bg-surface);
   color: var(--text-main);
 }
 
-/* Side Inspection Drawer */
+/* Side Inspection Drawer (Architectural Dossier Sheet) */
 #inspect-drawer {
   position: fixed;
   top: 0;
   right: -420px;
   width: 400px;
   height: 100vh;
-  background: rgba(20, 22, 29, 0.95);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: #ffffff;
   border-left: 1px solid var(--border-subtle);
   z-index: 200;
-  box-shadow: -12px 0 36px rgba(0, 0, 0, 0.6);
+  box-shadow: none !important;
   transition: right 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   display: flex;
   flex-direction: column;
@@ -397,6 +441,14 @@ body, html {
   right: 0;
 }
 
+/* Sharp Action Buttons */
+.btn-sharp {
+  border-radius: 0px !important;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  transition: all 0.15s ease;
+}
+
 /* Code Monospace Font */
 .font-mono {
   font-family: 'JetBrains Mono', monospace;
@@ -404,21 +456,21 @@ body, html {
 
 /* Markdown Content Styling in Drawer */
 .markdown-body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  color: #cbd5e1;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: var(--text-muted);
   font-size: 12px;
   line-height: 1.65;
 }
 
 .markdown-body a {
-  color: #818cf8;
+  color: var(--accent-ember-text);
   text-decoration: underline;
   text-underline-offset: 2px;
   word-break: break-all;
 }
 
 .markdown-body a:hover {
-  color: #a5b4fc;
+  color: #9a3412;
 }
 
 .markdown-body p {
@@ -426,7 +478,7 @@ body, html {
 }
 
 .markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4 {
-  color: #f8fafc;
+  color: var(--text-main);
   font-weight: 600;
   margin-top: 14px;
   margin-bottom: 6px;
@@ -438,19 +490,19 @@ body, html {
 .markdown-body h3 { font-size: 12.5px; }
 
 .markdown-body code {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--bg-surface);
   padding: 1px 5px;
-  border-radius: 4px;
+  border-radius: 2px;
   font-family: 'JetBrains Mono', monospace;
   font-size: 11px;
-  color: #fbbf24;
+  color: var(--accent-ember-text);
 }
 
 .markdown-body pre {
-  background: #101217;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--bg-surface-nested);
+  border: 1px solid var(--border-subtle);
   padding: 8px 12px;
-  border-radius: 8px;
+  border-radius: 4px;
   overflow-x: auto;
   margin: 8px 0;
 }
@@ -458,7 +510,7 @@ body, html {
 .markdown-body pre code {
   background: transparent;
   padding: 0;
-  color: #e2e8f0;
+  color: var(--text-main);
 }
 
 .markdown-body ul, .markdown-body ol {
@@ -472,6 +524,6 @@ body, html {
 
 .markdown-body hr {
   border: 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid var(--border-subtle);
   margin: 12px 0;
 }
