@@ -8,7 +8,7 @@
 # Options:
 #   --type <type>          Repo type: workforce or project
 #   --editor <type>        Editor type: antigravity, vscode, claude, grok, auto (default: auto)
-#   --teams <team-list>    Comma-separated list of teams to install (e.g., brand-marketing,sales-outreach, all, none)
+#   --teams <team-list>    Comma-separated list of teams to install (e.g., dev,design,launch, all, none)
 #   --non-interactive      Run without prompting the user for any inputs (ideal for AI assistants)
 #   --help, -h             Show this help menu
 
@@ -52,7 +52,7 @@ usage() {
   echo "Options:"
   echo "  --type <type>          Repo type: workforce or project"
   echo "  --editor <type>        Editor type: antigravity, vscode, claude, grok, auto (default: auto)"
-  echo "  --teams <team-list>    Teams to install (e.g. 'brand-marketing,sales-outreach', 'all', 'none')"
+  echo "  --teams <team-list>    Teams to install (e.g. 'dev,design,launch', 'all', 'none')"
   echo "  --site-setup           Initialize Site Setup & Product Brief starter (for greenfield sites)"
   echo "  --skip-site-setup      Skip Site Setup initialization"
   echo "  --non-interactive      Do not prompt for any options (fails on invalid configuration)"

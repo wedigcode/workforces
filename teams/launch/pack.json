@@ -1,0 +1,25 @@
+{
+  "name": "launch",
+  "title": "App Launch & Fast Validation",
+  "description": "Specialized launch team for empty or zero-revenue projects. Optimizes for Time to First Dollar (TTFD) and Time to 100 Users (TTOU) through high-velocity pre-sales, concierge MVPs, painted doors, and disciplined 7-day sprints.",
+  "agents": [
+    "launcher"
+  ],
+  "rules": [
+    "design-standards.md",
+    "clean-coder.md"
+  ],
+  "skills": [
+    "launch-playbook",
+    "market-validation",
+    "hypothesis-tracker",
+    "business-frameworks",
+    "brand-guidelines",
+    "ui-ux-design",
+    "persona-management",
+    "ai-search-optimization"
+  ],
+  "workflows": [
+    "wf-launch.md"
+  ]
+}

@@ -55,6 +55,7 @@ A modular architecture for AI agent workforces. Instead of dumping all agents, r
 | [`@operations`](../agents/operations.md) | Operations Lead | `operations` | Empirical metrics dashboards, telemetry tracking, sprint velocity, and workforce state. | `operations`, `ops`, `metrics`, `telemetry`, `velocity`, `KPIs` |
 | [`@compliance`](../agents/compliance.md) | Compliance Auditor | `compliance` | Reference lineage enforcement, zero ghost references, data privacy governance, subtask tracking. | `compliance`, `integrity`, `broken links`, `audit` |
 | [`@researcher`](../agents/researcher.md) | Feature Researcher | `growth` / `dev` | Research-first feature discovery, gap analysis, competitive teardowns, and structured PRD specs. | `researcher`, `feature`, `PRD`, `spec`, `requirement` |
+| [`@launcher`](../agents/launcher.md) | Launch Specialist | `launch` | Zero-revenue monetization quarterback, Time to First Dollar (TTFD) sprints, pre-sale painted doors, concierge MVPs, and TTOU 100-user distribution scale. | `launch`, `pre-sale`, `first dollar`, `TTFD`, `TTOU`, `100 users` |
 
 ---
 
@@ -108,6 +109,12 @@ Each domain team is configured via a structured `pack.json` and comprehensive `p
 - **Rules:** `file-integrity.md`, `mcp-protection.md`
 - **Skills:** `integrity-validator`, `issue-tracker`, `session-context`, `usage-tracker`
 - **Workflows:** `/wf-verify-integrity`, `/wf-task`
+
+### 9. Launch & Fast Validation (`teams/launch/`)
+- **Agents:** `@launcher`
+- **Rules:** `design-standards.md`, `clean-coder.md`
+- **Skills:** `launch-playbook`, `market-validation`, `hypothesis-tracker`, `business-frameworks`, `brand-guidelines`, `ui-ux-design`, `persona-management`, `ai-search-optimization`
+- **Workflows:** `/wf-launch`
 
 ---
 
