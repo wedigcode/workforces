@@ -69,3 +69,11 @@ When a frontend task touches **visual design, CSS styling, layout, or UI compone
 > The `@designer` agent handles design quality (anti-patterns, brand, visual hierarchy, UX).  
 > **Both must pass before a frontend task is complete.**
 
+---
+
+## Multi-Agent Parallelization & Stacked PRs (`agent-parallelization`)
+
+- **Worktree Isolation:** Concurrent coding tasks must execute in dedicated Git worktrees (`Workspace: 'share'`), preventing `.git/index.lock` collisions and dirty working tree crosstalk.
+- **Stacked PRs via `gh-stack`:** Multi-layer epics are constructed as an atomic chain of reviewable PRs (`gh stack init`, `gh stack add`, `gh stack submit`).
+- **Conflict Auto-Resolution:** Cascading rebases use `gh stack sync` with `git rerere` enabled to eliminate redundant merge conflict handling across downstream stack layers.
+

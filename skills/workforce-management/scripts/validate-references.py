@@ -181,7 +181,7 @@ def audit_references(target_dir=".", fix=False):
     broken_refs = []
     pending_todos = []
 
-    ignored_dirs = {".git", "node_modules", ".tmp", "scratch"}
+    ignored_dirs = {".git", "node_modules", ".tmp", "scratch", ".worktrees"}
 
     for root, dirs, files in os.walk(target_dir):
         dirs[:] = [d for d in dirs if d not in ignored_dirs]

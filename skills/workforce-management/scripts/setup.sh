@@ -419,6 +419,7 @@ add_gitignore_entry "workforces/tmp" "workforces/tmp"
 add_gitignore_entry "workforces/session-context/*" "workforces/session-context/*"
 add_gitignore_entry "!workforces/session-context/.gitkeep" "!workforces/session-context/.gitkeep"
 add_gitignore_entry "workforces/memory" "workforces/memory"
+add_gitignore_entry ".worktrees" ".worktrees (agent parallelization)"
 
 # Seed workforce.md if not already present
 if [[ ! -f "$WORKFORCES_DIR/README.md" ]]; then

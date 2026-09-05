@@ -105,6 +105,15 @@ Critical path: the longest chain of dependent tasks = minimum timeline.
 
 ---
 
+## Step 4b — Execution Topology & Parallelization Strategy (`agent-parallelization`)
+
+Classify the plan's tasks into their Git concurrency mode so execution delegates cleanly:
+- **Parallel Worktrees (`Workspace: 'share'`)**: For independent parallel tasks (e.g. `[task 2.1]` and `[task 2.2]`). Spawns subagents in isolated worktrees (`.worktrees/<slug>`) with zero `.git/index.lock` contention.
+- **Vertical Relay (`gh-stack`)**: For layered dependency chains (e.g. `[task 1.1] → [task 1.2]`). Executed sequentially layer-by-layer and submitted as linked stacked PRs.
+- **Direct Single-Branch**: For localized standalone tasks.
+
+---
+
 ## Step 5 — Risk Assessment
 
 ```markdown

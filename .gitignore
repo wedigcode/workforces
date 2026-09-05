@@ -20,3 +20,5 @@ Thumbs.db
 *.swp
 *.swo
 
+# Git worktrees for parallel agent execution
+.worktrees/

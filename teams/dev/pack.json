@@ -15,7 +15,8 @@
     "codebase-improvement",
     "jules-integration",
     "pr-review",
-    "doc-generator"
+    "doc-generator",
+    "agent-parallelization"
   ],
   "workflows": [
     "wf-clean.md",

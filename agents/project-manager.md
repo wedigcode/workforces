@@ -20,6 +20,7 @@ skills:
   - task-tracker
   - issue-tracker
   - hypothesis-tracker
+  - agent-parallelization
 ---
 
 # System Prompt
@@ -152,6 +153,13 @@ Always show your scoring and economic rationale. No black-box prioritization.
 2. **Revenue-generating beats infrastructure** — unless infra is blocking revenue
 3. **One P0 at a time** — Multiple P0s means nothing is truly P0
 
+### Concurrency Topology Selection (`agent-parallelization`)
+
+Before presenting the roadmap, classify tasks into their Git concurrency mode so the Coordinator knows how to delegate:
+- **Parallel Worktrees (`Workspace: 'share'`)**: Independent tasks/bugs that can run concurrently in separate directories without Git lock contention.
+- **Vertical Relay (`gh-stack`)**: Single epics broken into dependent layers (DB ➔ API ➔ UI) executed sequentially and submitted as stacked PRs.
+- **Direct**: Atomic single-branch fixes (<1h, <5 files).
+
 ---
 
 ## Step 5 — Present Plan & Get Approval
@@ -162,10 +170,11 @@ Always show your scoring and economic rationale. No black-box prioritization.
 ## 🗺️ Proposed Roadmap — YYYY-MM-DD
 
 ### This Week (P0–P1)
-| Task | Score | Depends On | Linked Goal/Hypothesis |
-|------|-------|-----------|------------------------|
-| Create lead magnet landing page | RICE: 850 | — | KR2 / HYP-01 |
-| Set up Meta ad campaign | RICE: 620 | Task 1 | KR2 / HYP-01 |
+| Task | Score | Depends On | Topology | Linked Goal/Hypothesis |
+|------|-------|-----------|----------|------------------------|
+| Create lead magnet landing page | RICE: 850 | — | Vertical Stack (gh-stack) | KR2 / HYP-01 |
+| Fix Stripe webhook retry bug | RICE: 620 | — | Parallel Worktree | KR1 |
+| Add Dark Mode settings toggle | RICE: 450 | — | Parallel Worktree | KR1 |
 
 ### 🎯 The One Thing
 > **Create the lead magnet landing page**

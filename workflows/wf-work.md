@@ -167,11 +167,15 @@ When the user picks a single task (or accepts the top recommendation):
 ### Auto-Execution / Coordinator Mode (`--auto` or `--all` or `auto_delegate: true`)
 When invoked with `--auto`/`--all` or when `auto_delegate: true` is configured in `workrules.md`:
 1. **Act as Coordinator**: Do not pause between individual tasks to prompt the user or require manual command entry.
-2. **Task Loop**:
+2. **Task Loop & Topology Selection (`agent-parallelization`)**:
    - Select all active/pending tasks from `workforces/workstate.md` whose dependencies are met.
-   - For independent tasks, execute sequentially or in parallel using background sub-processes / subagents.
+   - **Determine Topology**:
+     - *Independent tasks*: Execute concurrently using isolated Git worktrees (`Workspace: 'share'` in `.worktrees/<slug>`). Never run concurrent coding subagents in `Workspace: 'inherit'`.
+     - *Layered dependent epics*: Execute as a sequential Vertical Relay via `gh stack init` and `gh stack add`, concluding with `gh stack submit`.
+     - *Atomic tasks*: Execute directly on a local branch.
    - Validate implementation (run tests/builds).
-   - Mark task `completed` in `workforces/workstate.md`, which unblocks dependent tasks.
+   - Mark task `completed` in `workforces/workstate.md` and `workforces/tasks/`, unblocking dependent tasks.
+   - Output a **Developer Inspection Card** with branch name, worktree path, and testing command (`cd .worktrees/<slug> && npm test`, `PORT=3001 npm run dev`).
    - Automatically move to the next unblocked task.
 3. **Completion**: Provide a consolidated summary of all completed work across the entire queue once finished.
 

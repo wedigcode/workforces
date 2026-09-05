@@ -22,7 +22,7 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Any, Set, Tuple, Optional
 
-IGNORE_DIRS = {".git", "node_modules", "vendor", "__pycache__", ".venv", "venv", "dist", "build", ".next", ".agents"}
+IGNORE_DIRS = {".git", "node_modules", "vendor", "__pycache__", ".venv", "venv", "dist", "build", ".next", ".agents", ".worktrees"}
 
 def get_git_diff(root_dir: Path) -> str:
     """Extract current git diff (staged + unstaged + untracked changes)."""
@@ -145,7 +145,7 @@ def resolve_target_dir(
     # 5. Code presence auto-detection:
     # If root_path contains NO source code files, check subfolders like apps/*, packages/*, services/*, src/*
     source_exts = {".py", ".ts", ".tsx", ".js", ".jsx", ".go", ".rs", ".java", ".cs", ".php", ".rb"}
-    ignore_top_dirs = {".git", ".agents", ".grok", ".claude", ".github", "workforces", "teams", "workflows", "skills", "rules", "docs", "plugins", "node_modules", "vendor", "__pycache__"}
+    ignore_top_dirs = {".git", ".agents", ".grok", ".claude", ".github", ".worktrees", "workforces", "teams", "workflows", "skills", "rules", "docs", "plugins", "node_modules", "vendor", "__pycache__"}
     
     has_top_level_code = False
     for root, dirs, files in os.walk(root_path):
