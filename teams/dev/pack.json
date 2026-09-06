@@ -6,7 +6,8 @@
     "programmer"
   ],
   "rules": [
-    "clean-coder.md"
+    "clean-coder.md",
+    "git-workflow.md"
   ],
   "skills": [
     "clean-coder",

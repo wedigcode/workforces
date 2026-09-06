@@ -308,7 +308,7 @@ if [[ -f "$RESOLVER_SCRIPT" && -n "$PYTHON" ]]; then
 fi
 if [[ "$RESOLVER_OK" != true ]]; then
   ALLOWED_AGENTS="project-manager.md scribe.md programmer.md designer.md"
-  ALLOWED_RULES="base.md clean-coder.md design-standards.md mcp-protection.md session-context.md file-integrity.md"
+  ALLOWED_RULES="base.md clean-coder.md design-standards.md mcp-protection.md session-context.md file-integrity.md git-workflow.md"
   ALLOWED_SKILLS="brand-guidelines clean-coder code-graph codebase-improvement design-anti-patterns doc-generator image-workflow integrity-validator issue-tracker jules-integration launch-playbook market-validation memory-management persona-management post-code-review pr-review session-context site-setup social-engagement task-tracker ui-ux-design usage-tracker visual-design-fundamentals workforce-management workforce-canvas wf-plan wf-sync wf-advisor wf-ideate wf-investigate wf-question-formulation"
   ALLOWED_WORKFLOWS=""
   ALLOWED_PLUGINS="workforce-programming-plugin workforce-usage-plugin workforce-integrity-plugin"

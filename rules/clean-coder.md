@@ -72,5 +72,6 @@ These engineering rules govern all code generation, refactoring, and execution w
 - **Worktree Isolation for Parallel Agents**: Whenever multiple agents write or test code concurrently, each agent MUST operate in an isolated Git worktree (`Workspace: 'share'`). Agents must NEVER modify the root working tree simultaneously.
 - **Stacked PR Atomic Layer Rule**: In stacked PRs (`gh stack`), every intermediate layer MUST compile and pass its own unit tests in isolation before the next layer is stacked. Never commit broken intermediate layers.
 - **Cascade Rebase with `git rerere`**: When trunk moves or a base layer is revised, run `gh stack sync` to cascade-rebase the stack. Ensure `git rerere` is enabled to automatically remember and apply conflict resolutions across downstream layers.
+- **Autonomous Commits & PR Generation**: Follow [`git-workflow`](git-workflow.md) for deterministic commit milestones and structured `gh pr create` pull request descriptions.
 
 

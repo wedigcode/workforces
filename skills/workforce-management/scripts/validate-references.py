@@ -127,7 +127,11 @@ def audit_session_context(target_dir):
             continue
 
         meta, body = parse_frontmatter(content)
-        tracked_tasks = (meta.get("tracked_tasks") or []) + (meta.get("tracked_issues") or [])
+        raw_tt = meta.get("tracked_tasks") or []
+        raw_ti = meta.get("tracked_issues") or []
+        tt = [raw_tt] if isinstance(raw_tt, str) else list(raw_tt)
+        ti = [raw_ti] if isinstance(raw_ti, str) else list(raw_ti)
+        tracked_tasks = [x for x in tt if x] + [x for x in ti if x]
         tracked_strings = []
         for item in tracked_tasks:
             if isinstance(item, dict):
