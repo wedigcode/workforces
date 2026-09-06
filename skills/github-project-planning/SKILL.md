@@ -1,11 +1,24 @@
 ---
 name: github-project-planning
-description: Connects GitHub Issues and Projects V2 to the workforce planning system. Creates issues, tracks them on a project board, sets custom fields, and queries the roadmap. Works for any GitHub user or org. Reads and writes config from workforces/memory/github-project-planning-skill.md.
+description: Integrates workforce tasks with GitHub Issues and GitHub Projects V2 boards. Reach for this skill when creating and tracking issues via the `gh` CLI, organizing tasks on project boards with custom fields (Status, Priority, Iteration), scoring and prioritizing backlogs with RICE/ICE methodologies, or reconciling local implementation plans with remote GitHub roadmaps.
+---
+# GitHub Project Planning & Task Generation Pipeline
+
+Connect tasks to GitHub. Create issues, track them on a project board, set custom fields, execute strategic RICE/ICE planning cycles, and query the roadmap — all without hardcoding any owner, org, or project.
+
 ---
 
-# GitHub Project Planning
+## Triggering & Execution
 
-Connect tasks to GitHub. Create issues, track them on a project board, set custom fields, and query the roadmap — all without hardcoding any owner, org, or project.
+Connects GitHub Projects V2 and issues to the workforce planning cycle. Led by `@project-manager`:
+
+### Coordinator & Command Invocations
+- **Via `/wf-plan`**: Full strategic planning cycle (gap analysis, RICE scoring, GitHub issue sync).
+
+### Prompt Triggers
+- *"Sync tasks with GitHub project board"*
+- *"Run strategic planning cycle and score tasks with RICE"*
+- *"Create GitHub issues for active backlog items"*
 
 ---
 
@@ -286,6 +299,20 @@ gh api graphql -f query='
 |---|-------|--------|----------|------|--------|
 | #12 | Build auth flow | In progress | P0 | M | 2026-03-01 |
 ```
+
+---
+
+## 6. Strategic Planning Cycle
+
+When invoked by `/wf-plan`, execute the full planning cycle led by `@project-manager`:
+
+1. **Step 0 — Load Config**: Read `workforces/memory/github-project-planning-skill.md`. If missing, trigger setup.
+2. **Step 1 — Read the Landscape**: Read quarterly goals from `workforces/goals/`, active tasks from `workforces/workstate.md`, and the live GitHub board.
+3. **Step 2 — Gap Analysis**: Compare goals vs. current backlog. For each key result, identify missing work and coverage gaps.
+4. **Step 3 — Generate + Score Tasks**: Generate concrete tasks scored with **RICE** `(Reach × Impact × Confidence) ÷ Effort` or **ICE** `(Impact × Confidence × Ease)`.
+5. **Step 4 — Update `workforces/workstate.md`**: After user approval, add new tasks to Active Tasks table sorted by priority score.
+6. **Step 5 — Create GitHub Issues (P0 + P1)**: Create rich-context issues in the tracked repo, attach to project board, set custom fields (Status, Priority, Size), and sync issue number back to `workforces/workstate.md`.
+7. **Step 6 — Present Roadmap**: Output weekly sprint view and highlight "The One Thing" P0 task.
 
 ---
 

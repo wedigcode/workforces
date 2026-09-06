@@ -1,9 +1,7 @@
 ---
 name: design-anti-patterns
-description: 25 AI design clichés to avoid and human-crafted alternatives. MANDATORY when building UI, reviewing designs, or creating landing pages — ensures output doesn't look AI-generated. Focus is design quality, not code quality (see programmer for that).
-
+description: Identifies and replaces 25 ubiquitous AI design clichés (such as floating glow cards, generic purple-blue gradients, hollow metrics, and centered hero clichés) with human-crafted, production-grade alternatives anchored in benchmark systems like Refero, Linear, and Huly. Reach for this skill when designing or reviewing web interfaces, landing pages, and component styling to ensure layouts look intentional, authentic, and professionally crafted.
 ---
-
 # Design Anti-Patterns
 
 AI tools default to the same visual patterns. This skill identifies 25 overused AI design clichés and provides unique, human-crafted alternatives. The goal: designs that look **intentional and differentiated**, not templated.

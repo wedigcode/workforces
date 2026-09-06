@@ -205,7 +205,7 @@ Ad campaigns on Google and Twitter.
         self.assertNotIn("setUp", sym_names)
 
     def test_universal_core_installation_across_all_team_configurations(self):
-        """Assert that workforce-canvas and wf-canvas are part of CORE manifest regardless of installed teams."""
+        """Assert that workforce-canvas is part of CORE manifest regardless of installed teams."""
         resolver_dir = REPO_ROOT / "skills" / "workforce-management" / "scripts"
         sys.path.insert(0, str(resolver_dir))
         import resolve_manifest
@@ -213,17 +213,14 @@ Ad campaigns on Google and Twitter.
         # Even with zero teams installed (pure core):
         manifest_none = resolve_manifest.resolve_manifest(str(REPO_ROOT), str(REPO_ROOT), teams_arg="none")
         self.assertIn("workforce-canvas", manifest_none["skills"])
-        self.assertIn("wf-canvas.md", manifest_none["workflows"])
 
         # With only marketing installed:
         manifest_mkt = resolve_manifest.resolve_manifest(str(REPO_ROOT), str(REPO_ROOT), teams_arg="marketing")
         self.assertIn("workforce-canvas", manifest_mkt["skills"])
-        self.assertIn("wf-canvas.md", manifest_mkt["workflows"])
 
         # With only dev installed:
         manifest_dev = resolve_manifest.resolve_manifest(str(REPO_ROOT), str(REPO_ROOT), teams_arg="dev")
         self.assertIn("workforce-canvas", manifest_dev["skills"])
-        self.assertIn("wf-canvas.md", manifest_dev["workflows"])
 
 
 class TestWorkforceCanvasHTTPServer(unittest.TestCase):

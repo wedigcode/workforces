@@ -1,8 +1,7 @@
 ---
 name: business-frameworks
-description: Contemporary MBA business frameworks and quantitative decision models from HBS, Wharton, Stanford GSB, Columbia, and Haas. Replaces legacy static matrices (SWOT, linear funnels) with dynamic value mechanics, Jobs-to-be-Done, Connected Strategy, closed Growth Loops, Dynamic Capabilities, Multi-Sided Platforms, and SaaS unit economics.
+description: Applies rigorous MBA-level business frameworks (Harvard, Wharton, Stanford GSB) and quantitative decision models to product strategy. Reach for this skill when evaluating business viability, auditing unit economics (LTV:CAC, CAC payback period), conducting Value Stick analysis (WTP/WTS expansion), architecting compounding growth loops and network effects, or challenging speculative feature proposals with the 4-Step Executive Decision Sequence before writing code.
 ---
-
 # Skill: Business Frameworks & Strategic Decision Mechanics
 
 Modern business strategy has evolved from qualitative surveys and static 2x2 matrices into a dynamic, systems-oriented discipline. This skill equips workforce agents with the contemporary analytical and economic frameworks taught in premier MBA programs (HBS, Wharton, Stanford GSB, Columbia, Berkeley Haas).

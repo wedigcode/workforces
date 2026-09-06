@@ -1,8 +1,7 @@
 ---
 name: image-workflow
-description: End-to-end AI image planning, prompting, generation queue in workforces/images.json, Antigravity generate_image integration, WebP/JPEG compression, and JSON Image Duplicate Prompt protocol for Nano Banana / diffusion tools.
+description: Manages the visual asset pipeline, including prompt engineering, queue management (`workforces/images.json`), Antigravity image generation, and compression (WebP/JPEG optimization). Reach for this skill when planning marketing or UI imagery, deconstructing reference visuals into reproducible JSON prompts, generating brand assets, or resizing and compressing web assets for optimal page speed.
 ---
-
 # 🎨 Image Planning & Generation Workflow
 
 The centralized system for defining, prompting, generating, optimizing visual assets across web properties, and deconstructing reference images into structured JSON duplication prompts.

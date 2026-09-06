@@ -9,9 +9,8 @@
   "skills": [
     "persona-management",
     "brand-guidelines",
-    "memory-management"
+    "memory-management",
+    "wf-advisor"
   ],
-  "workflows": [
-    "wf-advisor.md"
-  ]
+  "workflows": []
 }

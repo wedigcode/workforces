@@ -1,8 +1,7 @@
 ---
 name: persona-management
-description: Dynamic persona generation, storage, recommendation, and switching engine for Workforces. Manages case-by-case Author/Voice Personas and Target Audience Segment Personas stored in workforces/personas/ (or workforces/personas.json). Triggers on persona, voice, author persona, audience persona, tone of voice, perspective, voice switching.
+description: Generates, catalogs, and dynamically switches between Author Voice Personas (brand tone and perspective) and Target Audience Personas (customer segment profiles) without hardcoding voices in prompts. Reach for this skill when tailoring copy, marketing assets, sales outreach, or social replies to specific personas, resolving audience segments from `workforces/personas/`, or adapting tone of voice across channels.
 ---
-
 # Skill: Persona Management & Dynamic Voice Switching
 
 The `persona-management` skill manages project-specific, non-hardcoded personas. It enables agents (`@social`, `@marketer`, `@sales`, `@growth`, `@advisor`) to dynamically discover, create, recommend, and switch between **Author Voice Personas** (how the workforce speaks) and **Target Audience Personas** (who the workforce speaks to).
@@ -63,11 +62,11 @@ python3 .agents/skills/persona-management/scripts/manage_personas.py --export-co
 
 | Agent | How They Use Personas | Example Prompt / Action |
 | :--- | :--- | :--- |
-| [`@social`](../agents/social.md) | Adopts active **Author Voice Persona** matching platform and thread context. | `@social reply to this architecture debate using the Technical Architect voice` |
-| [`@marketer`](../agents/marketer.md) | Crafts copy tailored to a specific **Target Audience Persona** using the brand voice. | `@marketer write email nurture sequence for the Startup Founder segment` |
-| [`@sales`](../agents/sales.md) | Maps outbound hooks and objections to the specific **Prospect Persona** being pitched. | `@sales draft cold LinkedIn sequence for Enterprise Decision Makers` |
-| [`@growth`](../agents/growth.md) | Tailors keyword intent and content format to search intent persona cohorts. | `@growth map search queries for developer-focused personas` |
-| [`@advisor`](../agents/advisor.md) | Calibrates coaching style (Strategic Challenger vs Empathetic Partner). | `@advisor audit our unit economics with the Pragmatic Operator perspective` |
+| [`@social`](../../agents/social.md) | Adopts active **Author Voice Persona** matching platform and thread context. | `@social reply to this architecture debate using the Technical Architect voice` |
+| [`@marketer`](../../agents/marketer.md) | Crafts copy tailored to a specific **Target Audience Persona** using the brand voice. | `@marketer write email nurture sequence for the Startup Founder segment` |
+| [`@sales`](../../agents/sales.md) | Maps outbound hooks and objections to the specific **Prospect Persona** being pitched. | `@sales draft cold LinkedIn sequence for Enterprise Decision Makers` |
+| [`@growth`](../../agents/growth.md) | Tailors keyword intent and content format to search intent persona cohorts. | `@growth map search queries for developer-focused personas` |
+| [`@unbundler`](../../agents/unbundler.md) | Evaluates unbundled SaaS offerings from specific customer segment viewpoints. | `@unbundler analyze feature bloat through the SMB Operator lens` |
 
 ---
 

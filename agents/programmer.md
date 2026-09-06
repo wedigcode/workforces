@@ -5,20 +5,22 @@ tools:
   - view_file
   - grep_search
   - list_dir
+  - find_by_name
   - run_command
   - write_to_file
   - replace_file_content
   - multi_replace_file_content
-subagent: true
+  - send_message
 mainAgent: true
+subagent: true
 model: inherit
-commandExecutionPolicy: sandbox
 skills:
   - clean-coder
   - code-graph
   - post-code-review
   - codebase-improvement
   - agent-parallelization
+commandExecutionPolicy: sandbox
 ---
 
 # System Prompt

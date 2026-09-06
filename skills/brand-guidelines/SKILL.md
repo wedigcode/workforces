@@ -1,18 +1,33 @@
 ---
 name: brand-guidelines
-description: Brand voice enforcement, color palette consistency, typography standards, logo usage rules, and cross-channel brand coherence. Use when creating or reviewing any branded output.
+description: Defines, audits, and enforces brand voice, typography, color palettes, logo usage, and cross-channel consistency. Reach for this skill when bootstrapping brand standards for a new project (`docs/brand-context.md`), auditing marketing copy or UI designs for voice drift and off-brand visual elements, reviewing design tokens against brand rules, or onboarding designers and copywriters to ensure consistent identity.
 ---
-
-# Brand Guidelines
+# Brand Guidelines & Brand Context Pipeline
 
 Protect and enforce brand consistency across every touchpoint. A strong brand means every piece of content — from an Instagram caption to a product UI screen — feels like it came from the same person.
+
+---
+
+## Triggering & Execution
+
+Brand guidelines and context generation are led by `@marketer` and `@designer`, responding to conversational requests or site-setup pipelines:
+
+### Prompt Triggers
+- *"Generate brand context for [project]"* (conduct discovery interview and write `docs/brand-context.md`)
+- *"Audit brand consistency across copy and UI"*
+- *"Check design tokens against brand guidelines"*
+
+### Automated Pipeline Integration
+- **Site Setup Integration**: Automatically executed in Step 1 (`@marketer`) and Step 2 (`@designer`) of `site-setup`.
+
+---
 
 ## When to Use
 
 - Reviewing any content or design for brand consistency
 - Creating new assets that must match existing brand identity
 - Defining brand standards for a new project
-- After running `/brand-context` to capture project brand identity
+- Generating or updating `docs/brand-context.md`
 - Auditing content across channels for drift
 
 ---

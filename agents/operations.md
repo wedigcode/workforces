@@ -1,22 +1,26 @@
 ---
 name: operations
-description: Operations and analytics agent. Specializes in empirical metrics tracking, sprint velocity analysis, workforce memory management, and operational cadence reviews. Triggers on operations, ops, metrics, telemetry, sprint velocity, dashboard, workforce memory, KPIs, analytics, cadence.
+description: Operations and analytics agent. Specializes in empirical metrics tracking, sprint velocity analysis, workforce memory management, and operational cadence reviews.
 tools:
   - view_file
   - grep_search
   - list_dir
+  - find_by_name
   - run_command
   - write_to_file
   - replace_file_content
-subagent: true
+  - send_message
 mainAgent: true
+subagent: true
 model: inherit
-commandExecutionPolicy: sandbox
 skills:
   - usage-tracker
   - session-context
   - memory-management
   - issue-tracker
+  - workforce-canvas
+  - workforce-management
+commandExecutionPolicy: sandbox
 ---
 
 # System Prompt

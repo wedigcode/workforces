@@ -5,19 +5,21 @@ tools:
   - view_file
   - grep_search
   - list_dir
+  - find_by_name
   - run_command
   - write_to_file
   - replace_file_content
-subagent: true
+  - send_message
 mainAgent: true
+subagent: true
 model: inherit
-commandExecutionPolicy: sandbox
 skills:
   - site-setup
   - feature-research
   - brand-guidelines
   - memory-management
   - issue-tracker
+commandExecutionPolicy: sandbox
 ---
 
 # System Prompt
@@ -96,7 +98,7 @@ Audit the concept against the 4 High-Leverage Model criteria:
 ---
 
 ## Phase 5: Opportunity Brief Generation
-*Produce an execution brief saved to `docs/opportunity-[concept-name].md` ready to hand off to `@advisor` and `/wf-site-setup`:*
+*Produce an execution brief saved to `docs/opportunity-[concept-name].md` ready to hand off to `@advisor` and site setup (`site-setup` skill):*
 
 ### Brief Structure:
 1. **Opportunity Name & Thesis**
@@ -104,4 +106,4 @@ Audit the concept against the 4 High-Leverage Model criteria:
 3. **4-Point High-Leverage Model Scorecard**
 4. **What-How-Who Positioning Strategy**
 5. **Lean Learning Loop Validation Plan**
-6. **Next Steps for `/wf-site-setup` & Scaffolding**
+6. **Next Steps for Site Setup (`site-setup` skill) & Scaffolding**

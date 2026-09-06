@@ -1,8 +1,7 @@
 ---
 name: agent-parallelization
-description: Multi-agent parallel programming framework, Git worktree filesystem isolation, GitHub gh-stack CLI stacked PR management, and merge conflict prevention. Enables coordinators and coding subagents to select the optimal concurrency topology (Parallel Worktrees vs. Vertical Relay vs. Single Branch) and avoid filesystem or git collisions.
+description: Enables safe concurrent multi-agent software engineering using isolated Git worktrees, stacked PRs (`gh-stack`), and conflict resolution (`git rerere`). Reach for this skill when dispatching multiple coding subagents concurrently, fanning out independent backlog tasks, building multi-layer epics that require dependent PR chains without blocking on review, or preventing `.git/index.lock` collisions and dirty working tree crosstalk across parallel sessions.
 ---
-
 # Multi-Agent Parallelization & GitHub gh-stack Orchestration
 
 A unified framework for orchestrating multiple AI agents working concurrently on a codebase without filesystem cross-contamination, Git index lock contention, or merge conflict chaos. Integrates Git worktrees (`Workspace: 'share'`) and GitHub's official stacked PR CLI (`github/gh-stack`).

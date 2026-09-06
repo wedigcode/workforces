@@ -1,0 +1,16 @@
+{
+  "workforce-integrity": {
+    "PostToolUse": [
+      {
+        "matcher": "write_to_file|replace_file_content|multi_replace_file_content",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -c \"import os, sys, subprocess; script = next((p for p in ['skills/workforce-management/scripts/validate-references.py', '.agents/skills/workforce-management/scripts/validate-references.py', '../../skills/workforce-management/scripts/validate-references.py'] if os.path.exists(p)), None); res = subprocess.run([sys.executable, script, './', '--fix'], capture_output=True, text=True) if script else None; sys.stderr.write(res.stdout) if (res and res.stdout) else None; print('{}')\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

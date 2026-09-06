@@ -1,11 +1,7 @@
 ---
 name: hypothesis-tracker
-description: |
-  Scientific hypothesis and experiment tracker for workforce agents. Formulates, tests,
-  monitors, and reviews business, marketing, sales, and product hypotheses. Enforces leading vs. lagging
-  KPI telemetry, weekly pacing analysis, kill/pivot thresholds, and sync reviews with @advisor and @project-manager.
+description: Formulates, monitors, and evaluates falsifiable business, product, and growth experiments using scientific hypothesis tracking (`workforces/hypotheses/`). Reach for this skill when proposing speculative marketing campaigns, testing growth bets, structuring validation experiments with concrete leading/lagging KPIs and kill thresholds, or reviewing experimental outcomes during strategic standups to decide whether to pivot, kill, or scale.
 ---
-
 # Hypothesis Tracker
 
 A structured, scientific experimentation framework for workforce teams. Turns growth bets, marketing campaigns, sales tactics, and product features into measurable, falsifiable hypotheses linked to company goals.

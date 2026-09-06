@@ -1,8 +1,7 @@
 ---
 name: usage-tracker
-description: Real-time token, character, thought, and subagent usage tracking skill for Antigravity workforces.
+description: Monitors, logs, and analyzes token consumption, thinking steps, and subagent invocations across Antigravity agent sessions (`workforces/tmp/usage-log.json`). Reach for this skill when auditing LLM resource utilization, evaluating the token cost of complex workflows, diagnosing prompt bloat and heavy tool outputs, or generating real-time turn summaries during execution.
 ---
-
 # Usage Tracker Skill
 
 The `usage-tracker` skill enables real-time and historical token and content usage tracking across Antigravity agent sessions and subagents.

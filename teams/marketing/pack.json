@@ -18,8 +18,5 @@
     "hypothesis-tracker",
     "market-validation"
   ],
-  "workflows": [
-    "wf-brand-context.md",
-    "wf-validate-idea.md"
-  ]
+  "workflows": []
 }

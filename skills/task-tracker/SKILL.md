@@ -1,15 +1,22 @@
 ---
 name: task-tracker
-description: |
-  Lightweight deferred-task & action item capture and lifecycle management system for workforce agents and Scribe.
-  Any agent or workflow that identifies a task, business follow-up, idea, bug, or action item can call report-task.py
-  to log it with bidirectional session lineage. Supports a simplified 5-state lifecycle (todo | in_progress | blocked | done | dropped),
-  freeform categories, priority levels P0-P3, and deciding factor tracking.
+description: Manages deferred action items, task lifecycles (todo, in_progress, blocked, done, dropped), and priority queues (P0-P3) in `workforces/tasks/`. Reach for this skill when logging action items mid-conversation, answering "what do we have to work on?", surfacing active or blocked tasks during daily standups, recording task dependency changes with session lineage, or running personal sync reviews.
 ---
-
 # Task Tracker
 
 A structured, zero-friction pipeline for capturing, evolving, and managing tasks, business follow-ups, and spontaneous ideas discovered during sessions — without losing context or blocking active workflows.
+
+---
+
+## Triggering & Agent Actions
+
+Agents and Scribe invoke the task tracker automatically via `report-task.py` and `personal_sync.py`, responding to natural user requests or workflow events:
+
+- **Create Task**: User says *"Add task: [title]"* or an agent detects an unhandled follow-up.
+- **Update Status**: User says *"Mark task X as done/blocked/dropped"* or an agent finishes a work item.
+- **Show Active Tasks**: User asks *"What are my active tasks?"*, *"What do we have to work on?"*, or during `/wf-sync`.
+- **Personal Sync**: Aggregated via `python3 skills/task-tracker/scripts/personal_sync.py --root ./`.
+- **Antigravity Execution**: Active tasks route directly to modern Antigravity subagents via `agent-parallelization` (isolated worktrees in `.worktrees/<slug>`).
 
 ---
 

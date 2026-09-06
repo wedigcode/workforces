@@ -37,13 +37,24 @@ These engineering rules govern all code generation, refactoring, and execution w
 - **KISS (Keep It Simple, Stupid)**: Avoid over-engineering. Pick the simplest architecture that satisfies all requirements cleanly.
 - **Diff Compression Check**: Prior to completing code edits, evaluate whether the new or modified function can be written in <50% of the lines by composing existing class methods.
 
-## 4. Mandatory Post-Edit Hook & Self-Review
+## 4. Mandatory Pre-Handoff Quality Gate & Self-Review
 - **Automated Post-Edit Review Execution**: Immediately after modifying any code file (via `write_to_file`, `replace_file_content`, or `multi_replace_file_content`), the agent MUST execute the post-code review audit:
   ```bash
   python3 .agents/skills/post-code-review/scripts/post_code_reviewer.py --root ./
   ```
   *(Fallback: `python3 skills/post-code-review/scripts/post_code_reviewer.py --root ./` — automatically resolves target project root from `workrules.md`/`workstate.md` or `WORKFORCE_TARGET_DIR`).*
-- **Self-Remediation**: Any flagged items (swallowed errors, contract breaking changes, over-engineering warnings, missing tests) MUST be addressed and resolved before presenting completion results to the user.
+- **Pre-Handoff Quality Gate Triad (MANDATORY BEFORE CODE HANDOFF)**:
+  Before declaring any coding task complete or handing code over to the user, the agent MUST execute the full quality gate triad:
+  ```bash
+  python3 .agents/skills/post-code-review/scripts/post_code_reviewer.py --root ./ --run-checks --strict
+  ```
+  This automatically runs:
+  1. **Unit Tests**: Full test suite execution with zero regressions.
+  2. **Static Analysis & Typecheck**: Strict type checking (`tsc --noEmit`, `mypy --strict`, `phpstan`) with zero `any` bypasses.
+  3. **Code Styling & Linting**: Linter compliance (`biome check`, `eslint`, `ruff`, `pint`).
+  4. **Security & Dependency Audit**: Vulnerability scans (`npm audit`, `pip-audit`, `composer audit`) on modified manifests.
+- **Zero-Handoff on Failing Gates Rule**: If any unit test fails, static analysis detects type errors, linters report violations, or security audits flag vulnerabilities, **THE AGENT MUST NOT HAND OVER CODE OR DECLARE WORK COMPLETE**. The agent must diagnose, remediate, and re-verify all errors immediately before concluding the turn.
+- **Mutation-Resilient Testing**: Unit tests must feature assertions that test domain boundaries and state changes (designed to kill mutations) rather than shallow line-coverage execution.
 
 ## 5. Naming & Self-Documenting Code
 - **Expressive Naming**: Use intent-revealing names for variables, methods, and classes (e.g. `calculateMonthlyTaxableIncome` instead of `calcTax`).

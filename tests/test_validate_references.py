@@ -54,6 +54,18 @@ class TestValidateReferences(unittest.TestCase):
         broken = validate_mod.audit_references(self.test_dir)
         self.assertEqual(broken, 1)
 
+    def test_markdown_links_in_code_blocks_and_spans_ignored(self):
+        """Test that markdown links inside fenced code blocks or inline code spans are ignored."""
+        doc = os.path.join(self.test_dir, "code_examples.md")
+        with open(doc, "w", encoding="utf-8") as f:
+            f.write("# Code Examples\n\n")
+            f.write("Here is inline link syntax: `[text](path)` and ``[another](dangling_link.md)``.\n\n")
+            f.write("```markdown\n[fenced link](non_existent_file.md)\n```\n\n")
+            f.write("~~~markdown\n[tilde fenced](another_non_existent.md)\n~~~\n")
+
+        broken = validate_mod.audit_references(self.test_dir)
+        self.assertEqual(broken, 0)
+
     def test_untracked_roadmap_in_session_context(self):
         """Test detecting untracked roadmap items in session context."""
         session_file = os.path.join(self.session_dir, "011_2026-08-22_roadmap_test.md")
@@ -110,6 +122,38 @@ tracked_issues:
         session_notes, untracked = validate_mod.audit_session_context(self.test_dir)
         self.assertEqual(len(session_notes), 1)
         self.assertEqual(len(untracked), 0)
+
+    def test_backticked_link_anchor_valid(self):
+        """Test that links with backticked code anchor text are extracted and pass when target exists."""
+        target = os.path.join(self.test_dir, "valid_file.md")
+        with open(target, "w", encoding="utf-8") as f:
+            f.write("# Valid Target\n")
+        doc = os.path.join(self.test_dir, "caller.md")
+        with open(doc, "w", encoding="utf-8") as f:
+            f.write("# Caller\nLink to [`code-anchor`](valid_file.md)\n")
+
+        broken = validate_mod.audit_references(self.test_dir)
+        self.assertEqual(broken, 0)
+
+    def test_backticked_link_anchor_broken(self):
+        """Test that links with backticked code anchor text are extracted and caught when target is missing."""
+        doc = os.path.join(self.test_dir, "caller.md")
+        with open(doc, "w", encoding="utf-8") as f:
+            f.write("# Caller\nLink to [`code-anchor`](missing_file.md)\n")
+
+        broken = validate_mod.audit_references(self.test_dir)
+        self.assertEqual(broken, 1)
+
+    def test_transient_teamwork_preview_directories_ignored(self):
+        """Test that transient subagent coordination directories matching teamwork_preview_* are ignored."""
+        subagent_dir = os.path.join(self.test_dir, "teamwork_preview_subagent_1")
+        os.makedirs(subagent_dir, exist_ok=True)
+        doc = os.path.join(subagent_dir, "scratch.md")
+        with open(doc, "w", encoding="utf-8") as f:
+            f.write("# Scratch\nLink to [Broken](non_existent_scratch.md)\n")
+
+        broken = validate_mod.audit_references(self.test_dir)
+        self.assertEqual(broken, 0)
 
 
 if __name__ == "__main__":

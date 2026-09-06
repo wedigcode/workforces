@@ -17,6 +17,7 @@ import ast
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -297,50 +298,271 @@ def audit_class_helper_reuse(modified_files: List[str], diff_text: str, root_dir
 
     return issues
 
-def run_code_reviewer(root_dir: Path, target_dir_arg: Optional[str] = None) -> str:
-    """Execute complete post-code review audit."""
+def audit_dependency_security(modified_files: List[str], target_dir: Path) -> List[str]:
+    """Audit modified package manifests for security vulnerabilities."""
+    issues = []
+    dep_manifests = {
+        "package.json", "package-lock.json", "pnpm-lock.yaml", "yarn.lock",
+        "requirements.txt", "Pipfile.lock", "poetry.lock",
+        "composer.json", "composer.lock", "Cargo.lock"
+    }
+
+    touched_manifests = [f for f in modified_files if Path(f).name in dep_manifests]
+    if not touched_manifests:
+        return issues
+
+    # 1. Node / JavaScript manifests
+    if any(m.endswith(("package.json", "package-lock.json", "pnpm-lock.yaml", "yarn.lock")) for m in touched_manifests):
+        audit_cmd = None
+        if (target_dir / "pnpm-lock.yaml").exists() and shutil.which("pnpm"):
+            audit_cmd = ["pnpm", "audit", "--audit-level=high"]
+        elif shutil.which("npm") and ((target_dir / "package.json").exists() or (target_dir / "package-lock.json").exists()):
+            audit_cmd = ["npm", "audit", "--audit-level=high"]
+
+        if audit_cmd:
+            try:
+                res = subprocess.run(audit_cmd, cwd=target_dir, capture_output=True, text=True, timeout=15)
+                if res.returncode != 0:
+                    lines = [l.strip() for l in (res.stdout or res.stderr).splitlines() if "vulnerabilities" in l.lower() or "severity" in l.lower()]
+                    summary = lines[0] if lines else f"exit code {res.returncode}"
+                    issues.append(f"❌ **Security Audit Failed (NPM):** High/critical dependency vulnerabilities detected ({summary}). Remediation required before handoff.")
+            except Exception:
+                pass
+
+    # 2. Python manifests
+    if any(m.endswith(("requirements.txt", "poetry.lock", "Pipfile.lock")) for m in touched_manifests):
+        if shutil.which("pip-audit"):
+            try:
+                res = subprocess.run(["pip-audit"], cwd=target_dir, capture_output=True, text=True, timeout=15)
+                if res.returncode != 0:
+                    issues.append("❌ **Security Audit Failed (Python):** Known vulnerabilities detected by `pip-audit`. Remediation required before handoff.")
+            except Exception:
+                pass
+
+    # 3. PHP composer manifests
+    if any(m.endswith(("composer.json", "composer.lock")) for m in touched_manifests):
+        if shutil.which("composer"):
+            try:
+                res = subprocess.run(["composer", "audit"], cwd=target_dir, capture_output=True, text=True, timeout=15)
+                if res.returncode != 0:
+                    issues.append("❌ **Security Audit Failed (PHP):** Known vulnerabilities detected by `composer audit`. Remediation required before handoff.")
+            except Exception:
+                pass
+
+    return issues
+
+def detect_quality_commands(target_dir: Path) -> Dict[str, str]:
+    """Auto-detect configured test, typecheck/static analysis, and linter commands for target project."""
+    commands: Dict[str, str] = {}
+
+    # 1. Node.js / TypeScript / JavaScript
+    pkg_json = target_dir / "package.json"
+    if pkg_json.exists():
+        try:
+            data = json.loads(pkg_json.read_text(encoding="utf-8"))
+            scripts = data.get("scripts", {})
+
+            # Static Analysis / Typecheck
+            if "typecheck" in scripts:
+                commands["typecheck"] = "npm run typecheck"
+            elif "check" in scripts:
+                commands["typecheck"] = "npm run check"
+            elif (target_dir / "tsconfig.json").exists() and shutil.which("npx"):
+                commands["typecheck"] = "npx --no-install tsc --noEmit"
+
+            # Linting & Styling
+            if "lint" in scripts:
+                commands["lint"] = "npm run lint"
+            elif (target_dir / "biome.json").exists() and shutil.which("npx"):
+                commands["lint"] = "npx --no-install @biomejs/biome check ."
+
+            # Unit Tests
+            if "test" in scripts:
+                test_script = scripts.get("test", "")
+                if "no test specified" not in test_script.lower():
+                    commands["test"] = "npm test"
+        except Exception:
+            pass
+
+    # 2. Python
+    has_python = (
+        (target_dir / "pyproject.toml").exists()
+        or (target_dir / "requirements.txt").exists()
+        or any(target_dir.glob("*.py"))
+    )
+    if has_python and "test" not in commands:
+        # Unit Tests
+        if (target_dir / "tests").exists() or (target_dir / "pytest.ini").exists():
+            if shutil.which("pytest"):
+                commands["test"] = "pytest"
+            else:
+                commands["test"] = "python3 -m unittest discover -s tests"
+        # Linters
+        if shutil.which("ruff"):
+            commands["lint"] = "ruff check ."
+        elif shutil.which("flake8"):
+            commands["lint"] = "flake8 ."
+        # Static Analysis
+        if (target_dir / "mypy.ini").exists() or (target_dir / ".mypy.ini").exists() or (target_dir / "pyproject.toml").exists():
+            if shutil.which("mypy"):
+                commands["typecheck"] = "mypy ."
+
+    # 3. PHP
+    if (target_dir / "composer.json").exists():
+        if (target_dir / "vendor" / "bin" / "pest").exists():
+            commands["test"] = "./vendor/bin/pest"
+        elif (target_dir / "vendor" / "bin" / "phpunit").exists():
+            commands["test"] = "./vendor/bin/phpunit"
+
+        if (target_dir / "vendor" / "bin" / "phpstan").exists():
+            commands["typecheck"] = "./vendor/bin/phpstan analyse"
+
+        if (target_dir / "vendor" / "bin" / "pint").exists():
+            commands["lint"] = "./vendor/bin/pint --test"
+
+    # 4. Rust
+    if (target_dir / "Cargo.toml").exists() and shutil.which("cargo"):
+        commands["test"] = "cargo test"
+        commands["typecheck"] = "cargo check"
+        commands["lint"] = "cargo clippy -- -D warnings"
+
+    # 5. Go
+    if (target_dir / "go.mod").exists() and shutil.which("go"):
+        commands["test"] = "go test ./..."
+        commands["typecheck"] = "go vet ./..."
+        if shutil.which("golangci-lint"):
+            commands["lint"] = "golangci-lint run"
+
+    return commands
+
+def run_quality_gate_checks(target_dir: Path, commands: Dict[str, str]) -> Tuple[List[str], bool]:
+    """Execute detected unit test, static analysis, and linter commands."""
+    issues = []
+    all_passed = True
+
+    # Deterministic order: typecheck -> lint -> test
+    order = ["typecheck", "lint", "test"]
+    sorted_checks = []
+    for k in order:
+        if k in commands:
+            sorted_checks.append((k, commands[k]))
+    for k, cmd in commands.items():
+        if k not in order:
+            sorted_checks.append((k, cmd))
+
+    for check_type, cmd_str in sorted_checks:
+        try:
+            res = subprocess.run(
+                cmd_str,
+                shell=True,
+                cwd=target_dir,
+                capture_output=True,
+                text=True,
+                timeout=45
+            )
+            if res.returncode != 0:
+                all_passed = False
+                output_text = (res.stderr or "") + "\n" + (res.stdout or "")
+                tail_lines = [l for l in output_text.splitlines() if l.strip()][-8:]
+                snippet = "\n".join(tail_lines) if tail_lines else f"Failed with exit code {res.returncode}"
+                issues.append(
+                    f"❌ **Quality Gate Failed ({check_type.title()}):** Command `{cmd_str}` failed (exit {res.returncode}):\n```\n{snippet}\n```\n⚠️ **Action Required:** Fix all {check_type} errors before handing over code."
+                )
+        except subprocess.TimeoutExpired:
+            all_passed = False
+            issues.append(f"❌ **Quality Gate Timeout ({check_type.title()}):** Command `{cmd_str}` timed out after 45s.")
+        except Exception as e:
+            all_passed = False
+            issues.append(f"❌ **Quality Gate Execution Error ({check_type.title()}):** `{cmd_str}` failed to execute: {e}")
+
+    return issues, all_passed
+
+def run_code_review_gate(
+    root_dir: Path,
+    target_dir_arg: Optional[str] = None,
+    run_checks: bool = False,
+    strict: bool = False
+) -> Tuple[str, bool]:
+    """Execute complete post-code review audit and automated quality gates."""
     target_dir = resolve_target_dir(root_arg=str(root_dir), target_dir_arg=target_dir_arg)
-    
+
     modified_files = get_modified_files(target_dir)
     diff_text = get_git_diff(target_dir)
     symbols = load_code_graph(root_dir, target_dir)
 
     all_issues = []
+    detected_commands = detect_quality_commands(target_dir)
 
-    if not modified_files and not diff_text.strip():
-        return f"### 🔍 [Post-Hook Code Review]\n✅ No modified files detected in target repo `{target_dir}`."
+    if not modified_files and not diff_text.strip() and not run_checks:
+        return (f"### 🔍 [Post-Hook Code Review]\n✅ No modified files detected in target repo `{target_dir}`.", True)
 
-    # Perform audits
+    # 1. AST & Diff Heuristic Audits
     all_issues.extend(audit_swallowed_errors(diff_text, modified_files, target_dir))
     all_issues.extend(audit_contract_changes(modified_files, symbols, target_dir))
     all_issues.extend(audit_class_helper_reuse(modified_files, diff_text, target_dir))
     all_issues.extend(audit_missing_tests(modified_files))
+    all_issues.extend(audit_dependency_security(modified_files, target_dir))
+
+    # 2. Automated Quality Triad Gate Execution (Tests + Static Analysis + Linters)
+    if run_checks and detected_commands:
+        q_issues, passed = run_quality_gate_checks(target_dir, detected_commands)
+        all_issues.extend(q_issues)
 
     output = []
-    output.append("### 🔍 [Post-Hook Code Review & Self-Healing Feedback]")
+    output.append("### 🔍 [Post-Hook Code Review & Quality Gate Feedback]")
     output.append(f"**Target Repository Audited:** `{target_dir}`")
     output.append(f"**Modified Files Audited:** {len(modified_files)} file(s)")
+    if detected_commands:
+        cmds_str = ", ".join(f"`{k}: {v}`" for k, v in detected_commands.items())
+        output.append(f"**Detected Quality Toolchains:** {cmds_str}")
+
+    has_critical_blockers = any(
+        ("❌" in issue or "⚠️ **Swallowed Error" in issue) for issue in all_issues
+    )
 
     if all_issues:
         output.append("\n**Actionable Items Flagged:**")
-        for issue in all_issues[:8]:
+        for issue in all_issues[:10]:
             output.append(f"- {issue}")
-        output.append("\n*Please address flagged items before completing your task.*")
+        if has_critical_blockers:
+            output.append("\n🛑 **PRE-HANDOFF BLOCKER:** One or more quality gates (tests, static analysis, linters, or security) failed. You MUST resolve all errors before concluding or handing over code.")
+        else:
+            output.append("\n*Please address flagged items before completing your task.*")
     else:
-        output.append("\n✅ **Review Passed:** No contract violations, swallowed errors, or missing test issues detected.")
+        output.append("\n✅ **Review & Quality Gate Passed:** No contract violations, swallowed errors, test regressions, or linter/typecheck errors detected.")
 
-    return "\n".join(output)
+    overall_passed = not has_critical_blockers
+    return ("\n".join(output), overall_passed)
+
+def run_code_reviewer(
+    root_dir: Path,
+    target_dir_arg: Optional[str] = None,
+    run_checks: bool = False
+) -> str:
+    """Backward-compatible entry point returning markdown report string."""
+    report, _ = run_code_review_gate(root_dir, target_dir_arg=target_dir_arg, run_checks=run_checks)
+    return report
 
 def main():
-    parser = argparse.ArgumentParser(description="Post-Hook Whole-Codebase Code Reviewer")
+    parser = argparse.ArgumentParser(description="Post-Hook Whole-Codebase Code Reviewer & Quality Gate")
     parser.add_argument("--root", default="./", help="Repository root directory")
     parser.add_argument("--target-dir", help="Target project codebase directory")
+    parser.add_argument("--run-checks", action="store_true", default=False, help="Execute detected unit test, static analysis, and linter quality gates")
+    parser.add_argument("--strict", action="store_true", default=False, help="Exit with non-zero exit code if any quality gates fail")
     args = parser.parse_args()
 
+    run_checks = args.run_checks or (os.getenv("WORKFORCE_RUN_CHECKS", "0") in ("1", "true", "True"))
+
     root_dir = Path(args.root).resolve()
-    report = run_code_reviewer(root_dir, target_dir_arg=args.target_dir)
+    report, passed = run_code_review_gate(
+        root_dir,
+        target_dir_arg=args.target_dir,
+        run_checks=run_checks,
+        strict=args.strict
+    )
     print(report)
+    if args.strict and not passed:
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
-

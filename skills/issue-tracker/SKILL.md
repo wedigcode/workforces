@@ -1,12 +1,7 @@
 ---
 name: issue-tracker
-description: |
-  Lightweight deferred-issue & feature idea capture system for workforce agents. Any agent or workflow
-  that finds a bug, design problem, tech debt, or spontaneous feature idea can call report-issue.py
-  to log it to the inbox with bidirectional session lineage. The scribe updates evolving issues during
-  conversations, and the project-manager triages the inbox into workstate or GitHub issues.
+description: Captures and preserves deferred bugs, technical debt, design flaws, and spontaneous feature ideas discovered during active workflows without interrupting execution. Reach for this skill whenever encountering an issue that cannot be fixed immediately, recording emergent backlog items with session lineage and deciding factors (`workforces/issues/inbox/`), or triaging accumulated inbox reports into prioritized engineering tasks.
 ---
-
 # Issue Tracker
 
 A structured pipeline for capturing and evolving deferred issues, bugs, tech debt, and spontaneous feature ideas discovered during agent execution or extended chat sessions — without losing context or blocking active workflows.
@@ -174,7 +169,7 @@ Define design tokens in theme.css with muted primary and surface tokens.
 
 ## Triage Protocol (Project Manager)
 
-When invoked for triage (via `/wf-task triage` or during `/wf-sync`):
+When invoked for triage (via task tracker triage or during `/wf-sync`):
 
 1. **Read all inbox files:** `workforces/issues/inbox/*.md`
 2. **Review Session Context:** Read `session_file` and `## 🧠 Session Lineage & Deciding Factors` to understand the full rationale before prioritizing.
@@ -197,9 +192,8 @@ When invoked for triage (via `/wf-task triage` or during `/wf-sync`):
 |--------|----------------|
 | `@scribe` agent | Automatically captures new ideas & evolves tracked issues mid-session |
 | `session-context` skill | Maintains `tracked_issues` in frontmatter and links in body |
-| `/wf-work` | Surfaces "⚠️ N issues pending triage" in Step 2 |
 | `/wf-sync` | Project-manager reviews inbox and cross-session lineage during standups |
-| `/wf-task` | Interactive reporting, listing, and triage for humans & agents |
+| `task-tracker` | Interactive reporting, listing, and triage for humans & agents |
 | `project-manager` agent | Triages inbox into workstate & GitHub with session context |
 | `programmer` & `designer` | Reports deferred code or design issues via `report-issue.py` |
 | `post-code-review` | Appends unfixable findings to inbox automatically |

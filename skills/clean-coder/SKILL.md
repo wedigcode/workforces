@@ -1,8 +1,7 @@
 ---
 name: clean-coder
-description: MANDATORY for all programming, coding, refactoring, bug fixes, function creation, or software architecture tasks. Enforces TDD, symbol deduplication before writing code, SOLID/DRY principles, self-documenting code, and zero error swallowing.
+description: Enforces software craftsmanship, Test-Driven Development (TDD), SOLID and DRY architecture, and zero-error-swallowing discipline across programming languages. Reach for this skill whenever writing, editing, or refactoring code, adding new functions or classes, fixing bugs, designing APIs, eliminating duplicated logic, or ensuring runtime errors are surfaced explicitly rather than silently caught.
 ---
-
 # Skill: Clean Coder
 
 Provides step-by-step guidance for writing pristine, self-documenting, reusable code while preventing function duplication and error swallowing.
@@ -44,14 +43,19 @@ Before writing any code:
 - [ ] **Class Helper Reuse**: Does this method reuse existing static/public helpers in the target file?
 - [ ] **Error Handling**: Are errors caught, enriched with context (stack traces, parameters), and re-thrown or handled gracefully?
 
-### Step 4: Mandatory Post-Edit Review Execution
-Immediately after writing or modifying any code file:
-1. Run the whole-codebase post-code review script:
+### Step 4: Mandatory Pre-Handoff Quality Gate Execution
+Immediately after modifying code and BEFORE declaring the task complete:
+1. Run the whole-codebase post-code review and quality gate script:
    ```bash
-   python3 .agents/skills/post-code-review/scripts/post_code_reviewer.py --root ./
+   python3 .agents/skills/post-code-review/scripts/post_code_reviewer.py --root ./ --run-checks --strict
    ```
-   *(Fallback: `python3 skills/post-code-review/scripts/post_code_reviewer.py --root ./`)*
-2. Address and resolve any output warnings (swallowed errors, contract blast radius warnings, missing tests, or class helper over-engineering flags).
+   *(Fallback: `python3 skills/post-code-review/scripts/post_code_reviewer.py --root ./ --run-checks --strict`)*
+2. **Zero-Handoff on Failing Gates Rule**:
+   - **Unit Tests**: All tests must pass cleanly.
+   - **Static Analysis**: Zero type errors (`tsc --noEmit`, `mypy --strict`, `phpstan`); no `any` escapes.
+   - **Styling & Linting**: Zero linter errors (`biome check`, `eslint`, `ruff`).
+   - **Security Audits**: Zero high/critical dependency vulnerabilities.
+3. If ANY check fails, the developer/agent MUST diagnose and resolve all errors before concluding the turn or handing code over to the user.
 
 ### Step 5: Graceful Error Handling Patterns
 

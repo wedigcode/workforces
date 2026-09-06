@@ -13,11 +13,9 @@
     "usage-tracker",
     "session-context",
     "memory-management",
-    "issue-tracker"
+    "issue-tracker",
+    "wf-sync",
+    "task-tracker"
   ],
-  "workflows": [
-    "wf-sync.md",
-    "wf-context.md",
-    "wf-task.md"
-  ]
+  "workflows": []
 }

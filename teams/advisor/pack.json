@@ -3,7 +3,6 @@
   "title": "Strategy, Advisory & Ideation",
   "description": "Strategic problem discovery, atomic micro-SaaS unbundling, macro market disruption scouting, and high-leverage business model validation.",
   "agents": [
-    "advisor",
     "unbundler",
     "disruptor"
   ],
@@ -17,11 +16,9 @@
     "memory-management",
     "issue-tracker",
     "hypothesis-tracker",
-    "market-validation"
+    "market-validation",
+    "wf-advisor",
+    "wf-ideate"
   ],
-  "workflows": [
-    "wf-advisor.md",
-    "wf-ideate.md",
-    "wf-validate-idea.md"
-  ]
+  "workflows": []
 }

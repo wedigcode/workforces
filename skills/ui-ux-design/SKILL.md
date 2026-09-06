@@ -1,9 +1,7 @@
 ---
 name: ui-ux-design
-description: User interface principles, user experience flows, wireframing, interaction design, responsive design, and accessibility. For web and app design. Covers the 'what' and 'why' — see programmer for implementation.
-
+description: Guides user interface and user experience design, wireframing, interaction flows, responsive layout architecture, and WCAG accessibility standards. Reach for this skill when designing web or mobile application interfaces, mapping user onboarding journeys, diagnosing usability friction and navigation drop-off, establishing responsive breakpoints, or auditing design systems for accessibility and interaction clarity.
 ---
-
 # UI/UX Design
 
 Design interfaces that are intuitive, accessible, and conversion-optimized. Understand how users think, flow through pages, and make decisions — then design for that reality.

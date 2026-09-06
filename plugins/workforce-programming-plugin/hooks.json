@@ -1,0 +1,28 @@
+{
+  "workforce-programming": {
+    "PreToolUse": [
+      {
+        "matcher": "write_to_file|replace_file_content|multi_replace_file_content",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -c \"import os, sys, subprocess; script = next((p for p in ['skills/code-graph/scripts/pre_tool_hook.py', '.agents/skills/code-graph/scripts/pre_tool_hook.py', '../../skills/code-graph/scripts/pre_tool_hook.py'] if os.path.exists(p)), None); sys.exit(subprocess.call([sys.executable, script]) if script else 0)\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "write_to_file|replace_file_content|multi_replace_file_content",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -c \"import os, sys, subprocess; script = next((p for p in ['skills/post-code-review/scripts/post_tool_hook.py', '.agents/skills/post-code-review/scripts/post_tool_hook.py', '../../skills/post-code-review/scripts/post_tool_hook.py'] if os.path.exists(p)), None); sys.exit(subprocess.call([sys.executable, script]) if script else 0)\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,6 +1,5 @@
 {
   "name": "workforce-programming-plugin",
   "version": "1.0.0",
-  "description": "Programming task pre-hook plugin. Automatically detects code modification tasks, forces symbol graph indexing, and enforces clean-coder rules.",
-  "hooks": ["hooks/hooks.json"]
+  "description": "Programming task pre-hook plugin. Automatically detects code modification tasks, forces symbol graph indexing, and enforces clean-coder rules."
 }

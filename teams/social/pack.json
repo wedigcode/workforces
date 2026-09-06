@@ -14,9 +14,7 @@
     "brand-guidelines",
     "memory-management"
   ],
-  "workflows": [
-    "wf-social.md"
-  ],
+  "workflows": [],
   "plugins": [
     "workforce-social-plugin"
   ]

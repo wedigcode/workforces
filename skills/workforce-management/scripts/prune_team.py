@@ -268,6 +268,16 @@ def prune_team(team_name, target_dir=".", toolkit_root=None, purge_data=False, d
                     print(f"  {RED}[PRUNED WORKFLOW]{NC} {base_dir_rel}/{wf_folder}/{w_file}")
                 pruned_count += 1
 
+    # Clean empty workflows directory if no workflows remain
+    if not dry_run:
+        wf_dir_full = os.path.join(base_dir, wf_folder)
+        if os.path.isdir(wf_dir_full):
+            try:
+                if not os.listdir(wf_dir_full):
+                    os.rmdir(wf_dir_full)
+            except Exception:
+                pass
+
     # 5. Plugins
     team_plugins = target_team_data.get('plugins', [])
     for pl in team_plugins:

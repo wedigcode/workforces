@@ -14,15 +14,24 @@ import re
 import argparse
 import datetime
 
-CORE_AGENTS = {'advisor.md', 'project-manager.md', 'scribe.md'}
+CORE_AGENTS = {'project-manager.md', 'scribe.md'}
 CORE_RULES = {'base.md', 'mcp-protection.md', 'session-context.md', 'file-integrity.md'}
-CORE_SKILLS = {'workforce-management', 'memory-management', 'task-tracker', 'issue-tracker', 'session-context', 'usage-tracker', 'integrity-validator', 'workforce-canvas'}
-CORE_WORKFLOWS = {'wf-work.md', 'wf-plan.md', 'wf-sync.md', 'wf-task.md', 'wf-advisor.md', 'wf-ideate.md', 'wf-teams.md', 'wf-question-formulation.md', 'wf-update.md', 'wf-verify-integrity.md', 'wf-context.md', 'wf-feature.md', 'wf-project-management.md', 'wf-canvas.md'}
+CORE_SKILLS = {
+    'workforce-management', 'memory-management', 'task-tracker', 'issue-tracker',
+    'session-context', 'usage-tracker', 'integrity-validator', 'workforce-canvas',
+    'github-project-planning', 'hypothesis-tracker',
+    'wf-plan', 'wf-sync', 'wf-advisor', 'wf-ideate', 'wf-investigate',
+    'wf-question-formulation'
+}
+CORE_WORKFLOWS = set()
 CORE_PLUGINS = {'workforce-usage-plugin', 'workforce-integrity-plugin'}
 
 MANIFEST_REL_PATH = os.path.join("workforces", ".manifest.json")
 
 LEGACY_OBSOLETE_SUBPATHS = [
+    "agents/compliance.md",
+    "agents/advisor.md",
+    "skills/wf-work/SKILL.md",
     "agents/clean-coder.md",
     "agents/design-pilot.md",
     "agents/design-reviewer.md",
@@ -59,6 +68,29 @@ LEGACY_OBSOLETE_SUBPATHS = [
     "workflows/validate-idea.md",
     "workflows/verify-integrity.md",
     "workflows/work.md",
+    "workflows/wf-advisor.md",
+    "workflows/wf-brand-context.md",
+    "workflows/wf-canvas.md",
+    "workflows/wf-clean.md",
+    "workflows/wf-context.md",
+    "workflows/wf-feature.md",
+    "workflows/wf-ideate.md",
+    "workflows/wf-image-duplicate.md",
+    "workflows/wf-improve.md",
+    "workflows/wf-investigate.md",
+    "workflows/wf-launch.md",
+    "workflows/wf-plan.md",
+    "workflows/wf-project-management.md",
+    "workflows/wf-question-formulation.md",
+    "workflows/wf-site-setup.md",
+    "workflows/wf-social.md",
+    "workflows/wf-sync.md",
+    "workflows/wf-task.md",
+    "workflows/wf-teams.md",
+    "workflows/wf-update.md",
+    "workflows/wf-validate-idea.md",
+    "workflows/wf-verify-integrity.md",
+    "workflows/wf-work.md",
     "commands/advisor.md",
     "commands/brand-context.md",
     "commands/clean.md",
@@ -80,6 +112,29 @@ LEGACY_OBSOLETE_SUBPATHS = [
     "commands/validate-idea.md",
     "commands/verify-integrity.md",
     "commands/work.md",
+    "commands/wf-advisor.md",
+    "commands/wf-brand-context.md",
+    "commands/wf-canvas.md",
+    "commands/wf-clean.md",
+    "commands/wf-context.md",
+    "commands/wf-feature.md",
+    "commands/wf-ideate.md",
+    "commands/wf-image-duplicate.md",
+    "commands/wf-improve.md",
+    "commands/wf-investigate.md",
+    "commands/wf-launch.md",
+    "commands/wf-plan.md",
+    "commands/wf-project-management.md",
+    "commands/wf-question-formulation.md",
+    "commands/wf-site-setup.md",
+    "commands/wf-social.md",
+    "commands/wf-sync.md",
+    "commands/wf-task.md",
+    "commands/wf-teams.md",
+    "commands/wf-update.md",
+    "commands/wf-validate-idea.md",
+    "commands/wf-verify-integrity.md",
+    "commands/wf-work.md",
     "commands/wf-update-workforces.md",
     "workflows/wf-update-workforces.md",
     "workflows/workforces/tasks/20260822-073809-ideate-and-unbundle-atomic-saas-extractor.md",
@@ -247,7 +302,7 @@ def resolve_manifest(toolkit_root, target_dir, teams_arg=None):
 def resolve_installed_file_paths(toolkit_root, target_dir, base_dir=None, teams_arg=None):
     """
     Resolves the complete list of relative file paths installed/managed by workforces
-    under the editor base directory (e.g. .agents/agents/advisor.md, .agents/skills/clean-coder/SKILL.md).
+    under the editor base directory (e.g. .agents/agents/project-manager.md, .agents/skills/clean-coder/SKILL.md).
     """
     toolkit_root = os.path.abspath(toolkit_root)
     target_dir = os.path.abspath(target_dir)
@@ -346,6 +401,15 @@ def resolve_installed_file_paths(toolkit_root, target_dir, base_dir=None, teams_
                         full_src = os.path.join(root, fn)
                         rel = os.path.relpath(full_src, teams_src)
                         installed_files.append(os.path.normpath(os.path.join(base_dir, 'teams', rel)))
+
+    # 7. Optional root hooks configuration (only if source provides it)
+    hooks_src = os.path.join(toolkit_root, 'hooks.json')
+    if not os.path.isfile(hooks_src):
+        alt_hooks = os.path.join(toolkit_root, '.agents', 'hooks.json')
+        if os.path.isfile(alt_hooks):
+            hooks_src = alt_hooks
+    if os.path.isfile(hooks_src):
+        installed_files.append(os.path.normpath(os.path.join(base_dir, 'hooks.json')))
 
     return sorted(list(set(installed_files)))
 

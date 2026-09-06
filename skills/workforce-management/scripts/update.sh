@@ -205,12 +205,8 @@ if [[ "$DRY" != true ]]; then
 fi
 
 MISSING_CORE_DIRS=false
-for d in plugins agents workflows rules skills teams; do
-  dest_d="$d"
-  if [[ "$d" == "workflows" ]]; then
-    dest_d="$WORKFLOW_DEST_DIR"
-  fi
-  if [[ -d "$SOURCE_DIR/$d" && ! -d "$TARGET/$BASE_DIR/$dest_d" ]]; then
+for d in plugins agents rules skills teams; do
+  if [[ -d "$SOURCE_DIR/$d" && ! -d "$TARGET/$BASE_DIR/$d" ]]; then
     MISSING_CORE_DIRS=true
     break
   fi
@@ -311,11 +307,11 @@ if [[ -f "$RESOLVER_SCRIPT" && -n "$PYTHON" ]]; then
   fi
 fi
 if [[ "$RESOLVER_OK" != true ]]; then
-  ALLOWED_AGENTS="advisor.md project-manager.md scribe.md programmer.md designer.md"
-  ALLOWED_RULES="base.md clean-coder.md design-standards.md mcp-protection.md session-context.md"
-  ALLOWED_SKILLS="brand-guidelines clean-coder code-graph codebase-improvement design-anti-patterns doc-generator image-workflow issue-tracker jules-integration memory-management post-code-review pr-review session-context ui-ux-design usage-tracker visual-design-fundamentals workforce-management"
-  ALLOWED_WORKFLOWS="wf-advisor.md wf-brand-context.md wf-clean.md wf-improve.md wf-investigate.md wf-plan.md wf-question-formulation.md wf-site-setup.md wf-sync.md wf-task.md wf-teams.md wf-update.md wf-verify-integrity.md wf-work.md"
-  ALLOWED_PLUGINS="workforce-programming-plugin workforce-usage-plugin"
+  ALLOWED_AGENTS="project-manager.md scribe.md programmer.md designer.md"
+  ALLOWED_RULES="base.md clean-coder.md design-standards.md mcp-protection.md session-context.md file-integrity.md"
+  ALLOWED_SKILLS="brand-guidelines clean-coder code-graph codebase-improvement design-anti-patterns doc-generator image-workflow integrity-validator issue-tracker jules-integration launch-playbook market-validation memory-management persona-management post-code-review pr-review session-context site-setup social-engagement task-tracker ui-ux-design usage-tracker visual-design-fundamentals workforce-management workforce-canvas wf-plan wf-sync wf-advisor wf-ideate wf-investigate wf-question-formulation"
+  ALLOWED_WORKFLOWS=""
+  ALLOWED_PLUGINS="workforce-programming-plugin workforce-usage-plugin workforce-integrity-plugin"
   ALLOWED_TEAMS="dev design"
   INSTALLED_TEAMS_LIST="dev design"
 fi
@@ -423,6 +419,18 @@ if [[ -d "$SOURCE_DIR/teams" ]]; then
       done < <(find "$stdir" -type f -not -path "*/__pycache__/*" -not -name "*.pyc" -not -name ".DS_Store")
     fi
   done
+fi
+
+# ─── Copy Lifecycle Hooks Configuration ───
+HOOKS_SRC=""
+if [[ -f "$SOURCE_DIR/hooks.json" ]]; then
+  HOOKS_SRC="$SOURCE_DIR/hooks.json"
+elif [[ -f "$SOURCE_DIR/.agents/hooks.json" ]]; then
+  HOOKS_SRC="$SOURCE_DIR/.agents/hooks.json"
+fi
+
+if [[ -n "$HOOKS_SRC" ]]; then
+  copy_file "$HOOKS_SRC" "$TARGET/$BASE_DIR/hooks.json" "$BASE_DIR/hooks.json"
 fi
 
 

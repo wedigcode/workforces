@@ -1,0 +1,16 @@
+{
+  "workforce-usage": {
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -c \"import os, sys, subprocess; script = next((p for p in ['skills/usage-tracker/scripts/print_turn_summary.py', '.agents/skills/usage-tracker/scripts/print_turn_summary.py', '../../skills/usage-tracker/scripts/print_turn_summary.py'] if os.path.exists(p)), None); res1 = subprocess.run([sys.executable, script], capture_output=True, text=True) if script else None; sys.stderr.write(res1.stdout) if (res1 and res1.stdout) else None; script2 = next((p for p in ['skills/usage-tracker/scripts/track_usage.py', '.agents/skills/usage-tracker/scripts/track_usage.py', '../../skills/usage-tracker/scripts/track_usage.py'] if os.path.exists(p)), None); res2 = subprocess.run([sys.executable, script2, './'], capture_output=True, text=True) if script2 else None; sys.stderr.write(res2.stdout) if (res2 and res2.stdout) else None; print('{}')\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

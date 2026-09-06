@@ -1,0 +1,36 @@
+name: Quality Engineering Gate
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  quality-gate:
+    name: Lint, Typecheck, Test & Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Static Analysis & Strict Typecheck
+        run: npm run typecheck || npx tsc --noEmit
+
+      - name: Linting & Code Styling
+        run: npm run lint
+
+      - name: Unit & Integration Tests
+        run: npm test
+
+      - name: Security & Vulnerability Audit
+        run: npm audit --audit-level=high

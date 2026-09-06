@@ -16,13 +16,10 @@
     "jules-integration",
     "pr-review",
     "doc-generator",
-    "agent-parallelization"
+    "agent-parallelization",
+    "wf-investigate"
   ],
-  "workflows": [
-    "wf-clean.md",
-    "wf-improve.md",
-    "wf-investigate.md"
-  ],
+  "workflows": [],
   "plugins": [
     "workforce-programming-plugin"
   ]

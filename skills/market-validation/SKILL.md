@@ -1,16 +1,26 @@
 ---
 name: market-validation
-description: |
-  Rapid market demand and revenue validation framework for workforce agents. Synthesizes
-  Alberto Savoia's Pretotyping (XYZ Hypothesis & Fake Door tests), Rob Fitzpatrick's The Mom Test
-  (cold outreach & past-behavior validation), and Eric Ries's Lean Loop to validate product demand
-  with minimal ad spend (<$100) and zero premature coding. Enforces the Skin-in-the-Game commitment
-  ladder and PM Go/Pivot/Kill gatekeeping.
+description: Validates market demand and customer willingness-to-pay before writing code using pretotyping techniques (Alberto Savoia's XYZ hypotheses, fake door smoke tests, pre-sale commitments) and The Mom Test interview protocols. Reach for this skill when evaluating a speculative business concept, designing low-budget validation experiments, testing customer commitment tiers, or formulating unbiased customer discovery interviews.
 ---
-
 # Skill: Rapid Market Validation & Revenue Pretotyping
 
 A structured, low-budget, high-velocity market validation system for founders, product managers, and workforce agents. Turns speculative business ideas into revenue-tested hypotheses before building full software products.
+
+---
+
+## Triggering & Execution
+
+Used to validate product demand before writing code. Invoked via conversational prompts, by `@marketer` / `@advisor`, or following ideation sprints:
+
+### Prompt Triggers
+- *"Validate market demand for [idea]"* (run 5-step rapid market validation pipeline)
+- *"Design smoke test landing page & micro-ad specs"*
+- *"Draft Mom Test interview questions for customer discovery"*
+- *"Audit active validation experiments against kill thresholds"*
+
+### Cross-Workflow Integration
+- **Handoff from Ideation**: Follows `/wf-ideate` or `/wf-advisor` to test early market pull.
+- **Graduation to Build**: Validated ideas hand off to site setup (`site-setup` skill) and `/wf-plan` (parallel execution).
 
 ---
 
@@ -184,7 +194,7 @@ Best,
 | **Cost Per Validated Lead** | $\le \$[Target]$ | $\$[Actual]$ | 🟢 / 🔴 |
 
 ### Gatekeeper Verdict:
-- 🟢 **VALIDATE & SCALE (Build MVP):** Target metrics achieved; proven willingness to pay. Hand off to `/wf-site-setup` and `/wf-work`.
+- 🟢 **VALIDATE & SCALE (Build MVP):** Target metrics achieved; proven willingness to pay. Hand off to site setup (`site-setup` skill) and `/wf-plan` (parallel execution).
 - 🔄 **PIVOT OFFER:** Strong engagement but low commitment currency. Adjust positioning, pricing tier, or target persona and re-test for 72h.
 - 💀 **KILL EXPERIMENT:** Kill threshold breached. Sunset idea immediately and log findings in `workforces/hypotheses/invalidated/`.
 ```

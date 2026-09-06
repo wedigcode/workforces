@@ -30,7 +30,7 @@ To prevent heavy codebase re-scans during interactive editing:
 - If files have changed, only modified files are re-parsed and merged into the cached symbol tree.
 
 ### Automatic Generation
-The incremental index runs automatically via plugin hooks before file modifications (`pre_tool_call` event in [`plugins/workforce-programming-plugin/hooks/hooks.json`](../plugins/workforce-programming-plugin/hooks/hooks.json)).
+The incremental index runs automatically via plugin hooks before file modifications (`pre_tool_call` event in [`plugins/workforce-programming-plugin/hooks.json`](../plugins/workforce-programming-plugin/hooks.json)).
 
 ### Full OKF Catalog Rebuild & Background Cleanliness (`/clean`)
 Heavy OKF Markdown catalog file generation is decoupled from pre-hooks. To force a full catalog rebuild and run code cleanliness audits, run:
@@ -105,7 +105,7 @@ Output example:
 
 ## 5. Hook Integration
 
-Workforces integrates Code Graph into AI agent execution via plugin hooks in [`plugins/workforce-programming-plugin/hooks/hooks.json`](../plugins/workforce-programming-plugin/hooks/hooks.json):
+Workforces integrates Code Graph into AI agent execution via plugin hooks in [`plugins/workforce-programming-plugin/hooks.json`](../plugins/workforce-programming-plugin/hooks.json):
 
 1. **Pre-Hook (`pre_tool_call`)**: Runs `graph_indexer.py` and `pre_impact_analyzer.py` before `write_to_file`, `replace_file_content`, or `multi_replace_file_content` to warn the AI of downstream callers.
 2. **Post-Hook (`post_tool_call`)**: Runs [`post_code_reviewer.py`](../skills/post-code-review/scripts/post_code_reviewer.py) after edits to verify cross-system consistency.

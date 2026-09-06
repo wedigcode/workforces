@@ -29,7 +29,7 @@ Drives foundational strategy, consultative problem discovery, atomic micro-SaaS 
 
 ## Team Roles & Personas
 
-- **Strategic Advisor (`@advisor`):** Executive product consultant and discovery interviewer. Leads 5-Dimension problem discovery, dilemma resolution, and lineage mapping. See [`advisor.md`](../../agents/advisor.md).
+- **Strategic Advisor (`wf-advisor`):** Executive product consultancy and discovery methodology. Leads 5-Dimension problem discovery, dilemma resolution, and lineage mapping. Available to all agents as a universal skill. See [`wf-advisor`](../../skills/wf-advisor/SKILL.md).
 - **Atomic SaaS Extractor (`@unbundler`):** Incumbent software deconstructor and micro-SaaS architect. Extracts laser-focused tools, evaluates spreadsheet moats, and generates build-ready PRDs. See [`unbundler.md`](../../agents/unbundler.md).
 - **Market Disruption Scout (`@disruptor`):** Macro trend analyst and venture opportunity scout. Evaluates industry catalysts, billion-dollar market sizing, and lean validation tests. See [`disruptor.md`](../../agents/disruptor.md).
 
@@ -37,8 +37,8 @@ Drives foundational strategy, consultative problem discovery, atomic micro-SaaS 
 
 ## Workflows & SOP Patterns
 
-- `/ideate` — **Dual-Engine Idea Generation:** Dispatches `@unbundler` and `@disruptor` in parallel to scout atomic unbundled concepts and macro market disruptions, synthesized by `@advisor`.
-- `/advisor` — **Consultative Discovery:** Deep 5-dimension problem extraction, pain point tiering, and strategic dilemma resolution.
+- `/ideate` — **Dual-Engine Idea Generation:** Dispatches `@unbundler` and `@disruptor` in parallel to scout atomic unbundled concepts and macro market disruptions, synthesized with `wf-advisor`.
+- `/advisor` — **Consultative Discovery:** Deep 5-dimension problem extraction, pain point tiering, and strategic dilemma resolution via `wf-advisor`.
 - `/site-setup` — **Greenfield Onboarding:** Feeds validated PRDs directly into brand context, design tokens with `@designer`, and scaffolding with `@programmer`.
 
 ---

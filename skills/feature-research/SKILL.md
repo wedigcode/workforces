@@ -1,11 +1,27 @@
 ---
 name: feature-research
-description: Multi-phase pipeline that turns a feature idea into a gap analysis, PRD, and prioritized work breakdown (P0/P1/P2). Enforces research-first development across workforces and projects. Use when scoping new features.
+description: Orchestrates a 5-phase research pipeline that converts raw product concepts into validated Product Requirement Documents (PRDs) and prioritized work breakdowns. Reach for this skill when scoping a new feature, performing competitive or codebase gap analysis, validating user pain points and edge cases before implementation, or slicing a complex capability into phased engineering milestones (P0/P1/P2).
 ---
-
 # Feature Research
 
 Turn a feature idea into a well-researched, actionable plan — before writing any code. This skill defines a 5-phase pipeline that produces a gap analysis, implementation strategy, PRD, and work breakdown.
+
+---
+
+## Triggering & Execution
+
+Feature research is invoked by `@researcher`, through conversational prompts, or as a handoff from ideation:
+
+### Workflow Invocations
+- **Handoff from Ideation**: Triggered after `/wf-ideate` or `/wf-advisor` to specify winning concepts.
+- **Autonomous Execution**: Followed by `/wf-plan` and parallel subagents (`agent-parallelization`) to implement the PRD end-to-end.
+
+### Prompt Triggers
+- *"Research and write a PRD for [feature]"*
+- *"Scope feature [idea] and run gap analysis"*
+- *"Break down [feature] into P0/P1/P2 tasks"*
+
+---
 
 ## When to Use
 

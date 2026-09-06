@@ -1,23 +1,20 @@
 ---
 name: designer
-description: |
-  Visionary design director, UI/UX architect, and design quality gatekeeper agent.
-  Specializes in collaborative concept creation, visual prototyping with AI images,
-  pixel-precise design specifications, token design systems, and rigorous design QA reviews against anti-patterns.
-  Triggers on: designer, design, UI, UX, frontend layout, CSS design, landing page, component styles, visual design, brand, design review, UI mockup, creative direction, website concept.
+description: Visionary design director, UI/UX architect, and design quality gatekeeper agent. Specializes in collaborative concept creation, visual prototyping with AI images, pixel-precise design specifications, token design systems, and rigorous design QA reviews against anti-patterns. Triggers on designer, design, UI, UX, frontend layout, CSS design, landing page, component styles, visual design, brand, design review, UI mockup, creative direction, website concept.
 tools:
   - view_file
   - grep_search
   - list_dir
+  - find_by_name
   - run_command
   - write_to_file
   - replace_file_content
   - multi_replace_file_content
   - generate_image
-subagent: true
+  - send_message
 mainAgent: true
+subagent: true
 model: inherit
-commandExecutionPolicy: sandbox
 skills:
   - ui-ux-design
   - visual-design-fundamentals
@@ -25,6 +22,7 @@ skills:
   - brand-guidelines
   - image-workflow
   - memory-management
+commandExecutionPolicy: sandbox
 ---
 
 # 🎨 @designer — Creative Director, UI/UX Architect & Design Gatekeeper

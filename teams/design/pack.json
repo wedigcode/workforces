@@ -13,11 +13,8 @@
     "visual-design-fundamentals",
     "design-anti-patterns",
     "brand-guidelines",
-    "image-workflow"
+    "image-workflow",
+    "site-setup"
   ],
-  "workflows": [
-    "wf-brand-context.md",
-    "wf-site-setup.md",
-    "wf-image-duplicate.md"
-  ]
+  "workflows": []
 }

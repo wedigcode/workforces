@@ -19,7 +19,5 @@
     "persona-management",
     "ai-search-optimization"
   ],
-  "workflows": [
-    "wf-launch.md"
-  ]
+  "workflows": []
 }

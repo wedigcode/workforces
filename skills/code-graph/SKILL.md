@@ -1,8 +1,7 @@
 ---
 name: code-graph
-description: MANDATORY before writing, editing, or refactoring code. Graph documentor and method indexer to find existing functions, avoid duplication, and map call graphs.
+description: Constructs AST-based code graphs, indexes functions and classes, and maps call dependencies across codebases without external dependencies. Reach for this skill before authoring new functions to search for existing implementations and prevent duplicate code, when assessing the blast radius and cascading call impacts of a refactor, or when indexing a repository into an Open Knowledge Format (OKF) symbol catalog.
 ---
-
 # Skill: Code Graph & Method Indexer
 
 Provides lightweight, zero-dependency symbol indexing, function discovery, and call graph mapping.

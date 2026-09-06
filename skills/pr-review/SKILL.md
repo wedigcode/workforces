@@ -1,8 +1,7 @@
 ---
 name: pr-review
-description: Automated GitHub PR code review, commenting via gh CLI, and escalation of PR blockers to Project Manager standup syncs.
+description: Automates GitHub pull request reviews using the `gh` CLI, checking diffs for logic bugs, security vulnerabilities, regression risks, and test coverage. Reach for this skill when conducting structured code reviews on open PRs, posting line-level commentary, approving or requesting changes, or escalating blocking PR review bottlenecks to team standup agendas.
 ---
-
 # Skill: GitHub PR Automated Code Review
 
 Discovers open Pull Requests across workforce repositories, performs automated code reviews against Clean Coder rules, posts review feedback using `gh`, and escalates critical issues to human standup syncs.
@@ -33,6 +32,9 @@ Audit the diff against **Clean Coder Rules** (`rules/clean-coder.md`):
 - **Existing Method Check**: Does the PR introduce redundant helper functions that already exist in `workforces/code-graph.json`?
 - **Error Handling**: Are there any swallowed exceptions, empty `catch`/`except` blocks, or unhandled promise rejections?
 - **Testing**: Are corresponding unit/integration tests added or updated for new features/bugfixes?
+- **Quality Gate Triad & CI Status**: Does the PR pass unit tests, strict static analysis (`tsc --noEmit`, `mypy`, `phpstan`), and linters (`biome`, `eslint`, `ruff`)?
+- **Architecture & Boundary Rules**: Does the PR introduce circular dependencies (`madge --circular`) or architectural boundary violations (e.g. UI importing DB/server modules)?
+- **Security & Dependency Audit**: If dependencies were modified (`package.json`, `requirements.txt`, `composer.json`), did vulnerability audits pass with 0 high/critical CVEs?
 - **Security & Performance**: Are untrusted inputs sanitized? Are there expensive unindexed queries or $O(n^2)$ loops?
 
 ### Step 3: Submit GitHub PR Review / Comment

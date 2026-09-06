@@ -43,6 +43,7 @@ EDITOR_TYPE=""
 TEAMS_ARG=""
 SITE_SETUP=""
 NON_INTERACTIVE=false
+DRY=false
 
 usage() {
   echo -e "${BOLD}Workforces Setup${NC}"
@@ -56,6 +57,7 @@ usage() {
   echo "  --site-setup           Initialize Site Setup & Product Brief starter (for greenfield sites)"
   echo "  --skip-site-setup      Skip Site Setup initialization"
   echo "  --non-interactive      Do not prompt for any options (fails on invalid configuration)"
+  echo "  --dry, --dry-run       Dry run: simulate setup without copying files or modifying target"
   echo ""
   exit 0
 }
@@ -76,6 +78,9 @@ shift
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --dry|--dry-run)
+      DRY=true
+      ;;
     --type)
       shift
       REPO_TYPE="$1"
@@ -126,8 +131,8 @@ fi
 # ─── Site Setup Prompt for Empty Repos ───
 if [[ -z "$SITE_SETUP" ]]; then
   if [[ "$IS_EMPTY_WORKSPACE" == true ]]; then
-    if [[ "$NON_INTERACTIVE" == true ]]; then
-      SITE_SETUP=true
+    if [[ "$NON_INTERACTIVE" == true || "$DRY" == true ]]; then
+      SITE_SETUP=false
     else
       echo ""
       echo -e "${BOLD}${CYAN}🚀 Empty project workspace detected!${NC}"
@@ -146,8 +151,8 @@ fi
 
 # ─── Repo Type Detection / Prompt ───
 if [[ -z "$REPO_TYPE" ]]; then
-  if [[ "$NON_INTERACTIVE" == true ]]; then
-    echo -e "${YELLOW}Non-interactive mode: Defaulting repo type to 'project'${NC}"
+  if [[ "$NON_INTERACTIVE" == true || "$DRY" == true ]]; then
+    echo -e "${YELLOW}Defaulting repo type to 'project'${NC}"
     REPO_TYPE="project"
   else
     echo ""
@@ -247,6 +252,16 @@ copy_file() {
     return
   fi
 
+  if [[ "$DRY" == true ]]; then
+    if [[ -f "$dest" ]] && cmp -s "$src" "$dest"; then
+      SKIPPED=$((SKIPPED + 1))
+    else
+      echo -e "  ${YELLOW}WOULD COPY:${NC} $label"
+      COPIED=$((COPIED + 1))
+    fi
+    return
+  fi
+
   mkdir -p "$(dirname "$dest")"
 
   if [[ -f "$dest" ]] && cmp -s "$src" "$dest"; then
@@ -267,6 +282,7 @@ echo -e "  Source:  ${CYAN}$TOOLKIT_ROOT${NC}"
 echo -e "  Target:  ${CYAN}$TARGET${NC}"
 echo -e "  Editor:  ${CYAN}$DETECTED_EDITOR ($BASE_DIR/)${NC}"
 echo -e "  Type:    ${CYAN}$REPO_TYPE${NC}"
+[[ "$DRY" == true ]] && echo -e "  ${YELLOW}Mode:    DRY RUN — no files will be written${NC}"
 echo ""
 
 # ─── Resolve Assets via Team Manifest Resolver ───
@@ -280,11 +296,11 @@ if [[ -f "$RESOLVER_SCRIPT" && -n "$PYTHON" ]]; then
 fi
 if [[ "$RESOLVER_OK" != true ]]; then
   # Fallback if resolver script, python, or the resolver run is unavailable
-  ALLOWED_AGENTS="advisor.md project-manager.md scribe.md programmer.md designer.md"
-  ALLOWED_RULES="base.md clean-coder.md design-standards.md mcp-protection.md session-context.md"
-  ALLOWED_SKILLS="brand-guidelines clean-coder code-graph codebase-improvement design-anti-patterns doc-generator image-workflow issue-tracker jules-integration memory-management post-code-review pr-review session-context ui-ux-design usage-tracker visual-design-fundamentals workforce-management workforce-canvas"
-  ALLOWED_WORKFLOWS="wf-advisor.md wf-brand-context.md wf-clean.md wf-improve.md wf-investigate.md wf-plan.md wf-question-formulation.md wf-site-setup.md wf-sync.md wf-task.md wf-teams.md wf-update.md wf-verify-integrity.md wf-work.md wf-canvas.md"
-  ALLOWED_PLUGINS="workforce-programming-plugin workforce-usage-plugin"
+  ALLOWED_AGENTS="project-manager.md scribe.md programmer.md designer.md"
+  ALLOWED_RULES="base.md clean-coder.md design-standards.md mcp-protection.md session-context.md file-integrity.md"
+  ALLOWED_SKILLS="brand-guidelines clean-coder code-graph codebase-improvement design-anti-patterns doc-generator image-workflow integrity-validator issue-tracker jules-integration launch-playbook market-validation memory-management persona-management post-code-review pr-review session-context site-setup social-engagement task-tracker ui-ux-design usage-tracker visual-design-fundamentals workforce-management workforce-canvas wf-plan wf-sync wf-advisor wf-ideate wf-investigate wf-question-formulation"
+  ALLOWED_WORKFLOWS=""
+  ALLOWED_PLUGINS="workforce-programming-plugin workforce-usage-plugin workforce-integrity-plugin"
   ALLOWED_TEAMS="dev design"
   INSTALLED_TEAMS_LIST="dev design"
 fi
@@ -293,7 +309,7 @@ echo -e "  Installed Teams: ${GREEN}${INSTALLED_TEAMS_LIST:-core}${NC}"
 echo ""
 
 # Create directories
-mkdir -p "$AGENTS_DIR" "$WORKFLOWS_DIR" "$SKILLS_DIR" "$RULES_DIR"
+[[ "$DRY" != true ]] && mkdir -p "$AGENTS_DIR" "$SKILLS_DIR" "$RULES_DIR"
 
 # ─── Copy Allowed Agents ───
 AGENTS_SRC=""
@@ -346,7 +362,7 @@ if [[ -d "$TOOLKIT_ROOT/skills" ]]; then
     [[ -d "$skill_dir" ]] || continue
     skill_name=$(basename "$skill_dir")
     if [[ " $ALLOWED_SKILLS " =~ " $skill_name " ]]; then
-      mkdir -p "$SKILLS_DIR/$skill_name"
+      [[ "$DRY" != true ]] && mkdir -p "$SKILLS_DIR/$skill_name"
       while read -r f; do
         [[ -n "$f" ]] || continue
         rel_path="${f#$skill_dir/}"
@@ -363,7 +379,7 @@ if [[ -d "$TOOLKIT_ROOT/plugins" ]]; then
     [[ -d "$plugin_dir" ]] || continue
     plugin_name=$(basename "$plugin_dir")
     if [[ " $ALLOWED_PLUGINS " =~ " $plugin_name " ]]; then
-      mkdir -p "$PLUGINS_DIR/$plugin_name"
+      [[ "$DRY" != true ]] && mkdir -p "$PLUGINS_DIR/$plugin_name"
       while read -r f; do
         [[ -n "$f" ]] || continue
         rel_path="${f#$plugin_dir/}"
@@ -380,7 +396,7 @@ if [[ -d "$TOOLKIT_ROOT/teams" ]]; then
     [[ -d "$team_dir" ]] || continue
     team_name=$(basename "$team_dir")
     if [[ " $ALLOWED_TEAMS " =~ " $team_name " ]]; then
-      mkdir -p "$TARGET/$BASE_DIR/teams/$team_name"
+      [[ "$DRY" != true ]] && mkdir -p "$TARGET/$BASE_DIR/teams/$team_name"
       while read -r f; do
         [[ -n "$f" ]] || continue
         rel="${f#$team_dir/}"
@@ -390,19 +406,37 @@ if [[ -d "$TOOLKIT_ROOT/teams" ]]; then
   done
 fi
 
+# ─── Copy Lifecycle Hooks Configuration ───
+HOOKS_SRC=""
+if [[ -f "$TOOLKIT_ROOT/hooks.json" ]]; then
+  HOOKS_SRC="$TOOLKIT_ROOT/hooks.json"
+elif [[ -f "$TOOLKIT_ROOT/.agents/hooks.json" ]]; then
+  HOOKS_SRC="$TOOLKIT_ROOT/.agents/hooks.json"
+fi
+
+if [[ -n "$HOOKS_SRC" ]]; then
+  echo -e "${BOLD}▸ Copying Lifecycle Hooks Configuration...${NC}"
+  copy_file "$HOOKS_SRC" "$TARGET/$BASE_DIR/hooks.json" "$BASE_DIR/hooks.json"
+fi
+
 
 # ─── Setup Workspace folder (workforces/) ───
 WORKFORCES_DIR="$TARGET/workforces"
-mkdir -p "$WORKFORCES_DIR" "$WORKFORCES_DIR/goals" "$WORKFORCES_DIR/tmp" "$WORKFORCES_DIR/session-context" \
-  "$WORKFORCES_DIR/hypotheses/draft" "$WORKFORCES_DIR/hypotheses/running" \
-  "$WORKFORCES_DIR/hypotheses/validated" "$WORKFORCES_DIR/hypotheses/invalidated" "$WORKFORCES_DIR/hypotheses/pivoted"
-touch "$WORKFORCES_DIR/session-context/.gitkeep"
+if [[ "$DRY" != true ]]; then
+  mkdir -p "$WORKFORCES_DIR" "$WORKFORCES_DIR/goals" "$WORKFORCES_DIR/tmp" "$WORKFORCES_DIR/session-context" \
+    "$WORKFORCES_DIR/hypotheses/draft" "$WORKFORCES_DIR/hypotheses/running" \
+    "$WORKFORCES_DIR/hypotheses/validated" "$WORKFORCES_DIR/hypotheses/invalidated" "$WORKFORCES_DIR/hypotheses/pivoted"
+  touch "$WORKFORCES_DIR/session-context/.gitkeep"
+fi
 
 # ─── Ensure workforces/tmp and workforces/session-context in .gitignore ───
 GITIGNORE_FILE="$TARGET/.gitignore"
 add_gitignore_entry() {
   local entry="$1"
   local label="$2"
+  if [[ "$DRY" == true ]]; then
+    return
+  fi
   if [[ ! -f "$GITIGNORE_FILE" ]]; then
     echo "$entry" > "$GITIGNORE_FILE"
     echo -e "  ${GREEN}CREATED:${NC} .gitignore with '$label'"
@@ -421,26 +455,27 @@ add_gitignore_entry "!workforces/session-context/.gitkeep" "!workforces/session-
 add_gitignore_entry "workforces/memory" "workforces/memory"
 add_gitignore_entry ".worktrees" ".worktrees (agent parallelization)"
 
-# Seed workforce.md if not already present
-if [[ ! -f "$WORKFORCES_DIR/README.md" ]]; then
-  capitalized_type="$(tr '[:lower:]' '[:upper:]' <<< ${REPO_TYPE:0:1})${REPO_TYPE:1}"
-  cat > "$WORKFORCES_DIR/README.md" << EOF
+if [[ "$DRY" != true ]]; then
+  # Seed workforce.md if not already present
+  if [[ ! -f "$WORKFORCES_DIR/README.md" ]]; then
+    capitalized_type="$(tr '[:lower:]' '[:upper:]' <<< ${REPO_TYPE:0:1})${REPO_TYPE:1}"
+    cat > "$WORKFORCES_DIR/README.md" << EOF
 # ${capitalized_type} Goals & Objectives
 Snapshot of workspace goals, objectives, and tracking files.
 EOF
-  echo -e "  ${GREEN}CREATED:${NC} workforces/README.md"
-fi
+    echo -e "  ${GREEN}CREATED:${NC} workforces/README.md"
+  fi
 
-# Format installed teams YAML
-INSTALLED_TEAMS_YAML=""
-for t in $INSTALLED_TEAMS_LIST; do
-  INSTALLED_TEAMS_YAML+=$'  - '"$t"$'\n'
-done
+  # Format installed teams YAML
+  INSTALLED_TEAMS_YAML=""
+  for t in $INSTALLED_TEAMS_LIST; do
+    INSTALLED_TEAMS_YAML+=$'  - '"$t"$'\n'
+  done
 
-# Seed workrules.md if not already present
-if [[ ! -f "$WORKFORCES_DIR/workrules.md" ]]; then
+  # Seed workrules.md if not already present
+  if [[ ! -f "$WORKFORCES_DIR/workrules.md" ]]; then
 
-  cat > "$WORKFORCES_DIR/workrules.md" << EOF
+    cat > "$WORKFORCES_DIR/workrules.md" << EOF
 # Work Rules
 
 ## Type
@@ -466,13 +501,13 @@ ${INSTALLED_TEAMS_YAML:-  []}
 2. Check unassigned issues in project repositories
 3. Check workforces/goals/ for active task boards
 EOF
-  echo -e "  ${GREEN}CREATED:${NC} workforces/workrules.md"
-fi
+    echo -e "  ${GREEN}CREATED:${NC} workforces/workrules.md"
+  fi
 
-# Seed workstate.md if not already present
-if [[ ! -f "$WORKFORCES_DIR/workstate.md" ]]; then
-  if [[ "$SITE_SETUP" == true ]]; then
-    cat > "$WORKFORCES_DIR/workstate.md" << EOF
+  # Seed workstate.md if not already present
+  if [[ ! -f "$WORKFORCES_DIR/workstate.md" ]]; then
+    if [[ "$SITE_SETUP" == true ]]; then
+      cat > "$WORKFORCES_DIR/workstate.md" << EOF
 # Work State
 
 ## Configuration
@@ -487,8 +522,8 @@ if [[ ! -f "$WORKFORCES_DIR/workstate.md" ]]; then
 |---|------|----------|-------|--------|-------|---------|-------|
 | 1 | Complete /site-setup — Design Pilot Product Brief & Multi-Team Handoffs | P0 | RICE: 950 | pending | — | $(date +%Y-%m-%d) | Define site type, tech stack, design concepts, and AI protocols |
 EOF
-  else
-    cat > "$WORKFORCES_DIR/workstate.md" << EOF
+    else
+      cat > "$WORKFORCES_DIR/workstate.md" << EOF
 # Work State
 
 ## Configuration
@@ -498,19 +533,20 @@ EOF
 | Ignored Repos | |
 | Goals Directory | workforces/goals/ |
 EOF
+    fi
+    echo -e "  ${GREEN}CREATED:${NC} workforces/workstate.md"
   fi
-  echo -e "  ${GREEN}CREATED:${NC} workforces/workstate.md"
 fi
 
 # ─── Initialize Site Setup Artifacts if requested ───
-if [[ "$SITE_SETUP" == true ]]; then
+if [[ "$SITE_SETUP" == true && "$DRY" != true ]]; then
   DOCS_DIR="$TARGET/docs"
   mkdir -p "$DOCS_DIR"
   if [[ ! -f "$DOCS_DIR/product-brief.md" ]]; then
     cat > "$DOCS_DIR/product-brief.md" << EOF
 # Product Brief: [Site / Product Name]
 
-_Status: Draft — Run /site-setup (or invoke @advisor / @designer) to complete this brief._
+_Status: Draft — Run /site-setup (or invoke @designer / wf-advisor) to complete this brief._
 
 ---
 
@@ -584,7 +620,7 @@ fi
 
 
 # Setup project specific structure
-if [[ "$REPO_TYPE" == "workforce" ]]; then
+if [[ "$REPO_TYPE" == "workforce" && "$DRY" != true ]]; then
   # Workforce command repo tracks child projects
   mkdir -p "$WORKFORCES_DIR/projects"
   if [[ ! -f "$WORKFORCES_DIR/projects/README.md" ]]; then
@@ -602,111 +638,124 @@ EOF
 fi
 
 # ─── Write installed version metadata ───
-VERSION_FILE="$WORKFORCES_DIR/.version"
-INSTALLED_HASH="unknown"
-if command -v git &>/dev/null && [[ -d "$TOOLKIT_ROOT/.git" ]]; then
-  INSTALLED_HASH=$(git -C "$TOOLKIT_ROOT" rev-parse HEAD 2>/dev/null || echo "unknown")
-fi
+if [[ "$DRY" != true ]]; then
+  VERSION_FILE="$WORKFORCES_DIR/.version"
+  INSTALLED_HASH="unknown"
+  if command -v git &>/dev/null && [[ -d "$TOOLKIT_ROOT/.git" ]]; then
+    INSTALLED_HASH=$(git -C "$TOOLKIT_ROOT" rev-parse HEAD 2>/dev/null || echo "unknown")
+  fi
 
-cat > "$VERSION_FILE" << EOF
+  cat > "$VERSION_FILE" << EOF
 # Workforces Version Info
 repo: https://github.com/wedigcode/workforces
 commit: ${INSTALLED_HASH}
 date: $(date -u +%Y-%m-%d)
 EOF
-echo -e "  ${GREEN}WRITTEN:${NC} workforces/.version (${INSTALLED_HASH})"
+  echo -e "  ${GREEN}WRITTEN:${NC} workforces/.version (${INSTALLED_HASH})"
 
-if [[ -f "$RESOLVER_SCRIPT" && -n "$PYTHON" ]]; then
-  "$PYTHON" "$RESOLVER_SCRIPT" --toolkit-root "$TOOLKIT_ROOT" --target "$TARGET" ${TEAMS_ARG:+--teams "$TEAMS_ARG"} --save-manifest --version-hash "${INSTALLED_HASH}"
-  echo -e "  ${GREEN}WRITTEN:${NC} workforces/.manifest.json"
+  if [[ -f "$RESOLVER_SCRIPT" && -n "$PYTHON" ]]; then
+    "$PYTHON" "$RESOLVER_SCRIPT" --toolkit-root "$TOOLKIT_ROOT" --target "$TARGET" ${TEAMS_ARG:+--teams "$TEAMS_ARG"} --save-manifest --version-hash "${INSTALLED_HASH}"
+    echo -e "  ${GREEN}WRITTEN:${NC} workforces/.manifest.json"
+  fi
 fi
 
 # ─── Editor Config Generator ───
-case "$DETECTED_EDITOR" in
-  antigravity)
-    if [[ ! -f "$TARGET/GEMINI.md" ]]; then
-      cat > "$TARGET/GEMINI.md" << EOF
+if [[ "$DRY" != true ]]; then
+  case "$DETECTED_EDITOR" in
+    antigravity)
+      if [[ ! -f "$TARGET/GEMINI.md" ]]; then
+        cat > "$TARGET/GEMINI.md" << EOF
 # Project Context
 
 This project uses the [workforces](https://github.com/wedigcode/workforces) AI toolkit.
 
 ## Toolkit Structures
-- Config & Personas: \`.agents/\`
+- Config, Personas & Skills: \`.agents/\`
 - User Workspace & State: \`workforces/\`
 
 ## Instructions
-Refer to \`.agents/rules/base.md\` and run workflows under \`.agents/workflows/\` (e.g. \`/wf-work\`, \`/wf-plan\`, \`/wf-sync\`) to perform tasks.
+Refer to \`.agents/rules/base.md\` and run modular skills from \`.agents/skills/\` (e.g. \`wf-plan\`, \`wf-sync\`, \`wf-advisor\`) or invoke specialized subagents from \`.agents/agents/\` to perform tasks.
 EOF
-      echo -e "  ${GREEN}CREATED:${NC} GEMINI.md"
-    fi
-    ;;
-  vscode)
-    mkdir -p "$TARGET/.vscode"
-    if [[ ! -f "$TARGET/.vscode/settings.json" ]]; then
-      cat > "$TARGET/.vscode/settings.json" << EOF
+        echo -e "  ${GREEN}CREATED:${NC} GEMINI.md"
+      fi
+      ;;
+    vscode)
+      mkdir -p "$TARGET/.vscode"
+      if [[ ! -f "$TARGET/.vscode/settings.json" ]]; then
+        cat > "$TARGET/.vscode/settings.json" << EOF
 {
   "github.copilot.chat.codeGeneration.instructions": [
     { "file": ".github/copilot/instructions.md" }
   ]
 }
 EOF
-      echo -e "  ${GREEN}CREATED:${NC} .vscode/settings.json"
-    fi
-    if [[ ! -f "$TARGET/.github/copilot/instructions.md" ]]; then
-      mkdir -p "$TARGET/.github/copilot"
-      cat > "$TARGET/.github/copilot/instructions.md" << EOF
+        echo -e "  ${GREEN}CREATED:${NC} .vscode/settings.json"
+      fi
+      if [[ ! -f "$TARGET/.github/copilot/instructions.md" ]]; then
+        mkdir -p "$TARGET/.github/copilot"
+        cat > "$TARGET/.github/copilot/instructions.md" << EOF
 # VS Code Copilot Instructions
 
-This project utilizes the Workforces AI toolkit. Please refer to rules in \`.github/copilot/rules/base.md\` and use workflows inside \`.github/copilot/workflows/\` (e.g. \`/wf-work\`, \`/wf-plan\`, \`/wf-sync\`).
+This project utilizes the Workforces AI toolkit. Please refer to rules in \`.github/copilot/rules/base.md\` and run modular skills from \`.github/copilot/skills/\` (e.g. \`wf-plan\`, \`wf-sync\`, \`wf-advisor\`) or invoke specialist agents from \`.github/copilot/agents/\`.
 EOF
-      echo -e "  ${GREEN}CREATED:${NC} .github/copilot/instructions.md"
-    fi
-    ;;
-  claude)
-    if [[ ! -f "$TARGET/CLAUDE.md" ]]; then
-      cat > "$TARGET/CLAUDE.md" << EOF
+        echo -e "  ${GREEN}CREATED:${NC} .github/copilot/instructions.md"
+      fi
+      ;;
+    claude)
+      if [[ ! -f "$TARGET/CLAUDE.md" ]]; then
+        cat > "$TARGET/CLAUDE.md" << EOF
 # Claude Code Instructions
 
-This project utilizes the Workforces AI toolkit. Please refer to rules in \`.claude/rules/base.md\` and use workflows inside \`.claude/workflows/\` (e.g. \`/wf-work\`, \`/wf-plan\`, \`/wf-sync\`).
+This project utilizes the Workforces AI toolkit. Please refer to rules in \`.claude/rules/base.md\` and run modular skills from \`.claude/skills/\` (e.g. \`wf-plan\`, \`wf-sync\`, \`wf-advisor\`) or invoke specialist agents from \`.claude/agents/\`.
 EOF
-      echo -e "  ${GREEN}CREATED:${NC} CLAUDE.md"
-    fi
-    ;;
-  grok)
-    if [[ ! -f "$TARGET/AGENTS.md" ]]; then
-      cat > "$TARGET/AGENTS.md" << EOF
+        echo -e "  ${GREEN}CREATED:${NC} CLAUDE.md"
+      fi
+      ;;
+    grok)
+      if [[ ! -f "$TARGET/AGENTS.md" ]]; then
+        cat > "$TARGET/AGENTS.md" << EOF
 # Project Context
 
 This project uses the [workforces](https://github.com/wedigcode/workforces) AI toolkit, installed for Grok Build.
 
 ## Toolkit Structures
-- Config, personas, skills, slash commands: \`.grok/\`
+- Config, personas, skills: \`.grok/\`
 - User workspace and state: \`workforces/\`
 
 ## Instructions
-Refer to \`.grok/rules/base.md\` and run slash commands from \`.grok/commands/\` (e.g. \`/wf-work\`, \`/wf-plan\`, \`/wf-sync\`).
+Refer to \`.grok/rules/base.md\` and run modular skills from \`.grok/skills/\` (e.g. \`wf-plan\`, \`wf-sync\`, \`wf-advisor\`) or invoke specialist agents from \`.grok/agents/\`.
 See \`docs/grok.md\` in the Workforces repo for host mapping (tool names, python vs python3).
 EOF
-      echo -e "  ${GREEN}CREATED:${NC} AGENTS.md"
-    fi
-    ;;
-esac
+        echo -e "  ${GREEN}CREATED:${NC} AGENTS.md"
+      fi
+      ;;
+  esac
+fi
 
 # ─── Summary ───
 echo ""
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "  ${BOLD}Install Summary${NC}"
-echo -e "  Copied:  ${GREEN}$COPIED${NC} files"
-echo -e "  Skipped: $SKIPPED files (already identical)"
-echo -e "  Editor:  ${CYAN}$DETECTED_EDITOR${NC}"
-echo ""
-echo -e "  ${GREEN}✓ Workforces toolkit installed successfully!${NC}"
+if [[ "$DRY" == true ]]; then
+  echo -e "  Simulated: ${YELLOW}$COPIED${NC} files to copy"
+  echo -e "  Skipped:   $SKIPPED files (already identical)"
+  echo -e "  Editor:    ${CYAN}$DETECTED_EDITOR${NC}"
+  echo ""
+  echo -e "  ${YELLOW}Mode: DRY RUN — no files were created or modified${NC}"
+  echo -e "  ${YELLOW}✓ Dry-run completed successfully! Run without --dry to install.${NC}"
+else
+  echo -e "  Copied:  ${GREEN}$COPIED${NC} files"
+  echo -e "  Skipped: $SKIPPED files (already identical)"
+  echo -e "  Editor:  ${CYAN}$DETECTED_EDITOR${NC}"
+  echo ""
+  echo -e "  ${GREEN}✓ Workforces toolkit installed successfully!${NC}"
+fi
 if [[ "$SITE_SETUP" == true ]]; then
   echo ""
   echo -e "  ${BOLD}${CYAN}🚀 Site Setup Initialized:${NC}"
-  echo -e "     Run ${BOLD}/wf-site-setup${NC} (or invoke ${BOLD}@advisor${NC} / ${BOLD}@designer${NC}) in your AI assistant to:"
+  echo -e "     Run ${BOLD}/wf-site-setup${NC} (or invoke ${BOLD}wf-advisor${NC} / ${BOLD}@designer${NC}) in your AI assistant to:"
 
-  echo -e "     1. Consult with @advisor to unpack root problems, pain points & stakes"
+  echo -e "     1. Consult with wf-advisor to unpack root problems, pain points & stakes"
   echo -e "     2. Brainstorm creative design concepts & define design tokens"
   echo -e "     3. Select tech stack & cloud hosting"
   echo -e "     4. Complete your Product Brief (${CYAN}docs/product-brief.md${NC})"

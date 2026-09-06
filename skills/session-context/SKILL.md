@@ -1,11 +1,21 @@
 ---
 name: session-context
-description: Manages transient session notes and context preservation across chat sub-sessions. Actively tracks issues and spontaneous feature ideas, maintains decision evolution history, and preserves bidirectional lineage across sessions. Use when saving context before closing a session, loading past session context, or scanning session notes by sequence or keywords.
+description: Preserves transient conversation context, architectural decisions, rationale ("why"), and active task states across chat sub-sessions (`workforces/sessions/`). Reach for this skill when concluding long sessions to distill milestones, hydrating context when resuming a project after context truncation, tracking decision evolution across conversation boundaries, or searching historical session notes for past reasoning.
 ---
-
 # Session Context Skill
 
 Provides transient, cross-session memory preservation to prevent context loss, reasoning drift, and lost specs when transitioning between chat sessions or when long context windows truncate.
+
+---
+
+## Triggering & Agent Actions
+
+Session context operations run automatically via `@scribe` hooks and can also be triggered directly through natural conversation:
+
+- **Save Context**: User says *"Save session context on [topic]"* or agent automatically distills session at milestones.
+- **List Sessions**: User asks *"Show recent sessions"* or *"List past session notes"*.
+- **Load / Hydrate Context**: User says *"Recall session 040"* or *"Look at what we discussed earlier"*.
+- **Search Notes**: User asks *"Search session history for [query]"*.
 
 ---
 
@@ -87,35 +97,55 @@ During any session:
 
 ## 4. Operations & Protocols
 
-### A. Saving Context (`/context save [topic]`)
-1. Invoke the `scribe` sub-agent to distill the current conversation into the Open Session Format.
-2. Calculate the sequence number.
-3. Write the formatted file to `workforces/session-context/<seq>_<date>_<slug>.md`.
-4. Return a 1-line confirmation with file path and session number.
+### A. Saving Context
+1. Spawns `@scribe` subagent (or executes directly) to distill current session into Open Session Format.
+2. Traverses current session trajectory for:
+   - Executive Summary / Product Brief
+   - Architectural Decisions & Constraints ("Why")
+   - Discovered Issues & Feature Ideas (`idea`, `bug`, `design`, `debt`, `refactor`)
+   - Mid-session Decision Evolutions & Requirement Pivots
+   - Active Files & Key Symbols
+   - Keywords / Indexing Tags
+3. Correlates and updates or reports issues via `report-task.py`:
+   - Updates existing session issues if requirements evolved (`--update ... --evolution-note ...`).
+   - Reports new issues with bidirectional links (`--session-file ... --sync-session`).
+4. Calculates sequence number and writes `workforces/session-context/<seq>_<YYYY-MM-DD>_<slug>.md`.
+5. Returns confirmation summary:
+   ```markdown
+   ✅ Session context saved to `workforces/session-context/022_2026-08-22_topic.md` (Session #22)
+   📋 Tracked Issues: 2 issues linked
+   ```
 
-### B. Listing Contexts (`/context list`)
-1. Read all files in `workforces/session-context/*.md`.
-2. Parse frontmatter (`sequence`, `created_at`, `topic`, `tags`, `tracked_tasks`).
-3. Output a summary table sorted by sequence descending.
+### B. Listing Contexts
+1. Reads all files in `workforces/session-context/*.md`.
+2. Parses frontmatter (`sequence`, `created_at`, `topic`, `tags`, `tracked_tasks`).
+3. Renders structured list:
+   ```markdown
+   ## 📜 Session Context History
 
-### C. Loading Context (`/context load <seq|slug>`)
-1. Match `<seq|slug>` against existing session files (e.g. `1` or `001` or `dedup`).
-2. Read target session note.
-3. Extract `Executive Summary`, `Decisions & Reasoning`, and `Tracked Tasks`.
-4. Inject extracted context directly into active prompt memory.
-4. Inject extracted context directly into active prompt memory.
+   | Sequence | Date | Topic | Tags | Tracked Issues | File |
+   |:---:|:---:|:---|:---|:---:|:---|
+   | #022 | 2026-08-22 | Scribe Issue Tracker Integration | `[scribe, issues]` | 2 | [022_...md](file:///path/to/022.md) |
+   | #021 | 2026-08-21 | Refero Design Overhaul | `[design, refero]` | 1 | [021_...md](file:///path/to/021.md) |
+   ```
 
-### D. Keyword Searching (`/context search <query>`)
-1. Search YAML frontmatter `tags`, `topic`, and `Keywords & Scanning Hooks` section across all session notes.
-2. Return matching session IDs, sequence numbers, and summaries.
+### C. Loading Context
+1. Matches `<seq|slug>` against existing session files (e.g., `22`, `022`, `slug`).
+2. Reads contents using `view_file`.
+3. Extracts `🎯 Executive Summary & Product Brief`, `🧠 Decisions & Reasoning ("Why")`, and `📋 Tracked Tasks & Action Items`.
+4. Hydrates current session context memory with target session details and tracked issue links.
+
+### D. Keyword Searching
+1. Searches YAML frontmatter `tags`, `topic`, and `Keywords & Scanning Hooks` section across all session notes.
+2. Uses `grep_search` to query `workforces/session-context/` for exact terms, tags, or file references.
+3. Displays matching session titles, sequence numbers, snippet context, and linked issues.
 
 ---
 
 ## 5. Automatic Context Hydration Rule
 
 When a user prompt references past conversations (e.g., *"Look at what we were just talking about"*, *"In the last session..."*, or *"Based on session 1"*):
-
-1. Auto-invoke `/context search` or inspect the highest sequence note in `workforces/session-context/`.
+1. Auto-invoke session keyword search or inspect the highest sequence note in `workforces/session-context/`.
 2. Load and present the relevant context before executing new instructions.
 
 ---

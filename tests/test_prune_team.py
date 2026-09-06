@@ -76,8 +76,8 @@ class TestPruneTeam(unittest.TestCase):
                 f.write(f"# Skill {s}\n")
 
         # Create core assets
-        with open(os.path.join(self.base_dir, "agents", "advisor.md"), "w") as f:
-            f.write("# Advisor\n")
+        with open(os.path.join(self.base_dir, "agents", "project-manager.md"), "w") as f:
+            f.write("# Project Manager\n")
         with open(os.path.join(self.base_dir, "rules", "base.md"), "w") as f:
             f.write("# Base\n")
         for s in ["workforce-management", "memory-management", "issue-tracker", "session-context", "usage-tracker"]:
@@ -133,7 +133,7 @@ class TestPruneTeam(unittest.TestCase):
         self.assertFalse(os.path.exists(os.path.join(self.base_dir, "agents", "marketer.md")), "marketer.md should be pruned from .agents/agents/")
 
         # Assert core assets remain intact
-        self.assertTrue(os.path.exists(os.path.join(self.base_dir, "agents", "advisor.md")))
+        self.assertTrue(os.path.exists(os.path.join(self.base_dir, "agents", "project-manager.md")))
         self.assertTrue(os.path.exists(os.path.join(self.base_dir, "skills", "memory-management")))
 
         # Assert workspace persona profile and workspace team folder stay behind

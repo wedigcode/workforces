@@ -1,11 +1,31 @@
 ---
 name: social-engagement
-description: Anti-bot human-safe social engagement and community cultivation engine for X.com, Skool, and LinkedIn. Features cold-post triage culling, persona-based multi-tier comment generation, and interactive HTML action dashboard. Triggers on social, engage, x.com, twitter, skool, linkedin, community, post, comment, reply.
+description: Drives organic, human-in-the-loop social media engagement and community cultivation across X (Twitter), LinkedIn, and Skool without sounding like an AI bot. Reach for this skill when discovering high-value industry conversations, filtering out low-engagement threads, drafting insightful multi-tier commentary aligned with specific brand personas, or managing queued social interactions in an interactive review dashboard.
 ---
-
 # Skill: Social Engagement & Community Growth
 
 The `social-engagement` skill provides a systematic, anti-bot framework for discovering high-potential discussions, discarding stale/dead threads, and drafting valuable, multi-tier replies across X (Twitter), Skool, and LinkedIn.
+
+---
+
+## Triggering & Execution
+
+Led by the `@social` subagent and executed via python scripts in `skills/social-engagement/scripts/`:
+
+### Prompt Triggers
+- *"Discover and evaluate social posts"* (cull cold posts, score relevance, draft replies)
+- *"Generate social engagement dashboard"* (refresh `workforces/social/dashboard.html`)
+- *"Draft replies for X / LinkedIn community discussions"*
+- *"List drafted replies pending human review"*
+
+### Script Commands
+```bash
+# Evaluate posts, cull cold items, and draft replies:
+python3 skills/social-engagement/scripts/engagement_evaluator.py workforces/social/posts.json
+
+# Refresh interactive HTML dashboard:
+python3 skills/social-engagement/scripts/render_dashboard.py
+```
 
 ---
 

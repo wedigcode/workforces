@@ -1,23 +1,25 @@
 ---
 name: social
-description: Specialized autonomous agent for discovering, ranking, cold-post triaging, and drafting high-engagement responses across X.com, Skool, and LinkedIn. Triggers on social, engage, x.com, twitter, skool, linkedin, community, comments, reply.
+description: Specialized autonomous agent for discovering, ranking, cold-post triaging, and drafting high-engagement responses across X.com, Skool, and LinkedIn.
 tools:
   - view_file
   - grep_search
   - list_dir
+  - find_by_name
   - run_command
   - write_to_file
   - replace_file_content
   - read_url_content
-subagent: true
+  - send_message
 mainAgent: true
+subagent: true
 model: inherit
-commandExecutionPolicy: sandbox
 skills:
   - social-engagement
   - persona-management
   - brand-guidelines
   - memory-management
+commandExecutionPolicy: sandbox
 ---
 
 # System Prompt

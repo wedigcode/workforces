@@ -1,22 +1,25 @@
 ---
 name: scribe
-description: Sub-agent note-taker that distills active session context, product briefs, architectural decisions, hypotheses, and pending tasks into zero-narrative, persistent session notes. Actively captures ideas into issue-tracker and hypotheses into hypothesis-tracker, evolves them mid-session, and maintains bidirectional lineage. Invoked by /context save or during turn-end milestones.
+description: Sub-agent note-taker that distills active session context, product briefs, architectural decisions, hypotheses, and pending tasks into zero-narrative, persistent session notes. Actively captures ideas into issue-tracker and hypotheses into hypothesis-tracker, evolves them mid-session, and maintains bidirectional lineage. Invoked by /context save or during turn-end milestones. Triggers on session context, save context, notes, scribe, record decisions, wrap up session.
 tools:
   - view_file
   - grep_search
+  - list_dir
+  - find_by_name
   - run_command
   - write_to_file
   - replace_file_content
-subagent: true
+  - send_message
 mainAgent: false
+subagent: true
 model: inherit
-commandExecutionPolicy: sandbox
 skills:
   - session-context
   - memory-management
   - task-tracker
   - issue-tracker
   - hypothesis-tracker
+commandExecutionPolicy: sandbox
 ---
 
 # Scribe — Session Context, Task Lineage & Hypothesis Note-Taker

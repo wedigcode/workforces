@@ -60,10 +60,11 @@ bash /tmp/workforces/skills/workforce-management/scripts/setup.sh ./ --skip-site
 
 | Location in Target | Contents |
 |--------------------|----------|
-| `<editor-dir>/agents/` | Persona configurations (e.g. `project-manager.md`) |
-| `<editor-dir>/workflows/` | Workflow slash commands (e.g. `wf-work.md`, `wf-update.md`). **Grok Build** uses `<editor-dir>/commands/` (e.g. `wf-work.md`, `wf-plan.md`). |
-| `<editor-dir>/skills/` | Modular capability directories containing `SKILL.md` and supporting tools (e.g. `workforce-management/`) |
-| `<editor-dir>/rules/` | Global rules and constraints (e.g. `base.md`) |
+| `<editor-dir>/agents/` | Subagent personas with standardized Antigravity frontmatter (e.g. `project-manager.md`) |
+| `<editor-dir>/skills/` | Modular capability directories containing `SKILL.md` and supporting tools (e.g. `wf-plan/`, `workforce-management/`) |
+| `<editor-dir>/rules/` | Global behavioral rules and constraints (e.g. `base.md`) |
+| `<editor-dir>/hooks.json` | Native lifecycle hooks (`PreToolUse` for code-graph, `PostToolUse` for post-code-review) |
+| `<editor-dir>/plugins/` | Domain plugin bundles (e.g. `workforce-programming-plugin`) |
 | `workforces/` | Workspace configurations: objectives, states, version info, and `tmp/` scratch directory |
 | `.gitignore` | Automatically includes `workforces/tmp`, `workforces/code-graph.json`, and `workforces/knowledge-catalog` to prevent committing generated local artifacts |
 
@@ -77,11 +78,11 @@ Update the toolkit files by running the update script from your installed `workf
 # Run a preview dry-run
 bash .agents/skills/workforce-management/scripts/update.sh ./ --dry
 
-# Apply updates
+# Apply updates (prunes obsolete workflows and updates skills/hooks)
 bash .agents/skills/workforce-management/scripts/update.sh ./
 
 # Grok Build (toolkit lives under .grok/)
 bash .grok/skills/workforce-management/scripts/update.sh ./ --dry
 ```
 
-Or trigger `/update-workforces` inside your AI agent chat to execute the workflow interactively.
+Or ask your AI assistant *"Update the workforces toolkit"* to execute the updater interactively.

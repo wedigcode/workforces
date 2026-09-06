@@ -1,8 +1,7 @@
 ---
 name: doc-generator
-description: Automated language-aware documentation generator discovery, extraction, and OKF catalog publisher.
+description: Auto-discovers project programming languages (TypeScript, Python, Go, Rust) and executes native documentation generators (TypeDoc, pydoc, go doc, cargo doc) to export structured API references. Reach for this skill when generating or refreshing technical documentation, publishing an Open Knowledge Format (OKF) catalog under `workforces/knowledge-catalog/`, or onboarding to an unfamiliar codebase needing extracted architectural references.
 ---
-
 # Skill: Automated Documentation Generator
 
 Detects project programming language, discovers native documentation generators (TypeDoc, pydoc/sphinx, go doc, cargo doc, etc.), extracts API docs, and formats them into the `workforces/knowledge-catalog/` directory using Open Knowledge Format (OKF).

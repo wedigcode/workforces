@@ -1,14 +1,23 @@
 ---
 name: launch-playbook
-description: |
-  App Launch & Fast Validation Playbook optimizing for Time to First Dollar (TTFD)
-  and Time to 100 Users (TTOU). Enforces pre-sale painted doors, Stripe payment rails,
-  concierge MVPs, single early-adopter offers, 7-day TTFD sprints, and 100-user distribution scale.
+description: Accelerates product launches by relentlessly optimizing for Time to First Dollar and Time to 100 Users. Reach for this skill when preparing to launch a pre-revenue product, structuring high-velocity 7-day pre-sale offers with live payment rails, executing concierge MVPs, diagnosing waitlist decay, or rolling out direct acquisition tactics to secure the first 100 active customers.
 ---
-
 # Skill: App Launch & Fast Validation Playbook
 
-A high-velocity operational playbook designed for empty projects, pre-revenue apps, or stalled initiatives. Relentlessly optimizes for two core velocity metrics: **Time to First Dollar (TTFD)** and **Time to 100 Users (TTOU)**.
+A high-velocity operational playbook designed for empty projects, pre-revenue apps, or stalled initiatives. Relentlessly optimizes for two core velocity metrics: Time to First Dollar and Time to 100 Users.
+
+---
+
+## Triggering & Execution
+
+This playbook is led by `@launcher` and invoked via targeted prompts:
+
+### Prompt Triggers
+- *"Launch validation playbook"* (run full launch & validation pipeline)
+- *"Plan 7-day sprint to first dollar (TTFD)"* (focus on rapid early-adopter offer & pre-sale)
+- *"Scale distribution to 100 users (TTOU)"* (unroll 100-user acquisition playbook)
+- *"Audit launch friction & waitlist decay"* (diagnose conversion bottlenecks)
+- *"Set up pre-sale painted door rails"* (Stripe links, manual concierge flow, copy)
 
 ---
 

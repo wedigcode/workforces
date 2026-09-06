@@ -1,11 +1,12 @@
 ---
 name: site-setup
-description: Comprehensive framework for greenfield site setup, multi-team handoffs (PM, Marketing, Design Pilot, Compliance, Dev), tech stack scaffolding with installer safeguards, framework-aware AI protocols, and tool sequencing hierarchy.
+description: Guides greenfield project scaffolding and web property setup through a structured multi-role pipeline (PM intake, advisory problem validation, marketing SEO, brand design tokens, tech stack scaffolding, and CI/CD setup). Reach for this skill when bootstrapping a new repository, generating a comprehensive Product Brief (`docs/product-brief.md`), establishing framework-specific standards, or configuring a production-ready web application from scratch.
 ---
-
 # 🚀 Site Setup & Product Brief Architecture
 
 The definitive protocol for taking an empty repository or folder from a raw idea to a fully configured, branded, compliant, and scaffolded web property.
+
+Triggered after ideation handoffs (`/wf-ideate`, `/wf-advisor`), or via natural prompts (*"Set up new site"*, *"Create product brief and scaffold app"*).
 
 ---
 
@@ -19,7 +20,7 @@ graph TD
     A2 --> B["Step 1: Marketing & SEO<br/>Audience, Keywords, Value Prop"]
     B --> C["Step 2: @designer<br/>Refero Styles & DESIGN.md"]
     C --> D["Step 3: Compliance & Sales<br/>FTC Rules & Conversion Model"]
-    D --> E["Step 4: @programmer (Dev)<br/>Tech Stack & AI Protocols"]
+    D --> E["Step 4: @programmer (Dev)<br/>Tech Stack, Quality Toolchain & AI Protocols"]
     E --> F["Step 5: PM Finalization<br/>Product Brief & Workstate Roadmap"]
 ```
 
@@ -31,7 +32,7 @@ graph TD
 | **1. Marketing & SEO** | `marketing` / `@marketer` | Target audience, pain points, keyword strategy, copy hook | `docs/brand-context.md` (Voice, Audience, SEO) |
 | **2. Visual Design & DESIGN.md** | `design` / `@designer` | Refero Styles ([styles.refero.design](https://styles.refero.design/)), typography pairings, color tokens, layout blueprints, icon pack | `DESIGN.md`, `src/styles/tokens.css`, `docs/brand-context.md` |
 | **3. Compliance & Sales** | `compliance` (`@compliance`) / `sales` (`@sales`) | Affiliate disclosures (Lead Gen) vs Direct SaaS terms, conversion CTAs | Compliance clauses in `docs/product-brief.md` |
-| **4. Scaffolding & AI Protocols** | `dev` / `@programmer` | Scaffolding tech stack, language-specific AI protocol files (`robots.txt`, `llms.txt`, `ai.txt`, `sitemap`) | Codebase scaffolding, protocol files |
+| **4. Scaffolding, Quality Toolchains & Protocols** | `dev` / `@programmer` | Scaffolding tech stack, configuring complete quality toolchain (unit testing, static analysis, linters, architecture guards, mutation testing, automated upgrades, security audits), language-specific AI protocol files (`robots.txt`, `llms.txt`, `ai.txt`, `sitemap`) | Codebase scaffolding, quality configs, CI workflows, protocol files |
 | **5. Brief Finalization** | `@project-manager` | Consolidate 7 mandatory brief sections + Problem-to-Solution Matrix, unblock P0 build tasks | `docs/product-brief.md`, `workforces/workstate.md` |
 
 
@@ -61,6 +62,30 @@ Whenever executing framework initialization or package installation commands:
 | **AWS Amplify** | `npx -y @aws-amplify/cli init` / `amplify.yml` | Custom rewrites in `amplify.yml` for text/markdown MIME types |
 | **Google Firebase / Cloud Run** | `firebase init hosting` / `firebase.json` | Hosting rewrites in `firebase.json` for static AI protocol files |
 | **Docker** | Containerized multi-stage `Dockerfile` + `docker-compose.yml` | Nginx / Caddy static layer or app server serving protocols |
+
+---
+
+## 🛡️ Quality Engineering & Toolchain Setup (Step 3b)
+
+Scaffolding must not stop at bare framework files. Step 3b establishes the engineering quality harness:
+
+### 1. Verification Scripts Matrix
+Ensure the project configuration (`package.json`, `pyproject.toml`, or `composer.json`) provides the standard quality commands:
+- `test`: Executes unit test runner (`vitest run`, `jest`, `pytest`, `pest`).
+- `typecheck` (or `check`): Executes strict static analysis (`tsc --noEmit`, `mypy --strict`, `phpstan analyse`).
+- `lint`: Executes code formatter and linter (`biome check .`, `eslint .`, `ruff check .`).
+- `audit`: Executes dependency security vulnerability scanner (`npm audit`, `pip-audit`, `composer audit`).
+- `test:mutation`: Executes mutation testing on core logic (`stryker run`, `mutmut run`).
+
+### 2. Architecture & Dependency Boundary Guards
+- Scaffold [`.dependency-cruiser.js`](templates/quality-toolchain/dependency-cruiser.js) (or `madge`) to forbid circular imports and prohibit presentation layers (UI) from directly querying database/ORM layers.
+
+### 3. Mutation Testing Harness
+- Scaffold [`stryker.config.json`](templates/quality-toolchain/stryker.config.json) (or `mutmut`) targeting core business logic, validation services, and calculations to ensure tests kill mutants rather than just providing shallow line coverage.
+
+### 4. Automated Upgrades & Continuous Quality CI
+- Scaffold [`.github/dependabot.yml`](templates/quality-toolchain/dependabot.yml) with grouped semantic PR rules for minor/patch dependencies.
+- Scaffold [`.github/workflows/quality.yml`](templates/quality-toolchain/quality-ci.yml) to enforce the lint + typecheck + test + audit pipeline on every pull request.
 
 ---
 
@@ -94,7 +119,9 @@ Execution MUST follow this strict dependency order:
 3. **Step 1: Product Brief & Brand Context** (`docs/product-brief.md`, `docs/brand-context.md`)
 4. **Step 2: Refero Style Exploration & DESIGN.md Generation** (`DESIGN.md`, `src/styles/tokens.css`, `docs/brand-context.md`)
 5. **Step 3: Framework Scaffolding & Codebase Setup** (scaffold CLI under safeguard rule)
-6. **Step 4: Language-Specific AI Protocols & SEO** (`robots.txt`, `llms.txt`, `ai.txt`, `sitemap`)
-7. **Step 5: Component & Page Construction** (building strictly per `DESIGN.md`)
-8. **Step 6: Designer QA Review & Anti-AI Audit** (`@designer` audit against anti-patterns)
-9. **Step 7: SEO & Schema Validation** (LocalBusiness / Organization / FAQ schema)
+6. **Step 3b: Quality Engineering Toolchain Scaffolding** (unit tests, static analysis, linters, architecture rules, dependabot, CI)
+7. **Step 4: Language-Specific AI Protocols & SEO** (`robots.txt`, `llms.txt`, `ai.txt`, `sitemap`)
+8. **Step 5: Component & Page Construction** (building strictly per `DESIGN.md`)
+9. **Step 6: Pre-Handoff Quality Gate Verification** (`post_code_reviewer.py --run-checks --strict`)
+10. **Step 7: Designer QA Review & Anti-AI Audit** (`@designer` audit against anti-patterns)
+11. **Step 8: SEO & Schema Validation** (LocalBusiness / Organization / FAQ schema)

@@ -1,6 +1,6 @@
 # Workforces
 
-A lean, portable AI toolkit containing agent personas, slash-command workflows, reusable skills, and behavioral rules.
+A lean, portable AI toolkit containing modernized subagents, modular skills, native lifecycle hooks, and behavioral rules.
 
 ---
 
@@ -26,10 +26,11 @@ When installed, the toolkit separates static agent assets (the **Toolkit Layer**
 
 ```
 .agents/               ← Toolkit Layer (automatically updated, read-only)
-├── agents/            ← Specialist agent personas (e.g., project-manager.md)
-├── workflows/         ← Slash-command workflows (e.g., work.md)
-├── skills/            ← Reusable skill modules (e.g., workforce-management/)
-└── rules/             ← Always-on rules (e.g., base.md)
+├── agents/            ← Subagent personas with official Antigravity schema (e.g., project-manager.md)
+├── skills/            ← Modular agent skills with rich semantic discovery (e.g., wf-plan/, clean-coder/)
+├── rules/             ← Always-on behavioral rules (e.g., base.md)
+├── plugins/           ← Domain plugin bundles (e.g., workforce-programming-plugin/)
+└── hooks.json         ← Native lifecycle hooks (PreToolUse / PostToolUse)
 
 workforces/            ← Workspace Layer (user-owned configuration and state)
 ├── README.md          ← Workspace overview
@@ -85,7 +86,6 @@ Full roster documentation available in [`docs/teams-and-agents.md`](docs/teams-a
 
 | Agent Tag | Role / Domain | Core Capabilities |
 | :--- | :--- | :--- |
-| [`@advisor`](agents/advisor.md) | Strategic Advisor | Consultative problem discovery, JTBD causal extraction, and Value Stick trade-off coaching |
 | [`@project-manager`](agents/project-manager.md) | Project Manager | Backlog prioritization, Value Stick scoring, SaaS unit economics, and GitHub sync |
 | [`@programmer`](agents/programmer.md) | Software Engineer | Clean code authoring, TDD, symbol graph index lookup, and post-edit reviews |
 | [`@designer`](agents/designer.md) | Visual & UI/UX Designer | Visual concept ideation, design tokens, layout specifications, and design QA reviews |
@@ -94,61 +94,85 @@ Full roster documentation available in [`docs/teams-and-agents.md`](docs/teams-a
 | [`@social`](agents/social.md) | Social Engager | Content discovery, cold-post triage, and high-engagement reply catalysts |
 | [`@growth`](agents/growth.md) | Growth & SEO Lead | Intent matching, programmatic SEO, closed growth loops, and platform network effects |
 | [`@operations`](agents/operations.md) | Operations Lead | Metrics dashboards, telemetry tracking, sprint velocity, and workforce state |
-| [`@compliance`](agents/compliance.md) | Compliance Auditor | Reference lineage enforcement, zero ghost references, and policy compliance |
 | [`@researcher`](agents/researcher.md) | Feature Researcher | Gap analysis, competitive teardowns, and structured PRD specifications |
 | [`@scribe`](agents/scribe.md) | Scribe | Zero-narrative session context recording and architectural persistence |
+| [`@launcher`](agents/launcher.md) | Launch Specialist | High-velocity pre-sales, concierge MVPs, painted doors, Stripe rails, and sprints to first dollar (TTFD) |
+| [`@unbundler`](agents/unbundler.md) | Micro-SaaS Architect | Incumbent software unbundling, single-feature micro-SaaS opportunities, and zero-bloat PRDs |
+| [`@disruptor`](agents/disruptor.md) | Disruption Scout | Million-dollar market gaps, macro consulting trend synthesis (McKinsey/BCG/Bain), and lean validation tests |
 
-### Workflows
-| Command | Workflow | Description |
-|---------|----------|-------------|
-| `/wf-work` | [`wf-work`](workflows/wf-work.md) | Single command center: scans GitHub queue, surfaces top active tasks |
-| `/wf-advisor` / `/wf-consult` | [`wf-advisor`](workflows/wf-advisor.md) | Strategic advisory, consultative problem discovery & trade-off evaluation |
-| `/wf-work site-setup` / `/wf-site-setup` | [`wf-site-setup`](workflows/wf-site-setup.md) | Greenfield site setup & Product Brief pipeline with `@advisor` and `@designer` |
-| `/wf-brand-context` | [`wf-brand-context`](workflows/wf-brand-context.md) | Brand identity foundation: voice, palette, typography, and tokens |
-| `/wf-work feature` / `/wf-feature` | [`wf-feature`](workflows/wf-feature.md) | Multi-phase feature scoping, problem discovery, gap analysis, PRD generation |
-| `/wf-work plan` / `/wf-plan` | [`wf-plan`](workflows/wf-plan.md) | Phased project planning, task breakdown, estimates, and risk matrix |
-| `/wf-work investigate` / `/wf-investigate` | [`wf-investigate`](workflows/wf-investigate.md) | Incident triage, log streaming to scratch, postmortem generation |
-| `/wf-work sync` / `/wf-sync` | [`wf-sync`](workflows/wf-sync.md) | Multi-mode sync: daily standup (`--daily`), strategy review (`--strategy`), goals (`--goals`), & personal follow-ups (`--me`) |
-| `/wf-update` | [`wf-update`](workflows/wf-update.md) | Dry-run, patch toolkit layer files, and summarize updates |
+### Interactive Slash Commands (`/wf-*`)
+Workforces registers 6 core interactive command-center entrypoints in Antigravity:
+
+| Slash Command | Skill Directory | Description |
+|---|---|---|
+| `/wf-sync` | [`wf-sync`](skills/wf-sync/SKILL.md) | Multi-mode sync: daily standup (`--daily`), strategy review (`--strategy`), goals (`--goals`), & personal radar (`--me`) |
+| `/wf-plan` | [`wf-plan`](skills/wf-plan/SKILL.md) | Phased project planning, RICE scoring, task breakdown, estimates, and execution topology selection |
+| `/wf-advisor` / `/wf-consult` | [`wf-advisor`](skills/wf-advisor/SKILL.md) | Strategic advisory, consultative problem discovery & trade-off evaluation |
+| `/wf-ideate` | [`wf-ideate`](skills/wf-ideate/SKILL.md) | Rapid ideation, atomic micro-SaaS unbundling, and market disruption exploration |
+| `/wf-investigate` | [`wf-investigate`](skills/wf-investigate/SKILL.md) | Incident triage, log streaming to scratch, postmortem generation |
+| `/wf-question-formulation` | [`wf-question-formulation`](skills/wf-question-formulation/SKILL.md) | Formulate high-leverage questions with trade-offs before escalating decisions |
+
+### Modular Domain & Agent Skills
+Specialist capabilities invoked autonomously by agents, coordinators, or natural prompts:
+
+| Skill | Directory | Description & Invocation |
+|---|---|---|
+| **Codebase Improvement** | [`codebase-improvement`](skills/codebase-improvement/SKILL.md) | 5-pillar code quality audit & hygiene (`codebase-improvement` or prompt) |
+| **Site Setup** | [`site-setup`](skills/site-setup/SKILL.md) | Greenfield site setup & Product Brief pipeline (`site-setup` or prompt) |
+| **Feature Research** | [`feature-research`](skills/feature-research/SKILL.md) | Multi-phase scoping, gap analysis, and PRD generation (`feature-research` or prompt) |
+| **Clean Coder & Graph** | [`clean-coder`](skills/clean-coder/SKILL.md) · [`code-graph`](skills/code-graph/SKILL.md) | TDD mindset, symbol lookup, deduplication, and AST call graphs |
+| **Brand Guidelines** | [`brand-guidelines`](skills/brand-guidelines/SKILL.md) | Brand voice, palette, typography, and `docs/brand-context.md` |
+| **Launch & Validation** | [`launch-playbook`](skills/launch-playbook/SKILL.md) · [`market-validation`](skills/market-validation/SKILL.md) | Pre-sale painted doors, TTFD/TTOU metrics, and rapid pretotyping |
+| **Task & Issue Tracking** | [`task-tracker`](skills/task-tracker/SKILL.md) · [`issue-tracker`](skills/issue-tracker/SKILL.md) | Deferred task capture, lifecycle tracking, and session lineage |
+| **Session Context** | [`session-context`](skills/session-context/SKILL.md) | Cross-session context preservation and zero-narrative scribe persistence |
+| **Social Engagement** | [`social-engagement`](skills/social-engagement/SKILL.md) | Anti-bot community engagement, cold-post triage, and action dashboard |
+| **Integrity Validator** | [`integrity-validator`](skills/integrity-validator/SKILL.md) | Reference lineage enforcement and link verification (`validate-references.py`) |
+| **Workforce Canvas** | [`workforce-canvas`](skills/workforce-canvas/SKILL.md) | Interactive node-based visual command canvas daemon (`server.py`) |
+| **Workforce Management** | [`workforce-management`](skills/workforce-management/SKILL.md) | Toolkit updates, team pack installation, and reference-counted pruning |
+
+### Native Lifecycle Hooks (`hooks.json`)
+The toolkit integrates native lifecycle hooks distributed to `.agents/hooks.json` to enforce quality without relying solely on system prompts:
+- **`PreToolUse`**: Automatically triggers `code-graph` symbol verification prior to file edits.
+- **`PostToolUse`**: Automatically runs `post_code_reviewer.py` to audit diffs, swallowed errors, and contract boundaries after tool calls.
 
 ---
 
-## Integrated Workflow Pipeline
+## Integrated Skill Pipeline
 
 The toolkit connects feature research, planning, incident triage, and execution into a cohesive, hands-off pipeline:
 
 ```mermaid
 graph LR
-    A["/wf-feature<br/>Research & PRD"] -->|--from-prd| B["/wf-plan<br/>Phases & Estimates"]
-    B -->|--push-to-work| C["/wf-work<br/>Execution & GitHub Issues"]
+    A["Feature Research<br/>(feature-research skill)"] -->|--from-prd| B["/wf-plan<br/>Phases & Estimates"]
+    B -->|--push-to-work| C["Antigravity Parallel Execution<br/>Isolated Worktrees & GitHub Issues"]
     D["/wf-investigate<br/>Incident Triage"] -->|--push-to-work| C
     D -->|--from-incident| B
 ```
 
-### End-to-End Workflow Lifecycles
+### End-to-End Skill Lifecycles
 
 1. **Feature Scoping ➔ Planning ➔ Execution**
-   - **Research & Spec**: Run `/wf-feature "Feature Idea"` (or `/wf-work feature`) to run gap analysis and output a PRD (`docs/prd-*.md`).
-   - **Phase & Estimate**: Run `/wf-work plan --from-prd docs/prd-feature.md` to split the PRD into deployable phases, tasks, and time estimates.
+   - **Research & Spec**: Run feature research (`feature-research` skill) to run gap analysis and output a PRD (`docs/prd-*.md`).
+   - **Phase & Estimate**: Run `/wf-plan --from-prd docs/prd-feature.md` to split the PRD into deployable phases, tasks, and time estimates.
    - **Push to Execution**: Use the `--push-to-work` flag (or accept the prompt) to sync Phase 1 tasks into `workforces/workstate.md` and create tracked GitHub issues.
-   - **Execute**: Run `/wf-work` to view the queue and execute the top priority task.
+   - **Execute**: Run parallel subagents via `agent-parallelization` (isolated worktrees in `.worktrees/<slug>`) or review active tasks via `/wf-sync`.
 
 2. **Incident Triage ➔ Remediation**
-   - **Triage & Diagnose**: Run `/wf-investigate [service-name]` (or `/wf-work investigate`) to stream logs into workspace scratch space (`workforces/tmp/`), classify root cause, and generate a postmortem (`workforces/incidents/`).
+   - **Triage & Diagnose**: Run `/wf-investigate [service-name]` to stream logs into workspace scratch space (`workforces/tmp/`), classify root cause, and generate a postmortem (`workforces/incidents/`).
    - **Remediate**: Pass `--push-to-work` to push P0/P1 fixes into your active tasks, or run `/wf-plan --from-incident` to build a full remediation plan.
 
 ---
 
 ## Updating
 
-Update the installed toolkit using the built-in update workflow:
+Update the installed toolkit using the built-in updater script or command:
 
 ```bash
 # Preview modifications
 bash .agents/skills/workforce-management/scripts/update.sh ./ --dry
 
-# Apply updates
+# Apply updates (prunes obsolete workflows and updates skills/hooks)
 bash .agents/skills/workforce-management/scripts/update.sh ./
 ```
 
-Or ask your AI assistant: `/wf-update`.
+Or ask your AI assistant: *"Update the workforces toolkit"* or *"Check for updates"*.

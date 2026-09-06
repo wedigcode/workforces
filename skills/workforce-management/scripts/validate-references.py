@@ -184,7 +184,7 @@ def audit_references(target_dir=".", fix=False):
     ignored_dirs = {".git", "node_modules", ".tmp", "scratch", ".worktrees"}
 
     for root, dirs, files in os.walk(target_dir):
-        dirs[:] = [d for d in dirs if d not in ignored_dirs]
+        dirs[:] = [d for d in dirs if d not in ignored_dirs and "teamwork_preview_" not in d and not d.startswith("teamwork_preview_")]
 
         for file in files:
             if not file.endswith((".md", ".json")):
@@ -234,13 +234,22 @@ def audit_references(target_dir=".", fix=False):
 
             # 2. Audit Markdown Links & Explicit File Paths
             if file.endswith(".md"):
+                # Strip fenced code blocks (```...``` or ~~~...~~~) and inline code spans (`...`)
+                # so markdown syntax documentation and code snippets do not trigger false positive dangling link errors.
+                md_content = re.sub(r"(?ms)^[ \t]*(`{3,}|~{3,})[^\n]*\n.*?\n[ \t]*\1[ \t]*$", "", content)
+                md_content = re.sub(r"```[\s\S]*?```", "", md_content)
+                md_content = re.sub(r"~~~[\s\S]*?~~~", "", md_content)
+                md_content = re.sub(r"(`+)(.*?)\1", "", md_content)
+
                 # Match [text](path) or [text](file://...)
-                matches = re.findall(r"\[([^\]]+)\]\((file://[^\s\)]+|[^\s\)]+)\)", content)
+                matches = re.findall(r"\[([^\]]*)\]\((file://[^\s\)]+|[^\s\)]+)\)", md_content)
                 for text, raw_link in matches:
                     if raw_link.startswith("http://") or raw_link.startswith("https://") or raw_link.startswith("#"):
                         continue
-                    # Ignore placeholder docs example links, template variables, and ellipsis
+                    # Ignore placeholder docs example links, template variables, ellipsis, and abstract syntax parameters
                     if "example" in raw_link or "path/to" in raw_link or "modifiedfile" in raw_link or "..." in raw_link or "{{" in raw_link or "}}" in raw_link or "{%" in raw_link:
+                        continue
+                    if raw_link.strip().lower() in ("path", "url", "uri", "target", "filepath", "filename"):
                         continue
 
                     clean_link = raw_link.replace("file://", "").split("#")[0]

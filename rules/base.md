@@ -26,7 +26,7 @@ These rules apply to all workforces and projects. They are enforced by the AI ag
 
 ## Coordinator & Auto-Delegation Protocol
 
-- **Auto-Execution Mode**: When `--auto` or `--all` is passed in `/wf-work`, `/wf-feature`, `/wf-plan`, or when `auto_delegate: true` is configured in `workforces/workrules.md`, the primary chat MUST operate as an autonomous **Coordinator**.
+- **Auto-Execution Mode**: When `--auto` or `--all` is passed in `/wf-plan`, `/boost`, or when `auto_delegate: true` is configured in `workforces/workrules.md`, the primary chat MUST operate as an autonomous **Coordinator**.
 - **No Manual Step-by-Step Handoffs**: When in auto-execution mode, the Coordinator MUST NOT stop between tasks to ask the user "Should I do task 2 now?" or require the user to copy-paste prompts.
 - **Execution Topology Selection Protocol (`agent-parallelization`)**:
   Before delegating coding tasks, the Coordinator MUST evaluate task dependencies and explicitly declare the execution topology:
@@ -37,7 +37,7 @@ These rules apply to all workforces and projects. They are enforced by the AI ag
   1. Parse the task list/breakdown (from `workforces/tasks/`, `workstate.md`, plan, or PRD).
   2. Classify tasks into the optimal execution topology.
   3. Execute independent tasks concurrently via isolated worktrees (`Workspace: 'share'`) or sequential stack relays.
-  4. Validate implementation (compile, run tests, check linters).
+  4. Validate implementation & quality triad (compile, run unit tests, static analysis/typecheck, and linters; remediate all errors before handoff).
   5. Mark completed in `workforces/tasks/` and `workforces/workstate.md` and unblock dependent tasks.
   6. Output a **Developer Inspection Card** for each finished branch (`cd .worktrees/<slug> && npm test`, `PORT=3001 npm run dev`).
   7. Loop to the next unblocked task until all tasks are complete.

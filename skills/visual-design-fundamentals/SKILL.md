@@ -1,8 +1,7 @@
 ---
 name: visual-design-fundamentals
-description: Color theory, typography, layout grids, whitespace, visual hierarchy, and contrast. Foundation skill for all visual design work — web, print, social, and ads. Use before any design decision.
+description: Establishes foundational visual design rules covering typography scales, harmonic color theory, whitespace balancing, responsive 8pt layout grids, and visual hierarchy. Reach for this skill before authoring UI components, styling landing pages, selecting typography and color palettes, or evaluating graphic assets to ensure professional polish, legibility, and aesthetic coherence.
 ---
-
 # Visual Design Fundamentals
 
 Master the building blocks that make designs look intentional, polished, and premium. These principles apply across every medium — web, print, social, and ads.

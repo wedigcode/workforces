@@ -1,8 +1,7 @@
 ---
 name: ai-search-optimization
-description: Framework-aware optimization for generative engine optimization (GEO) and AI search visibility (ChatGPT, Perplexity, Claude, Gemini). Covers llms.txt, robots.txt, ai.txt, ai-plugin.json, structured schema, and AI trigger content.
+description: Optimizes web applications and documentation for Generative Engine Optimization (GEO) and direct citation by AI search synthesis engines (Perplexity, ChatGPT Search, Claude, Gemini). Reach for this skill when configuring or auditing AI crawler permissions in `robots.txt`, authoring machine-readable protocol files (`/llms.txt`, `/ai.txt`, `ai-plugin.json`), structuring landing page copy to be directly quotable by LLMs, or diagnosing why a site is omitted from conversational search answers.
 ---
-
 # 🤖 AI Search Optimization (GEO Readiness)
 
 Traditional SEO targets Google search crawlers. AI Search Optimization (GEO — Generative Engine Optimization) targets AI models and search synthesis engines that answer user questions directly: ChatGPT, Perplexity, Claude, Gemini, and future AI agents.

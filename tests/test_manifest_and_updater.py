@@ -71,15 +71,15 @@ class TestManifestAndUpdater(unittest.TestCase):
         self.assertIsInstance(files, list)
         self.assertTrue(len(files) > 0)
         # Check core files present
-        self.assertIn(".agents/agents/advisor.md", files)
+        self.assertIn(".agents/agents/project-manager.md", files)
         self.assertIn(".agents/rules/base.md", files)
-        self.assertIn(".agents/workflows/wf-work.md", files)
+        self.assertIn(".agents/skills/wf-sync/SKILL.md", files)
         self.assertIn(".agents/skills/clean-coder/SKILL.md", files)
         self.assertIn(".agents/plugins/workforce-programming-plugin/plugin.json", files)
 
     def test_save_and_load_manifest(self):
         """Verify saving and reading workforces/.manifest.json."""
-        sample_files = [".agents/agents/advisor.md", ".agents/rules/base.md"]
+        sample_files = [".agents/agents/project-manager.md", ".agents/rules/base.md"]
         save_installed_manifest(
             target_dir=self.test_dir,
             version="test-commit-123",
@@ -98,7 +98,7 @@ class TestManifestAndUpdater(unittest.TestCase):
         """Verify obsolete files recorded in previous manifest are detected and pruned."""
         # 1. Create a stale agent file and a current agent file
         stale_file_rel = ".agents/agents/old-obsolete-agent.md"
-        current_file_rel = ".agents/agents/advisor.md"
+        current_file_rel = ".agents/agents/project-manager.md"
         
         stale_full = os.path.join(self.test_dir, stale_file_rel)
         current_full = os.path.join(self.test_dir, current_file_rel)
@@ -106,7 +106,7 @@ class TestManifestAndUpdater(unittest.TestCase):
         with open(stale_full, "w") as f:
             f.write("# Old Obsolete Agent\n")
         with open(current_full, "w") as f:
-            f.write("# Advisor\n")
+            f.write("# Project Manager\n")
 
         # Previous manifest tracked both
         save_installed_manifest(
@@ -166,7 +166,7 @@ class TestManifestAndUpdater(unittest.TestCase):
             installed_files=[stale_file_rel]
         )
 
-        new_files = [".agents/agents/advisor.md"]
+        new_files = [".agents/agents/project-manager.md"]
 
         obsolete = find_obsolete_files(
             target_dir=self.test_dir,

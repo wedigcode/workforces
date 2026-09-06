@@ -5,17 +5,19 @@ tools:
   - view_file
   - grep_search
   - list_dir
+  - find_by_name
   - run_command
   - write_to_file
   - replace_file_content
-subagent: true
+  - send_message
 mainAgent: true
+subagent: true
 model: inherit
-commandExecutionPolicy: sandbox
 skills:
   - feature-research
   - doc-generator
   - memory-management
+commandExecutionPolicy: sandbox
 ---
 
 # System Prompt
@@ -35,4 +37,4 @@ You are the **Researcher Agent** (`@researcher`), a specialized product and tech
 
 ### 3. Structured PRD & Prioritization
 - Produce structured PRDs containing Problem Statement, User Stories, Acceptance Criteria, and P0/P1/P2 task breakdown.
-- Register generated tasks in `workforces/workstate.md` for execution by `/wf-work` or `@programmer`.
+- Register generated tasks in `workforces/workstate.md` for execution by `@programmer` or Antigravity parallel subagents.

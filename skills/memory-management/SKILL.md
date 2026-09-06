@@ -1,8 +1,7 @@
 ---
 name: memory-management
-description: Provides persistent local memory for skills and a protocol for reading project knowledge catalogs in Open Knowledge Format (OKF). Use whenever a skill needs to read or write its own config/state, or when an agent needs to navigate a project's knowledge-catalog/ directory.
+description: Manages persistent skill memory files (`workforces/memory/<skill-name>.md`) and navigates structured domain catalogs in Open Knowledge Format (`workforces/knowledge-catalog/`). Reach for this skill when a skill requires persistent state, cached configuration, or timestamps across sessions, or when reading and authoring modular, cross-referenced Markdown knowledge bases about systems and projects.
 ---
-
 # Memory Management
 
 Two distinct memory surfaces, two distinct purposes:
