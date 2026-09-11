@@ -427,14 +427,39 @@ def get_standup_data(root_dir: Path, tasks: List[Dict[str, Any]], inbox_items: L
             latest_session["participants"] = sess_meta.get("participants") or []
             latest_session["updated_at"] = sess_meta.get("updated_at") or ""
 
-    # 7. Workstate markdown content
+    # 7. Workstate markdown content & Recommended Actions
     workstate_md = ""
+    recommended_actions = []
     ws_path = root_dir / "workforces" / "workstate.md"
     if ws_path.exists():
         try:
             workstate_md = ws_path.read_text(encoding="utf-8")
+            # Look for ## Recommended Actions or ## Next Actions
+            in_rec_section = False
+            for line in workstate_md.splitlines():
+                if line.startswith("## ") and any(k in line.lower() for k in ("recommended action", "next action", "suggested action")):
+                    in_rec_section = True
+                    continue
+                elif line.startswith("## ") and in_rec_section:
+                    in_rec_section = False
+                    break
+                if in_rec_section and line.strip().startswith(("- [ ]", "- ", "* ", "1. ", "2. ", "3. ")):
+                    clean_act = re.sub(r"^[-*0-9.]+\s*(\[[ x]\])?\s*", "", line).strip()
+                    if clean_act:
+                        recommended_actions.append(clean_act)
         except Exception:
             pass
+
+    # If no explicit section in workstate.md, synthesize from active priority items
+    if not recommended_actions:
+        if in_progress:
+            recommended_actions.append(f"Advance active sprint task: {in_progress[0].get('title', '')}")
+        elif todo:
+            recommended_actions.append(f"Start highest-priority task: {todo[0].get('title', '')}")
+        if needs_attention:
+            recommended_actions.append(f"Resolve blocker: {needs_attention[0].get('title', '')}")
+        if len(recommended_actions) < 3 and done:
+            recommended_actions.append(f"Run standup sync and review completed milestone: {done[0].get('title', '')}")
 
     return {
         "one_thing": one_thing,
@@ -449,6 +474,7 @@ def get_standup_data(root_dir: Path, tasks: List[Dict[str, Any]], inbox_items: L
         "git": git_info,
         "latest_session": latest_session,
         "workstate_markdown": workstate_md,
+        "recommended_actions": recommended_actions,
     }
 
 

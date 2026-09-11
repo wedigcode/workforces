@@ -33,61 +33,24 @@
       </div>
     </div>
 
-    <!-- Center: 1-Click Scenario Chips & Tab Strip -->
-    <div class="flex items-center gap-3 overflow-hidden max-w-[60%]">
-      <!-- Scenario Chips -->
-      <div class="flex items-center gap-1.5 p-1 bg-[#efefef] rounded-full border border-[#e2e0dc]" id="scenario-chips-bar">
-        <button class="scenario-chip active" data-scenario="cockpit" id="chip-cockpit">
-          <i data-lucide="compass" class="w-3.5 h-3.5 text-[#c2410c]"></i>
-          Standup Cockpit
-        </button>
-        <button class="scenario-chip" data-scenario="tasks" id="chip-tasks">
-          <i data-lucide="check-square" class="w-3.5 h-3.5"></i>
-          Tasks Board
-        </button>
-        <button class="scenario-chip" data-scenario="inbox" id="chip-inbox">
-          <i data-lucide="inbox" class="w-3.5 h-3.5"></i>
-          Inbox
-        </button>
-        <button class="scenario-chip" data-scenario="document" id="chip-document">
-          <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
-          Document Stage
-        </button>
-        <button class="scenario-chip" data-scenario="radar" id="chip-radar">
-          <i data-lucide="network" class="w-3.5 h-3.5"></i>
-          Radar Canvas
-        </button>
-      </div>
-
-      <!-- Studio Open Tabs Strip -->
+    <!-- Center: Studio Open Tabs Strip -->
+    <div class="flex items-center gap-3 overflow-hidden max-w-[60%] flex-1 justify-center">
       <div class="tab-strip" id="studio-tabs-strip">
         <!-- Dynamically rendered tabs -->
       </div>
     </div>
 
-    <!-- Right: Search, Viewport, Power & Heartbeat -->
+    <!-- Right: Search, Power & Heartbeat -->
     <div class="flex items-center gap-2.5">
-      <!-- Viewport Toggle Button -->
-      <button id="btn-viewport-toggle" title="Toggle Desktop / Mobile Preview Viewport" class="px-2.5 py-1.5 rounded-full text-xs font-medium bg-[#efefef] hover:bg-[#e5e3de] text-[#202020] border border-[#e2e0dc] flex items-center gap-1.5 transition-all">
-        <i data-lucide="monitor" class="w-3.5 h-3.5" id="viewport-icon"></i>
-        <span id="viewport-label">Desktop</span>
-      </button>
-
-      <!-- Pin Feedback Mode Button -->
-      <button id="btn-pin-mode" title="Toggle Visual Pin Feedback Mode" class="px-2.5 py-1.5 rounded-full text-xs font-medium bg-[#efefef] hover:bg-[#fee2e2] text-[#4d4d4d] hover:text-[#c2410c] border border-[#e2e0dc] flex items-center gap-1.5 transition-all">
-        <i data-lucide="map-pin" class="w-3.5 h-3.5"></i>
-        <span id="pin-mode-label">Drop Pin</span>
-      </button>
-
       <!-- Global Search -->
-      <div class="relative w-44 hidden md:block">
+      <div class="relative w-48 hidden md:block">
         <i data-lucide="search" class="w-3.5 h-3.5 text-[#828282] absolute left-3 top-1/2 -translate-y-1/2"></i>
-        <input id="global-search" type="text" placeholder="Search tasks or symbols..." class="w-full bg-white border border-[#e2e0dc] rounded-full pl-9 pr-3 py-1 text-xs text-[#202020] placeholder-[#828282] focus:outline-none focus:border-[#c2410c] transition-colors">
+        <input id="global-search" type="text" placeholder="Search tasks or symbols..." class="w-full bg-white border border-[#e2e0dc] rounded-full pl-9 pr-3 py-1.5 text-xs text-[#202020] placeholder-[#828282] focus:outline-none focus:border-[#c2410c] transition-colors">
       </div>
 
       <!-- Server Connection & Power Control -->
       <div class="flex items-center gap-1.5 pl-2 border-l border-[#e2e0dc]">
-        <div id="heartbeat-badge" title="Heartbeat active (auto-shuts down after 5m of inactivity)" class="flex items-center gap-1.5 px-2 py-1 rounded-full bg-[#f4f4f5] text-[11px] font-mono text-[#828282] border border-[#e2e0dc]">
+        <div id="heartbeat-badge" title="Heartbeat active (auto-shuts down after 5m of inactivity)" class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#f4f4f5] text-[11px] font-mono text-[#828282] border border-[#e2e0dc]">
           <span id="heartbeat-dot" class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
           <span id="heartbeat-label" class="hidden sm:inline">5m Idle</span>
         </div>
@@ -172,32 +135,37 @@
           </div>
         </div>
 
-        <!-- Action Suggestion Chips -->
-        <div class="space-y-2">
-          <button class="suggestion-pill" id="btn-suggest-continue">
-            <span>Continue working</span>
-            <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
-          </button>
-          <button class="suggestion-pill" id="btn-suggest-artifact">
-            <span>Generate artifact / prototype</span>
-            <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
-          </button>
-          <button class="suggestion-pill" id="btn-suggest-inbox">
-            <span>Review captured Inbox items</span>
-            <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
-          </button>
+        <!-- Dynamic Recommended Next Actions -->
+        <div class="space-y-2 mt-4 pt-3 border-t border-[#e2e0dc]" id="copilot-recommended-actions-container">
+          <div class="flex items-center justify-between">
+            <span class="text-[10.5px] font-bold text-[#202020] uppercase tracking-wider flex items-center gap-1.5 font-mono">
+              <i data-lucide="compass" class="w-3.5 h-3.5 text-[#c2410c]"></i>
+              Recommended Next Actions
+            </span>
+            <span class="text-[9.5px] font-mono text-[#828282]">workstate.md</span>
+          </div>
+          <div id="copilot-recommended-actions-list" class="space-y-1.5">
+            <!-- Dynamically rendered from state.standup.recommended_actions -->
+          </div>
         </div>
       </div>
 
-      <!-- Feedback / Comment Prompt Input -->
+      <!-- Feedback / Comment Prompt Input for Active File -->
       <div class="copilot-footer">
-        <label class="text-[10.5px] font-medium text-[#828282] block mb-1.5">Leave Feedback or Evolution Note</label>
+        <div class="flex items-center justify-between mb-1.5">
+          <label class="text-[11px] font-semibold text-[#202020] flex items-center gap-1.5">
+            <i data-lucide="file-edit" class="w-3.5 h-3.5 text-[#c2410c]"></i>
+            <span id="copilot-feedback-target-label">Note on active file:</span>
+          </label>
+          <span id="copilot-active-file-tag" class="text-[10px] font-mono text-[#828282] bg-[#efefef] px-1.5 py-0.5 rounded max-w-[130px] truncate" title="Active Target File">General Session</span>
+        </div>
         <div class="flex items-center gap-2">
-          <input type="text" id="copilot-comment-input" placeholder="Feedback on document or Stitch mockup..." class="flex-1 bg-[#faf9f5] border border-[#e2e0dc] rounded-md px-3 py-1.5 text-xs text-[#202020] placeholder-[#828282] focus:outline-none focus:border-[#c2410c] transition-colors">
-          <button id="btn-copilot-submit-comment" class="p-2 rounded-md bg-[#202020] hover:bg-[#383838] text-white text-xs transition-colors flex items-center justify-center">
+          <input type="text" id="copilot-comment-input" placeholder="Add note or instruction for this file..." class="flex-1 bg-[#faf9f5] border border-[#e2e0dc] rounded-md px-3 py-1.5 text-xs text-[#202020] placeholder-[#828282] focus:outline-none focus:border-[#c2410c] transition-colors">
+          <button id="btn-copilot-submit-comment" title="Submit Note & Evolution History" class="p-2 rounded-md bg-[#202020] hover:bg-[#383838] text-white text-xs transition-colors flex items-center justify-center">
             <i data-lucide="send" class="w-3.5 h-3.5"></i>
           </button>
         </div>
+        <div id="copilot-comment-status" class="text-[10px] font-mono text-emerald-600 mt-1 hidden">Note recorded to task evolution history.</div>
       </div>
     </aside>
 
@@ -439,18 +407,6 @@
           </div>
 
           <div class="flex items-center gap-3">
-            <!-- Comments count badge -->
-            <div class="flex items-center gap-1 text-xs text-[#828282] font-mono">
-              <i data-lucide="message-square" class="w-3.5 h-3.5"></i>
-              <span id="stage-comments-count">0 pins</span>
-            </div>
-
-            <!-- Open External Link (Stitch / Web) -->
-            <a id="btn-open-external-stitch" href="#" target="_blank" class="hidden px-2.5 py-1 rounded text-xs font-medium text-[#c2410c] hover:bg-[#fff7ed] border border-[#fed7aa] items-center gap-1.5 transition-colors">
-              <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
-              <span>Open in Stitch</span>
-            </a>
-
             <span class="text-xs text-[#828282] font-mono" id="stage-zoom-label">100%</span>
           </div>
         </div>
@@ -460,12 +416,7 @@
           <div class="viewport-frame desktop" id="preview-viewport-frame">
             <!-- Active Content Display -->
             <div id="preview-content-box" class="markdown-body">
-              <!-- Rendered Markdown / Mockup / HTML -->
-            </div>
-
-            <!-- Visual Pin Overlay Container -->
-            <div id="preview-pins-overlay" class="absolute inset-0 pointer-events-none">
-              <!-- Dynamically rendered visual pins -->
+              <!-- Rendered Markdown Document -->
             </div>
           </div>
         </div>
@@ -560,40 +511,7 @@
     </div>
   </aside>
 
-  <!-- Visual Pin Creation Modal -->
-  <div id="pin-modal" class="hidden fixed inset-0 z-50 bg-[#202020]/40 backdrop-blur-xs flex items-center justify-center p-4">
-    <div class="bg-white border border-[#e2e0dc] rounded-xl max-w-sm w-full p-5 shadow-2xl">
-      <div class="flex items-center justify-between mb-3 pb-2 border-b border-[#e2e0dc]">
-        <div class="flex items-center gap-2 text-xs font-semibold text-[#202020]">
-          <span class="w-5 h-5 rounded-full bg-[#c2410c] text-white text-[11px] flex items-center justify-center font-mono" id="pin-modal-coord">1</span>
-          <span>Add Visual Feedback Pin</span>
-        </div>
-        <button id="btn-pin-modal-close" class="text-[#828282] hover:text-[#202020]">
-          <i data-lucide="x" class="w-4 h-4"></i>
-        </button>
-      </div>
 
-      <div class="space-y-3">
-        <div>
-          <label class="text-[10.5px] font-semibold uppercase tracking-wider text-[#666] block mb-1">Author</label>
-          <input type="text" id="pin-modal-author" value="@designer" class="w-full bg-white border border-[#e2e0dc] rounded px-2.5 py-1.5 text-xs text-[#202020] focus:outline-none focus:border-[#202020]">
-        </div>
-        <div>
-          <label class="text-[10.5px] font-semibold uppercase tracking-wider text-[#666] block mb-1">Feedback / Annotation</label>
-          <textarea id="pin-modal-comment" rows="3" placeholder="Describe the design discrepancy, layout change, or note..." class="w-full bg-white border border-[#e2e0dc] rounded p-2.5 text-xs text-[#202020] focus:outline-none focus:border-[#202020] resize-none"></textarea>
-        </div>
-        <div>
-          <label class="text-[10.5px] font-semibold uppercase tracking-wider text-[#666] block mb-1">Stitch URL (Optional)</label>
-          <input type="url" id="pin-modal-stitch" placeholder="https://stitch.withgoogle.com/..." class="w-full bg-white border border-[#e2e0dc] rounded px-2.5 py-1.5 text-xs text-[#202020] focus:outline-none focus:border-[#202020]">
-        </div>
-      </div>
-
-      <div class="mt-4 pt-3 border-t border-[#e2e0dc] flex items-center justify-end gap-2">
-        <button id="btn-pin-modal-cancel" class="px-3 py-1.5 rounded bg-[#f4f4f5] text-xs font-medium text-[#4d4d4d] hover:bg-[#e5e5e5]">Cancel</button>
-        <button id="btn-pin-modal-save" class="px-4 py-1.5 rounded bg-[#202020] text-xs font-medium text-white hover:bg-[#383838]">Save Pin</button>
-      </div>
-    </div>
-  </div>
 
   <!-- Disconnected Overlay -->
   <div id="disconnected-overlay" class="hidden fixed inset-0 z-50 bg-[#202020]/60 backdrop-blur-sm flex items-center justify-center p-4">

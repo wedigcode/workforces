@@ -747,72 +747,65 @@ body, html {
   position: relative;
 }
 
-/* Viewport Frames (Desktop vs Mobile) */
+/* Document Reader Stage Frame */
 .viewport-frame {
   background-color: #ffffff;
   border: 1px solid var(--border-subtle);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
   position: relative;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  width: 100%;
+  max-width: 920px;
+  margin: 0 auto;
+  min-height: 100%;
+  padding: 36px 40px;
+  transition: all 0.2s ease;
 }
 
 .viewport-frame.desktop {
   width: 100%;
-  max-width: 960px;
-  min-height: 700px;
-  border-radius: 8px;
-  padding: 40px;
+  max-width: 920px;
 }
 
-.viewport-frame.mobile {
-  width: 375px;
-  min-height: 667px;
-  border-radius: 28px;
-  padding: 24px 18px;
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.1);
-  border: 4px solid #202020;
-}
-
-/* Visual Pin Marker */
-.visual-pin {
-  position: absolute;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background-color: #c2410c;
-  color: #ffffff;
-  font-size: 11px;
-  font-weight: 700;
-  font-family: 'JetBrains Mono', monospace;
+/* Dynamic Recommended Next Actions Items */
+.recommended-action-item {
   display: flex;
   align-items: center;
-  justify-content: center;
-  transform: translate(-50%, -50%);
-  cursor: pointer;
-  box-shadow: 0 2px 6px rgba(194, 65, 12, 0.4);
-  z-index: 50;
-  transition: transform 0.15s ease;
-}
-
-.visual-pin:hover {
-  transform: translate(-50%, -50%) scale(1.2);
-}
-
-.visual-pin-popover {
-  position: absolute;
-  top: 26px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 220px;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 10px;
   background-color: #ffffff;
   border: 1px solid var(--border-subtle);
   border-radius: 6px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-  padding: 10px 12px;
-  font-size: 11.5px;
+  font-size: 11px;
   color: var(--text-main);
-  z-index: 60;
-  pointer-events: auto;
+  text-align: left;
+  line-height: 1.35;
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.recommended-action-item:hover {
+  background-color: #faf9f5;
+  border-color: var(--accent-ember-graphic);
+  color: var(--accent-ember-graphic);
+  transform: translateX(2px);
+}
+
+.recommended-action-item .action-text {
+  flex: 1;
+  font-weight: 500;
+  padding-right: 6px;
+}
+
+.recommended-action-item .action-icon {
+  color: var(--text-dim);
+  transition: color 0.15s ease;
+  flex-shrink: 0;
+}
+
+.recommended-action-item:hover .action-icon {
+  color: var(--accent-ember-graphic);
 }
 
 /* Scenario Chips Bar */

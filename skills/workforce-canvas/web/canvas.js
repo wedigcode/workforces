@@ -1701,41 +1701,11 @@
   };
 
   function setupStudio() {
-    setupScenarioChips();
     setupSidebarRail();
-    setupViewportToggles();
-    setupVisualPinPlacement();
+    setupStageControls();
     setupCopilotFeed();
     setupStandupActions();
     loadStudioInitialContent();
-  }
-
-  function setupScenarioChips() {
-    const chips = document.querySelectorAll('#scenario-chips-bar .scenario-chip');
-    chips.forEach(chip => {
-      chip.addEventListener('click', () => {
-        const scenario = chip.getAttribute('data-scenario');
-        if (scenario === 'radar') {
-          switchToRadarMode();
-        } else if (scenario === 'cockpit') {
-          switchToStudioMode('cockpit');
-        } else if (scenario === 'tasks') {
-          openTasksOverviewTab();
-        } else if (scenario === 'inbox') {
-          openInboxTab();
-        } else if (scenario === 'wireframe') {
-          openWireframeTab();
-        } else if (scenario === 'mockup') {
-          openMockupTab();
-        } else {
-          if (studioState.openTabs.length > 0) {
-            switchToStudioMode('document');
-          } else {
-            openDefaultDocumentTab();
-          }
-        }
-      });
-    });
   }
 
   function setupSidebarRail() {
@@ -1752,10 +1722,6 @@
           switchToStudioMode('cockpit');
         } else if (view === 'inbox') {
           openInboxTab();
-        } else if (view === 'wireframe') {
-          openWireframeTab();
-        } else if (view === 'plugins') {
-          openPluginsTab();
         } else if (view === 'tasks') {
           openTasksOverviewTab();
         } else if (view === 'hypotheses') {
@@ -1775,10 +1741,6 @@
     if (canvasViewport) canvasViewport.classList.remove('hidden');
     if (radarDock) radarDock.style.display = 'flex';
 
-    document.querySelectorAll('#scenario-chips-bar .scenario-chip').forEach(c => c.classList.remove('active'));
-    const chipRadar = document.getElementById('chip-radar');
-    if (chipRadar) chipRadar.classList.add('active');
-
     document.querySelectorAll('#studio-sidebar-rail .rail-item').forEach(r => r.classList.remove('active'));
     const railRadar = document.getElementById('rail-btn-radar');
     if (railRadar) railRadar.classList.add('active');
@@ -1795,10 +1757,6 @@
     if (canvasViewport) canvasViewport.classList.add('hidden');
     if (radarDock) radarDock.style.display = 'none';
     if (studioContainer) studioContainer.classList.remove('hidden');
-
-    document.querySelectorAll('#scenario-chips-bar .scenario-chip').forEach(c => c.classList.remove('active'));
-    const targetChip = document.getElementById(`chip-${scenario}`);
-    if (targetChip) targetChip.classList.add('active');
 
     document.querySelectorAll('#studio-sidebar-rail .rail-item').forEach(r => r.classList.remove('active'));
     const targetRail = document.getElementById(`rail-btn-${scenario === 'cockpit' ? 'cockpit' : (scenario === 'document' ? 'docs' : scenario)}`);
@@ -1817,32 +1775,11 @@
       renderActiveTabContent();
     }
 
+    updateCopilotActiveFileContext();
     if (window.lucide) window.lucide.createIcons();
   }
 
-  function setupViewportToggles() {
-    const btnViewport = document.getElementById('btn-viewport-toggle');
-    const viewportFrame = document.getElementById('preview-viewport-frame');
-    const viewportLabel = document.getElementById('viewport-label');
-    const viewportIcon = document.getElementById('viewport-icon');
-
-    if (btnViewport && viewportFrame) {
-      btnViewport.addEventListener('click', () => {
-        if (studioState.viewportMode === 'desktop') {
-          studioState.viewportMode = 'mobile';
-          viewportFrame.className = 'viewport-frame mobile';
-          if (viewportLabel) viewportLabel.innerText = 'Mobile (375px)';
-          if (viewportIcon) viewportIcon.setAttribute('data-lucide', 'smartphone');
-        } else {
-          studioState.viewportMode = 'desktop';
-          viewportFrame.className = 'viewport-frame desktop';
-          if (viewportLabel) viewportLabel.innerText = 'Desktop';
-          if (viewportIcon) viewportIcon.setAttribute('data-lucide', 'monitor');
-        }
-        if (window.lucide) window.lucide.createIcons();
-      });
-    }
-
+  function setupStageControls() {
     const btnPreview = document.getElementById('btn-toggle-preview');
     const btnCode = document.getElementById('btn-toggle-code');
     if (btnPreview && btnCode) {
@@ -1870,109 +1807,10 @@
     }
   }
 
-  function setupVisualPinPlacement() {
-    const btnPinMode = document.getElementById('btn-pin-mode');
-    const viewportFrame = document.getElementById('preview-viewport-frame');
-
-    function togglePinMode() {
-      studioState.pinModeActive = !studioState.pinModeActive;
-      const label = document.getElementById('pin-mode-label');
-      if (studioState.pinModeActive) {
-        if (btnPinMode) btnPinMode.className = 'px-2.5 py-1.5 rounded-full text-xs font-medium bg-[#fee2e2] text-[#c2410c] border border-[#fca5a5] flex items-center gap-1.5 transition-all';
-        if (label) label.innerText = 'Click to Pin';
-        if (viewportFrame) viewportFrame.style.cursor = 'crosshair';
-      } else {
-        if (btnPinMode) btnPinMode.className = 'px-2.5 py-1.5 rounded-full text-xs font-medium bg-[#efefef] hover:bg-[#fee2e2] text-[#4d4d4d] hover:text-[#c2410c] border border-[#e2e0dc] flex items-center gap-1.5 transition-all';
-        if (label) label.innerText = 'Drop Pin';
-        if (viewportFrame) viewportFrame.style.cursor = 'default';
-      }
-    }
-
-    if (btnPinMode) btnPinMode.addEventListener('click', togglePinMode);
-
-    if (viewportFrame) {
-      viewportFrame.addEventListener('click', (e) => {
-        if (!studioState.pinModeActive) return;
-        // Avoid clicking directly on existing pins
-        if (e.target.closest('.visual-pin') || e.target.closest('.visual-pin-popover')) return;
-
-        const rect = viewportFrame.getBoundingClientRect();
-        const xPercent = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
-        const yPercent = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
-
-        studioState.pendingPinCoord = { x: parseFloat(xPercent.toFixed(1)), y: parseFloat(yPercent.toFixed(1)) };
-
-        const activeTab = studioState.openTabs.find(t => t.id === studioState.activeTabId);
-        const nextPinNum = (activeTab?.pins?.length || 0) + 1;
-        document.getElementById('pin-modal-coord').innerText = nextPinNum;
-        document.getElementById('pin-modal-comment').value = '';
-        if (activeTab?.stitchUrl) {
-          document.getElementById('pin-modal-stitch').value = activeTab.stitchUrl;
-        }
-        document.getElementById('pin-modal').classList.remove('hidden');
-        document.getElementById('pin-modal-comment').focus();
-      });
-    }
-
-    const modalClose = document.getElementById('btn-pin-modal-close');
-    const modalCancel = document.getElementById('btn-pin-modal-cancel');
-    const modalSave = document.getElementById('btn-pin-modal-save');
-
-    function closeModal() {
-      document.getElementById('pin-modal').classList.add('hidden');
-      togglePinMode();
-    }
-
-    if (modalClose) modalClose.addEventListener('click', closeModal);
-    if (modalCancel) modalCancel.addEventListener('click', closeModal);
-
-    if (modalSave) {
-      modalSave.addEventListener('click', async () => {
-        const author = document.getElementById('pin-modal-author').value.trim() || '@designer';
-        const comment = document.getElementById('pin-modal-comment').value.trim();
-        const stitchUrl = document.getElementById('pin-modal-stitch').value.trim();
-        if (!comment) {
-          alert('Please enter a feedback comment.');
-          return;
-        }
-
-        const activeTab = studioState.openTabs.find(t => t.id === studioState.activeTabId);
-        const payload = {
-          target_type: activeTab ? (activeTab.type || 'task') : 'doc',
-          target_id: activeTab ? activeTab.id : 'studio',
-          file: activeTab?.path || '',
-          comment: comment,
-          author: author,
-          pin: studioState.pendingPinCoord,
-          stitch_url: stitchUrl
-        };
-
-        try {
-          const res = await fetch('/api/comments', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          });
-          if (res.ok) {
-            const data = await res.json();
-            if (activeTab) {
-              if (!activeTab.pins) activeTab.pins = [];
-              activeTab.pins.push(data.comment);
-            }
-            renderVisualPins();
-            closeModal();
-            await fetchWorkforceState();
-          }
-        } catch (err) {
-          alert(`Failed to save comment: ${err.message}`);
-        }
-      });
-    }
-  }
-
   function setupCopilotFeed() {
     const btnSubmit = document.getElementById('btn-copilot-submit-comment');
     const commentInput = document.getElementById('copilot-comment-input');
+    const statusEl = document.getElementById('copilot-comment-status');
 
     if (btnSubmit && commentInput) {
       btnSubmit.addEventListener('click', async () => {
@@ -1995,6 +1833,10 @@
           });
           if (res.ok) {
             commentInput.value = '';
+            if (statusEl) {
+              statusEl.classList.remove('hidden');
+              setTimeout(() => statusEl.classList.add('hidden'), 3000);
+            }
             await fetchWorkforceState();
             await loadTurnSummary();
             renderActiveTabContent();
@@ -2011,27 +1853,75 @@
       });
     }
 
-    const btnSuggestInbox = document.getElementById('btn-suggest-inbox');
-    if (btnSuggestInbox) {
-      btnSuggestInbox.addEventListener('click', () => {
-        openInboxTab();
-      });
+    renderRecommendedActions();
+    updateCopilotActiveFileContext();
+  }
+
+  function updateCopilotActiveFileContext() {
+    const activeTab = studioState.openTabs.find(t => t.id === studioState.activeTabId);
+    const targetLabel = document.getElementById('copilot-feedback-target-label');
+    const targetTag = document.getElementById('copilot-active-file-tag');
+    const commentInput = document.getElementById('copilot-comment-input');
+
+    if (activeTab && studioState.activeScenario === 'document') {
+      const cleanName = activeTab.title || activeTab.path || 'Open File';
+      if (targetLabel) targetLabel.innerText = 'Note on active file:';
+      if (targetTag) {
+        targetTag.innerText = cleanName;
+        targetTag.title = activeTab.path || cleanName;
+      }
+      if (commentInput) {
+        commentInput.placeholder = `Add note or instruction for ${cleanName}...`;
+      }
+    } else {
+      if (targetLabel) targetLabel.innerText = 'Note for active session:';
+      if (targetTag) {
+        targetTag.innerText = 'Standup Session';
+        targetTag.title = 'General session context';
+      }
+      if (commentInput) {
+        commentInput.placeholder = 'Add note or instruction for active workforce session...';
+      }
     }
-    const btnSuggestArtifact = document.getElementById('btn-suggest-artifact');
-    if (btnSuggestArtifact) {
-      btnSuggestArtifact.addEventListener('click', () => {
-        openMockupTab();
-      });
+  }
+
+  function renderRecommendedActions() {
+    const container = document.getElementById('copilot-recommended-actions-list');
+    if (!container) return;
+
+    const actions = (state.standup && state.standup.recommended_actions) || [];
+    if (actions.length === 0) {
+      container.innerHTML = '<p class="text-[10.5px] text-[#828282] italic py-1">No recommended actions queued in workstate.md.</p>';
+      return;
     }
-    const btnSuggestContinue = document.getElementById('btn-suggest-continue');
-    if (btnSuggestContinue) {
-      btnSuggestContinue.addEventListener('click', () => {
+
+    container.innerHTML = '';
+    actions.forEach((act) => {
+      const btn = document.createElement('button');
+      btn.className = 'recommended-action-item';
+      btn.title = `Click to queue instruction or inspect: "${escapeHtml(act)}"`;
+      btn.innerHTML = `
+        <span class="action-text">${escapeHtml(act)}</span>
+        <i data-lucide="arrow-right" class="w-3.5 h-3.5 action-icon"></i>
+      `;
+      btn.addEventListener('click', () => {
+        // If the action references an active task by title, open that task!
+        const matchingTask = (state.tasks || []).find(t => act.toLowerCase().includes(t.title.toLowerCase()) || t.title.toLowerCase().includes(act.toLowerCase()));
+        if (matchingTask) {
+          openTaskTab(matchingTask.id);
+        }
+        
+        // Also pre-fill the comment/feedback box so the user can easily act on it
+        const commentInput = document.getElementById('copilot-comment-input');
         if (commentInput) {
-          commentInput.value = "Proceed with next implementation milestone.";
+          commentInput.value = act;
           commentInput.focus();
         }
       });
-    }
+      container.appendChild(btn);
+    });
+
+    if (window.lucide) window.lucide.createIcons();
   }
 
   async function loadTurnSummary() {
@@ -2170,35 +2060,13 @@
     const task = state.tasks.find(t => t.id === taskId);
     if (!task) return;
 
-    let stitchUrl = "";
-    if (task.source_url && task.source_url.includes("stitch.withgoogle.com")) {
-      stitchUrl = task.source_url;
-    } else if (task.body && task.body.includes("stitch.withgoogle.com")) {
-      const match = task.body.match(/https:\/\/stitch\.withgoogle\.com[^\s\)]+/);
-      if (match) stitchUrl = match[0];
-    }
-
-    // Fetch comments for task
-    let pins = [];
-    try {
-      const cRes = await fetch(`/api/comments?target_id=${encodeURIComponent(taskId)}`);
-      if (cRes.ok) {
-        const cData = await cRes.json();
-        pins = cData.comments || [];
-      }
-    } catch (err) {
-      console.warn("Could not fetch comments for task:", taskId, err);
-    }
-
     const tab = {
       id: task.id,
       title: task.title,
       type: 'task',
       path: task.file,
-      content: `# ${task.title}\n\n**Status:** \`${task.status}\` | **Priority:** \`${task.priority}\` | **Team:** \`${task.team}\`\n\n---\n\n${task.body || "No task description."}`,
-      stitchUrl: stitchUrl,
-      scenario: 'document',
-      pins: pins
+      content: `# ${task.title}\n\n**Status:** \`${task.status}\` | **Priority:** \`${task.priority}\` | **Team:** \`${task.team}\` | **File:** \`${task.file || 'workforces/tasks/'}\`\n\n---\n\n${task.body || "No task description."}`,
+      scenario: 'document'
     };
 
     openTab(tab);
@@ -2216,151 +2084,36 @@
       console.warn("Could not fetch document content:", filePath, err);
     }
 
-    let pins = [];
-    try {
-      const cRes = await fetch(`/api/comments?target_id=${encodeURIComponent(filePath)}`);
-      if (cRes.ok) {
-        const cData = await cRes.json();
-        pins = cData.comments || [];
-      }
-    } catch (err) {
-      console.warn("Could not fetch comments for document:", filePath, err);
-    }
-
     const tab = {
       id: filePath,
       title: title || filePath.split('/').pop(),
       type: 'doc',
       path: filePath,
       content: content,
-      scenario: 'document',
-      pins: pins
+      scenario: 'document'
     };
     openTab(tab);
   }
 
   function openDefaultDocumentTab() {
-    const welcomeContent = `# Workforce Studio Workspace
+    const welcomeContent = `# Workforce Productivity & Command Studio
 
 Welcome to the **Workforce Command Studio**.
 
-This split-stage studio integrates your autonomous AI engineering workforce with real-world browser tools:
-- **Left Copilot & Audit Feed**: Real-time turn telemetry, verified artifacts, and quality gate status.
-- **Right Preview Stage**: Interactive markdown renderer, responsive Desktop / Mobile frames, and visual comment pins.
-- **Chrome Extension Assistant**: Push live research, Google "Ask Gemini" findings, and Google Stitch UI prototypes directly into the workspace.
-- **Radar Canvas**: Click **Radar Canvas** in the left rail or top chip to switch back to the multi-node architectural graph and code blast radius analyzer.
+This dashboard helps you orchestrate and monitor your autonomous AI engineering workforce:
+- **Standup Cockpit**: Today's #1 commitment (P0 focus), immediate blockers, active sprint pipeline, and 24h verified wins.
+- **Tasks Board**: Full sprint pipeline with 4-state lifecycle (In Progress, Up Next, Blocked, Completed).
+- **Extension Inbox**: Captures research, documentation, and issues pushed from the Chrome Extension.
+- **Recommended Next Actions**: Synced in real-time from \`workforces/workstate.md\` to keep you in flow.
+- **Active Document Reader**: Full-width markdown reader with synchronized feedback and evolution notes.
+- **Radar Canvas**: Interactive architectural graph and symbol dependency analyzer.
 `;
     openTab({
       id: 'studio-welcome',
       title: 'Studio Overview',
       type: 'doc',
       content: welcomeContent,
-      scenario: 'document',
-      pins: []
-    });
-  }
-
-  function openWireframeTab() {
-    const wireframeContent = `
-      <div class="space-y-6">
-        <div class="border-b border-[#e2e0dc] pb-4">
-          <span class="text-[10.5px] font-mono uppercase tracking-wider text-[#0369a1] bg-[#e0f2fe] px-2 py-0.5 rounded">Wireframe Spec</span>
-          <h2 class="text-xl font-bold text-[#202020] mt-2">Autonomous Workforce Studio Flow</h2>
-          <p class="text-xs text-[#828282] mt-1">Interactive architectural layout for multi-agent dispatch &amp; Chrome extension sync.</p>
-        </div>
-
-        <div class="grid grid-cols-3 gap-4">
-          <div class="p-4 bg-[#faf9f5] border border-[#e2e0dc] rounded-lg">
-            <div class="w-7 h-7 rounded bg-[#202020] text-white flex items-center justify-center mb-2 text-xs font-mono">01</div>
-            <h3 class="font-semibold text-xs text-[#202020]">Browser Research (Gemini)</h3>
-            <p class="text-[11px] text-[#666] mt-1">Chrome extension captures competitor data, video scripts in Google Flow, or Stitch UI links.</p>
-          </div>
-          <div class="p-4 bg-[#faf9f5] border border-[#e2e0dc] rounded-lg">
-            <div class="w-7 h-7 rounded bg-[#c2410c] text-white flex items-center justify-center mb-2 text-xs font-mono">02</div>
-            <h3 class="font-semibold text-xs text-[#202020]">Heartbeat Watcher</h3>
-            <p class="text-[11px] text-[#666] mt-1">Monitors workforces/inbox/pending/, auto-dispatches actionable tasks or routes for human review.</p>
-          </div>
-          <div class="p-4 bg-[#faf9f5] border border-[#e2e0dc] rounded-lg">
-            <div class="w-7 h-7 rounded bg-[#047857] text-white flex items-center justify-center mb-2 text-xs font-mono">03</div>
-            <h3 class="font-semibold text-xs text-[#202020]">Studio Verification</h3>
-            <p class="text-[11px] text-[#666] mt-1">Inspect artifacts in split-stage, drop visual feedback pins, and trigger autonomous refactors.</p>
-          </div>
-        </div>
-
-        <div class="border border-[#e2e0dc] rounded-lg p-6 bg-[#ffffff]">
-          <div class="flex items-center justify-between pb-3 border-b border-[#e2e0dc] mb-4">
-            <span class="text-xs font-mono font-medium text-[#4d4d4d]">SYSTEM TOPOLOGY WIREFRAME</span>
-            <span class="text-xs font-mono text-emerald-600">ONLINE (:8765)</span>
-          </div>
-          <div class="space-y-3">
-            <div class="h-10 bg-[#faf9f5] border border-dashed border-[#d1cfca] rounded flex items-center px-4 text-xs font-mono text-[#828282]">
-              [Chrome Extension Context Menu] &rarr; POST /api/inbox/submit &rarr; workforces/inbox/pending/
-            </div>
-            <div class="h-10 bg-[#faf9f5] border border-dashed border-[#d1cfca] rounded flex items-center px-4 text-xs font-mono text-[#828282]">
-              [InboxHeartbeatWatcher Daemon] &rarr; Auto-Dispatch &rarr; workforces/tasks/202609...md
-            </div>
-            <div class="h-10 bg-[#faf9f5] border border-dashed border-[#d1cfca] rounded flex items-center px-4 text-xs font-mono text-[#828282]">
-              [Studio Visual Pins] &rarr; POST /api/comments &rarr; .canvas-comments.json &amp; Task Evolution Notes
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-
-    openTab({
-      id: 'studio-wireframe',
-      title: 'Studio Wireframe',
-      type: 'wireframe',
-      isWireframe: true,
-      content: wireframeContent,
-      scenario: 'wireframe',
-      pins: []
-    });
-  }
-
-  function openMockupTab() {
-    const mockupContent = `
-      <div class="space-y-6">
-        <div class="border-b border-[#e2e0dc] pb-4 flex items-center justify-between">
-          <div>
-            <span class="text-[10.5px] font-mono uppercase tracking-wider text-[#db2777] bg-[#fdf2f8] px-2 py-0.5 rounded">UI Prototype</span>
-            <h2 class="text-xl font-bold text-[#202020] mt-2">Creator Voice Guide &amp; Design Spec</h2>
-          </div>
-          <button id="btn-mockup-stitch-link" class="px-3 py-1.5 rounded bg-[#202020] text-white text-xs font-medium hover:bg-[#383838] flex items-center gap-1.5">
-            <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
-            Launch Stitch Prototype
-          </button>
-        </div>
-
-        <div class="p-8 bg-[#faf9f5] border border-[#e2e0dc] rounded-xl shadow-xs">
-          <div class="max-w-md mx-auto text-center space-y-4">
-            <div class="w-12 h-12 rounded-full bg-[#202020] text-white flex items-center justify-center mx-auto text-base font-bold">
-              OD
-            </div>
-            <h3 class="text-2xl font-bold text-[#202020] tracking-tight">OpenDesign Autonomous Studio</h3>
-            <p class="text-xs text-[#666] leading-relaxed">
-              Drop visual feedback pins directly on this UI mockup to communicate design changes back to the AI engineering workforce.
-            </p>
-            <div class="pt-2 flex justify-center gap-3">
-              <button class="px-4 py-2 bg-[#202020] text-white text-xs font-medium rounded-md">Primary Action</button>
-              <button class="px-4 py-2 bg-white border border-[#d1cfca] text-xs font-medium rounded-md">Secondary</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-
-    openTab({
-      id: 'studio-mockup',
-      title: 'UI Mockup Preview',
-      type: 'mockup',
-      isMockup: true,
-      content: mockupContent,
-      stitchUrl: 'https://stitch.withgoogle.com/',
-      scenario: 'mockup',
-      pins: [
-        { id: 'sample-pin-1', author: '@designer', comment: 'Ensure primary CTA has sufficient contrast.', pin: { x: 50.0, y: 55.0 } }
-      ]
+      scenario: 'document'
     });
   }
 
@@ -2534,33 +2287,19 @@ This split-stage studio integrates your autonomous AI engineering workforce with
     const activeTab = studioState.openTabs.find(t => t.id === studioState.activeTabId);
     const contentBox = document.getElementById('preview-content-box');
     const stageFileLabel = document.getElementById('stage-file-label');
-    const stitchLinkBtn = document.getElementById('btn-open-external-stitch');
-    const commentsCountLabel = document.getElementById('stage-comments-count');
 
     if (!activeTab || !contentBox) {
       if (contentBox) contentBox.innerHTML = '<p class="text-center text-xs text-[#828282] py-20">Select an item from the sidebar or open tabs.</p>';
+      updateCopilotActiveFileContext();
       return;
     }
 
     if (stageFileLabel) stageFileLabel.innerText = activeTab.path || activeTab.title;
-    const pinCount = activeTab.pins ? activeTab.pins.length : 0;
-    if (commentsCountLabel) commentsCountLabel.innerText = `${pinCount} pin${pinCount === 1 ? '' : 's'}`;
-
-    if (stitchLinkBtn) {
-      if (activeTab.stitchUrl) {
-        stitchLinkBtn.classList.remove('hidden');
-        stitchLinkBtn.classList.add('flex');
-        stitchLinkBtn.href = activeTab.stitchUrl;
-      } else {
-        stitchLinkBtn.classList.remove('flex');
-        stitchLinkBtn.classList.add('hidden');
-      }
-    }
 
     if (studioState.previewMode === 'code') {
       contentBox.innerHTML = `<pre class="p-4 font-mono text-xs bg-[#faf9f5] border border-[#e2e0dc] rounded overflow-x-auto whitespace-pre-wrap"><code>${escapeHtml(activeTab.content || '')}</code></pre>`;
     } else {
-      if (activeTab.isMockup || activeTab.isWireframe || activeTab.isInbox || activeTab.type === 'tasks' || activeTab.type === 'hypotheses' || activeTab.type === 'plugins') {
+      if (activeTab.isInbox || activeTab.type === 'tasks' || activeTab.type === 'hypotheses' || activeTab.type === 'plugins') {
         contentBox.innerHTML = activeTab.content;
       } else {
         try {
@@ -2571,44 +2310,8 @@ This split-stage studio integrates your autonomous AI engineering workforce with
       }
     }
 
-    renderVisualPins();
+    updateCopilotActiveFileContext();
     if (window.lucide) window.lucide.createIcons();
-  }
-
-  function renderVisualPins() {
-    const overlay = document.getElementById('preview-pins-overlay');
-    if (!overlay) return;
-    overlay.innerHTML = '';
-
-    const activeTab = studioState.openTabs.find(t => t.id === studioState.activeTabId);
-    if (!activeTab || !activeTab.pins) return;
-
-    activeTab.pins.forEach((p, idx) => {
-      if (!p.pin || p.pin.x === undefined || p.pin.y === undefined) return;
-      const pinEl = document.createElement('div');
-      pinEl.className = 'visual-pin';
-      pinEl.style.left = `${p.pin.x}%`;
-      pinEl.style.top = `${p.pin.y}%`;
-      pinEl.innerText = idx + 1;
-
-      // Popover
-      const popover = document.createElement('div');
-      popover.className = 'visual-pin-popover hidden';
-      const dateStr = p.created_at ? p.created_at.slice(5, 16).replace('T', ' ') : '';
-      popover.innerHTML = `
-        <div class="flex items-center justify-between mb-1 pb-1 border-b border-[#e2e0dc]">
-          <span class="font-semibold text-xs text-[#202020]">${escapeHtml(p.author || '@designer')}</span>
-          <span class="text-[10px] font-mono text-[#828282]">${dateStr}</span>
-        </div>
-        <p class="text-xs text-[#4d4d4d] leading-relaxed mb-1">${escapeHtml(p.comment || '')}</p>
-        ${p.stitch_url ? `<a href="${p.stitch_url}" target="_blank" class="text-[10.5px] text-[#c2410c] underline">View on Stitch &rarr;</a>` : ''}
-      `;
-
-      pinEl.addEventListener('mouseenter', () => popover.classList.remove('hidden'));
-      pinEl.addEventListener('mouseleave', () => popover.classList.add('hidden'));
-      pinEl.appendChild(popover);
-      overlay.appendChild(pinEl);
-    });
   }
 
   // ==========================================================================
@@ -2815,6 +2518,9 @@ This split-stage studio integrates your autonomous AI engineering workforce with
         });
       }
     }
+
+    renderRecommendedActions();
+    updateCopilotActiveFileContext();
 
     // Refresh Lucide vector icons
     if (window.lucide) window.lucide.createIcons();
