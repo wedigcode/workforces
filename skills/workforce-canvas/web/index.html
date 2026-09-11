@@ -37,17 +37,21 @@
     <div class="flex items-center gap-3 overflow-hidden max-w-[60%]">
       <!-- Scenario Chips -->
       <div class="flex items-center gap-1.5 p-1 bg-[#efefef] rounded-full border border-[#e2e0dc]" id="scenario-chips-bar">
-        <button class="scenario-chip active" data-scenario="document" id="chip-document">
+        <button class="scenario-chip active" data-scenario="cockpit" id="chip-cockpit">
+          <i data-lucide="compass" class="w-3.5 h-3.5 text-[#c2410c]"></i>
+          Standup Cockpit
+        </button>
+        <button class="scenario-chip" data-scenario="tasks" id="chip-tasks">
+          <i data-lucide="check-square" class="w-3.5 h-3.5"></i>
+          Tasks Board
+        </button>
+        <button class="scenario-chip" data-scenario="inbox" id="chip-inbox">
+          <i data-lucide="inbox" class="w-3.5 h-3.5"></i>
+          Inbox
+        </button>
+        <button class="scenario-chip" data-scenario="document" id="chip-document">
           <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
-          Document
-        </button>
-        <button class="scenario-chip" data-scenario="mockup" id="chip-mockup">
-          <i data-lucide="palette" class="w-3.5 h-3.5"></i>
-          UI Mockup
-        </button>
-        <button class="scenario-chip" data-scenario="wireframe" id="chip-wireframe">
-          <i data-lucide="layout" class="w-3.5 h-3.5"></i>
-          Wireframe
+          Document Stage
         </button>
         <button class="scenario-chip" data-scenario="radar" id="chip-radar">
           <i data-lucide="network" class="w-3.5 h-3.5"></i>
@@ -97,24 +101,21 @@
   <!-- Left Sidebar Rail -->
   <nav id="studio-sidebar-rail">
     <div class="rail-group">
-      <button class="rail-item active" data-view="document" title="Document Reader & Workspace" id="rail-btn-docs">
-        <i data-lucide="file-text" class="w-4 h-4"></i>
+      <button class="rail-item active" data-view="cockpit" title="Standup & Productivity Cockpit" id="rail-btn-cockpit">
+        <i data-lucide="compass" class="w-4 h-4"></i>
       </button>
-      <button class="rail-item" data-view="tasks" title="Tasks & Backlog" id="rail-btn-tasks">
+      <button class="rail-item" data-view="tasks" title="Tasks & Sprint Board" id="rail-btn-tasks">
         <i data-lucide="check-square" class="w-4 h-4"></i>
-      </button>
-      <button class="rail-item" data-view="hypotheses" title="Hypotheses & Validation" id="rail-btn-hypotheses">
-        <i data-lucide="flask-conical" class="w-4 h-4"></i>
       </button>
       <button class="rail-item" data-view="inbox" title="Extension Inbox & Captures" id="rail-btn-inbox">
         <i data-lucide="inbox" class="w-4 h-4"></i>
         <span class="rail-badge hidden" id="rail-inbox-badge">0</span>
       </button>
-      <button class="rail-item" data-view="plugins" title="Skills & Plugins Catalog" id="rail-btn-plugins">
-        <i data-lucide="puzzle" class="w-4 h-4"></i>
+      <button class="rail-item" data-view="hypotheses" title="Hypotheses & Validation" id="rail-btn-hypotheses">
+        <i data-lucide="flask-conical" class="w-4 h-4"></i>
       </button>
-      <button class="rail-item" data-view="wireframe" title="Wireframes & Interactive Mockups" id="rail-btn-wireframe">
-        <i data-lucide="layout" class="w-4 h-4"></i>
+      <button class="rail-item" data-view="document" title="Document Reader & Workspace" id="rail-btn-docs">
+        <i data-lucide="file-text" class="w-4 h-4"></i>
       </button>
       <button class="rail-item" data-view="radar" title="Workforce Command Radar" id="rail-btn-radar">
         <i data-lucide="network" class="w-4 h-4"></i>
@@ -202,47 +203,270 @@
 
     <!-- Right Preview Stage -->
     <main id="studio-preview-stage">
-      <!-- Stage Subbar -->
-      <div class="stage-subbar">
-        <div class="flex items-center gap-3">
-          <button id="btn-stage-refresh" class="p-1 rounded text-[#828282] hover:text-[#202020] hover:bg-[#f4f4f5] transition-colors" title="Reload Active Preview">
-            <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i>
-          </button>
-          <div class="flex items-center bg-[#efefef] p-0.5 rounded-md border border-[#e2e0dc]">
-            <button id="btn-toggle-preview" class="px-2.5 py-1 rounded text-xs font-semibold bg-white text-[#202020] shadow-xs">Preview</button>
-            <button id="btn-toggle-code" class="px-2.5 py-1 rounded text-xs font-medium text-[#666] hover:text-[#202020]">Code</button>
+      <!-- Executive Standup & Productivity Cockpit View -->
+      <div id="stage-cockpit-view" class="h-full overflow-y-auto p-6 space-y-6">
+        <!-- Standup Header & Global Action Bar -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#e2e0dc]">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              <h2 class="text-sm font-bold tracking-tight text-[#202020] uppercase font-mono">Workforce Daily Standup &amp; Productivity Cockpit</h2>
+            </div>
+            <p class="text-xs text-[#828282] mt-0.5">
+              Live sprint execution, immediate roadblocks, and today's single highest-leverage commitment.
+            </p>
           </div>
-          <span class="text-xs text-[#828282] font-mono truncate max-w-[280px]" id="stage-file-label">Select a file or task</span>
+          <div class="flex items-center gap-2 shrink-0">
+            <button id="btn-standup-sync" class="px-3 py-1.5 rounded-full text-xs font-semibold bg-white hover:bg-[#faf9f5] text-[#202020] border border-[#e2e0dc] shadow-2xs flex items-center gap-1.5 transition-all hover:border-[#c2410c]">
+              <i data-lucide="rotate-cw" class="w-3.5 h-3.5 text-[#c2410c]" id="icon-standup-sync"></i>
+              <span>Run Standup Sync</span>
+            </button>
+            <button id="btn-cockpit-new-task" class="px-3.5 py-1.5 rounded-full text-xs font-semibold bg-[#202020] hover:bg-[#333333] text-white shadow-2xs flex items-center gap-1.5 transition-all">
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+              <span>New Task</span>
+            </button>
+          </div>
         </div>
 
-        <div class="flex items-center gap-3">
-          <!-- Comments count badge -->
-          <div class="flex items-center gap-1 text-xs text-[#828282] font-mono">
-            <i data-lucide="message-square" class="w-3.5 h-3.5"></i>
-            <span id="stage-comments-count">0 pins</span>
+        <!-- Hero Row: The One Thing (Left) & Needs Attention (Right) -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5" id="cockpit-hero-row">
+          <!-- The One Thing Card (Col 7) -->
+          <div class="lg:col-span-7 bg-white rounded-xl border-2 border-[#fed7aa] p-5 shadow-xs flex flex-col justify-between relative overflow-hidden" id="card-one-thing">
+            <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#c2410c] to-[#f97316]"></div>
+            <div>
+              <div class="flex items-center justify-between gap-2 mb-2">
+                <span class="px-2 py-0.5 rounded text-[10px] font-bold font-mono tracking-wide bg-[#fff7ed] text-[#c2410c] border border-[#fed7aa] uppercase flex items-center gap-1">
+                  <i data-lucide="target" class="w-3 h-3"></i>
+                  Today's #1 Commitment (P0 Focus)
+                </span>
+                <span id="one-thing-status-badge" class="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase font-mono bg-[#f4f4f5] text-[#52525b]">
+                  Loading...
+                </span>
+              </div>
+              <h3 id="one-thing-title" class="text-base font-bold text-[#202020] leading-snug tracking-tight mb-2 hover:text-[#c2410c] cursor-pointer transition-colors">
+                Loading highest priority task...
+              </h3>
+              <p id="one-thing-desc" class="text-xs text-[#4d4d4d] leading-relaxed line-clamp-2 mb-3">
+                Evaluating active sprint commitments and priority queue...
+              </p>
+              <div class="flex flex-wrap items-center gap-2 text-[11px] text-[#828282] font-mono" id="one-thing-meta-bar">
+                <span id="one-thing-team" class="badge-team badge-dev">DEV</span>
+                <span id="one-thing-assignee">Assignee: ~</span>
+                <span>•</span>
+                <span id="one-thing-date">Updated: ~</span>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 mt-4 pt-3 border-t border-[#f4f4f5]" id="one-thing-actions">
+              <button id="btn-one-thing-cycle" class="px-3 py-1 rounded text-xs font-medium bg-[#f4f4f5] hover:bg-[#e4e4e7] text-[#202020] transition-colors flex items-center gap-1.5">
+                <i data-lucide="check-circle" class="w-3.5 h-3.5 text-emerald-600"></i>
+                <span id="one-thing-cycle-label">Advance Status</span>
+              </button>
+              <button id="btn-one-thing-inspect" class="px-3 py-1 rounded text-xs font-medium text-[#c2410c] hover:bg-[#fff7ed] transition-colors flex items-center gap-1.5 ml-auto">
+                <span>Inspect Dossier</span>
+                <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
           </div>
 
-          <!-- Open External Link (Stitch / Web) -->
-          <a id="btn-open-external-stitch" href="#" target="_blank" class="hidden px-2.5 py-1 rounded text-xs font-medium text-[#c2410c] hover:bg-[#fff7ed] border border-[#fed7aa] items-center gap-1.5 transition-colors">
-            <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
-            <span>Open in Stitch</span>
-          </a>
+          <!-- Needs Attention Radar Card (Col 5) -->
+          <div class="lg:col-span-5 bg-white rounded-xl border border-[#e2e0dc] p-5 shadow-xs flex flex-col justify-between" id="card-needs-attention">
+            <div>
+              <div class="flex items-center justify-between mb-3">
+                <span class="px-2 py-0.5 rounded text-[10px] font-bold font-mono tracking-wide bg-[#fee2e2] text-[#b91c1c] border border-[#fecaca] uppercase flex items-center gap-1">
+                  <i data-lucide="alert-triangle" class="w-3 h-3"></i>
+                  Needs Immediate Attention
+                </span>
+                <span id="attention-count-badge" class="text-xs font-mono font-semibold text-[#b91c1c]">0 Items</span>
+              </div>
+              <div class="space-y-2 max-h-48 overflow-y-auto pr-1" id="attention-items-list">
+                <!-- Dynamically rendered attention items -->
+              </div>
+            </div>
+          </div>
+        </div>
 
-          <span class="text-xs text-[#828282] font-mono" id="stage-zoom-label">100%</span>
+        <!-- 4-Stat Metric Strip -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3.5" id="cockpit-stats-grid">
+          <div class="bg-white rounded-lg border border-[#e2e0dc] p-3.5 shadow-2xs">
+            <div class="flex items-center justify-between text-[#828282] mb-1">
+              <span class="text-[11px] font-medium">In Progress</span>
+              <i data-lucide="play" class="w-3.5 h-3.5 text-[#0369a1]"></i>
+            </div>
+            <div class="text-xl font-bold text-[#202020] font-mono" id="stat-card-in-progress">0</div>
+            <div class="text-[10px] text-[#828282] mt-0.5">Active engineering tasks</div>
+          </div>
+          <div class="bg-white rounded-lg border border-[#e2e0dc] p-3.5 shadow-2xs">
+            <div class="flex items-center justify-between text-[#828282] mb-1">
+              <span class="text-[11px] font-medium">Up Next (Todo)</span>
+              <i data-lucide="list-todo" class="w-3.5 h-3.5 text-[#52525b]"></i>
+            </div>
+            <div class="text-xl font-bold text-[#202020] font-mono" id="stat-card-todo">0</div>
+            <div class="text-[10px] text-[#828282] mt-0.5">Prioritized backlog queue</div>
+          </div>
+          <div class="bg-white rounded-lg border border-[#e2e0dc] p-3.5 shadow-2xs">
+            <div class="flex items-center justify-between text-[#828282] mb-1">
+              <span class="text-[11px] font-medium">Needs Attention</span>
+              <i data-lucide="shield-alert" class="w-3.5 h-3.5 text-[#b91c1c]"></i>
+            </div>
+            <div class="text-xl font-bold text-[#b91c1c] font-mono" id="stat-card-attention">0</div>
+            <div class="text-[10px] text-[#828282] mt-0.5">Blockers &amp; human reviews</div>
+          </div>
+          <div class="bg-white rounded-lg border border-[#e2e0dc] p-3.5 shadow-2xs">
+            <div class="flex items-center justify-between text-[#828282] mb-1">
+              <span class="text-[11px] font-medium">24h Wins</span>
+              <i data-lucide="trophy" class="w-3.5 h-3.5 text-emerald-600"></i>
+            </div>
+            <div class="text-xl font-bold text-emerald-700 font-mono" id="stat-card-wins">0</div>
+            <div class="text-[10px] text-[#828282] mt-0.5">Verified &amp; completed tasks</div>
+          </div>
+        </div>
+
+        <!-- Interactive Sprint Execution Kanban -->
+        <div class="bg-white rounded-xl border border-[#e2e0dc] p-5 shadow-xs space-y-4" id="cockpit-kanban-board">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#e2e0dc]">
+            <div class="flex items-center gap-2">
+              <i data-lucide="kanban" class="w-4 h-4 text-[#c2410c]"></i>
+              <h3 class="text-xs font-bold text-[#202020] uppercase font-mono tracking-wider">Active Sprint Task Pipeline</h3>
+            </div>
+            <!-- Team Filter Chips -->
+            <div class="flex flex-wrap items-center gap-1.5 text-xs" id="kanban-team-filters">
+              <button class="team-filter-chip active" data-team="all">All Teams</button>
+              <button class="team-filter-chip" data-team="dev">Dev</button>
+              <button class="team-filter-chip" data-team="design">Design</button>
+              <button class="team-filter-chip" data-team="marketing">Marketing</button>
+              <button class="team-filter-chip" data-team="growth">Growth</button>
+              <button class="team-filter-chip" data-team="ops">Ops</button>
+            </div>
+          </div>
+
+          <!-- 4 Kanban Columns -->
+          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+            <!-- Column 1: In Progress -->
+            <div class="kanban-col bg-[#faf9f5] rounded-lg border border-[#e2e0dc] p-3 flex flex-col">
+              <div class="flex items-center justify-between pb-2 mb-2 border-b border-[#e2e0dc]">
+                <span class="text-xs font-bold text-[#0369a1] font-mono flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-[#0369a1] animate-pulse"></span>
+                  In Progress
+                </span>
+                <span class="text-[11px] font-mono font-medium text-[#828282]" id="kanban-count-in-progress">0</span>
+              </div>
+              <div class="kanban-cards-container space-y-2.5 flex-1 min-h-[140px]" id="kanban-cards-in-progress"></div>
+            </div>
+
+            <!-- Column 2: Up Next (Todo) -->
+            <div class="kanban-col bg-[#faf9f5] rounded-lg border border-[#e2e0dc] p-3 flex flex-col">
+              <div class="flex items-center justify-between pb-2 mb-2 border-b border-[#e2e0dc]">
+                <span class="text-xs font-bold text-[#52525b] font-mono flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-[#52525b]"></span>
+                  Up Next (Todo)
+                </span>
+                <span class="text-[11px] font-mono font-medium text-[#828282]" id="kanban-count-todo">0</span>
+              </div>
+              <div class="kanban-cards-container space-y-2.5 flex-1 min-h-[140px]" id="kanban-cards-todo"></div>
+            </div>
+
+            <!-- Column 3: Blocked / Roadblocks -->
+            <div class="kanban-col bg-[#faf9f5] rounded-lg border border-[#fee2e2]/70 p-3 flex flex-col">
+              <div class="flex items-center justify-between pb-2 mb-2 border-b border-[#fecaca]">
+                <span class="text-xs font-bold text-[#b91c1c] font-mono flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-[#b91c1c]"></span>
+                  Blocked / Stalled
+                </span>
+                <span class="text-[11px] font-mono font-medium text-[#b91c1c]" id="kanban-count-blocked">0</span>
+              </div>
+              <div class="kanban-cards-container space-y-2.5 flex-1 min-h-[140px]" id="kanban-cards-blocked"></div>
+            </div>
+
+            <!-- Column 4: Recently Completed (Done) -->
+            <div class="kanban-col bg-[#faf9f5] rounded-lg border border-[#e2e0dc] p-3 flex flex-col">
+              <div class="flex items-center justify-between pb-2 mb-2 border-b border-[#e2e0dc]">
+                <span class="text-xs font-bold text-emerald-700 font-mono flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-emerald-600"></span>
+                  Completed (Done)
+                </span>
+                <span class="text-[11px] font-mono font-medium text-[#828282]" id="kanban-count-done">0</span>
+              </div>
+              <div class="kanban-cards-container space-y-2.5 flex-1 min-h-[140px]" id="kanban-cards-done"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Decisions & 24h Wins Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <!-- Recent Decisions Box -->
+          <div class="bg-white rounded-xl border border-[#e2e0dc] p-5 shadow-xs">
+            <div class="flex items-center justify-between pb-3 mb-3 border-b border-[#e2e0dc]">
+              <div class="flex items-center gap-2">
+                <i data-lucide="git-commit" class="w-4 h-4 text-[#c2410c]"></i>
+                <h4 class="text-xs font-bold text-[#202020] uppercase font-mono tracking-wider">Recent Architectural Decisions</h4>
+              </div>
+              <span class="text-[10px] font-mono text-[#828282]" id="session-decision-id">Session ~</span>
+            </div>
+            <div class="space-y-2 text-xs text-[#4d4d4d]" id="session-decisions-list">
+              <p class="text-[#828282] italic">Loading latest session decisions...</p>
+            </div>
+          </div>
+
+          <!-- 24h Wins & Completed Milestones -->
+          <div class="bg-white rounded-xl border border-[#e2e0dc] p-5 shadow-xs">
+            <div class="flex items-center justify-between pb-3 mb-3 border-b border-[#e2e0dc]">
+              <div class="flex items-center gap-2">
+                <i data-lucide="award" class="w-4 h-4 text-emerald-600"></i>
+                <h4 class="text-xs font-bold text-[#202020] uppercase font-mono tracking-wider">24h Wins &amp; Verified Milestones</h4>
+              </div>
+              <span class="text-[10px] font-mono text-emerald-700 font-semibold" id="wins-completed-count">0 Done</span>
+            </div>
+            <div class="space-y-2 text-xs text-[#4d4d4d]" id="cockpit-wins-list">
+              <p class="text-[#828282] italic">Loading recently completed tasks...</p>
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- Viewport Stage Scrollable Area -->
-      <div class="stage-viewport-area" id="stage-viewport-area">
-        <div class="viewport-frame desktop" id="preview-viewport-frame">
-          <!-- Active Content Display -->
-          <div id="preview-content-box" class="markdown-body">
-            <!-- Rendered Markdown / Mockup / HTML -->
+      <!-- Document & Code Viewer Stage -->
+      <div id="stage-document-view" class="h-full flex flex-col hidden">
+        <!-- Stage Subbar -->
+        <div class="stage-subbar">
+          <div class="flex items-center gap-3">
+            <button id="btn-stage-refresh" class="p-1 rounded text-[#828282] hover:text-[#202020] hover:bg-[#f4f4f5] transition-colors" title="Reload Active Preview">
+              <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i>
+            </button>
+            <div class="flex items-center bg-[#efefef] p-0.5 rounded-md border border-[#e2e0dc]">
+              <button id="btn-toggle-preview" class="px-2.5 py-1 rounded text-xs font-semibold bg-white text-[#202020] shadow-xs">Preview</button>
+              <button id="btn-toggle-code" class="px-2.5 py-1 rounded text-xs font-medium text-[#666] hover:text-[#202020]">Code</button>
+            </div>
+            <span class="text-xs text-[#828282] font-mono truncate max-w-[280px]" id="stage-file-label">Select a file or task</span>
           </div>
 
-          <!-- Visual Pin Overlay Container -->
-          <div id="preview-pins-overlay" class="absolute inset-0 pointer-events-none">
-            <!-- Dynamically rendered visual pins -->
+          <div class="flex items-center gap-3">
+            <!-- Comments count badge -->
+            <div class="flex items-center gap-1 text-xs text-[#828282] font-mono">
+              <i data-lucide="message-square" class="w-3.5 h-3.5"></i>
+              <span id="stage-comments-count">0 pins</span>
+            </div>
+
+            <!-- Open External Link (Stitch / Web) -->
+            <a id="btn-open-external-stitch" href="#" target="_blank" class="hidden px-2.5 py-1 rounded text-xs font-medium text-[#c2410c] hover:bg-[#fff7ed] border border-[#fed7aa] items-center gap-1.5 transition-colors">
+              <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+              <span>Open in Stitch</span>
+            </a>
+
+            <span class="text-xs text-[#828282] font-mono" id="stage-zoom-label">100%</span>
+          </div>
+        </div>
+
+        <!-- Viewport Stage Scrollable Area -->
+        <div class="stage-viewport-area flex-1 overflow-auto" id="stage-viewport-area">
+          <div class="viewport-frame desktop" id="preview-viewport-frame">
+            <!-- Active Content Display -->
+            <div id="preview-content-box" class="markdown-body">
+              <!-- Rendered Markdown / Mockup / HTML -->
+            </div>
+
+            <!-- Visual Pin Overlay Container -->
+            <div id="preview-pins-overlay" class="absolute inset-0 pointer-events-none">
+              <!-- Dynamically rendered visual pins -->
+            </div>
           </div>
         </div>
       </div>
@@ -388,6 +612,64 @@
         <button onclick="window.close()" class="px-4 py-2 rounded-lg bg-[#f4f4f5] text-[#4d4d4d] text-xs font-medium hover:bg-[#e5e5e5] transition-colors">
           Close Window
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- New Task Modal -->
+  <div id="new-task-modal" class="hidden fixed inset-0 z-50 bg-[#202020]/40 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white border border-[#e2e0dc] rounded-xl max-w-md w-full p-5 shadow-2xl">
+      <div class="flex items-center justify-between mb-3 pb-2 border-b border-[#e2e0dc]">
+        <div class="flex items-center gap-2 text-xs font-semibold text-[#202020]">
+          <span class="w-5 h-5 rounded-full bg-[#202020] text-white text-[11px] flex items-center justify-center font-mono">
+            <i data-lucide="plus" class="w-3 h-3"></i>
+          </span>
+          <span>Create New Workforce Task</span>
+        </div>
+        <button id="btn-task-modal-close" class="text-[#828282] hover:text-[#202020]">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3">
+        <div>
+          <label class="text-[10.5px] font-semibold uppercase tracking-wider text-[#666] block mb-1">Task Title</label>
+          <input type="text" id="task-modal-title" placeholder="e.g., Implement Stripe webhook idempotency" class="w-full bg-white border border-[#e2e0dc] rounded px-2.5 py-1.5 text-xs text-[#202020] focus:outline-none focus:border-[#c2410c]">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-[10.5px] font-semibold uppercase tracking-wider text-[#666] block mb-1">Priority</label>
+            <select id="task-modal-priority" class="w-full bg-white border border-[#e2e0dc] rounded px-2.5 py-1.5 text-xs text-[#202020] focus:outline-none focus:border-[#c2410c]">
+              <option value="P0">P0 (Critical / Immediate)</option>
+              <option value="P1" selected>P1 (High / Active Sprint)</option>
+              <option value="P2">P2 (Medium / Standard)</option>
+              <option value="P3">P3 (Low / Backlog)</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-[10.5px] font-semibold uppercase tracking-wider text-[#666] block mb-1">Team / Category</label>
+            <select id="task-modal-team" class="w-full bg-white border border-[#e2e0dc] rounded px-2.5 py-1.5 text-xs text-[#202020] focus:outline-none focus:border-[#c2410c]">
+              <option value="dev" selected>Dev (Engineering)</option>
+              <option value="design">Design (UI / UX)</option>
+              <option value="marketing">Marketing</option>
+              <option value="growth">Growth</option>
+              <option value="ops">Operations</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="text-[10.5px] font-semibold uppercase tracking-wider text-[#666] block mb-1">Description &amp; Context</label>
+          <textarea id="task-modal-desc" rows="3" placeholder="What is the objective, problem, or requirement?" class="w-full bg-white border border-[#e2e0dc] rounded p-2.5 text-xs text-[#202020] focus:outline-none focus:border-[#c2410c] resize-none"></textarea>
+        </div>
+        <div>
+          <label class="text-[10.5px] font-semibold uppercase tracking-wider text-[#666] block mb-1">Suggested Action</label>
+          <input type="text" id="task-modal-action" placeholder="e.g., Run test suite, update route handler..." class="w-full bg-white border border-[#e2e0dc] rounded px-2.5 py-1.5 text-xs text-[#202020] focus:outline-none focus:border-[#c2410c]">
+        </div>
+      </div>
+
+      <div class="mt-4 pt-3 border-t border-[#e2e0dc] flex items-center justify-end gap-2">
+        <button id="btn-task-modal-cancel" class="px-3 py-1.5 rounded bg-[#f4f4f5] text-xs font-medium text-[#4d4d4d] hover:bg-[#e5e5e5]">Cancel</button>
+        <button id="btn-task-modal-save" class="px-4 py-1.5 rounded bg-[#202020] text-xs font-medium text-white hover:bg-[#383838]">Create Task</button>
       </div>
     </div>
   </div>

@@ -308,6 +308,291 @@ def get_all_sessions(root_dir: Path) -> List[Dict[str, Any]]:
     return sessions
 
 
+def get_standup_data(root_dir: Path, tasks: List[Dict[str, Any]], inbox_items: List[Dict[str, Any]], sessions: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Compile multi-source standup and executive productivity intelligence."""
+    priority_order = {"p0": 0, "p1": 1, "p2": 2, "p3": 3}
+    
+    in_progress = [t for t in tasks if t.get("status") == "in_progress"]
+    in_progress.sort(key=lambda t: priority_order.get(str(t.get("priority", "p2")).lower(), 2))
+    
+    todo = [t for t in tasks if t.get("status") == "todo"]
+    todo.sort(key=lambda t: priority_order.get(str(t.get("priority", "p2")).lower(), 2))
+    
+    blocked = [t for t in tasks if t.get("status") == "blocked" or t.get("blocked_by")]
+    done = [t for t in tasks if t.get("status") == "done"]
+    done.sort(key=lambda t: str(t.get("updated_at") or ""), reverse=True)
+
+    # 1. "The One Thing" (Today's top P0/P1 focus commitment)
+    one_thing = None
+    if in_progress:
+        one_thing = in_progress[0]
+    elif todo:
+        one_thing = todo[0]
+    elif done:
+        one_thing = done[0]
+
+    # 2. Needs Attention List
+    needs_attention = []
+    for b in blocked:
+        blocker_names = b.get("blocked_by", [])
+        needs_attention.append({
+            "type": "blocker",
+            "id": b["id"],
+            "title": b["title"],
+            "priority": b.get("priority", "P1"),
+            "reason": f"Blocked by: {', '.join(blocker_names)}" if blocker_names else "Task marked as blocked",
+            "task": b,
+        })
+
+    for it in inbox_items:
+        if it.get("_folder") == "human_review" or it.get("requires_human"):
+            needs_attention.append({
+                "type": "inbox_review",
+                "id": it.get("id"),
+                "title": it.get("title", "Captured Item"),
+                "priority": "P1",
+                "reason": "Extension capture awaiting human decision or approval",
+                "item": it,
+            })
+
+    # Read pending issues from workforces/issues/inbox/
+    issues_dir = root_dir / "workforces" / "issues" / "inbox"
+    issues = []
+    if issues_dir.exists():
+        for f in sorted(issues_dir.glob("*.md"), reverse=True):
+            meta = parse_yaml_frontmatter(f)
+            iss_title = meta.get("title") or f.stem.replace("-", " ").title()
+            iss_id = meta.get("id") or f.stem
+            iss_priority = meta.get("priority") or "P2"
+            issues.append({
+                "id": iss_id,
+                "title": iss_title,
+                "priority": iss_priority,
+                "file": str(f.relative_to(root_dir)),
+                "date": meta.get("reported_at") or meta.get("created_at") or "",
+            })
+            if len(needs_attention) < 8:
+                needs_attention.append({
+                    "type": "issue",
+                    "id": iss_id,
+                    "title": iss_title,
+                    "priority": iss_priority,
+                    "reason": "Unresolved backlog bug / tech debt in inbox",
+                    "file": str(f.relative_to(root_dir)),
+                })
+
+    # 3. 24h Wins
+    wins = []
+    for d in done[:8]:
+        wins.append({
+            "id": d["id"],
+            "title": d["title"],
+            "priority": d.get("priority", "P1"),
+            "completed_at": str(d.get("updated_at") or "")[:10],
+            "file": d.get("file", ""),
+            "linked_commits": d.get("linked_commits", []),
+        })
+
+    # 4. Installed Teams
+    installed_teams = []
+    workrules_file = root_dir / "workforces" / "workrules.md"
+    if workrules_file.exists():
+        try:
+            w_meta = parse_yaml_frontmatter(workrules_file)
+            installed_teams = w_meta.get("installed_teams") or []
+        except Exception:
+            pass
+
+    # 5. Git Status
+    git_info = {"branch": "main", "clean": True, "modified_count": 0, "recent_commits": []}
+    try:
+        branch = subprocess.check_output(["git", "branch", "--show-current"], cwd=str(root_dir), text=True, stderr=subprocess.DEVNULL).strip()
+        status_s = subprocess.check_output(["git", "status", "-s"], cwd=str(root_dir), text=True, stderr=subprocess.DEVNULL).strip()
+        modified_count = len(status_s.splitlines()) if status_s else 0
+        git_info["branch"] = branch or "main"
+        git_info["clean"] = modified_count == 0
+        git_info["modified_count"] = modified_count
+    except Exception:
+        pass
+
+    # 6. Latest Session Context
+    latest_session = {}
+    if sessions:
+        sorted_sessions = sorted(sessions, key=lambda s: str(s.get("id", "")), reverse=True)
+        latest_session = sorted_sessions[0]
+        sess_path = root_dir / latest_session.get("file", "")
+        if sess_path.exists():
+            sess_meta = parse_yaml_frontmatter(sess_path)
+            latest_session["decisions"] = sess_meta.get("decisions") or []
+            latest_session["participants"] = sess_meta.get("participants") or []
+            latest_session["updated_at"] = sess_meta.get("updated_at") or ""
+
+    # 7. Workstate markdown content
+    workstate_md = ""
+    ws_path = root_dir / "workforces" / "workstate.md"
+    if ws_path.exists():
+        try:
+            workstate_md = ws_path.read_text(encoding="utf-8")
+        except Exception:
+            pass
+
+    return {
+        "one_thing": one_thing,
+        "needs_attention": needs_attention,
+        "wins_24h": wins,
+        "in_progress": in_progress,
+        "todo": todo,
+        "blocked": blocked,
+        "done": done,
+        "issues": issues,
+        "installed_teams": installed_teams,
+        "git": git_info,
+        "latest_session": latest_session,
+        "workstate_markdown": workstate_md,
+    }
+
+
+def create_task_file(root_dir: Path, data: Dict[str, Any]) -> Dict[str, Any]:
+    """Create a new task in workforces/tasks/ and synchronize workstate."""
+    now = datetime.datetime.now()
+    now_ts = now.strftime("%Y%m%d-%H%M%S")
+    title = data.get("title", "").strip() or "Untitled Task"
+    clean_slug = re.sub(r'[^a-zA-Z0-9_-]', '-', title.lower()).strip('-')[:40] or "task"
+    filename = f"{now_ts}-{clean_slug}.md"
+    task_path = root_dir / "workforces" / "tasks" / filename
+    task_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    task_type = data.get("type", "feature").strip()
+    priority = data.get("priority", "P1").strip().upper()
+    reporter = data.get("reporter", "@human").strip()
+    assignee = data.get("assignee", "").strip()
+    suggested_action = data.get("suggested_action", "").strip()
+    description = data.get("description", "").strip() or data.get("body", "").strip()
+    
+    body_text = f"""# {title}
+
+**Type:** `{task_type}` | **Priority:** `{priority}` | **Status:** `todo` | **Reporter:** `{reporter}`  
+**Reported:** {now.strftime("%Y-%m-%d %H:%M")} | **Updated:** {now.strftime("%Y-%m-%d %H:%M")}
+
+## Description
+
+{description or "No description provided."}
+
+## Suggested Action
+
+{suggested_action or "Review requirements and begin implementation."}
+
+## 🧠 Session Lineage & Deciding Factors
+
+- **{now.strftime("%Y-%m-%d %H:%M")}:** Created task from Workforce Studio Cockpit
+"""
+    frontmatter = f"""---
+title: "{title}"
+type: "{task_type}"
+priority: "{priority}"
+status: "todo"
+reporter: "{reporter}"
+assignee: {f'"{assignee}"' if assignee else '~'}
+reported_at: "{now.isoformat()}"
+updated_at: "{now.isoformat()}"
+file: "{str(task_path.relative_to(root_dir))}"
+session_id: ""
+session_file: ""
+recommended_tools: []
+delegated_to: ~
+github_labels: []
+github_issue: ~
+github_pr: ~
+---
+
+{body_text}
+"""
+    task_path.write_text(frontmatter, encoding="utf-8")
+    
+    if sync_workstate_from_tasks:
+        try:
+            sync_workstate_from_tasks(str(root_dir))
+        except Exception:
+            pass
+            
+    return {
+        "id": task_path.stem,
+        "file": str(task_path.relative_to(root_dir)),
+        "title": title,
+        "type": task_type,
+        "priority": priority,
+        "status": "todo",
+        "reporter": reporter,
+        "assignee": assignee,
+        "body": body_text
+    }
+
+
+def resolve_inbox_item(root_dir: Path, item_id: str, action: str, priority: str = "P1", task_type: str = "feature") -> Dict[str, Any]:
+    """Approve or dismiss an inbox item."""
+    inbox_base = root_dir / "workforces" / "inbox"
+    target_file = None
+    for folder in ("human_review", "pending", "processed"):
+        d = inbox_base / folder
+        if d.exists():
+            for f in list(d.glob(f"{item_id}.*")) + list(d.glob(f"*{item_id}*")):
+                target_file = f
+                break
+        if target_file:
+            break
+
+    if not target_file or not target_file.exists():
+        raise FileNotFoundError(f"Inbox item {item_id} not found")
+
+    processed_dir = inbox_base / "processed"
+    processed_dir.mkdir(parents=True, exist_ok=True)
+
+    if action == "approve":
+        if target_file.suffix == ".json":
+            raw_data = json.loads(target_file.read_text(encoding="utf-8"))
+            title = raw_data.get("title", "Inbox Task")
+            content = raw_data.get("content") or raw_data.get("selection") or ""
+            source_url = raw_data.get("source_url", "")
+            raw_data["status"] = "approved"
+        else:
+            meta = parse_yaml_frontmatter(target_file)
+            title = meta.get("title") or target_file.stem.replace("-", " ").title()
+            content = meta.get("_body") or ""
+            source_url = meta.get("source_url", "")
+            raw_data = {"id": item_id, "title": title, "content": content, "status": "approved"}
+
+        task_res = create_task_file(root_dir, {
+            "title": title,
+            "priority": priority,
+            "type": task_type,
+            "description": content,
+            "suggested_action": f"Review research/capture from {source_url}" if source_url else "Follow up on approved inbox item.",
+            "reporter": "@inbox"
+        })
+
+        raw_data["task_id"] = task_res["id"]
+        raw_data["task_file"] = task_res["file"]
+        raw_data["resolved_at"] = datetime.datetime.now().isoformat()
+        dest = processed_dir / f"{target_file.stem}.json"
+        dest.write_text(json.dumps(raw_data, indent=2), encoding="utf-8")
+        if target_file != dest:
+            target_file.unlink(missing_ok=True)
+        return {"action": "approved", "task": task_res}
+    else:
+        if target_file.suffix == ".json":
+            raw_data = json.loads(target_file.read_text(encoding="utf-8"))
+            raw_data["status"] = "dismissed"
+            raw_data["dismissed_at"] = datetime.datetime.now().isoformat()
+            dest = processed_dir / f"{target_file.stem}.json"
+            dest.write_text(json.dumps(raw_data, indent=2), encoding="utf-8")
+        else:
+            dest = processed_dir / target_file.name
+            shutil.move(str(target_file), str(dest))
+        if target_file != dest:
+            target_file.unlink(missing_ok=True)
+        return {"action": "dismissed", "item_id": item_id}
+
+
 def get_commit_details(root_dir: Path, commit_hash: Optional[str]) -> Dict[str, Any]:
     """Inspect a git commit, touched files, and AST symbols."""
     if not commit_hash:
@@ -977,6 +1262,13 @@ class WorkforceCanvasHandler(http.server.SimpleHTTPRequestHandler):
             })
         elif path == "/api/state":
             self.send_json_response(self.handle_get_state())
+        elif path in ("/api/sync", "/api/standup"):
+            if sync_workstate_from_tasks:
+                try:
+                    sync_workstate_from_tasks(str(self.root_dir))
+                except Exception:
+                    pass
+            self.send_json_response(self.handle_get_state())
         elif path == "/api/inbox":
             items = get_inbox_items(self.root_dir)
             self.send_json_response({"items": items, "count": len(items)})
@@ -1164,6 +1456,36 @@ li {{ margin: 4px 0; }}
             order_file.write_text(json.dumps(order, indent=2), encoding="utf-8")
             self.send_json_response({"success": True, "order": order})
 
+        elif path == "/api/sync":
+            if sync_workstate_from_tasks:
+                try:
+                    sync_workstate_from_tasks(str(self.root_dir))
+                except Exception as err:
+                    sys.stderr.write(f"Sync error: {err}\n")
+            fresh_state = self.handle_get_state()
+            self.send_json_response({"success": True, "message": "Workstate synchronized from tasks", "state": fresh_state})
+
+        elif path == "/api/task/create":
+            try:
+                task_res = create_task_file(self.root_dir, data)
+                self.send_json_response({"success": True, "task": task_res, "state": self.handle_get_state()})
+            except Exception as err:
+                self.send_error(500, f"Task creation failed: {err}")
+
+        elif path == "/api/inbox/action":
+            item_id = data.get("item_id")
+            action = data.get("action", "approve")
+            priority = data.get("priority", "P1")
+            task_type = data.get("type", "feature")
+            if not item_id:
+                self.send_error(400, "Missing 'item_id'")
+                return
+            try:
+                res = resolve_inbox_item(self.root_dir, item_id, action, priority, task_type)
+                self.send_json_response({"success": True, "result": res, "state": self.handle_get_state()})
+            except Exception as err:
+                self.send_error(500, f"Inbox action failed: {err}")
+
         elif path == "/api/inbox/submit":
             now_ts = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
             raw_title = data.get("title") or "Untitled Capture"
@@ -1264,18 +1586,23 @@ li {{ margin: 4px 0; }}
             except Exception:
                 pass
 
+        # Compile standup and executive productivity data
+        standup = get_standup_data(self.root_dir, tasks, inbox_items, sessions)
+
         # Summary telemetry
         stats = {
             "total_tasks": len(tasks),
             "todo": len([t for t in tasks if t["status"] == "todo"]),
             "in_progress": len([t for t in tasks if t["status"] == "in_progress"]),
-            "blocked": len([t for t in tasks if t["status"] == "blocked"]),
+            "blocked": len([t for t in tasks if t["status"] == "blocked" or t.get("blocked_by")]),
             "done": len([t for t in tasks if t["status"] == "done"]),
             "sessions_count": len(sessions),
             "hypotheses_count": len(hypotheses),
             "goals_count": len(goals),
             "symbols_count": len(available_symbols),
             "inbox_count": len(inbox_items),
+            "needs_attention_count": len(standup.get("needs_attention", [])),
+            "wins_count": len(standup.get("wins_24h", [])),
             "comments_count": len(comments),
         }
 
@@ -1290,6 +1617,10 @@ li {{ margin: 4px 0; }}
             "inbox": inbox_items,
             "comments": comments,
             "turn_summary": turn_summary_text,
+            "standup": standup,
+            "git": standup.get("git", {}),
+            "installed_teams": standup.get("installed_teams", []),
+            "workstate_markdown": standup.get("workstate_markdown", ""),
             "stats": stats,
             "timestamp": datetime.datetime.now().isoformat(),
         }

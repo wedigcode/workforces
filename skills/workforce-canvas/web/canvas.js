@@ -53,7 +53,8 @@
     setupHeartbeatAndPower();
     await fetchWorkforceState();
     setupStudio();
-    navigateTo('workstate', null, 'Radar', false);
+    // Default to the executive Standup Cockpit view
+    switchToStudioMode('cockpit');
     if (window.lucide) {
       window.lucide.createIcons();
     }
@@ -72,7 +73,12 @@
       state.goals = data.goals || [];
       state.availableSymbols = data.symbols || [];
       state.stats = data.stats || {};
+      state.standup = data.standup || {};
+      state.git = data.git || {};
+      state.installedTeams = data.installed_teams || [];
+      state.workstateMarkdown = data.workstate_markdown || '';
       updateTopBarStats();
+      renderStandupCockpit();
     } catch (err) {
       console.error('Fetch error:', err);
     }
@@ -1466,28 +1472,43 @@
   // --- Controls & UI Setup ---
 
   function setupControls() {
-    document.getElementById('btn-zoom-in').onclick = () => zoomAroundPoint(1.2);
-    document.getElementById('btn-zoom-out').onclick = () => zoomAroundPoint(1 / 1.2);
-    document.getElementById('btn-zoom-reset').onclick = () => {
-      state.panX = 80;
-      state.panY = 80;
-      state.zoom = 0.95;
-      applyTransform();
-      document.getElementById('zoom-label').innerText = '95%';
-    };
+    const btnZoomIn = document.getElementById('btn-zoom-in');
+    if (btnZoomIn) btnZoomIn.onclick = () => zoomAroundPoint(1.2);
+
+    const btnZoomOut = document.getElementById('btn-zoom-out');
+    if (btnZoomOut) btnZoomOut.onclick = () => zoomAroundPoint(1 / 1.2);
+
+    const btnZoomReset = document.getElementById('btn-zoom-reset');
+    if (btnZoomReset) {
+      btnZoomReset.onclick = () => {
+        state.panX = 80;
+        state.panY = 80;
+        state.zoom = 0.95;
+        applyTransform();
+        const zoomLbl = document.getElementById('zoom-label');
+        if (zoomLbl) zoomLbl.innerText = '95%';
+      };
+    }
 
     const btnWorkstate = document.getElementById('btn-mode-workstate');
+    if (btnWorkstate) {
+      btnWorkstate.onclick = () => navigateTo('workstate', null, 'Radar', false);
+    }
+
     const btnBlast = document.getElementById('btn-mode-blast');
+    if (btnBlast) {
+      btnBlast.onclick = () => navigateTo('blast_radius', state.activeFocalSymbol || 'sync_workstate_from_tasks', 'Blast Radius');
+    }
+
     const btnExitFocus = document.getElementById('btn-exit-focus');
-
-    btnWorkstate.onclick = () => navigateTo('workstate', null, 'Radar', false);
-    btnBlast.onclick = () => navigateTo('blast_radius', state.activeFocalSymbol || 'sync_workstate_from_tasks', 'Blast Radius');
-
     if (btnExitFocus) {
       btnExitFocus.onclick = () => popNavigation();
     }
 
-    document.getElementById('drawer-close-btn').onclick = closeInspectDrawer;
+    const drawerClose = document.getElementById('drawer-close-btn');
+    if (drawerClose) {
+      drawerClose.onclick = closeInspectDrawer;
+    }
 
     window.addEventListener('resize', () => {
       if (state.viewMode !== 'workstate') {
@@ -1504,7 +1525,8 @@
         }
       }
       if (e.key === 'r' && !e.target.matches('input, textarea')) {
-        document.getElementById('btn-zoom-reset').click();
+        const resetBtn = document.getElementById('btn-zoom-reset');
+        if (resetBtn) resetBtn.click();
       }
     });
   }
@@ -1684,6 +1706,7 @@
     setupViewportToggles();
     setupVisualPinPlacement();
     setupCopilotFeed();
+    setupStandupActions();
     loadStudioInitialContent();
   }
 
@@ -1694,6 +1717,12 @@
         const scenario = chip.getAttribute('data-scenario');
         if (scenario === 'radar') {
           switchToRadarMode();
+        } else if (scenario === 'cockpit') {
+          switchToStudioMode('cockpit');
+        } else if (scenario === 'tasks') {
+          openTasksOverviewTab();
+        } else if (scenario === 'inbox') {
+          openInboxTab();
         } else if (scenario === 'wireframe') {
           openWireframeTab();
         } else if (scenario === 'mockup') {
@@ -1719,6 +1748,8 @@
 
         if (view === 'radar') {
           switchToRadarMode();
+        } else if (view === 'cockpit') {
+          switchToStudioMode('cockpit');
         } else if (view === 'inbox') {
           openInboxTab();
         } else if (view === 'wireframe') {
@@ -1769,7 +1800,23 @@
     const targetChip = document.getElementById(`chip-${scenario}`);
     if (targetChip) targetChip.classList.add('active');
 
-    renderActiveTabContent();
+    document.querySelectorAll('#studio-sidebar-rail .rail-item').forEach(r => r.classList.remove('active'));
+    const targetRail = document.getElementById(`rail-btn-${scenario === 'cockpit' ? 'cockpit' : (scenario === 'document' ? 'docs' : scenario)}`);
+    if (targetRail) targetRail.classList.add('active');
+
+    const cockpitView = document.getElementById('stage-cockpit-view');
+    const docView = document.getElementById('stage-document-view');
+
+    if (scenario === 'cockpit') {
+      if (cockpitView) cockpitView.classList.remove('hidden');
+      if (docView) docView.classList.add('hidden');
+      renderStandupCockpit();
+    } else {
+      if (cockpitView) cockpitView.classList.add('hidden');
+      if (docView) docView.classList.remove('hidden');
+      renderActiveTabContent();
+    }
+
     if (window.lucide) window.lucide.createIcons();
   }
 
@@ -2043,12 +2090,26 @@
       });
     }
 
-    // Open initial tab
+    // Populate initial document tab in background without overriding Cockpit view
     if (state.tasks.length > 0) {
-      openTaskTab(state.tasks[0].id);
+      const firstTask = state.tasks[0];
+      const tab = {
+        id: firstTask.id,
+        title: firstTask.title,
+        type: 'task',
+        path: firstTask.file,
+        content: `# ${firstTask.title}\n\n**Status:** \`${firstTask.status}\` | **Priority:** \`${firstTask.priority}\` | **Team:** \`${firstTask.team}\`\n\n---\n\n${firstTask.body || "No task description."}`,
+        scenario: 'document',
+        pins: []
+      };
+      studioState.openTabs.push(tab);
+      studioState.activeTabId = tab.id;
+      renderTabStrip();
     } else {
       openDefaultDocumentTab();
     }
+    // Ensure cockpit view remains selected on initial load
+    switchToStudioMode('cockpit');
   }
 
   function openTab(tab) {
@@ -2548,6 +2609,396 @@ This split-stage studio integrates your autonomous AI engineering workforce with
       pinEl.appendChild(popover);
       overlay.appendChild(pinEl);
     });
+  }
+
+  // ==========================================================================
+  // Standup Cockpit & Productivity Dashboard Controller
+  // ==========================================================================
+
+  let currentKanbanTeamFilter = 'all';
+
+  function renderStandupCockpit() {
+    const standup = state.standup || {};
+    const tasks = state.tasks || [];
+    const oneThing = standup.one_thing || (tasks.length > 0 ? tasks[0] : null);
+    const needsAttention = standup.needs_attention || [];
+    const wins = standup.wins_24h || [];
+
+    // 1. Render "The One Thing" Focus Card
+    const oneThingTitle = document.getElementById('one-thing-title');
+    const oneThingDesc = document.getElementById('one-thing-desc');
+    const oneThingStatus = document.getElementById('one-thing-status-badge');
+    const oneThingTeam = document.getElementById('one-thing-team');
+    const oneThingAssignee = document.getElementById('one-thing-assignee');
+    const oneThingDate = document.getElementById('one-thing-date');
+    const oneThingCycleBtn = document.getElementById('btn-one-thing-cycle');
+    const oneThingInspectBtn = document.getElementById('btn-one-thing-inspect');
+    const oneThingCycleLabel = document.getElementById('one-thing-cycle-label');
+
+    if (oneThing && oneThingTitle) {
+      oneThingTitle.innerText = oneThing.title || 'Untitled Task';
+      oneThingTitle.onclick = () => openTaskTab(oneThing.id);
+      if (oneThingDesc) {
+        oneThingDesc.innerText = oneThing.body ? oneThing.body.replace(/[#*`_]/g, '').trim().slice(0, 160) + '...' : 'No description provided.';
+      }
+      if (oneThingStatus) {
+        oneThingStatus.innerText = (oneThing.status || 'todo').toUpperCase();
+        if (oneThing.status === 'in_progress') {
+          oneThingStatus.className = 'px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase font-mono bg-[#e0f2fe] text-[#0369a1]';
+        } else if (oneThing.status === 'done') {
+          oneThingStatus.className = 'px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase font-mono bg-[#dcfce7] text-emerald-800';
+        } else {
+          oneThingStatus.className = 'px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase font-mono bg-[#f4f4f5] text-[#52525b]';
+        }
+      }
+      if (oneThingTeam) {
+        const tName = (oneThing.team || 'dev').toUpperCase();
+        oneThingTeam.innerText = tName;
+        oneThingTeam.className = `badge-team badge-${(oneThing.team || 'dev').toLowerCase()}`;
+      }
+      if (oneThingAssignee) {
+        oneThingAssignee.innerText = `Assignee: ${oneThing.assignee || '@human'}`;
+      }
+      if (oneThingDate) {
+        const dt = oneThing.updated_at || oneThing.reported_at || '';
+        oneThingDate.innerText = `Updated: ${dt ? dt.slice(0, 10) : 'Today'}`;
+      }
+      if (oneThingCycleBtn) {
+        oneThingCycleBtn.onclick = () => cycleTaskStatus(oneThing);
+        if (oneThingCycleLabel) {
+          oneThingCycleLabel.innerText = oneThing.status === 'todo' ? 'Start Task' : (oneThing.status === 'in_progress' ? 'Mark Done' : 'Restart Task');
+        }
+      }
+      if (oneThingInspectBtn) {
+        oneThingInspectBtn.onclick = () => openTaskTab(oneThing.id);
+      }
+    } else if (oneThingTitle) {
+      oneThingTitle.innerText = "No active tasks in workspace";
+      if (oneThingDesc) oneThingDesc.innerText = "Create a task or run a standup sync to populate the sprint pipeline.";
+      if (oneThingStatus) oneThingStatus.innerText = "READY";
+    }
+
+    // 2. Render "Needs Attention" Radar Card
+    const attentionList = document.getElementById('attention-items-list');
+    const attentionBadge = document.getElementById('attention-count-badge');
+    if (attentionBadge) {
+      attentionBadge.innerText = `${needsAttention.length} Item${needsAttention.length === 1 ? '' : 's'}`;
+    }
+
+    if (attentionList) {
+      if (needsAttention.length === 0) {
+        attentionList.innerHTML = `
+          <div class="py-6 text-center text-xs text-emerald-700 bg-emerald-50/50 rounded-lg border border-emerald-100 flex flex-col items-center gap-1">
+            <i data-lucide="check-circle" class="w-4 h-4 text-emerald-600"></i>
+            <span>All systems clear. Zero blockers or pending reviews!</span>
+          </div>
+        `;
+      } else {
+        attentionList.innerHTML = '';
+        needsAttention.forEach(item => {
+          const card = document.createElement('div');
+          card.className = `attention-card ${item.type === 'blocker' ? 'blocker' : ''}`;
+          
+          let actionBtns = '';
+          if (item.type === 'inbox_review') {
+            actionBtns = `
+              <div class="flex items-center gap-1.5 mt-1">
+                <button class="px-2 py-0.5 rounded text-[10.5px] font-semibold bg-[#202020] text-white hover:bg-[#333] transition-colors btn-approve-inbox">Approve &amp; Task</button>
+                <button class="px-2 py-0.5 rounded text-[10.5px] font-medium text-[#828282] hover:bg-[#faf9f5] border border-[#e2e0dc] transition-colors btn-dismiss-inbox">Dismiss</button>
+              </div>
+            `;
+          } else {
+            actionBtns = `
+              <div class="flex items-center gap-1.5 mt-1">
+                <button class="px-2 py-0.5 rounded text-[10.5px] font-semibold text-[#c2410c] hover:bg-[#fff7ed] transition-colors btn-open-task">Inspect Blocker &rarr;</button>
+              </div>
+            `;
+          }
+
+          card.innerHTML = `
+            <div class="flex items-center justify-between">
+              <span class="text-[9.5px] font-mono font-bold uppercase tracking-wider ${item.type === 'blocker' ? 'text-[#b91c1c]' : 'text-[#ea580c]'}">${item.type.replace('_', ' ')}</span>
+              <span class="text-[9.5px] font-mono text-[#828282]">${item.priority || 'P1'}</span>
+            </div>
+            <h4 class="text-xs font-semibold text-[#202020] leading-snug cursor-pointer hover:text-[#c2410c]">${escapeHtml(item.title)}</h4>
+            <p class="text-[11px] text-[#666] leading-relaxed">${escapeHtml(item.reason)}</p>
+            ${actionBtns}
+          `;
+
+          if (item.type === 'inbox_review') {
+            const approveBtn = card.querySelector('.btn-approve-inbox');
+            const dismissBtn = card.querySelector('.btn-dismiss-inbox');
+            if (approveBtn) approveBtn.onclick = () => handleInboxAction(item.id, 'approve');
+            if (dismissBtn) dismissBtn.onclick = () => handleInboxAction(item.id, 'dismiss');
+          } else {
+            const openBtn = card.querySelector('.btn-open-task');
+            if (openBtn) {
+              openBtn.onclick = () => {
+                if (item.task) openTaskTab(item.task.id);
+                else openDocumentTab(item.file || '', item.title);
+              };
+            }
+          }
+
+          attentionList.appendChild(card);
+        });
+      }
+    }
+
+    // 3. Render 4-Stat Metric Strip
+    const statInProg = document.getElementById('stat-card-in-progress');
+    if (statInProg) statInProg.innerText = state.stats.in_progress || (standup.in_progress ? standup.in_progress.length : 0);
+
+    const statTodo = document.getElementById('stat-card-todo');
+    if (statTodo) statTodo.innerText = state.stats.todo || (standup.todo ? standup.todo.length : 0);
+
+    const statAttention = document.getElementById('stat-card-attention');
+    if (statAttention) statAttention.innerText = needsAttention.length;
+
+    const statWins = document.getElementById('stat-card-wins');
+    if (statWins) statWins.innerText = wins.length;
+
+    // 4. Render 4-Column Sprint Kanban
+    renderKanbanColumns();
+
+    // 5. Render Architectural Decisions & 24h Wins
+    const decisionList = document.getElementById('session-decisions-list');
+    const decisionSessId = document.getElementById('session-decision-id');
+    const latestSession = standup.latest_session || {};
+
+    if (decisionSessId) {
+      decisionSessId.innerText = latestSession.id ? `Session ${latestSession.id}` : 'Latest Session';
+    }
+
+    if (decisionList) {
+      const decisions = latestSession.decisions || [];
+      if (decisions.length === 0) {
+        decisionList.innerHTML = `<p class="text-xs text-[#828282] italic py-2">No decision records found in recent session contexts.</p>`;
+      } else {
+        decisionList.innerHTML = '';
+        decisions.slice(0, 5).forEach(d => {
+          const row = document.createElement('div');
+          row.className = 'p-2.5 bg-[#faf9f5] border border-[#e2e0dc] rounded-md space-y-1';
+          row.innerHTML = `
+            <div class="flex items-center gap-1.5 text-[10.5px] font-semibold text-[#202020]">
+              <i data-lucide="check" class="w-3 h-3 text-emerald-600"></i>
+              <span>${escapeHtml(d.title || d.what || 'Architecture Decision')}</span>
+            </div>
+            ${d.why ? `<p class="text-[11px] text-[#666] leading-relaxed">${escapeHtml(d.why)}</p>` : ''}
+          `;
+          decisionList.appendChild(row);
+        });
+      }
+    }
+
+    const winsList = document.getElementById('cockpit-wins-list');
+    const winsCount = document.getElementById('wins-completed-count');
+    if (winsCount) winsCount.innerText = `${wins.length} Done`;
+
+    if (winsList) {
+      if (wins.length === 0) {
+        winsList.innerHTML = `<p class="text-xs text-[#828282] italic py-2">No completed tasks recorded in the last 24 hours.</p>`;
+      } else {
+        winsList.innerHTML = '';
+        wins.slice(0, 5).forEach(w => {
+          const row = document.createElement('div');
+          row.className = 'p-2.5 bg-[#faf9f5] border border-[#e2e0dc] rounded-md flex items-center justify-between gap-3';
+          row.innerHTML = `
+            <div class="flex items-center gap-2 truncate">
+              <i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-600 shrink-0"></i>
+              <span class="text-xs font-medium text-[#202020] truncate cursor-pointer hover:text-[#c2410c] win-title">${escapeHtml(w.title)}</span>
+            </div>
+            <span class="text-[10px] font-mono text-[#828282] shrink-0">${w.completed_at || 'Recently'}</span>
+          `;
+          row.querySelector('.win-title').onclick = () => openTaskTab(w.id);
+          winsList.appendChild(row);
+        });
+      }
+    }
+
+    // Refresh Lucide vector icons
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  function renderKanbanColumns() {
+    const tasks = state.tasks || [];
+    const filterTeam = currentKanbanTeamFilter.toLowerCase();
+
+    const filtered = filterTeam === 'all' 
+      ? tasks 
+      : tasks.filter(t => (t.team || 'dev').toLowerCase() === filterTeam);
+
+    const cols = {
+      in_progress: filtered.filter(t => t.status === 'in_progress'),
+      todo: filtered.filter(t => t.status === 'todo'),
+      blocked: filtered.filter(t => t.status === 'blocked' || (t.blocked_by && t.blocked_by.length > 0)),
+      done: filtered.filter(t => t.status === 'done'),
+    };
+
+    ['in_progress', 'todo', 'blocked', 'done'].forEach(colKey => {
+      const container = document.getElementById(`kanban-cards-${colKey.replace('_', '-')}`);
+      const countEl = document.getElementById(`kanban-count-${colKey.replace('_', '-')}`);
+      const list = cols[colKey] || [];
+
+      if (countEl) countEl.innerText = list.length;
+      if (!container) return;
+
+      if (list.length === 0) {
+        container.innerHTML = `<div class="p-3 text-center text-[11px] text-[#828282] italic border border-dashed border-[#e2e0dc] rounded">Empty</div>`;
+        return;
+      }
+
+      container.innerHTML = '';
+      list.forEach(task => {
+        const card = document.createElement('div');
+        const prioLower = (task.priority || 'P2').toLowerCase();
+        card.className = `kanban-card priority-${prioLower}`;
+
+        const nextActionLabel = task.status === 'todo' ? 'Start &rarr;' : (task.status === 'in_progress' ? 'Done &check;' : 'Restart');
+
+        card.innerHTML = `
+          <div class="flex items-center justify-between mb-1.5">
+            <span class="text-[9px] font-mono font-bold uppercase px-1.5 py-0.2 rounded ${task.priority === 'P0' ? 'bg-[#fee2e2] text-[#b91c1c]' : 'bg-[#f4f4f5] text-[#4d4d4d]'}">${task.priority || 'P1'}</span>
+            <span class="text-[9.5px] font-mono uppercase text-[#828282]">${(task.team || 'dev').toUpperCase()}</span>
+          </div>
+          <h4 class="text-xs font-semibold text-[#202020] leading-snug mb-2 hover:text-[#c2410c] transition-colors">${escapeHtml(task.title)}</h4>
+          <div class="flex items-center justify-between pt-2 border-t border-[#f4f4f5]">
+            <span class="text-[10px] font-mono text-[#828282] truncate max-w-[110px]">${task.assignee || '@human'}</span>
+            <button class="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#f4f4f5] hover:bg-[#e4e4e7] text-[#202020] transition-colors btn-cycle-status">
+              ${nextActionLabel}
+            </button>
+          </div>
+        `;
+
+        card.querySelector('h4').onclick = () => openTaskTab(task.id);
+        card.querySelector('.btn-cycle-status').onclick = (e) => {
+          e.stopPropagation();
+          cycleTaskStatus(task);
+        };
+
+        container.appendChild(card);
+      });
+    });
+  }
+
+  async function cycleTaskStatus(task) {
+    let nextStatus = 'in_progress';
+    if (task.status === 'todo') nextStatus = 'in_progress';
+    else if (task.status === 'in_progress') nextStatus = 'done';
+    else if (task.status === 'done') nextStatus = 'todo';
+    else if (task.status === 'blocked') nextStatus = 'in_progress';
+
+    await updateTaskOnServer(task.file, { status: nextStatus });
+  }
+
+  async function handleInboxAction(itemId, action) {
+    try {
+      const res = await fetch('/api/inbox/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ item_id: itemId, action: action, priority: 'P1' })
+      });
+      if (res.ok) {
+        await fetchWorkforceState();
+      }
+    } catch (err) {
+      alert(`Action failed: ${err.message}`);
+    }
+  }
+
+  function setupStandupActions() {
+    // 1. Sync button
+    const btnSync = document.getElementById('btn-standup-sync');
+    const syncIcon = document.getElementById('icon-standup-sync');
+    if (btnSync) {
+      btnSync.onclick = async () => {
+        if (syncIcon) syncIcon.classList.add('animate-spin');
+        try {
+          const res = await fetch('/api/sync', { method: 'POST' });
+          if (res.ok) {
+            await fetchWorkforceState();
+          }
+        } catch (err) {
+          console.error('Standup sync error:', err);
+        } finally {
+          if (syncIcon) syncIcon.classList.remove('animate-spin');
+        }
+      };
+    }
+
+    // 2. Team filter chips
+    const teamChips = document.querySelectorAll('#kanban-team-filters .team-filter-chip');
+    teamChips.forEach(chip => {
+      chip.onclick = () => {
+        teamChips.forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        currentKanbanTeamFilter = chip.getAttribute('data-team') || 'all';
+        renderKanbanColumns();
+      };
+    });
+
+    // 3. New Task Modal
+    const btnNewTask = document.getElementById('btn-cockpit-new-task');
+    const taskModal = document.getElementById('new-task-modal');
+    const taskModalClose = document.getElementById('btn-task-modal-close');
+    const taskModalCancel = document.getElementById('btn-task-modal-cancel');
+    const taskModalSave = document.getElementById('btn-task-modal-save');
+
+    function openTaskModal() {
+      if (taskModal) {
+        document.getElementById('task-modal-title').value = '';
+        document.getElementById('task-modal-desc').value = '';
+        document.getElementById('task-modal-action').value = '';
+        taskModal.classList.remove('hidden');
+        document.getElementById('task-modal-title').focus();
+      }
+    }
+
+    function closeTaskModal() {
+      if (taskModal) taskModal.classList.add('hidden');
+    }
+
+    if (btnNewTask) btnNewTask.onclick = openTaskModal;
+    if (taskModalClose) taskModalClose.onclick = closeTaskModal;
+    if (taskModalCancel) taskModalCancel.onclick = closeTaskModal;
+
+    if (taskModalSave) {
+      taskModalSave.onclick = async () => {
+        const title = document.getElementById('task-modal-title').value.trim();
+        const priority = document.getElementById('task-modal-priority').value;
+        const team = document.getElementById('task-modal-team').value;
+        const desc = document.getElementById('task-modal-desc').value.trim();
+        const action = document.getElementById('task-modal-action').value.trim();
+
+        if (!title) {
+          alert('Please enter a task title.');
+          return;
+        }
+
+        try {
+          const res = await fetch('/api/task/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              title: title,
+              priority: priority,
+              type: team,
+              description: desc,
+              suggested_action: action,
+              reporter: '@human'
+            })
+          });
+          if (res.ok) {
+            closeTaskModal();
+            await fetchWorkforceState();
+          } else {
+            alert('Failed to create task');
+          }
+        } catch (err) {
+          alert(`Error creating task: ${err.message}`);
+        }
+      };
+    }
   }
 
   function escapeHtml(str) {

@@ -223,6 +223,42 @@ Ad campaigns on Google and Twitter.
         manifest_dev = resolve_manifest.resolve_manifest(str(REPO_ROOT), str(REPO_ROOT), teams_arg="dev")
         self.assertIn("workforce-canvas", manifest_dev["skills"])
 
+    def test_standup_data_and_cockpit_helpers(self):
+        """Verify get_standup_data, create_task_file, and resolve_inbox_item."""
+        tasks = server.get_all_tasks(self.root_path)
+        standup = server.get_standup_data(self.root_path, tasks, [], [])
+        self.assertIsNotNone(standup["one_thing"])
+        self.assertEqual(len(standup["needs_attention"]), 1)
+        self.assertEqual(standup["needs_attention"][0]["id"], "task-mkt-01")
+
+        # Test creating a new task
+        new_task = server.create_task_file(self.root_path, {
+            "title": "Automate Standup Cockpit View",
+            "priority": "P0",
+            "type": "feature",
+            "description": "Render executive standup cockpit",
+            "suggested_action": "Build UI"
+        })
+        self.assertEqual(new_task["priority"], "P0")
+        self.assertTrue((self.root_path / new_task["file"]).exists())
+
+        # Test resolving inbox item
+        human_dir = self.root_path / "workforces" / "inbox" / "human_review"
+        human_dir.mkdir(parents=True, exist_ok=True)
+        inbox_file = human_dir / "inbox-test-approval.json"
+        inbox_file.write_text(json.dumps({
+            "id": "inbox-test-approval",
+            "title": "Approval Item",
+            "content": "Need approval on payment gateway",
+            "requires_human": True
+        }), encoding="utf-8")
+
+        res = server.resolve_inbox_item(self.root_path, "inbox-test-approval", "approve", "P1", "feature")
+        self.assertEqual(res["action"], "approved")
+        self.assertFalse(inbox_file.exists())
+        self.assertTrue((self.root_path / res["task"]["file"]).exists())
+
+
 
 class TestWorkforceCanvasHTTPServer(unittest.TestCase):
     @classmethod
