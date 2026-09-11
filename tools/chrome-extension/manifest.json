@@ -1,0 +1,40 @@
+{
+  "manifest_version": 3,
+  "name": "Workforce Studio & Task Assistant",
+  "version": "1.0.0",
+  "description": "Bridge Chrome browser research, Ask Gemini, Google Flow, and Stitch mockups with Workforce Studio Canvas.",
+  "permissions": [
+    "activeTab",
+    "contextMenus",
+    "storage",
+    "clipboardWrite"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1:8765/*",
+    "http://localhost:8765/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Workforce Studio Assistant",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["content.css"]
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

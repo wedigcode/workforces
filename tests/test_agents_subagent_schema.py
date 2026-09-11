@@ -39,7 +39,7 @@ MANDATORY_FIELDS = [
     "commandExecutionPolicy",
 ]
 
-EXPECTED_AGENT_COUNT = 13
+EXPECTED_AGENT_COUNT = 14
 
 
 def parse_agent_frontmatter(content: str) -> Optional[Dict[str, Any]]:

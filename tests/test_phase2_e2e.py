@@ -49,8 +49,9 @@ EXPECTED_EXECUTION_AGENTS = {
     "project-manager.md",
     "unbundler.md",
     "disruptor.md",
+    "heartbeat.md",
 }
-EXPECTED_AGENT_COUNT = 13
+EXPECTED_AGENT_COUNT = 14
 
 
 def parse_yaml_frontmatter(content: str) -> Optional[Dict[str, str]]:

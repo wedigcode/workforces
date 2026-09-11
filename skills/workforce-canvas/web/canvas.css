@@ -527,3 +527,364 @@ body, html {
   border-top: 1px solid var(--border-subtle);
   margin: 12px 0;
 }
+
+/* ==========================================================================
+   OpenDesign Studio Split-Stage Architecture
+   ========================================================================== */
+
+/* Left Sidebar Rail */
+#studio-sidebar-rail {
+  position: fixed;
+  top: 56px;
+  left: 0;
+  bottom: 0;
+  width: 56px;
+  background-color: #ffffff;
+  border-right: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  z-index: 45;
+}
+
+.rail-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+}
+
+.rail-item {
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: var(--text-dim);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+}
+
+.rail-item:hover {
+  color: var(--text-main);
+  background-color: var(--bg-surface);
+  border-color: var(--border-subtle);
+}
+
+.rail-item.active {
+  color: #ffffff;
+  background-color: #202020;
+  border-color: #202020;
+}
+
+.rail-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  font-size: 9px;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  background-color: var(--accent-ember-graphic);
+  color: #ffffff;
+  border-radius: 10px;
+  padding: 1px 4px;
+  line-height: 1;
+}
+
+/* Studio Workspace Container */
+#studio-workspace-container {
+  position: fixed;
+  top: 56px;
+  left: 56px;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  background-color: var(--bg-canvas);
+  z-index: 40;
+  overflow: hidden;
+}
+
+#studio-workspace-container.hidden {
+  display: none !important;
+}
+
+/* Left Copilot & Audit Feed */
+#studio-copilot-feed {
+  width: 380px;
+  min-width: 340px;
+  max-width: 440px;
+  height: 100%;
+  background-color: #ffffff;
+  border-right: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.copilot-header {
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  background-color: #faf9f5;
+}
+
+.copilot-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.copilot-footer {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border-subtle);
+  background-color: #ffffff;
+}
+
+/* Audit / Quality Gate Badge */
+.quality-gate-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  background-color: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+
+/* Files from this Turn Box */
+.turn-files-card {
+  background-color: #faf9f5;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.turn-files-title {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+
+.turn-file-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px solid #ebe9e4;
+  font-size: 11.5px;
+}
+
+.turn-file-row:last-child {
+  border-bottom: none;
+}
+
+/* Action Suggestion Pills */
+.suggestion-pill {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background-color: #ffffff;
+  border: 1px solid var(--border-subtle);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+}
+
+.suggestion-pill:hover {
+  background-color: #faf9f5;
+  color: var(--text-main);
+  border-color: #c2410c;
+}
+
+/* Right Preview Stage */
+#studio-preview-stage {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background-color: #f7f6f2;
+}
+
+.stage-subbar {
+  height: 44px;
+  background-color: #ffffff;
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.stage-viewport-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 32px 24px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  position: relative;
+}
+
+/* Viewport Frames (Desktop vs Mobile) */
+.viewport-frame {
+  background-color: #ffffff;
+  border: 1px solid var(--border-subtle);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+  position: relative;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.viewport-frame.desktop {
+  width: 100%;
+  max-width: 960px;
+  min-height: 700px;
+  border-radius: 8px;
+  padding: 40px;
+}
+
+.viewport-frame.mobile {
+  width: 375px;
+  min-height: 667px;
+  border-radius: 28px;
+  padding: 24px 18px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.1);
+  border: 4px solid #202020;
+}
+
+/* Visual Pin Marker */
+.visual-pin {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background-color: #c2410c;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(194, 65, 12, 0.4);
+  z-index: 50;
+  transition: transform 0.15s ease;
+}
+
+.visual-pin:hover {
+  transform: translate(-50%, -50%) scale(1.2);
+}
+
+.visual-pin-popover {
+  position: absolute;
+  top: 26px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 220px;
+  background-color: #ffffff;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  padding: 10px 12px;
+  font-size: 11.5px;
+  color: var(--text-main);
+  z-index: 60;
+  pointer-events: auto;
+}
+
+/* Scenario Chips Bar */
+.scenario-chip {
+  padding: 4px 10px;
+  border-radius: 14px;
+  font-size: 11.5px;
+  font-weight: 500;
+  border: 1px solid var(--border-subtle);
+  background-color: #ffffff;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.15s ease;
+}
+
+.scenario-chip:hover {
+  color: var(--text-main);
+  border-color: #828282;
+}
+
+.scenario-chip.active {
+  background-color: #202020;
+  color: #ffffff;
+  border-color: #202020;
+}
+
+/* Tabs Strip */
+.tab-strip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow-x: auto;
+  max-width: 480px;
+}
+
+.studio-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  background-color: #efefef;
+  border: 1px solid var(--border-subtle);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.studio-tab.active {
+  background-color: #ffffff;
+  color: var(--text-main);
+  font-weight: 600;
+  border-color: var(--border-subtle);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.studio-tab-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  color: var(--text-dim);
+}
+
+.studio-tab-close:hover {
+  background-color: #fee2e2;
+  color: #b91c1c;
+}
+

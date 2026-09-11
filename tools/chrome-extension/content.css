@@ -1,0 +1,25 @@
+/* Workforce Studio Extension - In-Page Content Styles */
+.workforce-toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background-color: #202020;
+  color: #ffffff;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 10px 16px;
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  z-index: 2147483647;
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  pointer-events: none;
+  border-left: 3px solid #10b981;
+}
+
+.workforce-toast-container.visible {
+  opacity: 1;
+  transform: translateY(0);
+}

@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Workforce Studio Assistant</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <!-- Header -->
+    <header class="header">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="8" x2="16" y1="10" y2="10"/><line x1="8" x2="12" y1="14" y2="14"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <span class="brand-title">Workforce Studio</span>
+          <span class="brand-sub">Chrome Bridge</span>
+        </div>
+      </div>
+      <div class="status-badge" id="server-status-badge">
+        <span class="status-dot" id="status-dot"></span>
+        <span class="status-label" id="status-label">Checking...</span>
+      </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="tab-bar">
+      <button class="tab-btn active" data-tab="gemini">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>
+        Ask Gemini &amp; Flow
+      </button>
+      <button class="tab-btn" data-tab="capture">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+        Quick Capture
+      </button>
+      <button class="tab-btn" data-tab="inbox">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+        Inbox (<span id="inbox-count-badge">0</span>)
+      </button>
+    </nav>
+
+    <!-- Content Sections -->
+    <main class="content-body">
+      <!-- TAB 1: ASK GEMINI & GOOGLE FLOW PROMPT BUILDER -->
+      <section id="tab-gemini" class="tab-pane active">
+        <div class="field-group">
+          <label class="field-label" for="task-select">Select Active Workforce Task</label>
+          <select id="task-select" class="select-control">
+            <option value="">Loading tasks...</option>
+          </select>
+        </div>
+
+        <div class="task-info-card" id="task-info-card" style="display: none;">
+          <div class="task-card-header">
+            <span class="badge-priority" id="task-card-priority">P1</span>
+            <span class="badge-type" id="task-card-type">dev</span>
+            <span class="task-card-id" id="task-card-id">task-id</span>
+          </div>
+          <div class="task-card-title" id="task-card-title">Task Title</div>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label">Target Capability</label>
+          <div class="chip-group" id="capability-chips">
+            <button type="button" class="chip active" data-type="research">Web Research</button>
+            <button type="button" class="chip" data-type="outreach">Sales &amp; Outreach</button>
+            <button type="button" class="chip" data-type="flow_video">Google Flow Video</button>
+            <button type="button" class="chip" data-type="stitch_review">Stitch UI Audit</button>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <div class="field-header-row">
+            <label class="field-label" for="gemini-prompt-output">Ask Gemini Prompt</label>
+            <button type="button" class="btn-text-action" id="btn-copy-prompt">Copy Prompt</button>
+          </div>
+          <textarea id="gemini-prompt-output" class="textarea-control prompt-area" rows="6" readonly placeholder="Select a task above to generate the targeted prompt for Google 'Ask Gemini' or Google Flow..."></textarea>
+        </div>
+
+        <div class="action-footer">
+          <button type="button" class="btn btn-secondary" id="btn-open-gemini">
+            Open Ask Gemini
+          </button>
+          <button type="button" class="btn btn-primary" id="btn-switch-to-capture">
+            Send Findings Back &rarr;
+          </button>
+        </div>
+      </section>
+
+      <!-- TAB 2: QUICK CAPTURE TO INBOX -->
+      <section id="tab-capture" class="tab-pane">
+        <form id="form-capture">
+          <div class="field-group">
+            <label class="field-label" for="capture-title">Title / Topic</label>
+            <input type="text" id="capture-title" class="input-control" placeholder="E.g. Pricing data / Video script / Stitch mockup" required>
+          </div>
+
+          <div class="field-row">
+            <div class="field-group half">
+              <label class="field-label" for="capture-type">Capture Type</label>
+              <select id="capture-type" class="select-control">
+                <option value="research">Research</option>
+                <option value="outreach">Outreach Lead</option>
+                <option value="video_brief">Video Brief (Flow)</option>
+                <option value="stitch_mockup">Google Stitch UI</option>
+                <option value="general">General Idea</option>
+              </select>
+            </div>
+            <div class="field-group half">
+              <label class="field-label" for="capture-task-id">Link Task ID (Optional)</label>
+              <input type="text" id="capture-task-id" class="input-control" placeholder="task-id">
+            </div>
+          </div>
+
+          <div class="field-group">
+            <label class="field-label" for="capture-url">Source URL</label>
+            <input type="url" id="capture-url" class="input-control" placeholder="https://...">
+          </div>
+
+          <div class="field-group">
+            <div class="field-header-row">
+              <label class="field-label" for="capture-content">Notes / Selection Content</label>
+              <button type="button" class="btn-text-action" id="btn-grab-selection">Grab Selection</button>
+            </div>
+            <textarea id="capture-content" class="textarea-control" rows="5" placeholder="Highlighted text, Gemini findings, summary, or feedback comments..." required></textarea>
+          </div>
+
+          <div class="field-group checkbox-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="capture-auto-dispatch">
+              <span>Auto-dispatch to agent as executable task</span>
+            </label>
+          </div>
+
+          <div class="action-footer">
+            <button type="submit" class="btn btn-primary full-width" id="btn-submit-capture">
+              Push to Workforce Inbox
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <!-- TAB 3: INBOX OVERVIEW -->
+      <section id="tab-inbox" class="tab-pane">
+        <div class="inbox-controls">
+          <span class="inbox-status-text" id="inbox-summary-text">0 items pending</span>
+          <button type="button" class="btn-text-action" id="btn-refresh-inbox">Refresh</button>
+        </div>
+        <div class="inbox-list" id="inbox-items-container">
+          <div class="empty-state">No items in inbox yet.</div>
+        </div>
+        <div class="action-footer">
+          <button type="button" class="btn btn-secondary full-width" id="btn-open-studio">
+            Open Workforce Studio Canvas &rarr;
+          </button>
+        </div>
+      </section>
+    </main>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast hidden"></div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

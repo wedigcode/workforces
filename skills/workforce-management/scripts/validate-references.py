@@ -271,6 +271,35 @@ def audit_references(target_dir=".", fix=False):
                         if os.path.exists(root_rel_path):
                             target_path = root_rel_path
 
+                    if not os.path.exists(target_path) and "workflows" in clean_link:
+                        # Fallback for historical notes referencing migrated workflows
+                        wf_stem = os.path.basename(clean_link).replace(".md", "")
+                        skill_candidates = [
+                            os.path.normpath(os.path.join(target_dir, "skills", wf_stem, "SKILL.md")),
+                            os.path.normpath(os.path.join(target_dir, "skills", wf_stem.replace("wf-", ""), "SKILL.md")),
+                            os.path.normpath(os.path.join(target_dir, ".agents", "skills", wf_stem, "SKILL.md")),
+                            os.path.normpath(os.path.join(target_dir, ".agents", "skills", wf_stem.replace("wf-", ""), "SKILL.md")),
+                        ]
+                        for sc in skill_candidates:
+                            if os.path.exists(sc):
+                                target_path = sc
+                                break
+                        else:
+                            renamed_map = {
+                                "wf-task": "task-tracker",
+                                "wf-feature": "feature-research",
+                                "wf-context": "session-context",
+                                "wf-site-setup": "site-setup",
+                                "wf-image-duplicate": "image-workflow",
+                            }
+                            mapped_skill = renamed_map.get(wf_stem)
+                            if mapped_skill:
+                                for base in ("skills", ".agents/skills"):
+                                    sc = os.path.normpath(os.path.join(target_dir, base, mapped_skill, "SKILL.md"))
+                                    if os.path.exists(sc):
+                                        target_path = sc
+                                        break
+
                     if not os.path.exists(target_path):
                         broken_refs.append({
                             "source": rel_source,

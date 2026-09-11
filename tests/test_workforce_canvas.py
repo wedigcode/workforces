@@ -18,12 +18,13 @@ import threading
 import time
 import unittest
 import urllib.request
+import subprocess
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-CANVAS_SCRIPT_DIR = REPO_ROOT / ".agents" / "skills" / "workforce-canvas" / "scripts"
+CANVAS_SCRIPT_DIR = REPO_ROOT / "skills" / "workforce-canvas" / "scripts"
 if not CANVAS_SCRIPT_DIR.exists():
-    CANVAS_SCRIPT_DIR = REPO_ROOT / "skills" / "workforce-canvas" / "scripts"
+    CANVAS_SCRIPT_DIR = REPO_ROOT / ".agents" / "skills" / "workforce-canvas" / "scripts"
 sys.path.insert(0, str(CANVAS_SCRIPT_DIR))
 
 import server
@@ -351,6 +352,223 @@ Test description.
         t.join(timeout=2)
         test_httpd.server_close()
         self.assertFalse(t.is_alive())
+
+
+    def test_inbox_submit_and_listing(self):
+        # 1. Submit item via POST /api/inbox/submit
+        url = f"http://127.0.0.1:{self.port}/api/inbox/submit"
+        payload = json.dumps({
+            "title": "Chrome Extension Research Capture",
+            "content": "Found high-value competitor telemetry on SaaS pricing.",
+            "type": "research",
+            "source_url": "https://example.com/pricing",
+            "selection": "Enterprise plan: $99/mo with unlimited seats",
+            "auto_dispatch": False,
+            "tags": ["pricing", "competitor"]
+        }).encode("utf-8")
+
+        req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=3) as resp:
+            self.assertEqual(resp.status, 200)
+            data = json.loads(resp.read().decode("utf-8"))
+            self.assertTrue(data["success"])
+            self.assertIn("id", data)
+            self.assertIn("file", data)
+
+        # 2. List items via GET /api/inbox
+        list_url = f"http://127.0.0.1:{self.port}/api/inbox"
+        list_req = urllib.request.Request(list_url)
+        with urllib.request.urlopen(list_req, timeout=3) as resp:
+            self.assertEqual(resp.status, 200)
+            inbox_data = json.loads(resp.read().decode("utf-8"))
+            self.assertGreaterEqual(inbox_data["count"], 1)
+            titles = [item["title"] for item in inbox_data["items"]]
+            self.assertIn("Chrome Extension Research Capture", titles)
+
+    def test_comments_and_visual_pins(self):
+        url = f"http://127.0.0.1:{self.port}/api/comments"
+        payload = json.dumps({
+            "target_type": "task",
+            "target_id": "sample-task",
+            "file": "workforces/tasks/20260901-task.md",
+            "comment": "Ensure button contrast complies with WCAG AA.",
+            "author": "@designer",
+            "pin": {"x": 42.5, "y": 78.0},
+            "stitch_url": "https://stitch.withgoogle.com/projects/mock-123"
+        }).encode("utf-8")
+
+        req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=3) as resp:
+            self.assertEqual(resp.status, 200)
+            data = json.loads(resp.read().decode("utf-8"))
+            self.assertTrue(data["success"])
+            self.assertEqual(data["comment"]["author"], "@designer")
+            self.assertEqual(data["comment"]["pin"]["x"], 42.5)
+
+        # Verify comment retrieval via GET /api/comments
+        get_url = f"http://127.0.0.1:{self.port}/api/comments?target_id=sample-task"
+        with urllib.request.urlopen(urllib.request.Request(get_url), timeout=3) as resp:
+            self.assertEqual(resp.status, 200)
+            comments_data = json.loads(resp.read().decode("utf-8"))
+            self.assertGreaterEqual(len(comments_data["comments"]), 1)
+
+        # Verify task file was updated with evolution note
+        task_content = (self.tasks_dir / "20260901-task.md").read_text(encoding="utf-8")
+        self.assertIn("@designer", task_content)
+        self.assertIn("WCAG AA", task_content)
+
+        # 3. Post comment with target_id ONLY (no file path)
+        payload2 = json.dumps({
+            "target_id": "sample-task",
+            "comment": "Added secondary feedback without explicit file path.",
+            "author": "@programmer",
+            "pin": {"x": 10.0, "y": 20.0}
+        }).encode("utf-8")
+        req2 = urllib.request.Request(url, data=payload2, headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req2, timeout=3) as resp2:
+            self.assertEqual(resp2.status, 200)
+            data2 = json.loads(resp2.read().decode("utf-8"))
+            self.assertTrue(data2["success"])
+
+        # Verify task was updated and comment is queryable via filename or target_id
+        task_content2 = (self.tasks_dir / "20260901-task.md").read_text(encoding="utf-8")
+        self.assertIn("secondary feedback", task_content2)
+
+        get_url_by_filename = f"http://127.0.0.1:{self.port}/api/comments?target_id=20260901-task.md"
+        with urllib.request.urlopen(urllib.request.Request(get_url_by_filename), timeout=3) as resp_fn:
+            self.assertEqual(resp_fn.status, 200)
+            fn_data = json.loads(resp_fn.read().decode("utf-8"))
+            self.assertGreaterEqual(len(fn_data["comments"]), 1)
+
+    def test_turn_summary_and_document_endpoints(self):
+        # Create a mock turn-summary.txt
+        tmp_dir = self.root_path / "workforces" / "tmp"
+        tmp_dir.mkdir(parents=True, exist_ok=True)
+        summary_file = tmp_dir / "turn-summary.txt"
+        summary_file.write_text("Turn summary: 10 tools executed, 0 errors.", encoding="utf-8")
+
+        # GET /api/turn-summary
+        url = f"http://127.0.0.1:{self.port}/api/turn-summary"
+        with urllib.request.urlopen(urllib.request.Request(url), timeout=3) as resp:
+            self.assertEqual(resp.status, 200)
+            data = json.loads(resp.read().decode("utf-8"))
+            self.assertTrue(data["exists"])
+            self.assertIn("10 tools executed", data["content"])
+
+        # GET /api/document?path=workforces/tasks/20260901-task.md
+        doc_url = f"http://127.0.0.1:{self.port}/api/document?path=workforces/tasks/20260901-task.md"
+        with urllib.request.urlopen(urllib.request.Request(doc_url), timeout=3) as resp:
+            self.assertEqual(resp.status, 200)
+            doc_data = json.loads(resp.read().decode("utf-8"))
+            self.assertEqual(doc_data["name"], "20260901-task.md")
+            self.assertEqual(doc_data["type"], "markdown")
+            self.assertIn("Sample Canvas Task", doc_data["content"])
+
+    def test_inbox_heartbeat_watcher_routing(self):
+        watcher = server.InboxHeartbeatWatcher(self.root_path, interval=0.1)
+        pending_dir = self.root_path / "workforces" / "inbox" / "pending"
+        processed_dir = self.root_path / "workforces" / "inbox" / "processed"
+        human_dir = self.root_path / "workforces" / "inbox" / "human_review"
+        ideas_dir = self.root_path / "workforces" / "ideas"
+        pending_dir.mkdir(parents=True, exist_ok=True)
+
+        # 1. Item requiring human review (.json)
+        human_item = {
+            "id": "inbox-human-01",
+            "title": "Subjective Design Polish",
+            "content": "Need human eyes on color palette.",
+            "type": "design",
+            "auto_dispatch": False,
+            "requires_human": True
+        }
+        (pending_dir / "human-01.json").write_text(json.dumps(human_item), encoding="utf-8")
+
+        # 2. Item auto-dispatchable (.json)
+        dispatch_item = {
+            "id": "inbox-auto-01",
+            "title": "Run Unit Test Suite",
+            "content": "Execute pytest across all unit tests.",
+            "type": "dev",
+            "auto_dispatch": True
+        }
+        (pending_dir / "auto-01.json").write_text(json.dumps(dispatch_item), encoding="utf-8")
+
+        # 3. Item auto-dispatchable Markdown (.md)
+        md_item_content = """---
+id: "inbox-md-01"
+title: "Benchmark Competitor Latency"
+type: "research"
+priority: "P1"
+auto_dispatch: true
+---
+Analyze roundtrip latency for web socket canvas syncing.
+"""
+        (pending_dir / "benchmark-latency.md").write_text(md_item_content, encoding="utf-8")
+
+        # 4. Item routed to ideas folder
+        idea_item = {
+            "id": "inbox-idea-01",
+            "title": "AR Canvas Spatial Mode",
+            "content": "Explore WebXR 3D node canvas projection.",
+            "type": "idea",
+            "auto_dispatch": False
+        }
+        (pending_dir / "idea-spatial.json").write_text(json.dumps(idea_item), encoding="utf-8")
+
+        # Run single scan
+        watcher._scan_and_route(pending_dir, processed_dir, human_dir, self.tasks_dir)
+
+        # Assert human item routed to human_dir
+        self.assertTrue((human_dir / "human-01.json").exists())
+        self.assertFalse((pending_dir / "human-01.json").exists())
+
+        # Assert auto item created a task in tasks_dir and moved to processed_dir
+        self.assertTrue((processed_dir / "auto-01.json").exists())
+        self.assertFalse((pending_dir / "auto-01.json").exists())
+        created_tasks = list(self.tasks_dir.glob("*run-unit-test-suite*.md"))
+        self.assertEqual(len(created_tasks), 1)
+        self.assertIn("Execute pytest", created_tasks[0].read_text(encoding="utf-8"))
+
+        # Assert md item created a task in tasks_dir and moved to processed_dir
+        self.assertTrue((processed_dir / "benchmark-latency.json").exists())
+        self.assertFalse((pending_dir / "benchmark-latency.md").exists())
+        created_md_tasks = list(self.tasks_dir.glob("*benchmark-competitor-latency*.md"))
+        self.assertEqual(len(created_md_tasks), 1)
+        self.assertIn("Analyze roundtrip latency", created_md_tasks[0].read_text(encoding="utf-8"))
+
+        # Assert idea was routed to workforces/ideas/
+        self.assertTrue(ideas_dir.exists())
+        created_ideas = list(ideas_dir.glob("*ar-canvas-spatial-mode*.md"))
+        self.assertEqual(len(created_ideas), 1)
+        self.assertIn("WebXR", created_ideas[0].read_text(encoding="utf-8"))
+
+        # 5. Test CLI sweep via heartbeat_watcher.py --once
+        test_cli_item = {
+            "id": "inbox-cli-01",
+            "title": "CLI Swept Item",
+            "content": "Swept via heartbeat_watcher.py CLI.",
+            "type": "general",
+            "auto_dispatch": False
+        }
+        (pending_dir / "cli-item.json").write_text(json.dumps(test_cli_item), encoding="utf-8")
+        cli_path = REPO_ROOT / "skills" / "workforce-canvas" / "scripts" / "heartbeat_watcher.py"
+        res = subprocess.run([sys.executable, str(cli_path), "--root", str(self.root_path), "--once"], capture_output=True, text=True)
+        self.assertEqual(res.returncode, 0)
+        self.assertIn("1 item(s) processed", res.stdout)
+
+    def test_session_state_file_lifecycle(self):
+        server.write_session_state(self.root_path, "running", 8765, 12345, {"test_mode": True})
+        session_file = self.root_path / "workforces" / ".canvas-session.json"
+        self.assertTrue(session_file.exists())
+        state = json.loads(session_file.read_text(encoding="utf-8"))
+        self.assertEqual(state["status"], "running")
+        self.assertEqual(state["port"], 8765)
+        self.assertEqual(state["pid"], 12345)
+        self.assertTrue(state["test_mode"])
+
+        server.write_session_state(self.root_path, "stopped", 8765, 12345)
+        state_stopped = json.loads(session_file.read_text(encoding="utf-8"))
+        self.assertEqual(state_stopped["status"], "stopped")
 
 
 if __name__ == "__main__":

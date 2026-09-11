@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Workforce Command Canvas</title>
+  <title>Workforce Studio &amp; Command Canvas</title>
   <!-- Tailwind Play CDN (Zero npm dependencies) -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Lucide Vector Icons (Zero emojis in UI) -->
@@ -14,53 +14,71 @@
 </head>
 <body class="bg-[#faf9f5] text-[#202020] font-sans antialiased select-none overflow-hidden">
 
-  <!-- Top Navigation & Radar Toolbar (Floating Architectural Pill Header) -->
-  <header class="fixed top-0 left-0 right-0 h-14 bg-[#faf9f5]/95 backdrop-blur-md border-b border-[#e2e0dc] z-50 px-5 flex items-center justify-between">
-    <!-- Brand / Title -->
-    <div class="flex items-center gap-3">
-      <div class="w-8 h-8 rounded-full bg-[#efefef] border border-[#e2e0dc] flex items-center justify-center text-[#202020]">
-        <i data-lucide="network" class="w-4 h-4"></i>
+  <!-- Top Navigation Bar -->
+  <header class="fixed top-0 left-0 right-0 h-14 bg-[#faf9f5]/95 backdrop-blur-md border-b border-[#e2e0dc] z-50 px-4 flex items-center justify-between">
+    <!-- Brand & Workspace -->
+    <div class="flex items-center gap-3 min-w-[200px]">
+      <div class="w-8 h-8 rounded-lg bg-[#202020] flex items-center justify-center text-white shadow-sm">
+        <i data-lucide="layers" class="w-4 h-4"></i>
       </div>
       <div>
-        <h1 class="text-sm font-semibold tracking-tight text-[#202020] leading-none">Workforce Command Canvas</h1>
-        <div class="flex items-center gap-2 mt-1 text-[11px] text-[#828282] font-mono">
+        <h1 class="text-xs font-semibold tracking-tight text-[#202020] leading-tight">Workforce Studio</h1>
+        <div class="flex items-center gap-2 mt-0.5 text-[10px] text-[#828282] font-mono">
           <span id="stat-total-tasks">0 Tasks</span>
-          <span class="text-[#d1cfca]">•</span>
-          <span id="stat-in-progress" class="text-[#0369a1] font-medium">0 In Progress</span>
-          <span class="text-[#d1cfca]">•</span>
-          <span id="stat-blocked" class="text-[#b91c1c] font-medium">0 Blocked</span>
+          <span>•</span>
+          <span id="stat-inbox-count">0 Inbox</span>
+          <span>•</span>
+          <span id="stat-blocked-count" class="text-[#b91c1c]">0 Blocked</span>
         </div>
       </div>
     </div>
 
-    <!-- Mode Selector Pills -->
-    <div id="mode-pills-bar" class="flex items-center bg-[#efefef] p-1 rounded-full border border-[#e2e0dc]">
-      <button id="btn-mode-workstate" class="px-3.5 py-1.5 rounded-full text-xs font-semibold bg-[#202020] text-white transition-all flex items-center gap-1.5">
-        <i data-lucide="layout-grid" class="w-3.5 h-3.5"></i>
-        Workstate Radar
-      </button>
-      <button id="btn-mode-blast" class="px-3.5 py-1.5 rounded-full text-xs font-medium text-[#4d4d4d] hover:text-[#202020] transition-all flex items-center gap-1.5">
-        <i data-lucide="git-fork" class="w-3.5 h-3.5"></i>
-        Code Blast Radius
-      </button>
-    </div>
+    <!-- Center: 1-Click Scenario Chips & Tab Strip -->
+    <div class="flex items-center gap-3 overflow-hidden max-w-[60%]">
+      <!-- Scenario Chips -->
+      <div class="flex items-center gap-1.5 p-1 bg-[#efefef] rounded-full border border-[#e2e0dc]" id="scenario-chips-bar">
+        <button class="scenario-chip active" data-scenario="document" id="chip-document">
+          <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
+          Document
+        </button>
+        <button class="scenario-chip" data-scenario="mockup" id="chip-mockup">
+          <i data-lucide="palette" class="w-3.5 h-3.5"></i>
+          UI Mockup
+        </button>
+        <button class="scenario-chip" data-scenario="wireframe" id="chip-wireframe">
+          <i data-lucide="layout" class="w-3.5 h-3.5"></i>
+          Wireframe
+        </button>
+        <button class="scenario-chip" data-scenario="radar" id="chip-radar">
+          <i data-lucide="network" class="w-3.5 h-3.5"></i>
+          Radar Canvas
+        </button>
+      </div>
 
-    <!-- Perspective Navigation & Breadcrumbs (Shown in focus/constellation modes) -->
-    <div id="focus-nav-bar" class="hidden items-center gap-2.5">
-      <button id="btn-exit-focus" class="px-3 py-1.5 rounded-full bg-[#efefef] hover:bg-[#e5e3de] text-xs font-medium text-[#202020] border border-[#e2e0dc] flex items-center gap-1.5 transition-all">
-        <i data-lucide="arrow-left" class="w-3.5 h-3.5 text-[#202020]"></i>
-        <span id="btn-exit-focus-text">Radar (Esc)</span>
-      </button>
-      <div id="nav-breadcrumbs" class="flex items-center gap-1.5 text-xs text-[#828282] font-mono overflow-hidden max-w-[450px]">
-        <!-- Dynamic interactive breadcrumbs -->
+      <!-- Studio Open Tabs Strip -->
+      <div class="tab-strip" id="studio-tabs-strip">
+        <!-- Dynamically rendered tabs -->
       </div>
     </div>
 
-    <!-- Search & Controls -->
+    <!-- Right: Search, Viewport, Power & Heartbeat -->
     <div class="flex items-center gap-2.5">
-      <div class="relative w-56 sm:w-64">
+      <!-- Viewport Toggle Button -->
+      <button id="btn-viewport-toggle" title="Toggle Desktop / Mobile Preview Viewport" class="px-2.5 py-1.5 rounded-full text-xs font-medium bg-[#efefef] hover:bg-[#e5e3de] text-[#202020] border border-[#e2e0dc] flex items-center gap-1.5 transition-all">
+        <i data-lucide="monitor" class="w-3.5 h-3.5" id="viewport-icon"></i>
+        <span id="viewport-label">Desktop</span>
+      </button>
+
+      <!-- Pin Feedback Mode Button -->
+      <button id="btn-pin-mode" title="Toggle Visual Pin Feedback Mode" class="px-2.5 py-1.5 rounded-full text-xs font-medium bg-[#efefef] hover:bg-[#fee2e2] text-[#4d4d4d] hover:text-[#c2410c] border border-[#e2e0dc] flex items-center gap-1.5 transition-all">
+        <i data-lucide="map-pin" class="w-3.5 h-3.5"></i>
+        <span id="pin-mode-label">Drop Pin</span>
+      </button>
+
+      <!-- Global Search -->
+      <div class="relative w-44 hidden md:block">
         <i data-lucide="search" class="w-3.5 h-3.5 text-[#828282] absolute left-3 top-1/2 -translate-y-1/2"></i>
-        <input id="global-search" type="text" placeholder="Search tasks or symbols..." class="w-full bg-white border border-[#e2e0dc] rounded-full pl-9 pr-3 py-1.5 text-xs text-[#202020] placeholder-[#828282] focus:outline-none focus:border-[#c2410c] transition-colors">
+        <input id="global-search" type="text" placeholder="Search tasks or symbols..." class="w-full bg-white border border-[#e2e0dc] rounded-full pl-9 pr-3 py-1 text-xs text-[#202020] placeholder-[#828282] focus:outline-none focus:border-[#c2410c] transition-colors">
       </div>
 
       <!-- Server Connection & Power Control -->
@@ -76,29 +94,163 @@
     </div>
   </header>
 
-  <!-- Disconnected Overlay (Shown when server is shut down or idle timeout occurs) -->
-  <div id="disconnected-overlay" class="hidden fixed inset-0 z-50 bg-[#202020]/60 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="bg-white border border-[#e2e0dc] rounded-xl max-w-md w-full p-6 shadow-2xl text-center">
-      <div class="w-12 h-12 rounded-full bg-[#fee2e2] text-[#b91c1c] flex items-center justify-center mx-auto mb-4 border border-[#fca5a5]">
-        <i data-lucide="power-off" class="w-6 h-6"></i>
-      </div>
-      <h3 class="text-base font-semibold text-[#202020] mb-2" id="disconnected-title">Canvas Server Stopped</h3>
-      <p class="text-xs text-[#828282] leading-relaxed mb-5" id="disconnected-desc">
-        The backend Python server was shut down and the port has been released. You can safely close this browser window.
-      </p>
-      <div class="flex items-center justify-center gap-3">
-        <button id="btn-reconnect" class="px-4 py-2 rounded-lg bg-[#202020] text-white text-xs font-medium hover:bg-[#333] transition-colors">
-          Reconnect
-        </button>
-        <button onclick="window.close()" class="px-4 py-2 rounded-lg bg-[#f4f4f5] text-[#4d4d4d] text-xs font-medium hover:bg-[#e5e5e5] transition-colors">
-          Close Window
-        </button>
-      </div>
+  <!-- Left Sidebar Rail -->
+  <nav id="studio-sidebar-rail">
+    <div class="rail-group">
+      <button class="rail-item active" data-view="document" title="Document Reader & Workspace" id="rail-btn-docs">
+        <i data-lucide="file-text" class="w-4 h-4"></i>
+      </button>
+      <button class="rail-item" data-view="tasks" title="Tasks & Backlog" id="rail-btn-tasks">
+        <i data-lucide="check-square" class="w-4 h-4"></i>
+      </button>
+      <button class="rail-item" data-view="hypotheses" title="Hypotheses & Validation" id="rail-btn-hypotheses">
+        <i data-lucide="flask-conical" class="w-4 h-4"></i>
+      </button>
+      <button class="rail-item" data-view="inbox" title="Extension Inbox & Captures" id="rail-btn-inbox">
+        <i data-lucide="inbox" class="w-4 h-4"></i>
+        <span class="rail-badge hidden" id="rail-inbox-badge">0</span>
+      </button>
+      <button class="rail-item" data-view="plugins" title="Skills & Plugins Catalog" id="rail-btn-plugins">
+        <i data-lucide="puzzle" class="w-4 h-4"></i>
+      </button>
+      <button class="rail-item" data-view="wireframe" title="Wireframes & Interactive Mockups" id="rail-btn-wireframe">
+        <i data-lucide="layout" class="w-4 h-4"></i>
+      </button>
+      <button class="rail-item" data-view="radar" title="Workforce Command Radar" id="rail-btn-radar">
+        <i data-lucide="network" class="w-4 h-4"></i>
+      </button>
     </div>
+
+    <div class="rail-group">
+      <button class="rail-item" data-view="settings" title="Workspace Settings" id="rail-btn-settings">
+        <i data-lucide="settings" class="w-4 h-4"></i>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Studio Split-Stage Workspace -->
+  <div id="studio-workspace-container">
+    <!-- Left Copilot & Audit Feed -->
+    <aside id="studio-copilot-feed">
+      <div class="copilot-header">
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+            <h2 class="text-xs font-semibold text-[#202020] uppercase tracking-wider" id="copilot-context-title">Workforces Copilot</h2>
+          </div>
+          <span class="quality-gate-badge" id="copilot-quality-badge">
+            <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
+            TRIAD PASSED
+          </span>
+        </div>
+        <p class="text-[11px] text-[#828282] leading-relaxed" id="copilot-context-subtitle">
+          Autonomous execution stream &amp; turn verification record.
+        </p>
+      </div>
+
+      <div class="copilot-body">
+        <!-- Turn Summary Telemetry Box -->
+        <div class="turn-files-card">
+          <div class="turn-files-title flex items-center justify-between">
+            <span>Turn Activity &amp; Telemetry</span>
+            <i data-lucide="activity" class="w-3.5 h-3.5 text-[#828282]"></i>
+          </div>
+          <div class="text-[11.5px] text-[#4d4d4d] leading-relaxed font-mono whitespace-pre-wrap max-h-40 overflow-y-auto" id="copilot-turn-summary-text">
+            Loading session telemetry...
+          </div>
+        </div>
+
+        <!-- Files From This Turn -->
+        <div class="turn-files-card">
+          <div class="turn-files-title flex items-center justify-between">
+            <span>Files From This Turn</span>
+            <span class="text-[10px] font-normal text-[#828282]" id="copilot-files-count">0 files</span>
+          </div>
+          <div id="copilot-files-list" class="space-y-1">
+            <!-- Dynamically rendered turn files -->
+          </div>
+        </div>
+
+        <!-- Action Suggestion Chips -->
+        <div class="space-y-2">
+          <button class="suggestion-pill" id="btn-suggest-continue">
+            <span>Continue working</span>
+            <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+          </button>
+          <button class="suggestion-pill" id="btn-suggest-artifact">
+            <span>Generate artifact / prototype</span>
+            <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+          </button>
+          <button class="suggestion-pill" id="btn-suggest-inbox">
+            <span>Review captured Inbox items</span>
+            <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Feedback / Comment Prompt Input -->
+      <div class="copilot-footer">
+        <label class="text-[10.5px] font-medium text-[#828282] block mb-1.5">Leave Feedback or Evolution Note</label>
+        <div class="flex items-center gap-2">
+          <input type="text" id="copilot-comment-input" placeholder="Feedback on document or Stitch mockup..." class="flex-1 bg-[#faf9f5] border border-[#e2e0dc] rounded-md px-3 py-1.5 text-xs text-[#202020] placeholder-[#828282] focus:outline-none focus:border-[#c2410c] transition-colors">
+          <button id="btn-copilot-submit-comment" class="p-2 rounded-md bg-[#202020] hover:bg-[#383838] text-white text-xs transition-colors flex items-center justify-center">
+            <i data-lucide="send" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Right Preview Stage -->
+    <main id="studio-preview-stage">
+      <!-- Stage Subbar -->
+      <div class="stage-subbar">
+        <div class="flex items-center gap-3">
+          <button id="btn-stage-refresh" class="p-1 rounded text-[#828282] hover:text-[#202020] hover:bg-[#f4f4f5] transition-colors" title="Reload Active Preview">
+            <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i>
+          </button>
+          <div class="flex items-center bg-[#efefef] p-0.5 rounded-md border border-[#e2e0dc]">
+            <button id="btn-toggle-preview" class="px-2.5 py-1 rounded text-xs font-semibold bg-white text-[#202020] shadow-xs">Preview</button>
+            <button id="btn-toggle-code" class="px-2.5 py-1 rounded text-xs font-medium text-[#666] hover:text-[#202020]">Code</button>
+          </div>
+          <span class="text-xs text-[#828282] font-mono truncate max-w-[280px]" id="stage-file-label">Select a file or task</span>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <!-- Comments count badge -->
+          <div class="flex items-center gap-1 text-xs text-[#828282] font-mono">
+            <i data-lucide="message-square" class="w-3.5 h-3.5"></i>
+            <span id="stage-comments-count">0 pins</span>
+          </div>
+
+          <!-- Open External Link (Stitch / Web) -->
+          <a id="btn-open-external-stitch" href="#" target="_blank" class="hidden px-2.5 py-1 rounded text-xs font-medium text-[#c2410c] hover:bg-[#fff7ed] border border-[#fed7aa] items-center gap-1.5 transition-colors">
+            <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+            <span>Open in Stitch</span>
+          </a>
+
+          <span class="text-xs text-[#828282] font-mono" id="stage-zoom-label">100%</span>
+        </div>
+      </div>
+
+      <!-- Viewport Stage Scrollable Area -->
+      <div class="stage-viewport-area" id="stage-viewport-area">
+        <div class="viewport-frame desktop" id="preview-viewport-frame">
+          <!-- Active Content Display -->
+          <div id="preview-content-box" class="markdown-body">
+            <!-- Rendered Markdown / Mockup / HTML -->
+          </div>
+
+          <!-- Visual Pin Overlay Container -->
+          <div id="preview-pins-overlay" class="absolute inset-0 pointer-events-none">
+            <!-- Dynamically rendered visual pins -->
+          </div>
+        </div>
+      </div>
+    </main>
   </div>
 
-  <!-- Infinite Canvas Viewport -->
-  <main id="canvas-viewport">
+  <!-- Infinite Canvas Viewport (Radar Mode) -->
+  <main id="canvas-viewport" class="hidden">
     <div id="canvas-container">
       <!-- Grouping Frames Layer (Background) -->
       <div id="frames-layer"></div>
@@ -111,8 +263,8 @@
     </div>
   </main>
 
-  <!-- Floating Controls Dock (Bottom-Left) -->
-  <div class="floating-dock">
+  <!-- Floating Controls Dock (Bottom-Left in Radar Mode) -->
+  <div class="floating-dock" id="radar-dock" style="display: none;">
     <button id="btn-zoom-in" class="dock-btn" title="Zoom In (+)">
       <i data-lucide="plus" class="w-4 h-4"></i>
     </button>
@@ -166,7 +318,7 @@
       </div>
 
       <div>
-        <label class="text-[11px] font-medium text-[#4d4d4d] block mb-1">Description & Lineage</label>
+        <label class="text-[11px] font-medium text-[#4d4d4d] block mb-1">Description &amp; Lineage</label>
         <div id="drawer-body" class="markdown-body bg-[#fbfbf9] border border-[#e2e0dc] rounded-none p-3 max-h-56 overflow-y-auto leading-relaxed"></div>
       </div>
 
@@ -183,6 +335,62 @@
       </button>
     </div>
   </aside>
+
+  <!-- Visual Pin Creation Modal -->
+  <div id="pin-modal" class="hidden fixed inset-0 z-50 bg-[#202020]/40 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white border border-[#e2e0dc] rounded-xl max-w-sm w-full p-5 shadow-2xl">
+      <div class="flex items-center justify-between mb-3 pb-2 border-b border-[#e2e0dc]">
+        <div class="flex items-center gap-2 text-xs font-semibold text-[#202020]">
+          <span class="w-5 h-5 rounded-full bg-[#c2410c] text-white text-[11px] flex items-center justify-center font-mono" id="pin-modal-coord">1</span>
+          <span>Add Visual Feedback Pin</span>
+        </div>
+        <button id="btn-pin-modal-close" class="text-[#828282] hover:text-[#202020]">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3">
+        <div>
+          <label class="text-[10.5px] font-semibold uppercase tracking-wider text-[#666] block mb-1">Author</label>
+          <input type="text" id="pin-modal-author" value="@designer" class="w-full bg-white border border-[#e2e0dc] rounded px-2.5 py-1.5 text-xs text-[#202020] focus:outline-none focus:border-[#202020]">
+        </div>
+        <div>
+          <label class="text-[10.5px] font-semibold uppercase tracking-wider text-[#666] block mb-1">Feedback / Annotation</label>
+          <textarea id="pin-modal-comment" rows="3" placeholder="Describe the design discrepancy, layout change, or note..." class="w-full bg-white border border-[#e2e0dc] rounded p-2.5 text-xs text-[#202020] focus:outline-none focus:border-[#202020] resize-none"></textarea>
+        </div>
+        <div>
+          <label class="text-[10.5px] font-semibold uppercase tracking-wider text-[#666] block mb-1">Stitch URL (Optional)</label>
+          <input type="url" id="pin-modal-stitch" placeholder="https://stitch.withgoogle.com/..." class="w-full bg-white border border-[#e2e0dc] rounded px-2.5 py-1.5 text-xs text-[#202020] focus:outline-none focus:border-[#202020]">
+        </div>
+      </div>
+
+      <div class="mt-4 pt-3 border-t border-[#e2e0dc] flex items-center justify-end gap-2">
+        <button id="btn-pin-modal-cancel" class="px-3 py-1.5 rounded bg-[#f4f4f5] text-xs font-medium text-[#4d4d4d] hover:bg-[#e5e5e5]">Cancel</button>
+        <button id="btn-pin-modal-save" class="px-4 py-1.5 rounded bg-[#202020] text-xs font-medium text-white hover:bg-[#383838]">Save Pin</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Disconnected Overlay -->
+  <div id="disconnected-overlay" class="hidden fixed inset-0 z-50 bg-[#202020]/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white border border-[#e2e0dc] rounded-xl max-w-md w-full p-6 shadow-2xl text-center">
+      <div class="w-12 h-12 rounded-full bg-[#fee2e2] text-[#b91c1c] flex items-center justify-center mx-auto mb-4 border border-[#fca5a5]">
+        <i data-lucide="power-off" class="w-6 h-6"></i>
+      </div>
+      <h3 class="text-base font-semibold text-[#202020] mb-2" id="disconnected-title">Canvas Server Stopped</h3>
+      <p class="text-xs text-[#828282] leading-relaxed mb-5" id="disconnected-desc">
+        The backend Python server was shut down and the port has been released. You can safely close this browser window.
+      </p>
+      <div class="flex items-center justify-center gap-3">
+        <button id="btn-reconnect" class="px-4 py-2 rounded-lg bg-[#202020] text-white text-xs font-medium hover:bg-[#333] transition-colors">
+          Reconnect
+        </button>
+        <button onclick="window.close()" class="px-4 py-2 rounded-lg bg-[#f4f4f5] text-[#4d4d4d] text-xs font-medium hover:bg-[#e5e5e5] transition-colors">
+          Close Window
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- Script Engine -->
   <script src="/canvas.js"></script>

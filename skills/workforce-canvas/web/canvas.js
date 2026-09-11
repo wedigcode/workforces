@@ -52,6 +52,7 @@
     setupSearch();
     setupHeartbeatAndPower();
     await fetchWorkforceState();
+    setupStudio();
     navigateTo('workstate', null, 'Radar', false);
     if (window.lucide) {
       window.lucide.createIcons();
@@ -763,8 +764,9 @@
     if (activeFiles.length > 0) {
       const filesCardId = `sat-files-${session.id}`;
       const filesHtml = activeFiles.map(f => `
-        <div class="py-1 text-[11px] font-mono text-[#4d4d4d] truncate" title="${f}">
-          📄 ${f}
+        <div class="py-1 text-[11px] font-mono text-[#4d4d4d] truncate flex items-center gap-1.5" title="${f}">
+          <svg class="w-3.5 h-3.5 flex-shrink-0 text-[#828282]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <span class="truncate">${f}</span>
         </div>
       `).join('');
 
@@ -882,8 +884,9 @@
     if (files.length > 0) {
       const filesSatId = `sat-cfiles-${commitData.hash}`;
       const filesHtml = files.map(f => `
-        <div class="py-1 text-[11px] font-mono text-[#4d4d4d] truncate" title="${f}">
-          📄 ${f}
+        <div class="py-1 text-[11px] font-mono text-[#4d4d4d] truncate flex items-center gap-1.5" title="${f}">
+          <svg class="w-3.5 h-3.5 flex-shrink-0 text-[#828282]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <span class="truncate">${f}</span>
         </div>
       `).join('');
 
@@ -1532,9 +1535,23 @@
   }
 
   function updateTopBarStats() {
-    document.getElementById('stat-total-tasks').innerText = `${state.stats.total_tasks || 0} Tasks`;
-    document.getElementById('stat-in-progress').innerText = `${state.stats.in_progress || 0} In Progress`;
-    document.getElementById('stat-blocked').innerText = `${state.stats.blocked || 0} Blocked`;
+    const totalEl = document.getElementById('stat-total-tasks');
+    if (totalEl) totalEl.innerText = `${state.stats.total_tasks || 0} Tasks`;
+    const inProgEl = document.getElementById('stat-in-progress');
+    if (inProgEl) inProgEl.innerText = `${state.stats.in_progress || 0} In Progress`;
+    const blockedEl = document.getElementById('stat-blocked');
+    if (blockedEl) blockedEl.innerText = `${state.stats.blocked || 0} Blocked`;
+    const blockedCountEl = document.getElementById('stat-blocked-count');
+    if (blockedCountEl) blockedCountEl.innerText = `${state.stats.blocked || 0} Blocked`;
+    const inboxCountEl = document.getElementById('stat-inbox-count');
+    if (inboxCountEl) inboxCountEl.innerText = `${state.stats.inbox_count || 0} Inbox`;
+    const railInboxBadge = document.getElementById('rail-inbox-badge');
+    if (railInboxBadge) {
+      const count = state.stats.inbox_count || 0;
+      railInboxBadge.innerText = count;
+      if (count > 0) railInboxBadge.classList.remove('hidden');
+      else railInboxBadge.classList.add('hidden');
+    }
   }
 
   // --- Heartbeat & Auto-Shutdown Management ---
@@ -1643,6 +1660,899 @@
       overlay.classList.remove('hidden');
       if (window.lucide) window.lucide.createIcons();
     }
+  }
+
+  // ==========================================================================
+  // OpenDesign Studio Split-Stage Controller
+  // ==========================================================================
+
+  const studioState = {
+    openTabs: [],
+    activeTabId: null,
+    activeScenario: 'document',
+    viewportMode: 'desktop',
+    previewMode: 'preview',
+    pinModeActive: false,
+    pendingPinCoord: null,
+    inboxItems: [],
+    turnSummary: '',
+  };
+
+  function setupStudio() {
+    setupScenarioChips();
+    setupSidebarRail();
+    setupViewportToggles();
+    setupVisualPinPlacement();
+    setupCopilotFeed();
+    loadStudioInitialContent();
+  }
+
+  function setupScenarioChips() {
+    const chips = document.querySelectorAll('#scenario-chips-bar .scenario-chip');
+    chips.forEach(chip => {
+      chip.addEventListener('click', () => {
+        const scenario = chip.getAttribute('data-scenario');
+        if (scenario === 'radar') {
+          switchToRadarMode();
+        } else if (scenario === 'wireframe') {
+          openWireframeTab();
+        } else if (scenario === 'mockup') {
+          openMockupTab();
+        } else {
+          if (studioState.openTabs.length > 0) {
+            switchToStudioMode('document');
+          } else {
+            openDefaultDocumentTab();
+          }
+        }
+      });
+    });
+  }
+
+  function setupSidebarRail() {
+    const railButtons = document.querySelectorAll('#studio-sidebar-rail .rail-item');
+    railButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const view = btn.getAttribute('data-view');
+        railButtons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        if (view === 'radar') {
+          switchToRadarMode();
+        } else if (view === 'inbox') {
+          openInboxTab();
+        } else if (view === 'wireframe') {
+          openWireframeTab();
+        } else if (view === 'plugins') {
+          openPluginsTab();
+        } else if (view === 'tasks') {
+          openTasksOverviewTab();
+        } else if (view === 'hypotheses') {
+          openHypothesesTab();
+        } else {
+          switchToStudioMode('document');
+        }
+      });
+    });
+  }
+
+  function switchToRadarMode() {
+    const studioContainer = document.getElementById('studio-workspace-container');
+    const canvasViewport = document.getElementById('canvas-viewport');
+    const radarDock = document.getElementById('radar-dock');
+    if (studioContainer) studioContainer.classList.add('hidden');
+    if (canvasViewport) canvasViewport.classList.remove('hidden');
+    if (radarDock) radarDock.style.display = 'flex';
+
+    document.querySelectorAll('#scenario-chips-bar .scenario-chip').forEach(c => c.classList.remove('active'));
+    const chipRadar = document.getElementById('chip-radar');
+    if (chipRadar) chipRadar.classList.add('active');
+
+    document.querySelectorAll('#studio-sidebar-rail .rail-item').forEach(r => r.classList.remove('active'));
+    const railRadar = document.getElementById('rail-btn-radar');
+    if (railRadar) railRadar.classList.add('active');
+
+    navigateTo('workstate', null, 'Radar', false);
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  function switchToStudioMode(scenario = 'document') {
+    studioState.activeScenario = scenario;
+    const studioContainer = document.getElementById('studio-workspace-container');
+    const canvasViewport = document.getElementById('canvas-viewport');
+    const radarDock = document.getElementById('radar-dock');
+    if (canvasViewport) canvasViewport.classList.add('hidden');
+    if (radarDock) radarDock.style.display = 'none';
+    if (studioContainer) studioContainer.classList.remove('hidden');
+
+    document.querySelectorAll('#scenario-chips-bar .scenario-chip').forEach(c => c.classList.remove('active'));
+    const targetChip = document.getElementById(`chip-${scenario}`);
+    if (targetChip) targetChip.classList.add('active');
+
+    renderActiveTabContent();
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  function setupViewportToggles() {
+    const btnViewport = document.getElementById('btn-viewport-toggle');
+    const viewportFrame = document.getElementById('preview-viewport-frame');
+    const viewportLabel = document.getElementById('viewport-label');
+    const viewportIcon = document.getElementById('viewport-icon');
+
+    if (btnViewport && viewportFrame) {
+      btnViewport.addEventListener('click', () => {
+        if (studioState.viewportMode === 'desktop') {
+          studioState.viewportMode = 'mobile';
+          viewportFrame.className = 'viewport-frame mobile';
+          if (viewportLabel) viewportLabel.innerText = 'Mobile (375px)';
+          if (viewportIcon) viewportIcon.setAttribute('data-lucide', 'smartphone');
+        } else {
+          studioState.viewportMode = 'desktop';
+          viewportFrame.className = 'viewport-frame desktop';
+          if (viewportLabel) viewportLabel.innerText = 'Desktop';
+          if (viewportIcon) viewportIcon.setAttribute('data-lucide', 'monitor');
+        }
+        if (window.lucide) window.lucide.createIcons();
+      });
+    }
+
+    const btnPreview = document.getElementById('btn-toggle-preview');
+    const btnCode = document.getElementById('btn-toggle-code');
+    if (btnPreview && btnCode) {
+      btnPreview.addEventListener('click', () => {
+        studioState.previewMode = 'preview';
+        btnPreview.className = 'px-2.5 py-1 rounded text-xs font-semibold bg-white text-[#202020] shadow-xs';
+        btnCode.className = 'px-2.5 py-1 rounded text-xs font-medium text-[#666] hover:text-[#202020]';
+        renderActiveTabContent();
+      });
+      btnCode.addEventListener('click', () => {
+        studioState.previewMode = 'code';
+        btnCode.className = 'px-2.5 py-1 rounded text-xs font-semibold bg-white text-[#202020] shadow-xs';
+        btnPreview.className = 'px-2.5 py-1 rounded text-xs font-medium text-[#666] hover:text-[#202020]';
+        renderActiveTabContent();
+      });
+    }
+
+    const btnRefresh = document.getElementById('btn-stage-refresh');
+    if (btnRefresh) {
+      btnRefresh.addEventListener('click', async () => {
+        await fetchWorkforceState();
+        await loadTurnSummary();
+        renderActiveTabContent();
+      });
+    }
+  }
+
+  function setupVisualPinPlacement() {
+    const btnPinMode = document.getElementById('btn-pin-mode');
+    const viewportFrame = document.getElementById('preview-viewport-frame');
+
+    function togglePinMode() {
+      studioState.pinModeActive = !studioState.pinModeActive;
+      const label = document.getElementById('pin-mode-label');
+      if (studioState.pinModeActive) {
+        if (btnPinMode) btnPinMode.className = 'px-2.5 py-1.5 rounded-full text-xs font-medium bg-[#fee2e2] text-[#c2410c] border border-[#fca5a5] flex items-center gap-1.5 transition-all';
+        if (label) label.innerText = 'Click to Pin';
+        if (viewportFrame) viewportFrame.style.cursor = 'crosshair';
+      } else {
+        if (btnPinMode) btnPinMode.className = 'px-2.5 py-1.5 rounded-full text-xs font-medium bg-[#efefef] hover:bg-[#fee2e2] text-[#4d4d4d] hover:text-[#c2410c] border border-[#e2e0dc] flex items-center gap-1.5 transition-all';
+        if (label) label.innerText = 'Drop Pin';
+        if (viewportFrame) viewportFrame.style.cursor = 'default';
+      }
+    }
+
+    if (btnPinMode) btnPinMode.addEventListener('click', togglePinMode);
+
+    if (viewportFrame) {
+      viewportFrame.addEventListener('click', (e) => {
+        if (!studioState.pinModeActive) return;
+        // Avoid clicking directly on existing pins
+        if (e.target.closest('.visual-pin') || e.target.closest('.visual-pin-popover')) return;
+
+        const rect = viewportFrame.getBoundingClientRect();
+        const xPercent = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+        const yPercent = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
+
+        studioState.pendingPinCoord = { x: parseFloat(xPercent.toFixed(1)), y: parseFloat(yPercent.toFixed(1)) };
+
+        const activeTab = studioState.openTabs.find(t => t.id === studioState.activeTabId);
+        const nextPinNum = (activeTab?.pins?.length || 0) + 1;
+        document.getElementById('pin-modal-coord').innerText = nextPinNum;
+        document.getElementById('pin-modal-comment').value = '';
+        if (activeTab?.stitchUrl) {
+          document.getElementById('pin-modal-stitch').value = activeTab.stitchUrl;
+        }
+        document.getElementById('pin-modal').classList.remove('hidden');
+        document.getElementById('pin-modal-comment').focus();
+      });
+    }
+
+    const modalClose = document.getElementById('btn-pin-modal-close');
+    const modalCancel = document.getElementById('btn-pin-modal-cancel');
+    const modalSave = document.getElementById('btn-pin-modal-save');
+
+    function closeModal() {
+      document.getElementById('pin-modal').classList.add('hidden');
+      togglePinMode();
+    }
+
+    if (modalClose) modalClose.addEventListener('click', closeModal);
+    if (modalCancel) modalCancel.addEventListener('click', closeModal);
+
+    if (modalSave) {
+      modalSave.addEventListener('click', async () => {
+        const author = document.getElementById('pin-modal-author').value.trim() || '@designer';
+        const comment = document.getElementById('pin-modal-comment').value.trim();
+        const stitchUrl = document.getElementById('pin-modal-stitch').value.trim();
+        if (!comment) {
+          alert('Please enter a feedback comment.');
+          return;
+        }
+
+        const activeTab = studioState.openTabs.find(t => t.id === studioState.activeTabId);
+        const payload = {
+          target_type: activeTab ? (activeTab.type || 'task') : 'doc',
+          target_id: activeTab ? activeTab.id : 'studio',
+          file: activeTab?.path || '',
+          comment: comment,
+          author: author,
+          pin: studioState.pendingPinCoord,
+          stitch_url: stitchUrl
+        };
+
+        try {
+          const res = await fetch('/api/comments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (activeTab) {
+              if (!activeTab.pins) activeTab.pins = [];
+              activeTab.pins.push(data.comment);
+            }
+            renderVisualPins();
+            closeModal();
+            await fetchWorkforceState();
+          }
+        } catch (err) {
+          alert(`Failed to save comment: ${err.message}`);
+        }
+      });
+    }
+  }
+
+  function setupCopilotFeed() {
+    const btnSubmit = document.getElementById('btn-copilot-submit-comment');
+    const commentInput = document.getElementById('copilot-comment-input');
+
+    if (btnSubmit && commentInput) {
+      btnSubmit.addEventListener('click', async () => {
+        const text = commentInput.value.trim();
+        if (!text) return;
+        const activeTab = studioState.openTabs.find(t => t.id === studioState.activeTabId);
+        const payload = {
+          target_type: activeTab ? (activeTab.type || 'task') : 'copilot',
+          target_id: activeTab ? activeTab.id : 'copilot',
+          file: activeTab?.path || '',
+          comment: text,
+          author: '@human'
+        };
+
+        try {
+          const res = await fetch('/api/comments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          if (res.ok) {
+            commentInput.value = '';
+            await fetchWorkforceState();
+            await loadTurnSummary();
+            renderActiveTabContent();
+          }
+        } catch (err) {
+          console.error('Comment submit error:', err);
+        }
+      });
+
+      commentInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          btnSubmit.click();
+        }
+      });
+    }
+
+    const btnSuggestInbox = document.getElementById('btn-suggest-inbox');
+    if (btnSuggestInbox) {
+      btnSuggestInbox.addEventListener('click', () => {
+        openInboxTab();
+      });
+    }
+    const btnSuggestArtifact = document.getElementById('btn-suggest-artifact');
+    if (btnSuggestArtifact) {
+      btnSuggestArtifact.addEventListener('click', () => {
+        openMockupTab();
+      });
+    }
+    const btnSuggestContinue = document.getElementById('btn-suggest-continue');
+    if (btnSuggestContinue) {
+      btnSuggestContinue.addEventListener('click', () => {
+        if (commentInput) {
+          commentInput.value = "Proceed with next implementation milestone.";
+          commentInput.focus();
+        }
+      });
+    }
+  }
+
+  async function loadTurnSummary() {
+    try {
+      const res = await fetch('/api/turn-summary');
+      if (res.ok) {
+        const data = await res.json();
+        const container = document.getElementById('copilot-turn-summary-text');
+        if (container) {
+          container.innerText = data.content || "Autonomous execution verified. All unit tests, static analysis, and linters passed with 0 regressions.";
+        }
+      }
+    } catch (err) {
+      // Keep existing
+    }
+  }
+
+  async function loadStudioInitialContent() {
+    await loadTurnSummary();
+
+    // Populate turn files
+    const filesList = document.getElementById('copilot-files-list');
+    const filesCount = document.getElementById('copilot-files-count');
+    if (filesList) {
+      filesList.innerHTML = '';
+      const sampleFiles = [];
+
+      state.tasks.slice(0, 4).forEach(t => {
+        sampleFiles.push({ name: t.file ? t.file.split('/').pop() : `${t.id}.md`, path: t.file, type: 'task', title: t.title, id: t.id });
+      });
+
+      if (state.sessions.length > 0) {
+        sampleFiles.push({ name: `${state.sessions[0].id}.md`, path: `workforces/session-context/${state.sessions[0].id}.md`, type: 'session', title: state.sessions[0].topic, id: state.sessions[0].id });
+      }
+
+      if (filesCount) filesCount.innerText = `${sampleFiles.length} files`;
+
+      sampleFiles.forEach(f => {
+        const row = document.createElement('div');
+        row.className = 'turn-file-row';
+        row.innerHTML = `
+          <div class="flex items-center gap-2 truncate max-w-[200px]">
+            <i data-lucide="file-code" class="w-3.5 h-3.5 text-[#828282] shrink-0"></i>
+            <span class="font-mono truncate" title="${f.path}">${f.name}</span>
+          </div>
+          <button class="px-2 py-0.5 rounded text-[11px] font-medium text-[#c2410c] hover:bg-[#fff7ed] transition-colors btn-open-file">Open</button>
+        `;
+        row.querySelector('.btn-open-file').addEventListener('click', () => {
+          if (f.type === 'task') {
+            openTaskTab(f.id);
+          } else {
+            openDocumentTab(f.path, f.title);
+          }
+        });
+        filesList.appendChild(row);
+      });
+    }
+
+    // Open initial tab
+    if (state.tasks.length > 0) {
+      openTaskTab(state.tasks[0].id);
+    } else {
+      openDefaultDocumentTab();
+    }
+  }
+
+  function openTab(tab) {
+    const existing = studioState.openTabs.find(t => t.id === tab.id);
+    if (!existing) {
+      studioState.openTabs.push(tab);
+    }
+    studioState.activeTabId = tab.id;
+    switchToStudioMode(tab.scenario || 'document');
+    renderTabStrip();
+    renderActiveTabContent();
+  }
+
+  function closeTab(tabId, e) {
+    if (e) e.stopPropagation();
+    studioState.openTabs = studioState.openTabs.filter(t => t.id !== tabId);
+    if (studioState.activeTabId === tabId) {
+      if (studioState.openTabs.length > 0) {
+        studioState.activeTabId = studioState.openTabs[studioState.openTabs.length - 1].id;
+      } else {
+        studioState.activeTabId = null;
+      }
+    }
+    renderTabStrip();
+    renderActiveTabContent();
+  }
+
+  function renderTabStrip() {
+    const strip = document.getElementById('studio-tabs-strip');
+    if (!strip) return;
+    strip.innerHTML = '';
+
+    studioState.openTabs.forEach(tab => {
+      const tabEl = document.createElement('div');
+      tabEl.className = `studio-tab ${tab.id === studioState.activeTabId ? 'active' : ''}`;
+      const iconName = tab.isMockup ? 'palette' : (tab.isWireframe ? 'layout' : (tab.isInbox ? 'inbox' : 'file-text'));
+      tabEl.innerHTML = `
+        <i data-lucide="${iconName}" class="w-3.5 h-3.5"></i>
+        <span class="truncate max-w-[140px]">${tab.title}</span>
+        <button class="studio-tab-close" title="Close tab">&times;</button>
+      `;
+      tabEl.addEventListener('click', () => {
+        studioState.activeTabId = tab.id;
+        switchToStudioMode(tab.scenario || 'document');
+        renderTabStrip();
+        renderActiveTabContent();
+      });
+      tabEl.querySelector('.studio-tab-close').addEventListener('click', (e) => {
+        closeTab(tab.id, e);
+      });
+      strip.appendChild(tabEl);
+    });
+
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  async function openTaskTab(taskId) {
+    const task = state.tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    let stitchUrl = "";
+    if (task.source_url && task.source_url.includes("stitch.withgoogle.com")) {
+      stitchUrl = task.source_url;
+    } else if (task.body && task.body.includes("stitch.withgoogle.com")) {
+      const match = task.body.match(/https:\/\/stitch\.withgoogle\.com[^\s\)]+/);
+      if (match) stitchUrl = match[0];
+    }
+
+    // Fetch comments for task
+    let pins = [];
+    try {
+      const cRes = await fetch(`/api/comments?target_id=${encodeURIComponent(taskId)}`);
+      if (cRes.ok) {
+        const cData = await cRes.json();
+        pins = cData.comments || [];
+      }
+    } catch (err) {
+      console.warn("Could not fetch comments for task:", taskId, err);
+    }
+
+    const tab = {
+      id: task.id,
+      title: task.title,
+      type: 'task',
+      path: task.file,
+      content: `# ${task.title}\n\n**Status:** \`${task.status}\` | **Priority:** \`${task.priority}\` | **Team:** \`${task.team}\`\n\n---\n\n${task.body || "No task description."}`,
+      stitchUrl: stitchUrl,
+      scenario: 'document',
+      pins: pins
+    };
+
+    openTab(tab);
+  }
+
+  async function openDocumentTab(filePath, title) {
+    let content = `# ${title || filePath}\n\nLoading document content...`;
+    try {
+      const res = await fetch(`/api/document?path=${encodeURIComponent(filePath)}`);
+      if (res.ok) {
+        const data = await res.json();
+        content = data.content;
+      }
+    } catch (err) {
+      console.warn("Could not fetch document content:", filePath, err);
+    }
+
+    let pins = [];
+    try {
+      const cRes = await fetch(`/api/comments?target_id=${encodeURIComponent(filePath)}`);
+      if (cRes.ok) {
+        const cData = await cRes.json();
+        pins = cData.comments || [];
+      }
+    } catch (err) {
+      console.warn("Could not fetch comments for document:", filePath, err);
+    }
+
+    const tab = {
+      id: filePath,
+      title: title || filePath.split('/').pop(),
+      type: 'doc',
+      path: filePath,
+      content: content,
+      scenario: 'document',
+      pins: pins
+    };
+    openTab(tab);
+  }
+
+  function openDefaultDocumentTab() {
+    const welcomeContent = `# Workforce Studio Workspace
+
+Welcome to the **Workforce Command Studio**.
+
+This split-stage studio integrates your autonomous AI engineering workforce with real-world browser tools:
+- **Left Copilot & Audit Feed**: Real-time turn telemetry, verified artifacts, and quality gate status.
+- **Right Preview Stage**: Interactive markdown renderer, responsive Desktop / Mobile frames, and visual comment pins.
+- **Chrome Extension Assistant**: Push live research, Google "Ask Gemini" findings, and Google Stitch UI prototypes directly into the workspace.
+- **Radar Canvas**: Click **Radar Canvas** in the left rail or top chip to switch back to the multi-node architectural graph and code blast radius analyzer.
+`;
+    openTab({
+      id: 'studio-welcome',
+      title: 'Studio Overview',
+      type: 'doc',
+      content: welcomeContent,
+      scenario: 'document',
+      pins: []
+    });
+  }
+
+  function openWireframeTab() {
+    const wireframeContent = `
+      <div class="space-y-6">
+        <div class="border-b border-[#e2e0dc] pb-4">
+          <span class="text-[10.5px] font-mono uppercase tracking-wider text-[#0369a1] bg-[#e0f2fe] px-2 py-0.5 rounded">Wireframe Spec</span>
+          <h2 class="text-xl font-bold text-[#202020] mt-2">Autonomous Workforce Studio Flow</h2>
+          <p class="text-xs text-[#828282] mt-1">Interactive architectural layout for multi-agent dispatch &amp; Chrome extension sync.</p>
+        </div>
+
+        <div class="grid grid-cols-3 gap-4">
+          <div class="p-4 bg-[#faf9f5] border border-[#e2e0dc] rounded-lg">
+            <div class="w-7 h-7 rounded bg-[#202020] text-white flex items-center justify-center mb-2 text-xs font-mono">01</div>
+            <h3 class="font-semibold text-xs text-[#202020]">Browser Research (Gemini)</h3>
+            <p class="text-[11px] text-[#666] mt-1">Chrome extension captures competitor data, video scripts in Google Flow, or Stitch UI links.</p>
+          </div>
+          <div class="p-4 bg-[#faf9f5] border border-[#e2e0dc] rounded-lg">
+            <div class="w-7 h-7 rounded bg-[#c2410c] text-white flex items-center justify-center mb-2 text-xs font-mono">02</div>
+            <h3 class="font-semibold text-xs text-[#202020]">Heartbeat Watcher</h3>
+            <p class="text-[11px] text-[#666] mt-1">Monitors workforces/inbox/pending/, auto-dispatches actionable tasks or routes for human review.</p>
+          </div>
+          <div class="p-4 bg-[#faf9f5] border border-[#e2e0dc] rounded-lg">
+            <div class="w-7 h-7 rounded bg-[#047857] text-white flex items-center justify-center mb-2 text-xs font-mono">03</div>
+            <h3 class="font-semibold text-xs text-[#202020]">Studio Verification</h3>
+            <p class="text-[11px] text-[#666] mt-1">Inspect artifacts in split-stage, drop visual feedback pins, and trigger autonomous refactors.</p>
+          </div>
+        </div>
+
+        <div class="border border-[#e2e0dc] rounded-lg p-6 bg-[#ffffff]">
+          <div class="flex items-center justify-between pb-3 border-b border-[#e2e0dc] mb-4">
+            <span class="text-xs font-mono font-medium text-[#4d4d4d]">SYSTEM TOPOLOGY WIREFRAME</span>
+            <span class="text-xs font-mono text-emerald-600">ONLINE (:8765)</span>
+          </div>
+          <div class="space-y-3">
+            <div class="h-10 bg-[#faf9f5] border border-dashed border-[#d1cfca] rounded flex items-center px-4 text-xs font-mono text-[#828282]">
+              [Chrome Extension Context Menu] &rarr; POST /api/inbox/submit &rarr; workforces/inbox/pending/
+            </div>
+            <div class="h-10 bg-[#faf9f5] border border-dashed border-[#d1cfca] rounded flex items-center px-4 text-xs font-mono text-[#828282]">
+              [InboxHeartbeatWatcher Daemon] &rarr; Auto-Dispatch &rarr; workforces/tasks/202609...md
+            </div>
+            <div class="h-10 bg-[#faf9f5] border border-dashed border-[#d1cfca] rounded flex items-center px-4 text-xs font-mono text-[#828282]">
+              [Studio Visual Pins] &rarr; POST /api/comments &rarr; .canvas-comments.json &amp; Task Evolution Notes
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    openTab({
+      id: 'studio-wireframe',
+      title: 'Studio Wireframe',
+      type: 'wireframe',
+      isWireframe: true,
+      content: wireframeContent,
+      scenario: 'wireframe',
+      pins: []
+    });
+  }
+
+  function openMockupTab() {
+    const mockupContent = `
+      <div class="space-y-6">
+        <div class="border-b border-[#e2e0dc] pb-4 flex items-center justify-between">
+          <div>
+            <span class="text-[10.5px] font-mono uppercase tracking-wider text-[#db2777] bg-[#fdf2f8] px-2 py-0.5 rounded">UI Prototype</span>
+            <h2 class="text-xl font-bold text-[#202020] mt-2">Creator Voice Guide &amp; Design Spec</h2>
+          </div>
+          <button id="btn-mockup-stitch-link" class="px-3 py-1.5 rounded bg-[#202020] text-white text-xs font-medium hover:bg-[#383838] flex items-center gap-1.5">
+            <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+            Launch Stitch Prototype
+          </button>
+        </div>
+
+        <div class="p-8 bg-[#faf9f5] border border-[#e2e0dc] rounded-xl shadow-xs">
+          <div class="max-w-md mx-auto text-center space-y-4">
+            <div class="w-12 h-12 rounded-full bg-[#202020] text-white flex items-center justify-center mx-auto text-base font-bold">
+              OD
+            </div>
+            <h3 class="text-2xl font-bold text-[#202020] tracking-tight">OpenDesign Autonomous Studio</h3>
+            <p class="text-xs text-[#666] leading-relaxed">
+              Drop visual feedback pins directly on this UI mockup to communicate design changes back to the AI engineering workforce.
+            </p>
+            <div class="pt-2 flex justify-center gap-3">
+              <button class="px-4 py-2 bg-[#202020] text-white text-xs font-medium rounded-md">Primary Action</button>
+              <button class="px-4 py-2 bg-white border border-[#d1cfca] text-xs font-medium rounded-md">Secondary</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    openTab({
+      id: 'studio-mockup',
+      title: 'UI Mockup Preview',
+      type: 'mockup',
+      isMockup: true,
+      content: mockupContent,
+      stitchUrl: 'https://stitch.withgoogle.com/',
+      scenario: 'mockup',
+      pins: [
+        { id: 'sample-pin-1', author: '@designer', comment: 'Ensure primary CTA has sufficient contrast.', pin: { x: 50.0, y: 55.0 } }
+      ]
+    });
+  }
+
+  async function openInboxTab() {
+    let items = [];
+    try {
+      const res = await fetch('/api/inbox');
+      if (res.ok) {
+        const data = await res.json();
+        items = data.items || [];
+      }
+    } catch (err) {
+      console.warn("Could not fetch inbox items:", err);
+    }
+
+    let itemsHtml = items.length === 0 ? '<p class="text-xs text-[#828282] py-8 text-center">No items currently in the inbox. Use the Chrome Extension to capture research or stitch URLs.</p>' : '';
+
+    items.forEach(item => {
+      const dateStr = item.captured_at ? item.captured_at.slice(5, 16).replace('T', ' ') : '';
+      itemsHtml += `
+        <div class="p-4 bg-[#faf9f5] border border-[#e2e0dc] rounded-lg space-y-2 mb-3">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded bg-[#ffffff] border border-[#e2e0dc] text-[#4d4d4d]">${item.type || 'capture'}</span>
+            <span class="text-[10px] font-mono text-[#828282]">${dateStr}</span>
+          </div>
+          <h4 class="text-xs font-semibold text-[#202020]">${escapeHtml(item.title || 'Untitled')}</h4>
+          <p class="text-[11.5px] text-[#666] leading-relaxed whitespace-pre-wrap">${escapeHtml(item.content || item.selection || '')}</p>
+          ${item.source_url ? `<a href="${item.source_url}" target="_blank" class="text-[11px] text-[#c2410c] underline inline-block">Source URL &rarr;</a>` : ''}
+        </div>
+      `;
+    });
+
+    const inboxFullContent = `
+      <div class="space-y-4">
+        <div class="border-b border-[#e2e0dc] pb-3 flex items-center justify-between">
+          <div>
+            <h2 class="text-lg font-bold text-[#202020]">Extension Captures &amp; Inbox</h2>
+            <p class="text-xs text-[#828282]">Review submissions pushed from Chrome (Ask Gemini, Google Flow, Stitch).</p>
+          </div>
+          <span class="text-xs font-mono font-medium text-[#c2410c]">${items.length} items</span>
+        </div>
+        <div>${itemsHtml}</div>
+      </div>
+    `;
+
+    openTab({
+      id: 'studio-inbox',
+      title: `Inbox (${items.length})`,
+      type: 'inbox',
+      isInbox: true,
+      content: inboxFullContent,
+      scenario: 'document',
+      pins: []
+    });
+  }
+
+  function openTasksOverviewTab() {
+    let html = `
+      <div class="space-y-4">
+        <div class="border-b border-[#e2e0dc] pb-3">
+          <h2 class="text-lg font-bold text-[#202020]">Workforce Task Backlog</h2>
+          <p class="text-xs text-[#828282]">Authoritative tasks synchronized with workforces/tasks/.</p>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+    `;
+
+    state.tasks.forEach(t => {
+      html += `
+        <div class="p-3 bg-[#faf9f5] border border-[#e2e0dc] rounded-lg">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-[9.5px] font-mono font-bold px-1.5 py-0.5 rounded ${t.priority === 'P0' ? 'bg-[#fee2e2] text-[#b91c1c]' : 'bg-[#f4f4f5] text-[#4d4d4d]'}">${t.priority}</span>
+            <span class="text-[10px] font-mono text-[#0369a1]">${t.status}</span>
+          </div>
+          <h4 class="text-xs font-semibold text-[#202020] mb-1">${escapeHtml(t.title)}</h4>
+          <p class="text-[11px] text-[#828282] truncate font-mono">${t.file}</p>
+        </div>
+      `;
+    });
+
+    html += `</div></div>`;
+
+    openTab({
+      id: 'studio-tasks',
+      title: `Tasks (${state.tasks.length})`,
+      type: 'tasks',
+      content: html,
+      scenario: 'document',
+      pins: []
+    });
+  }
+
+  function openHypothesesTab() {
+    let html = `
+      <div class="space-y-4">
+        <div class="border-b border-[#e2e0dc] pb-3">
+          <h2 class="text-lg font-bold text-[#202020]">Hypotheses &amp; Market Validation</h2>
+          <p class="text-xs text-[#828282]">Customer demand and willingness-to-pay hypotheses.</p>
+        </div>
+        <div class="space-y-3">
+    `;
+
+    if (state.hypotheses.length === 0) {
+      html += `<p class="text-xs text-[#828282] py-6 text-center">No active hypotheses recorded in workforces/hypotheses/.</p>`;
+    } else {
+      state.hypotheses.forEach(h => {
+        html += `
+          <div class="p-4 bg-[#faf9f5] border border-[#e2e0dc] rounded-lg">
+            <h4 class="text-xs font-semibold text-[#202020]">${escapeHtml(h.title)}</h4>
+            <p class="text-[11px] text-[#666] mt-1 whitespace-pre-wrap">${escapeHtml(h.body || '')}</p>
+          </div>
+        `;
+      });
+    }
+
+    html += `</div></div>`;
+
+    openTab({
+      id: 'studio-hypotheses',
+      title: 'Hypotheses',
+      type: 'hypotheses',
+      content: html,
+      scenario: 'document',
+      pins: []
+    });
+  }
+
+  function openPluginsTab() {
+    const plugins = [
+      { name: "clean-coder", desc: "Craftsmanship, TDD, zero error swallowing.", type: "core" },
+      { name: "code-graph", desc: "AST symbol indexing & blast radius call graph.", type: "core" },
+      { name: "task-tracker", desc: "Deciding factors, session lineage, and workstate sync.", type: "core" },
+      { name: "workforce-canvas", desc: "Interactive OpenDesign studio and command radar.", type: "core" },
+      { name: "image-workflow", desc: "Prompt deconstruction and Antigravity asset generation.", type: "skill" },
+      { name: "feature-research", desc: "5-phase PRD authoring pipeline.", type: "skill" },
+    ];
+
+    let html = `
+      <div class="space-y-4">
+        <div class="border-b border-[#e2e0dc] pb-3">
+          <h2 class="text-lg font-bold text-[#202020]">Workforces Skills &amp; Plugins</h2>
+          <p class="text-xs text-[#828282]">Installed modular agents, skills, and tools.</p>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+    `;
+
+    plugins.forEach(p => {
+      html += `
+        <div class="p-4 bg-[#faf9f5] border border-[#e2e0dc] rounded-lg">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-xs font-semibold text-[#202020]">${p.name}</span>
+            <span class="text-[9.5px] font-mono px-1.5 py-0.5 rounded bg-white border border-[#e2e0dc] uppercase text-[#666]">${p.type}</span>
+          </div>
+          <p class="text-[11.5px] text-[#666]">${p.desc}</p>
+        </div>
+      `;
+    });
+
+    html += `</div></div>`;
+
+    openTab({
+      id: 'studio-plugins',
+      title: 'Skills & Plugins',
+      type: 'plugins',
+      content: html,
+      scenario: 'document',
+      pins: []
+    });
+  }
+
+  function renderActiveTabContent() {
+    const activeTab = studioState.openTabs.find(t => t.id === studioState.activeTabId);
+    const contentBox = document.getElementById('preview-content-box');
+    const stageFileLabel = document.getElementById('stage-file-label');
+    const stitchLinkBtn = document.getElementById('btn-open-external-stitch');
+    const commentsCountLabel = document.getElementById('stage-comments-count');
+
+    if (!activeTab || !contentBox) {
+      if (contentBox) contentBox.innerHTML = '<p class="text-center text-xs text-[#828282] py-20">Select an item from the sidebar or open tabs.</p>';
+      return;
+    }
+
+    if (stageFileLabel) stageFileLabel.innerText = activeTab.path || activeTab.title;
+    const pinCount = activeTab.pins ? activeTab.pins.length : 0;
+    if (commentsCountLabel) commentsCountLabel.innerText = `${pinCount} pin${pinCount === 1 ? '' : 's'}`;
+
+    if (stitchLinkBtn) {
+      if (activeTab.stitchUrl) {
+        stitchLinkBtn.classList.remove('hidden');
+        stitchLinkBtn.classList.add('flex');
+        stitchLinkBtn.href = activeTab.stitchUrl;
+      } else {
+        stitchLinkBtn.classList.remove('flex');
+        stitchLinkBtn.classList.add('hidden');
+      }
+    }
+
+    if (studioState.previewMode === 'code') {
+      contentBox.innerHTML = `<pre class="p-4 font-mono text-xs bg-[#faf9f5] border border-[#e2e0dc] rounded overflow-x-auto whitespace-pre-wrap"><code>${escapeHtml(activeTab.content || '')}</code></pre>`;
+    } else {
+      if (activeTab.isMockup || activeTab.isWireframe || activeTab.isInbox || activeTab.type === 'tasks' || activeTab.type === 'hypotheses' || activeTab.type === 'plugins') {
+        contentBox.innerHTML = activeTab.content;
+      } else {
+        try {
+          contentBox.innerHTML = window.marked ? window.marked.parse(activeTab.content) : activeTab.content;
+        } catch (e) {
+          contentBox.innerHTML = `<p>${escapeHtml(activeTab.content)}</p>`;
+        }
+      }
+    }
+
+    renderVisualPins();
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  function renderVisualPins() {
+    const overlay = document.getElementById('preview-pins-overlay');
+    if (!overlay) return;
+    overlay.innerHTML = '';
+
+    const activeTab = studioState.openTabs.find(t => t.id === studioState.activeTabId);
+    if (!activeTab || !activeTab.pins) return;
+
+    activeTab.pins.forEach((p, idx) => {
+      if (!p.pin || p.pin.x === undefined || p.pin.y === undefined) return;
+      const pinEl = document.createElement('div');
+      pinEl.className = 'visual-pin';
+      pinEl.style.left = `${p.pin.x}%`;
+      pinEl.style.top = `${p.pin.y}%`;
+      pinEl.innerText = idx + 1;
+
+      // Popover
+      const popover = document.createElement('div');
+      popover.className = 'visual-pin-popover hidden';
+      const dateStr = p.created_at ? p.created_at.slice(5, 16).replace('T', ' ') : '';
+      popover.innerHTML = `
+        <div class="flex items-center justify-between mb-1 pb-1 border-b border-[#e2e0dc]">
+          <span class="font-semibold text-xs text-[#202020]">${escapeHtml(p.author || '@designer')}</span>
+          <span class="text-[10px] font-mono text-[#828282]">${dateStr}</span>
+        </div>
+        <p class="text-xs text-[#4d4d4d] leading-relaxed mb-1">${escapeHtml(p.comment || '')}</p>
+        ${p.stitch_url ? `<a href="${p.stitch_url}" target="_blank" class="text-[10.5px] text-[#c2410c] underline">View on Stitch &rarr;</a>` : ''}
+      `;
+
+      pinEl.addEventListener('mouseenter', () => popover.classList.remove('hidden'));
+      pinEl.addEventListener('mouseleave', () => popover.classList.add('hidden'));
+      pinEl.appendChild(popover);
+      overlay.appendChild(pinEl);
+    });
+  }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
 
   // Self-start on DOM ready

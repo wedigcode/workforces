@@ -512,9 +512,25 @@ def update_task_file(root_dir: Path, relative_file: str, updates: Dict[str, Any]
     Safely update a task's frontmatter fields (status, priority, blocked_by, evolution notes).
     Automatically resynchronizes workforces/workstate.md.
     """
-    task_path = root_dir / relative_file
+    task_path = root_dir / relative_file.lstrip("/")
     if not task_path.exists():
-        raise FileNotFoundError(f"Task file not found: {relative_file}")
+        if (root_dir / "workforces" / relative_file.lstrip("/")).exists():
+            task_path = root_dir / "workforces" / relative_file.lstrip("/")
+        elif (root_dir / "workforces" / "tasks" / relative_file.lstrip("/")).exists():
+            task_path = root_dir / "workforces" / "tasks" / relative_file.lstrip("/")
+        else:
+            # Look up task in tasks directory by filename or stem
+            tasks_dir = root_dir / "workforces" / "tasks"
+            found_path = None
+            if tasks_dir.exists():
+                for tf in tasks_dir.glob("*.md"):
+                    if tf.name == relative_file or tf.stem == relative_file or tf.name == f"{relative_file}.md":
+                        found_path = tf
+                        break
+            if found_path:
+                task_path = found_path
+            else:
+                raise FileNotFoundError(f"Task file not found: {relative_file}")
 
     content = task_path.read_text(encoding="utf-8", errors="ignore")
     match = re.match(r"^---\s*\n(.*?)\n---\s*\n(.*)$", content, re.DOTALL)
@@ -581,6 +597,318 @@ def update_task_file(root_dir: Path, relative_file: str, updates: Dict[str, Any]
     return parse_yaml_frontmatter(task_path)
 
 
+def write_session_state(root_dir: Path, status: str, port: int, pid: int, extra: Optional[Dict[str, Any]] = None):
+    """Write or update workforces/.canvas-session.json with current runtime telemetry."""
+    try:
+        session_file = root_dir / "workforces" / ".canvas-session.json"
+        session_file.parent.mkdir(parents=True, exist_ok=True)
+        data = {
+            "status": status,
+            "pid": pid,
+            "port": port,
+            "url": f"http://127.0.0.1:{port}",
+            "updated_at": datetime.datetime.now().isoformat(),
+        }
+        if extra:
+            data.update(extra)
+        session_file.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    except Exception as e:
+        sys.stderr.write(f"Error writing .canvas-session.json: {e}\n")
+
+
+def get_comments(root_dir: Path, target_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Retrieve visual pins and comments from workforces/.canvas-comments.json."""
+    comments_file = root_dir / "workforces" / ".canvas-comments.json"
+    if not comments_file.exists():
+        return []
+    try:
+        data = json.loads(comments_file.read_text(encoding="utf-8"))
+        if target_id:
+            tid_clean = str(target_id).rstrip("/").split("/")[-1]
+            tid_stem = tid_clean[:-3] if tid_clean.endswith(".md") else tid_clean
+            matched = []
+            for c in data:
+                c_tid = str(c.get("target_id") or "")
+                c_file = str(c.get("file") or "")
+                c_file_clean = c_file.rstrip("/").split("/")[-1]
+                c_file_stem = c_file_clean[:-3] if c_file_clean.endswith(".md") else c_file_clean
+
+                if (c_tid == target_id
+                    or c_file == target_id
+                    or c_tid == tid_clean
+                    or c_tid == tid_stem
+                    or c_file_clean == tid_clean
+                    or c_file_stem == tid_stem):
+                    matched.append(c)
+            return matched
+        return data
+    except Exception as err:
+        sys.stderr.write(f"Warning: Error reading comments: {err}\n")
+        return []
+
+
+def save_comment(root_dir: Path, comment_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Save a visual pin or review comment and append an evolution note if linked to a task."""
+    comments_file = root_dir / "workforces" / ".canvas-comments.json"
+    comments = []
+    if comments_file.exists():
+        try:
+            comments = json.loads(comments_file.read_text(encoding="utf-8"))
+        except Exception:
+            comments = []
+
+    comment_id = f"comment-{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}-{os.urandom(2).hex()}"
+    pin = comment_data.get("pin")
+    entry = {
+        "id": comment_id,
+        "target_type": comment_data.get("target_type", "task"),
+        "target_id": comment_data.get("target_id") or comment_data.get("file", ""),
+        "file": comment_data.get("file", ""),
+        "comment": comment_data.get("comment", ""),
+        "author": comment_data.get("author", "@human"),
+        "pin": pin,
+        "stitch_url": comment_data.get("stitch_url", ""),
+        "created_at": datetime.datetime.now().isoformat(),
+    }
+    comments.append(entry)
+    comments_file.parent.mkdir(parents=True, exist_ok=True)
+    comments_file.write_text(json.dumps(comments, indent=2), encoding="utf-8")
+
+    # If target points to a task file or task ID, resolve path and append evolution note
+    target_identifier = comment_data.get("file") or comment_data.get("target_id") or ""
+    resolved_task_file = None
+    if target_identifier:
+        cand = root_dir / str(target_identifier).lstrip("/")
+        if cand.exists() and cand.is_file():
+            resolved_task_file = str(cand.relative_to(root_dir))
+        elif (root_dir / "workforces" / str(target_identifier).lstrip("/")).exists():
+            resolved_task_file = str((root_dir / "workforces" / str(target_identifier).lstrip("/")).relative_to(root_dir))
+        elif (root_dir / "workforces" / "tasks" / str(target_identifier).lstrip("/")).exists():
+            resolved_task_file = str((root_dir / "workforces" / "tasks" / str(target_identifier).lstrip("/")).relative_to(root_dir))
+        else:
+            tasks_dir = root_dir / "workforces" / "tasks"
+            if tasks_dir.exists():
+                for tf in tasks_dir.glob("*.md"):
+                    if tf.stem == target_identifier or tf.name == target_identifier or tf.name == f"{target_identifier}.md":
+                        resolved_task_file = str(tf.relative_to(root_dir))
+                        break
+                    try:
+                        meta = parse_yaml_frontmatter(tf)
+                        if meta.get("id") == target_identifier:
+                            resolved_task_file = str(tf.relative_to(root_dir))
+                            break
+                    except Exception:
+                        pass
+
+    if resolved_task_file:
+        try:
+            pin_str = f" [Pin: {pin.get('x', 0):.1f}%, {pin.get('y', 0):.1f}%]" if pin else ""
+            stitch_str = f" [Stitch: {entry['stitch_url']}]" if entry.get("stitch_url") else ""
+            note_text = f"{entry['author']}: {entry['comment']}{pin_str}{stitch_str}"
+            update_task_file(root_dir, resolved_task_file, {"evolution_note": note_text})
+            entry["task_updated"] = resolved_task_file
+        except Exception as e:
+            sys.stderr.write(f"Warning: Could not append comment to task file: {e}\n")
+
+    return entry
+
+
+def get_inbox_items(root_dir: Path) -> List[Dict[str, Any]]:
+    """Retrieve all items from workforces/inbox/ (pending, human_review, processed), supporting JSON and Markdown."""
+    items = []
+    for sub in ("pending", "human_review", "processed"):
+        d = root_dir / "workforces" / "inbox" / sub
+        if d.exists():
+            for f in sorted(list(d.glob("*.json")) + list(d.glob("*.md")), reverse=True):
+                try:
+                    if f.suffix == ".json":
+                        item_data = json.loads(f.read_text(encoding="utf-8"))
+                    else:
+                        meta = parse_yaml_frontmatter(f)
+                        raw_body = meta.get("_body")
+                        if raw_body is None:
+                            try:
+                                raw_body = f.read_text(encoding="utf-8")
+                            except Exception:
+                                raw_body = ""
+                        item_data = {
+                            "id": meta.get("id") or f.stem,
+                            "title": meta.get("title") or f.stem.replace("-", " ").title(),
+                            "type": meta.get("type") or "research",
+                            "content": raw_body,
+                            "source_url": meta.get("source_url") or "",
+                            "status": meta.get("status") or sub,
+                            "captured_at": meta.get("created_at") or datetime.datetime.fromtimestamp(f.stat().st_mtime).isoformat()
+                        }
+                    item_data["_folder"] = sub
+                    item_data["_filename"] = f.name
+                    items.append(item_data)
+                except Exception as err:
+                    sys.stderr.write(f"Warning: error reading inbox file {f.name}: {err}\n")
+    return items
+
+
+class InboxHeartbeatWatcher:
+    """
+    Background watcher that monitors workforces/inbox/pending/ for new items
+    from the Chrome extension or external tools. Routes auto-dispatchable tasks
+    to workforces/tasks/ and moves to processed, ideas to workforces/ideas/,
+    and human review items to workforces/inbox/human_review/.
+    Shuts down cleanly when server.py stops.
+    """
+    def __init__(self, root_dir: Path, interval: float = 2.0):
+        self.root_dir = root_dir
+        self.interval = interval
+        self.stop_event = threading.Event()
+        self.thread: Optional[threading.Thread] = None
+
+    def start(self):
+        self.stop_event.clear()
+        self.thread = threading.Thread(target=self._run, daemon=True)
+        self.thread.start()
+
+    def stop(self):
+        self.stop_event.set()
+        if self.thread and self.thread.is_alive():
+            self.thread.join(timeout=2.0)
+
+    def _run(self):
+        pending_dir = self.root_dir / "workforces" / "inbox" / "pending"
+        processed_dir = self.root_dir / "workforces" / "inbox" / "processed"
+        human_dir = self.root_dir / "workforces" / "inbox" / "human_review"
+        tasks_dir = self.root_dir / "workforces" / "tasks"
+
+        for d in (pending_dir, processed_dir, human_dir, tasks_dir):
+            d.mkdir(parents=True, exist_ok=True)
+
+        while not self.stop_event.is_set():
+            try:
+                self._scan_and_route(pending_dir, processed_dir, human_dir, tasks_dir)
+            except Exception as e:
+                sys.stderr.write(f"[InboxWatcher] Error during scan: {e}\n")
+            self.stop_event.wait(self.interval)
+
+    def _scan_and_route(self, pending_dir: Path, processed_dir: Path, human_dir: Path, tasks_dir: Path):
+        pending_dir.mkdir(parents=True, exist_ok=True)
+        processed_dir.mkdir(parents=True, exist_ok=True)
+        human_dir.mkdir(parents=True, exist_ok=True)
+        tasks_dir.mkdir(parents=True, exist_ok=True)
+        ideas_dir = self.root_dir / "workforces" / "ideas"
+        ideas_dir.mkdir(parents=True, exist_ok=True)
+
+        for item_file in sorted(list(pending_dir.glob("*.json")) + list(pending_dir.glob("*.md"))):
+            try:
+                now_ts = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+                is_md = item_file.suffix == ".md"
+                if is_md:
+                    meta = parse_yaml_frontmatter(item_file)
+                    content = meta.get("_body")
+                    if content is None:
+                        content = item_file.read_text(encoding="utf-8")
+                    title = meta.get("title")
+                    if not title:
+                        for line in content.splitlines():
+                            if line.startswith("# "):
+                                title = line[2:].strip()
+                                break
+                    title = title or item_file.stem.replace("-", " ").title()
+                    item_id = meta.get("id") or f"inbox-{item_file.stem}"
+                    auto_dispatch = str(meta.get("auto_dispatch", "")).lower() in ("true", "1", "yes")
+                    requires_human = str(meta.get("requires_human", not auto_dispatch)).lower() in ("true", "1", "yes")
+                    item_type = meta.get("type") or "research"
+                    source_url = meta.get("source_url") or ""
+                    priority = meta.get("priority") or "P1"
+                    reporter = meta.get("reporter") or "chrome-extension"
+                    data = {
+                        "id": item_id,
+                        "title": title,
+                        "content": content,
+                        "type": item_type,
+                        "source_url": source_url,
+                        "priority": priority,
+                        "reporter": reporter,
+                        "auto_dispatch": auto_dispatch,
+                        "requires_human": requires_human,
+                        "captured_at": meta.get("created_at") or datetime.datetime.now().isoformat(),
+                    }
+                else:
+                    data = json.loads(item_file.read_text(encoding="utf-8"))
+                    item_id = data.get("id", item_file.stem)
+                    auto_dispatch = data.get("auto_dispatch", False)
+                    requires_human = data.get("requires_human", not auto_dispatch)
+                    item_type = data.get("type", "general")
+                    title = data.get("title", "Inbox Item")
+                    content = data.get("content", "")
+                    source_url = data.get("source_url", "")
+                    priority = data.get("priority", "P1")
+                    reporter = data.get("reporter", "chrome-extension")
+
+                if auto_dispatch:
+                    # Create actionable workforce task
+                    clean_slug = re.sub(r'[^a-zA-Z0-9_-]', '-', title.lower()).strip('-')[:40] or "task"
+                    task_filename = f"{now_ts}-{clean_slug}.md"
+                    task_file = tasks_dir / task_filename
+                    task_content = f"""---
+id: "{item_id}"
+title: "{title}"
+type: "{item_type}"
+priority: "{priority}"
+status: "todo"
+reporter: "@{reporter.lstrip('@')}"
+source_url: "{source_url}"
+created_at: "{datetime.datetime.now().isoformat()}"
+---
+{content}
+"""
+                    task_file.write_text(task_content, encoding="utf-8")
+                    data["status"] = "dispatched"
+                    data["dispatched_task_file"] = str(task_file.relative_to(self.root_dir))
+                    data["routed_at"] = datetime.datetime.now().isoformat()
+                    dest_file = processed_dir / f"{item_file.stem}.json"
+                    dest_file.write_text(json.dumps(data, indent=2), encoding="utf-8")
+                    item_file.unlink(missing_ok=True)
+                    if sync_workstate_from_tasks:
+                        try:
+                            sync_workstate_from_tasks(str(self.root_dir))
+                        except Exception as sync_err:
+                            sys.stderr.write(f"Sync error: {sync_err}\n")
+                    sys.stderr.write(f"[InboxWatcher] Auto-dispatched task {item_id} -> {task_file.name}\n")
+                elif str(item_type).lower() in ("idea", "ideas") or data.get("target_folder") == "ideas":
+                    # Route to ideas folder
+                    clean_slug = re.sub(r'[^a-zA-Z0-9_-]', '-', title.lower()).strip('-')[:40] or "idea"
+                    idea_filename = f"{now_ts}-{clean_slug}.md"
+                    idea_file = ideas_dir / idea_filename
+                    idea_content = f"""---
+id: "{item_id}"
+title: "{title}"
+type: "idea"
+status: "captured"
+reporter: "@{reporter.lstrip('@')}"
+source_url: "{source_url}"
+created_at: "{datetime.datetime.now().isoformat()}"
+---
+{content}
+"""
+                    idea_file.write_text(idea_content, encoding="utf-8")
+                    data["status"] = "saved_to_ideas"
+                    data["dispatched_idea_file"] = str(idea_file.relative_to(self.root_dir))
+                    data["routed_at"] = datetime.datetime.now().isoformat()
+                    dest_file = processed_dir / f"{item_file.stem}.json"
+                    dest_file.write_text(json.dumps(data, indent=2), encoding="utf-8")
+                    item_file.unlink(missing_ok=True)
+                    sys.stderr.write(f"[InboxWatcher] Routed idea {item_id} -> {idea_file.name}\n")
+                elif requires_human or data.get("requires_human", True):
+                    # Route to human review folder
+                    data["status"] = "needs_human_review"
+                    data["routed_at"] = datetime.datetime.now().isoformat()
+                    dest_file = human_dir / f"{item_file.stem}.json"
+                    dest_file.write_text(json.dumps(data, indent=2), encoding="utf-8")
+                    item_file.unlink(missing_ok=True)
+                    sys.stderr.write(f"[InboxWatcher] Routed {item_id} to human review\n")
+            except Exception as e:
+                sys.stderr.write(f"[InboxWatcher] Failed to process {item_file.name}: {e}\n")
+
+
 class WorkforceCanvasHandler(http.server.SimpleHTTPRequestHandler):
     """Custom HTTP request handler serving the interactive canvas and REST APIs."""
 
@@ -590,6 +918,8 @@ class WorkforceCanvasHandler(http.server.SimpleHTTPRequestHandler):
     idle_timeout: int = 300  # Default 5 minutes (300 seconds)
     httpd_instance: Any = None
     is_shutting_down: bool = False
+    server_port: int = 8765
+    watcher_instance: Any = None
 
     @classmethod
     def record_activity(cls):
@@ -602,6 +932,13 @@ class WorkforceCanvasHandler(http.server.SimpleHTTPRequestHandler):
         if cls.is_shutting_down:
             return
         cls.is_shutting_down = True
+
+        if cls.watcher_instance:
+            try:
+                cls.watcher_instance.stop()
+            except Exception:
+                pass
+        write_session_state(cls.root_dir, "stopped", getattr(cls, "server_port", 0) or 8765, os.getpid(), {"stopped_at": datetime.datetime.now().isoformat()})
 
         def _stop():
             time.sleep(delay)
@@ -640,6 +977,42 @@ class WorkforceCanvasHandler(http.server.SimpleHTTPRequestHandler):
             })
         elif path == "/api/state":
             self.send_json_response(self.handle_get_state())
+        elif path == "/api/inbox":
+            items = get_inbox_items(self.root_dir)
+            self.send_json_response({"items": items, "count": len(items)})
+        elif path == "/api/comments":
+            target_id = query.get("target_id", [None])[0] or query.get("target", [None])[0]
+            self.send_json_response({"comments": get_comments(self.root_dir, target_id)})
+        elif path == "/api/turn-summary":
+            summary_file = self.root_dir / "workforces" / "tmp" / "turn-summary.txt"
+            content = ""
+            if summary_file.exists():
+                try:
+                    content = summary_file.read_text(encoding="utf-8")
+                except Exception:
+                    pass
+            self.send_json_response({"content": content, "exists": summary_file.exists()})
+        elif path == "/api/document":
+            doc_path = query.get("path", [None])[0]
+            if not doc_path:
+                self.send_error(400, "Missing 'path' parameter")
+                return
+            target = (self.root_dir / doc_path.lstrip("/")).resolve()
+            root_resolved = self.root_dir.resolve()
+            if target.exists() and (str(target).startswith(str(root_resolved)) or str(target).startswith(str(self.root_dir))):
+                try:
+                    content = target.read_text(encoding="utf-8")
+                    self.send_json_response({
+                        "path": doc_path,
+                        "name": target.name,
+                        "size": target.stat().st_size,
+                        "content": content,
+                        "type": "markdown" if target.suffix == ".md" else "text"
+                    })
+                except Exception as e:
+                    self.send_error(500, f"Error reading document: {e}")
+            else:
+                self.send_error(404, "Document Not Found")
         elif path == "/api/commit":
             commit_hash = query.get("hash", [None])[0]
             self.send_json_response(get_commit_details(self.root_dir, commit_hash))
@@ -655,7 +1028,8 @@ class WorkforceCanvasHandler(http.server.SimpleHTTPRequestHandler):
             self.serve_file(self.web_dir / "canvas.js", "application/javascript")
         elif path.startswith("/workforces/"):
             target = (self.root_dir / path.lstrip("/")).resolve()
-            if target.exists() and str(target).startswith(str(self.root_dir)):
+            root_resolved = self.root_dir.resolve()
+            if target.exists() and (str(target).startswith(str(root_resolved)) or str(target).startswith(str(self.root_dir))):
                 if target.suffix == ".md":
                     content = target.read_text(encoding="utf-8")
                     html_content = f"""<!DOCTYPE html>
@@ -789,6 +1163,51 @@ li {{ margin: 4px 0; }}
             order_file = self.root_dir / "workforces" / ".canvas-order.json"
             order_file.write_text(json.dumps(order, indent=2), encoding="utf-8")
             self.send_json_response({"success": True, "order": order})
+
+        elif path == "/api/inbox/submit":
+            now_ts = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+            raw_title = data.get("title") or "Untitled Capture"
+            clean_slug = re.sub(r"[^a-zA-Z0-9_-]", "-", raw_title.lower()).strip("-")[:40] or "item"
+            item_id = data.get("id") or f"inbox-{now_ts}-{clean_slug}"
+            auto_dispatch = data.get("auto_dispatch", False)
+
+            payload = {
+                "id": item_id,
+                "title": raw_title,
+                "content": data.get("content", ""),
+                "type": data.get("type", "general"),
+                "source_url": data.get("source_url", ""),
+                "selection": data.get("selection", ""),
+                "auto_dispatch": auto_dispatch,
+                "requires_human": data.get("requires_human", not auto_dispatch),
+                "task_id": data.get("task_id", ""),
+                "tags": data.get("tags", []),
+                "captured_at": datetime.datetime.now().isoformat(),
+                "status": "pending"
+            }
+
+            inbox_dir = self.root_dir / "workforces" / "inbox" / "pending"
+            inbox_dir.mkdir(parents=True, exist_ok=True)
+            out_file = inbox_dir / f"{item_id}.json"
+            out_file.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+            self.send_json_response({
+                "success": True,
+                "id": item_id,
+                "file": str(out_file.relative_to(self.root_dir)),
+                "item": payload
+            })
+
+        elif path == "/api/comments":
+            comment_text = data.get("comment", "").strip()
+            if not comment_text:
+                self.send_error(400, "Missing 'comment' parameter")
+                return
+            try:
+                res = save_comment(self.root_dir, data)
+                self.send_json_response({"success": True, "comment": res})
+            except Exception as err:
+                self.send_error(500, f"Failed to save comment: {err}")
         else:
             self.send_error(404, "Not Found")
 
@@ -830,6 +1249,21 @@ li {{ margin: 4px 0; }}
         # Scan all session context notes
         sessions = get_all_sessions(self.root_dir)
 
+        # Inbox items
+        inbox_items = get_inbox_items(self.root_dir)
+
+        # Comments
+        comments = get_comments(self.root_dir)
+
+        # Turn summary
+        turn_summary_text = ""
+        summary_file = self.root_dir / "workforces" / "tmp" / "turn-summary.txt"
+        if summary_file.exists():
+            try:
+                turn_summary_text = summary_file.read_text(encoding="utf-8")
+            except Exception:
+                pass
+
         # Summary telemetry
         stats = {
             "total_tasks": len(tasks),
@@ -841,6 +1275,8 @@ li {{ margin: 4px 0; }}
             "hypotheses_count": len(hypotheses),
             "goals_count": len(goals),
             "symbols_count": len(available_symbols),
+            "inbox_count": len(inbox_items),
+            "comments_count": len(comments),
         }
 
         return {
@@ -851,6 +1287,9 @@ li {{ margin: 4px 0; }}
             "symbols": available_symbols,
             "edges": edges,
             "custom_order": custom_order,
+            "inbox": inbox_items,
+            "comments": comments,
+            "turn_summary": turn_summary_text,
             "stats": stats,
             "timestamp": datetime.datetime.now().isoformat(),
         }
@@ -914,6 +1353,15 @@ def run_server(
         sys.exit(1)
 
     WorkforceCanvasHandler.httpd_instance = httpd
+    WorkforceCanvasHandler.server_port = selected_port
+
+    # Record active session state to workforces/.canvas-session.json
+    write_session_state(resolved_root, "running", selected_port, os.getpid(), {"started_at": datetime.datetime.now().isoformat()})
+
+    # Start Inbox Heartbeat Watcher for background task routing
+    watcher = InboxHeartbeatWatcher(resolved_root)
+    watcher.start()
+    WorkforceCanvasHandler.watcher_instance = watcher
 
     # Start background idle watchdog thread
     if idle_timeout > 0:
@@ -940,6 +1388,7 @@ def run_server(
             print(f"👉 Automatically allocated port: {selected_port}")
         print(f"\n🚀 Workforce Command Canvas active at: {url}")
         print(f"📁 Root workspace: {resolved_root}")
+        print(f"📥 Inbox Watcher: active (monitoring workforces/inbox/pending/)")
         if idle_timeout > 0:
             print(f"⏱️  Auto-shutdown watchdog: {idle_timeout}s idle timeout (auto-stops when browser tab closes)")
         else:
@@ -959,6 +1408,9 @@ def run_server(
             print("\nShutting down canvas server.")
         finally:
             WorkforceCanvasHandler.is_shutting_down = True
+            if watcher:
+                watcher.stop()
+            write_session_state(resolved_root, "stopped", selected_port, os.getpid(), {"stopped_at": datetime.datetime.now().isoformat()})
 
 
 if __name__ == "__main__":
