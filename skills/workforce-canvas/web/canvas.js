@@ -1871,11 +1871,14 @@
     const commentInput = document.getElementById('copilot-comment-input');
     const contextTitle = document.getElementById('copilot-context-title');
     const contextSub = document.getElementById('copilot-context-subtitle');
+    const copilotFooter = document.querySelector('.copilot-footer');
 
     const taskPanel = document.getElementById('copilot-task-panel');
     const standupPanel = document.getElementById('copilot-standup-panel');
 
     const isTaskDoc = activeTab && (activeTab.type === 'task' || (activeTab.path && activeTab.path.includes('tasks/')));
+    const isSessionDoc = activeTab && (activeTab.type === 'session' || (activeTab.path && activeTab.path.includes('session-context/')));
+    const isGeneralDoc = activeTab && activeTab.type === 'doc';
 
     if (studioState.activeScenario === 'document' && isTaskDoc) {
       // Find matching task object
@@ -1886,6 +1889,8 @@
       if (contextTitle) contextTitle.innerText = "Task Inspector";
       if (contextSub) contextSub.innerText = "Properties, blockers, and questions for this task.";
 
+      // Show footer for active task comment/evolution notes
+      if (copilotFooter) copilotFooter.classList.remove('hidden');
       if (targetLabel) targetLabel.innerText = 'Note on active task:';
       if (targetTag) {
         targetTag.innerText = task ? task.title : (activeTab.title || 'Active Task');
@@ -1898,22 +1903,34 @@
       if (task) {
         renderTaskCopilotPanel(task);
       }
+    } else if (studioState.activeScenario === 'document' && (isSessionDoc || isGeneralDoc)) {
+      // Viewing a session context or markdown doc
+      if (taskPanel) taskPanel.classList.add('hidden');
+      if (standupPanel) standupPanel.classList.add('hidden');
+
+      if (contextTitle) contextTitle.innerText = isSessionDoc ? "Session Notes" : "Document Inspector";
+      if (contextSub) contextSub.innerText = activeTab.title || "Markdown file";
+
+      // Show footer for document notes
+      if (copilotFooter) copilotFooter.classList.remove('hidden');
+      if (targetLabel) targetLabel.innerText = isSessionDoc ? 'Note for session:' : 'Note for document:';
+      if (targetTag) {
+        targetTag.innerText = activeTab.title || 'Active Doc';
+        targetTag.title = activeTab.path || 'Document file';
+      }
+      if (commentInput) {
+        commentInput.placeholder = `Add note or instruction for this document...`;
+      }
     } else {
-      // Standup / general overview mode
+      // Standup / general overview mode (Cockpit, Tasks grid, Inbox, Hypotheses)
+      // When on overview screens with no specific document to comment on, hide footer
       if (taskPanel) taskPanel.classList.add('hidden');
       if (standupPanel) standupPanel.classList.remove('hidden');
 
       if (contextTitle) contextTitle.innerText = "Standup Copilot";
       if (contextSub) contextSub.innerText = "Sprint focus, recommended actions, and decisions.";
 
-      if (targetLabel) targetLabel.innerText = 'Note for active session:';
-      if (targetTag) {
-        targetTag.innerText = 'Standup Session';
-        targetTag.title = 'General session context';
-      }
-      if (commentInput) {
-        commentInput.placeholder = 'Add note or instruction for active workforce session...';
-      }
+      if (copilotFooter) copilotFooter.classList.add('hidden');
 
       renderStandupCopilotPanel();
     }
@@ -1988,113 +2005,127 @@
     const openQs = task.open_questions || [];
     if (questionsCount) questionsCount.innerText = openQs.length;
 
-    if (questionsList) {
-      questionsList.innerHTML = '';
+    if (questionsCard) {
       if (openQs.length === 0) {
-        questionsList.innerHTML = '<p class="text-[11px] text-[#828282] italic">Zero blockers or open questions for this task.</p>';
+        questionsCard.classList.add('hidden');
       } else {
-        openQs.forEach((q, idx) => {
-          const qBox = document.createElement('div');
-          qBox.className = 'p-2.5 bg-white border border-[#fed7aa] rounded-md space-y-2';
-          qBox.innerHTML = `
-            <div class="flex items-start gap-1.5">
-              <span class="text-[10px] font-mono font-bold text-[#c2410c] mt-0.5">Q${idx + 1}:</span>
-              <p class="text-xs font-medium text-[#202020] leading-snug flex-1">${escapeHtml(q)}</p>
-            </div>
-            <div class="flex items-center gap-1.5 pt-1">
-              <input type="text" placeholder="Type answer for AI agent..." class="flex-1 text-[11px] px-2 py-1 bg-[#faf9f5] border border-[#e2e0dc] rounded focus:outline-none focus:border-[#c2410c] text-[#202020] answer-input">
-              <button class="px-2 py-1 bg-[#202020] hover:bg-[#383838] text-white text-[10px] font-semibold rounded shrink-0 btn-save-answer">
-                Answer
-              </button>
-            </div>
-          `;
-
-          const inputEl = qBox.querySelector('.answer-input');
-          const btnEl = qBox.querySelector('.btn-save-answer');
-
-          const submitAnswer = async () => {
-            const ans = inputEl.value.trim();
-            if (!ans) return;
-            btnEl.innerText = 'Saving...';
-            try {
-              await fetch('/api/task/update', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  file: task.file,
-                  updates: {
-                    answer_question: { question: q, answer: ans }
-                  }
-                })
-              });
-              await fetchWorkforceState();
-              // Re-render task in active tab
-              openTaskTab(task.id);
-            } catch (e) {
-              alert(`Save answer error: ${e.message}`);
-            }
-          };
-
-          btnEl.onclick = submitAnswer;
-          inputEl.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') submitAnswer();
-          });
-
-          questionsList.appendChild(qBox);
-        });
+        questionsCard.classList.remove('hidden');
       }
+    }
+
+    if (questionsList && openQs.length > 0) {
+      questionsList.innerHTML = '';
+      openQs.forEach((q, idx) => {
+        const qBox = document.createElement('div');
+        qBox.className = 'p-2.5 bg-white border border-[#fed7aa] rounded-md space-y-2';
+        qBox.innerHTML = `
+          <div class="flex items-start gap-1.5">
+            <span class="text-[10px] font-mono font-bold text-[#c2410c] mt-0.5">Q${idx + 1}:</span>
+            <p class="text-xs font-medium text-[#202020] leading-snug flex-1">${escapeHtml(q)}</p>
+          </div>
+          <div class="flex items-center gap-1.5 pt-1">
+            <input type="text" placeholder="Type answer for AI agent..." class="flex-1 text-[11px] px-2 py-1 bg-[#faf9f5] border border-[#e2e0dc] rounded focus:outline-none focus:border-[#c2410c] text-[#202020] answer-input">
+            <button class="px-2 py-1 bg-[#202020] hover:bg-[#383838] text-white text-[10px] font-semibold rounded shrink-0 btn-save-answer">
+              Answer
+            </button>
+          </div>
+        `;
+
+        const inputEl = qBox.querySelector('.answer-input');
+        const btnEl = qBox.querySelector('.btn-save-answer');
+
+        const submitAnswer = async () => {
+          const ans = inputEl.value.trim();
+          if (!ans) return;
+          btnEl.innerText = 'Saving...';
+          try {
+            await fetch('/api/task/update', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                file: task.file,
+                updates: {
+                  answer_question: { question: q, answer: ans }
+                }
+              })
+            });
+            await fetchWorkforceState();
+            // Re-render task in active tab
+            openTaskTab(task.id);
+          } catch (e) {
+            alert(`Save answer error: ${e.message}`);
+          }
+        };
+
+        btnEl.onclick = submitAnswer;
+        inputEl.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') submitAnswer();
+        });
+
+        questionsList.appendChild(qBox);
+      });
     }
 
     // 5. Recommended Next Actions for this specific task
+    const actionsCard = document.getElementById('task-panel-actions-card');
     const actionsList = document.getElementById('task-panel-actions-list');
-    if (actionsList) {
-      actionsList.innerHTML = '';
-      const taskActions = [];
-      if (task.suggested_action) taskActions.push(task.suggested_action);
-      if (task.checklist && task.checklist.length > 0) {
-        task.checklist.slice(0, 3).forEach(c => taskActions.push(c));
-      }
+    const taskActions = [];
+    if (task.suggested_action) taskActions.push(task.suggested_action);
+    if (task.checklist && task.checklist.length > 0) {
+      task.checklist.slice(0, 3).forEach(c => taskActions.push(c));
+    }
 
+    if (actionsCard) {
       if (taskActions.length === 0) {
-        actionsList.innerHTML = '<p class="text-[10.5px] text-[#828282] italic py-1">No explicit next step documented in task.</p>';
+        actionsCard.classList.add('hidden');
       } else {
-        taskActions.forEach(act => {
-          const btn = document.createElement('button');
-          btn.className = 'recommended-action-item';
-          btn.innerHTML = `
-            <span class="action-text">${escapeHtml(act)}</span>
-            <i data-lucide="arrow-right" class="w-3.5 h-3.5 action-icon"></i>
-          `;
-          btn.onclick = () => {
-            const commentInput = document.getElementById('copilot-comment-input');
-            if (commentInput) {
-              commentInput.value = act;
-              commentInput.focus();
-            }
-          };
-          actionsList.appendChild(btn);
-        });
+        actionsCard.classList.remove('hidden');
       }
     }
 
+    if (actionsList && taskActions.length > 0) {
+      actionsList.innerHTML = '';
+      taskActions.forEach(act => {
+        const btn = document.createElement('button');
+        btn.className = 'recommended-action-item';
+        btn.innerHTML = `
+          <span class="action-text">${escapeHtml(act)}</span>
+          <i data-lucide="arrow-right" class="w-3.5 h-3.5 action-icon"></i>
+        `;
+        btn.onclick = () => {
+          const commentInput = document.getElementById('copilot-comment-input');
+          if (commentInput) {
+            commentInput.value = act;
+            commentInput.focus();
+          }
+        };
+        actionsList.appendChild(btn);
+      });
+    }
+
     // 6. Task Evolution Log
+    const historyCard = document.getElementById('task-panel-history-card');
     const historyList = document.getElementById('task-panel-history-list');
     const historyCount = document.getElementById('task-panel-history-count');
     const notes = task.evolution_notes || [];
 
     if (historyCount) historyCount.innerText = `${notes.length} entries`;
-    if (historyList) {
-      historyList.innerHTML = '';
+    if (historyCard) {
       if (notes.length === 0) {
-        historyList.innerHTML = '<p class="text-[10.5px] text-[#828282] italic">No evolution history recorded yet.</p>';
+        historyCard.classList.add('hidden');
       } else {
-        notes.slice(-5).reverse().forEach(n => {
-          const row = document.createElement('div');
-          row.className = 'p-1.5 bg-white border border-[#e2e0dc] rounded text-[11px] leading-relaxed';
-          row.innerText = n;
-          historyList.appendChild(row);
-        });
+        historyCard.classList.remove('hidden');
       }
+    }
+
+    if (historyList && notes.length > 0) {
+      historyList.innerHTML = '';
+      notes.slice(-5).reverse().forEach(n => {
+        const row = document.createElement('div');
+        row.className = 'p-1.5 bg-white border border-[#e2e0dc] rounded text-[11px] leading-relaxed';
+        row.innerText = n;
+        historyList.appendChild(row);
+      });
     }
 
     if (window.lucide) window.lucide.createIcons();
@@ -2119,6 +2150,7 @@
 
     // Decisions in standup copilot
     const decContainer = document.getElementById('copilot-decisions-feed');
+    const decCard = document.getElementById('copilot-decisions-container');
     const decSession = document.getElementById('copilot-decisions-session');
     const latestSession = standup.latest_session || {};
 
@@ -2126,37 +2158,50 @@
       decSession.innerText = latestSession.id ? `Session ${latestSession.id}` : 'Session';
     }
 
-    if (decContainer) {
-      const decisions = latestSession.decisions || [];
+    const decisions = latestSession.decisions || [];
+    if (decCard) {
       if (decisions.length === 0) {
-        decContainer.innerHTML = '<p class="text-[10.5px] text-[#828282] italic py-1">No decisions recorded in latest session.</p>';
+        decCard.classList.add('hidden');
       } else {
-        decContainer.innerHTML = '';
-        decisions.slice(0, 4).forEach(d => {
-          const row = document.createElement('div');
-          row.className = 'p-2 bg-white border border-[#e2e0dc] rounded text-[11px] space-y-0.5';
-          row.innerHTML = `
-            <div class="font-semibold text-[#202020] flex items-center gap-1">
-              <i data-lucide="check" class="w-3 h-3 text-emerald-600"></i>
-              <span class="truncate">${escapeHtml(d.title || d.what || 'Decision')}</span>
-            </div>
-            ${d.why ? `<p class="text-[#666] line-clamp-2 text-[10.5px]">${escapeHtml(d.why)}</p>` : ''}
-          `;
-          decContainer.appendChild(row);
-        });
+        decCard.classList.remove('hidden');
       }
+    }
+
+    if (decContainer && decisions.length > 0) {
+      decContainer.innerHTML = '';
+      decisions.slice(0, 4).forEach(d => {
+        const row = document.createElement('div');
+        row.className = 'p-2 bg-white border border-[#e2e0dc] rounded text-[11px] space-y-0.5';
+        row.innerHTML = `
+          <div class="font-semibold text-[#202020] flex items-center gap-1">
+            <i data-lucide="check" class="w-3.5 h-3.5 text-emerald-600"></i>
+            <span class="truncate">${escapeHtml(d.title || d.what || 'Decision')}</span>
+          </div>
+          ${d.why ? `<p class="text-[#666] line-clamp-2 text-[10.5px]">${escapeHtml(d.why)}</p>` : ''}
+        `;
+        decContainer.appendChild(row);
+      });
     }
 
     if (window.lucide) window.lucide.createIcons();
   }
 
   function renderRecommendedActions() {
+    const card = document.getElementById('copilot-recommended-actions-container');
     const container = document.getElementById('copilot-recommended-actions-list');
     if (!container) return;
 
     const actions = (state.standup && state.standup.recommended_actions) || [];
+    if (card) {
+      if (actions.length === 0) {
+        card.classList.add('hidden');
+      } else {
+        card.classList.remove('hidden');
+      }
+    }
+
     if (actions.length === 0) {
-      container.innerHTML = '<p class="text-[10.5px] text-[#828282] italic py-1">No recommended actions queued in workstate.md.</p>';
+      container.innerHTML = '';
       return;
     }
 
