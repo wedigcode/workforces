@@ -109,6 +109,28 @@
     }
   }
 
+  function refreshActiveWorkspaceView() {
+    if (typeof studioState !== 'undefined') {
+      if (studioState.activeScenario === 'cockpit') {
+        renderStandupCockpit();
+      } else if (studioState.activeScenario === 'tasks') {
+        renderTasksStage();
+      } else if (studioState.activeScenario === 'inbox') {
+        renderInboxStage();
+      } else if (studioState.activeScenario === 'hypotheses') {
+        renderHypothesesStage();
+      } else if (studioState.activeScenario === 'document') {
+        renderActiveTabContent();
+      } else {
+        renderCurrentView();
+      }
+      updateCopilotActiveFileContext();
+    } else {
+      renderCurrentView();
+    }
+    if (window.lucide) window.lucide.createIcons();
+  }
+
   async function updateTaskOnServer(fileRel, updates) {
     try {
       const res = await fetch('/api/task/update', {
@@ -118,7 +140,7 @@
       });
       if (!res.ok) throw new Error('Task update failed');
       await fetchWorkforceState();
-      renderCurrentView();
+      refreshActiveWorkspaceView();
     } catch (err) {
       alert(`Update failed: ${err.message}`);
     }
@@ -133,7 +155,7 @@
       });
       if (!res.ok) throw new Error('Connect failed');
       await fetchWorkforceState();
-      renderCurrentView();
+      refreshActiveWorkspaceView();
     } catch (err) {
       alert(`Connection failed: ${err.message}`);
     }
@@ -1698,6 +1720,7 @@
     pendingPinCoord: null,
     inboxItems: [],
     turnSummary: '',
+    hideCompleted: localStorage.getItem('workforce_kanban_hide_completed') === 'true',
   };
 
   function setupStudio() {
@@ -2482,12 +2505,14 @@
   let currentTasksStageTeamFilter = 'all';
 
   function renderTasksStage() {
-    const tasks = state.tasks || [];
+    const allTasks = state.tasks || [];
+    const tasks = allTasks.filter(t => !t.archived && t.status !== 'archived');
     const countBadge = document.getElementById('tasks-stage-count-badge');
     const grid = document.getElementById('tasks-stage-grid');
     const newBtn = document.getElementById('btn-tasks-stage-new');
 
-    if (countBadge) countBadge.innerText = `${tasks.length} Tasks`;
+    const visibleTasks = studioState.hideCompleted ? tasks.filter(t => t.status !== 'done') : tasks;
+    if (countBadge) countBadge.innerText = `${visibleTasks.length} Tasks`;
     if (newBtn) {
       const mainNewBtn = document.getElementById('btn-cockpit-new-task');
       newBtn.onclick = () => { if (mainNewBtn) mainNewBtn.click(); };
@@ -2509,8 +2534,8 @@
 
     const filterTeam = currentTasksStageTeamFilter.toLowerCase();
     const filtered = filterTeam === 'all' 
-      ? tasks 
-      : tasks.filter(t => (t.team || 'dev').toLowerCase() === filterTeam);
+      ? visibleTasks 
+      : visibleTasks.filter(t => (t.team || 'dev').toLowerCase() === filterTeam);
 
     if (filtered.length === 0) {
       grid.innerHTML = `<div class="col-span-full p-8 text-center text-xs text-[#828282] italic border border-dashed border-[#e2e0dc] rounded-lg">No tasks found for this filter.</div>`;
@@ -2544,17 +2569,30 @@
         </div>
         <div class="flex items-center justify-between pt-2 border-t border-[#f4f4f5] text-[10px] font-mono text-[#828282]">
           <span>${task.assignee || '@human'}</span>
-          <button class="px-2 py-0.5 rounded bg-[#faf9f5] border border-[#e2e0dc] hover:border-[#c2410c] text-[#202020] font-medium btn-advance-task">
-            Cycle Status
-          </button>
+          <div class="flex items-center gap-1.5">
+            ${task.status === 'done' ? '<button class="px-2 py-0.5 rounded bg-white border border-[#e2e0dc] hover:text-[#c2410c] text-[#828282] font-medium btn-archive-task cursor-pointer" title="Archive task from board">Archive</button>' : ''}
+            <button class="px-2 py-0.5 rounded bg-[#faf9f5] border border-[#e2e0dc] hover:border-[#c2410c] text-[#202020] font-medium btn-advance-task cursor-pointer">
+              Cycle Status
+            </button>
+          </div>
         </div>
       `;
 
       card.onclick = () => openTaskTab(task.id);
-      card.querySelector('.btn-advance-task').onclick = (e) => {
-        e.stopPropagation();
-        cycleTaskStatus(task);
-      };
+      const advanceBtn = card.querySelector('.btn-advance-task');
+      if (advanceBtn) {
+        advanceBtn.onclick = (e) => {
+          e.stopPropagation();
+          cycleTaskStatus(task);
+        };
+      }
+      const archiveBtn = card.querySelector('.btn-archive-task');
+      if (archiveBtn) {
+        archiveBtn.onclick = (e) => {
+          e.stopPropagation();
+          updateTaskOnServer(task.file, { archived: true });
+        };
+      }
 
       grid.appendChild(card);
     });
@@ -2941,21 +2979,71 @@
   }
 
   function renderKanbanColumns() {
-    const tasks = state.tasks || [];
+    const allTasks = state.tasks || [];
+    // Filter out archived tasks from the active sprint pipeline board
+    const tasks = allTasks.filter(t => !t.archived && t.status !== 'archived');
     const filterTeam = currentKanbanTeamFilter.toLowerCase();
 
     const filtered = filterTeam === 'all' 
       ? tasks 
       : tasks.filter(t => (t.team || 'dev').toLowerCase() === filterTeam);
 
+    // Exact pipeline order requested by user: Up Next (todo), In Progress, Blocked / Stalled, Completed (done)
     const cols = {
-      in_progress: filtered.filter(t => t.status === 'in_progress'),
       todo: filtered.filter(t => t.status === 'todo'),
+      in_progress: filtered.filter(t => t.status === 'in_progress'),
       blocked: filtered.filter(t => t.status === 'blocked' || (t.blocked_by && t.blocked_by.length > 0)),
       done: filtered.filter(t => t.status === 'done'),
     };
 
-    ['in_progress', 'todo', 'blocked', 'done'].forEach(colKey => {
+    // Filter Out Completed Column toggle
+    const kanbanGrid = document.getElementById('kanban-columns-grid');
+    const kanbanColDone = document.getElementById('kanban-col-done');
+    const btnToggleCompleted = document.getElementById('btn-toggle-completed-filter');
+    const labelToggleCompleted = document.getElementById('label-toggle-completed');
+    const iconToggleCompleted = document.getElementById('icon-toggle-completed');
+
+    if (btnToggleCompleted) {
+      btnToggleCompleted.onclick = () => {
+        studioState.hideCompleted = !studioState.hideCompleted;
+        localStorage.setItem('workforce_kanban_hide_completed', studioState.hideCompleted ? 'true' : 'false');
+        renderKanbanColumns();
+      };
+
+      if (studioState.hideCompleted) {
+        if (labelToggleCompleted) labelToggleCompleted.innerText = `Show Completed (${cols.done.length})`;
+        if (iconToggleCompleted) iconToggleCompleted.setAttribute('data-lucide', 'eye');
+        btnToggleCompleted.classList.add('bg-[#faf9f5]', 'text-[#c2410c]', 'border-[#fed7aa]');
+        if (kanbanColDone) kanbanColDone.classList.add('hidden');
+        if (kanbanGrid) {
+          kanbanGrid.classList.remove('xl:grid-cols-4');
+          kanbanGrid.classList.add('xl:grid-cols-3');
+        }
+      } else {
+        if (labelToggleCompleted) labelToggleCompleted.innerText = 'Hide Completed';
+        if (iconToggleCompleted) iconToggleCompleted.setAttribute('data-lucide', 'eye-off');
+        btnToggleCompleted.classList.remove('bg-[#faf9f5]', 'text-[#c2410c]', 'border-[#fed7aa]');
+        if (kanbanColDone) kanbanColDone.classList.remove('hidden');
+        if (kanbanGrid) {
+          kanbanGrid.classList.remove('xl:grid-cols-3');
+          kanbanGrid.classList.add('xl:grid-cols-4');
+        }
+      }
+    }
+
+    // Archive All Done Tasks button
+    const btnArchiveAll = document.getElementById('btn-kanban-archive-all-done');
+    if (btnArchiveAll) {
+      btnArchiveAll.onclick = async () => {
+        if (cols.done.length === 0) return;
+        for (const t of cols.done) {
+          await updateTaskOnServer(t.file, { archived: true });
+        }
+      };
+    }
+
+    // Render columns in exact user-specified order: todo, in_progress, blocked, done
+    ['todo', 'in_progress', 'blocked', 'done'].forEach(colKey => {
       const container = document.getElementById(`kanban-cards-${colKey.replace('_', '-')}`);
       const countEl = document.getElementById(`kanban-count-${colKey.replace('_', '-')}`);
       const list = cols[colKey] || [];
@@ -2974,27 +3062,69 @@
         const prioLower = (task.priority || 'P2').toLowerCase();
         card.className = `kanban-card priority-${prioLower}`;
 
-        const nextActionLabel = task.status === 'todo' ? 'Start &rarr;' : (task.status === 'in_progress' ? 'Done &check;' : 'Restart');
+        let actionHtml = '';
+        if (task.status === 'todo') {
+          actionHtml = `
+            <button class="px-2.5 py-1 rounded text-[10px] font-semibold bg-[#202020] hover:bg-[#383838] text-white transition-colors btn-cycle-status flex items-center gap-1 cursor-pointer" title="Start task">
+              <span>Start</span>
+              <i data-lucide="arrow-right" class="w-3 h-3"></i>
+            </button>
+          `;
+        } else if (task.status === 'in_progress') {
+          actionHtml = `
+            <button class="px-2.5 py-1 rounded text-[10px] font-semibold bg-emerald-700 hover:bg-emerald-800 text-white transition-colors btn-cycle-status flex items-center gap-1 cursor-pointer" title="Mark Done">
+              <i data-lucide="check" class="w-3 h-3"></i>
+              <span>Done</span>
+            </button>
+          `;
+        } else if (task.status === 'blocked') {
+          actionHtml = `
+            <button class="px-2.5 py-1 rounded text-[10px] font-semibold bg-[#b91c1c] hover:bg-[#991b1b] text-white transition-colors btn-cycle-status flex items-center gap-1 cursor-pointer" title="Unblock task">
+              <i data-lucide="unlock" class="w-3 h-3"></i>
+              <span>Unblock</span>
+            </button>
+          `;
+        } else {
+          // Done
+          actionHtml = `
+            <div class="flex items-center gap-1.5">
+              <button class="px-2 py-0.5 rounded text-[10px] font-semibold text-[#828282] hover:text-[#c2410c] hover:bg-[#faf9f5] border border-[#e2e0dc] transition-colors btn-archive-task cursor-pointer" title="Archive task from board">
+                Archive
+              </button>
+              <button class="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#f4f4f5] hover:bg-[#e4e4e7] text-[#202020] transition-colors btn-cycle-status cursor-pointer" title="Restart task">
+                Restart
+              </button>
+            </div>
+          `;
+        }
 
         card.innerHTML = `
           <div class="flex items-center justify-between mb-1.5">
             <span class="text-[9px] font-mono font-bold uppercase px-1.5 py-0.2 rounded ${task.priority === 'P0' ? 'bg-[#fee2e2] text-[#b91c1c]' : 'bg-[#f4f4f5] text-[#4d4d4d]'}">${task.priority || 'P1'}</span>
             <span class="text-[9.5px] font-mono uppercase text-[#828282]">${(task.team || 'dev').toUpperCase()}</span>
           </div>
-          <h4 class="text-xs font-semibold text-[#202020] leading-snug mb-2 hover:text-[#c2410c] transition-colors">${escapeHtml(task.title)}</h4>
+          <h4 class="text-xs font-semibold text-[#202020] leading-snug mb-2 hover:text-[#c2410c] transition-colors cursor-pointer">${escapeHtml(task.title)}</h4>
           <div class="flex items-center justify-between pt-2 border-t border-[#f4f4f5]">
-            <span class="text-[10px] font-mono text-[#828282] truncate max-w-[110px]">${task.assignee || '@human'}</span>
-            <button class="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#f4f4f5] hover:bg-[#e4e4e7] text-[#202020] transition-colors btn-cycle-status">
-              ${nextActionLabel}
-            </button>
+            <span class="text-[10px] font-mono text-[#828282] truncate max-w-[90px]">${task.assignee || '@human'}</span>
+            ${actionHtml}
           </div>
         `;
 
         card.querySelector('h4').onclick = () => openTaskTab(task.id);
-        card.querySelector('.btn-cycle-status').onclick = (e) => {
-          e.stopPropagation();
-          cycleTaskStatus(task);
-        };
+        const cycleBtn = card.querySelector('.btn-cycle-status');
+        if (cycleBtn) {
+          cycleBtn.onclick = (e) => {
+            e.stopPropagation();
+            cycleTaskStatus(task);
+          };
+        }
+        const archiveBtn = card.querySelector('.btn-archive-task');
+        if (archiveBtn) {
+          archiveBtn.onclick = (e) => {
+            e.stopPropagation();
+            updateTaskOnServer(task.file, { archived: true });
+          };
+        }
 
         container.appendChild(card);
       });
@@ -3020,6 +3150,7 @@
       });
       if (res.ok) {
         await fetchWorkforceState();
+        refreshActiveWorkspaceView();
       }
     } catch (err) {
       alert(`Action failed: ${err.message}`);
@@ -3037,6 +3168,7 @@
           const res = await fetch('/api/sync', { method: 'POST' });
           if (res.ok) {
             await fetchWorkforceState();
+            refreshActiveWorkspaceView();
           }
         } catch (err) {
           console.error('Standup sync error:', err);

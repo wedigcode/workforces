@@ -629,6 +629,40 @@ Analyze roundtrip latency for web socket canvas syncing.
         self.assertIn("studioState.activeScenario === 'tasks'", canvas_js)
         self.assertIn("copilotFeed.classList.add('hidden')", canvas_js)
 
+    def test_kanban_pipeline_ordering_and_archive_support(self):
+        """Verify Kanban pipeline is ordered (todo, in_progress, blocked, done) and archive is supported."""
+        web_dir = REPO_ROOT / "skills" / "workforce-canvas" / "web"
+        index_html = (web_dir / "index.html").read_text(encoding="utf-8")
+        canvas_js = (web_dir / "canvas.js").read_text(encoding="utf-8")
+
+        # Verify pipeline ordering in HTML
+        todo_pos = index_html.find('id="kanban-col-todo"')
+        in_prog_pos = index_html.find('id="kanban-col-in-progress"')
+        blocked_pos = index_html.find('id="kanban-col-blocked"')
+        done_pos = index_html.find('id="kanban-col-done"')
+
+        self.assertTrue(todo_pos != -1 and in_prog_pos != -1 and blocked_pos != -1 and done_pos != -1)
+        self.assertTrue(todo_pos < in_prog_pos < blocked_pos < done_pos, "Pipeline columns must be ordered: Up Next (todo), In Progress, Blocked / Stalled, Completed (done)")
+
+        # Verify hide completed button and archive buttons in HTML
+        self.assertIn('id="btn-toggle-completed-filter"', index_html)
+        self.assertIn('id="btn-kanban-archive-all-done"', index_html)
+
+        # Verify JS contracts
+        self.assertIn("['todo', 'in_progress', 'blocked', 'done']", canvas_js)
+        self.assertIn('refreshActiveWorkspaceView', canvas_js)
+        self.assertIn('btn-archive-task', canvas_js)
+        self.assertIn('btn-toggle-completed-filter', canvas_js)
+
+        # Test backend task archive support
+        sample_task = self.tasks_dir / "20260901-task.md"
+        updated = server.update_task_file(self.root_path, str(sample_task.relative_to(self.root_path)), {"archived": True})
+        self.assertTrue(sample_task.read_text(encoding="utf-8").find("archived: true") != -1)
+
+        tasks = server.get_all_tasks(self.root_path)
+        t1 = next(t for t in tasks if t["id"] == "sample-task")
+        self.assertTrue(t1["archived"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -385,33 +385,28 @@
               <i data-lucide="kanban" class="w-4 h-4 text-[#c2410c]"></i>
               <h3 class="text-xs font-bold text-[#202020] uppercase font-mono tracking-wider">Active Sprint Task Pipeline</h3>
             </div>
-            <!-- Team Filter Chips -->
-            <div class="flex flex-wrap items-center gap-1.5 text-xs" id="kanban-team-filters">
-              <button class="team-filter-chip active" data-team="all">All Teams</button>
-              <button class="team-filter-chip" data-team="dev">Dev</button>
-              <button class="team-filter-chip" data-team="design">Design</button>
-              <button class="team-filter-chip" data-team="marketing">Marketing</button>
-              <button class="team-filter-chip" data-team="growth">Growth</button>
-              <button class="team-filter-chip" data-team="ops">Ops</button>
+            <!-- Team Filter Chips & Completed Filter -->
+            <div class="flex flex-wrap items-center gap-2">
+              <div class="flex flex-wrap items-center gap-1.5 text-xs" id="kanban-team-filters">
+                <button class="team-filter-chip active" data-team="all">All Teams</button>
+                <button class="team-filter-chip" data-team="dev">Dev</button>
+                <button class="team-filter-chip" data-team="design">Design</button>
+                <button class="team-filter-chip" data-team="marketing">Marketing</button>
+                <button class="team-filter-chip" data-team="growth">Growth</button>
+                <button class="team-filter-chip" data-team="ops">Ops</button>
+              </div>
+              <div class="h-4 w-px bg-[#e2e0dc] mx-0.5"></div>
+              <button id="btn-toggle-completed-filter" class="px-2.5 py-1 rounded-full text-xs font-mono font-medium border border-[#e2e0dc] bg-white text-[#52525b] hover:border-[#c2410c] hover:text-[#202020] transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs" title="Toggle visibility of Completed tasks">
+                <i data-lucide="eye-off" class="w-3.5 h-3.5 text-[#828282]" id="icon-toggle-completed"></i>
+                <span id="label-toggle-completed">Hide Completed</span>
+              </button>
             </div>
           </div>
 
-          <!-- 4 Kanban Columns -->
-          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-            <!-- Column 1: In Progress -->
-            <div class="kanban-col bg-[#faf9f5] rounded-lg border border-[#e2e0dc] p-3 flex flex-col">
-              <div class="flex items-center justify-between pb-2 mb-2 border-b border-[#e2e0dc]">
-                <span class="text-xs font-bold text-[#0369a1] font-mono flex items-center gap-1.5">
-                  <span class="w-2 h-2 rounded-full bg-[#0369a1] animate-pulse"></span>
-                  In Progress
-                </span>
-                <span class="text-[11px] font-mono font-medium text-[#828282]" id="kanban-count-in-progress">0</span>
-              </div>
-              <div class="kanban-cards-container space-y-2.5 flex-1 min-h-[140px]" id="kanban-cards-in-progress"></div>
-            </div>
-
-            <!-- Column 2: Up Next (Todo) -->
-            <div class="kanban-col bg-[#faf9f5] rounded-lg border border-[#e2e0dc] p-3 flex flex-col">
+          <!-- 4 Kanban Columns (Ordered: Up Next, In Progress, Blocked, Completed) -->
+          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4" id="kanban-columns-grid">
+            <!-- Column 1: Up Next (Todo) -->
+            <div class="kanban-col bg-[#faf9f5] rounded-lg border border-[#e2e0dc] p-3 flex flex-col" id="kanban-col-todo">
               <div class="flex items-center justify-between pb-2 mb-2 border-b border-[#e2e0dc]">
                 <span class="text-xs font-bold text-[#52525b] font-mono flex items-center gap-1.5">
                   <span class="w-2 h-2 rounded-full bg-[#52525b]"></span>
@@ -422,8 +417,20 @@
               <div class="kanban-cards-container space-y-2.5 flex-1 min-h-[140px]" id="kanban-cards-todo"></div>
             </div>
 
-            <!-- Column 3: Blocked / Roadblocks -->
-            <div class="kanban-col bg-[#faf9f5] rounded-lg border border-[#fee2e2]/70 p-3 flex flex-col">
+            <!-- Column 2: In Progress -->
+            <div class="kanban-col bg-[#faf9f5] rounded-lg border border-[#e2e0dc] p-3 flex flex-col" id="kanban-col-in-progress">
+              <div class="flex items-center justify-between pb-2 mb-2 border-b border-[#e2e0dc]">
+                <span class="text-xs font-bold text-[#0369a1] font-mono flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-[#0369a1] animate-pulse"></span>
+                  In Progress
+                </span>
+                <span class="text-[11px] font-mono font-medium text-[#828282]" id="kanban-count-in-progress">0</span>
+              </div>
+              <div class="kanban-cards-container space-y-2.5 flex-1 min-h-[140px]" id="kanban-cards-in-progress"></div>
+            </div>
+
+            <!-- Column 3: Blocked / Stalled -->
+            <div class="kanban-col bg-[#faf9f5] rounded-lg border border-[#fee2e2]/70 p-3 flex flex-col" id="kanban-col-blocked">
               <div class="flex items-center justify-between pb-2 mb-2 border-b border-[#fecaca]">
                 <span class="text-xs font-bold text-[#b91c1c] font-mono flex items-center gap-1.5">
                   <span class="w-2 h-2 rounded-full bg-[#b91c1c]"></span>
@@ -434,14 +441,17 @@
               <div class="kanban-cards-container space-y-2.5 flex-1 min-h-[140px]" id="kanban-cards-blocked"></div>
             </div>
 
-            <!-- Column 4: Recently Completed (Done) -->
-            <div class="kanban-col bg-[#faf9f5] rounded-lg border border-[#e2e0dc] p-3 flex flex-col">
+            <!-- Column 4: Completed (Done) -->
+            <div class="kanban-col bg-[#faf9f5] rounded-lg border border-[#e2e0dc] p-3 flex flex-col" id="kanban-col-done">
               <div class="flex items-center justify-between pb-2 mb-2 border-b border-[#e2e0dc]">
                 <span class="text-xs font-bold text-emerald-700 font-mono flex items-center gap-1.5">
                   <span class="w-2 h-2 rounded-full bg-emerald-600"></span>
                   Completed (Done)
                 </span>
-                <span class="text-[11px] font-mono font-medium text-[#828282]" id="kanban-count-done">0</span>
+                <div class="flex items-center gap-2">
+                  <span class="text-[11px] font-mono font-medium text-[#828282]" id="kanban-count-done">0</span>
+                  <button id="btn-kanban-archive-all-done" class="text-[10px] font-mono text-[#828282] hover:text-[#c2410c] transition-colors" title="Archive all completed tasks">Archive All</button>
+                </div>
               </div>
               <div class="kanban-cards-container space-y-2.5 flex-1 min-h-[140px]" id="kanban-cards-done"></div>
             </div>

@@ -217,6 +217,7 @@ def get_all_tasks(root_dir: Path) -> List[Dict[str, Any]]:
             "evolution_notes": extracted["evolution_notes"],
             "body": body,
             "updated_at": meta.get("updated_at") or meta.get("created_at") or "",
+            "archived": bool(meta.get("archived") is True or str(meta.get("archived", "")).lower() == "true" or meta.get("status") == "archived"),
             "linked_commits": [],
             "linked_docs": [],
             "linked_symbols": [],
@@ -370,14 +371,15 @@ def get_standup_data(root_dir: Path, tasks: List[Dict[str, Any]], inbox_items: L
     """Compile multi-source standup and executive productivity intelligence."""
     priority_order = {"p0": 0, "p1": 1, "p2": 2, "p3": 3}
     
-    in_progress = [t for t in tasks if t.get("status") == "in_progress"]
+    active_tasks = [t for t in tasks if not t.get("archived") and t.get("status") != "archived"]
+    in_progress = [t for t in active_tasks if t.get("status") == "in_progress"]
     in_progress.sort(key=lambda t: priority_order.get(str(t.get("priority", "p2")).lower(), 2))
     
-    todo = [t for t in tasks if t.get("status") == "todo"]
+    todo = [t for t in active_tasks if t.get("status") == "todo"]
     todo.sort(key=lambda t: priority_order.get(str(t.get("priority", "p2")).lower(), 2))
     
-    blocked = [t for t in tasks if t.get("status") == "blocked" or t.get("blocked_by")]
-    done = [t for t in tasks if t.get("status") == "done"]
+    blocked = [t for t in active_tasks if t.get("status") == "blocked" or t.get("blocked_by")]
+    done = [t for t in active_tasks if t.get("status") == "done"]
     done.sort(key=lambda t: str(t.get("updated_at") or ""), reverse=True)
 
     # 1. "The One Thing" (Today's top P0/P1 focus commitment)
@@ -924,6 +926,8 @@ def update_task_file(root_dir: Path, relative_file: str, updates: Dict[str, Any]
                 if isinstance(new_val, list):
                     clean_items = ", ".join(f'"{i}"' for i in new_val)
                     new_yaml_lines.append(f"{key}: [{clean_items}]")
+                elif isinstance(new_val, bool):
+                    new_yaml_lines.append(f"{key}: {str(new_val).lower()}")
                 else:
                     new_yaml_lines.append(f'{key}: "{new_val}"')
                 del updates[key]
@@ -941,6 +945,8 @@ def update_task_file(root_dir: Path, relative_file: str, updates: Dict[str, Any]
         if isinstance(val, list):
             clean_items = ", ".join(f'"{i}"' for i in val)
             new_yaml_lines.append(f"{key}: [{clean_items}]")
+        elif isinstance(val, bool):
+            new_yaml_lines.append(f"{key}: {str(val).lower()}")
         else:
             new_yaml_lines.append(f'{key}: "{val}"')
 
