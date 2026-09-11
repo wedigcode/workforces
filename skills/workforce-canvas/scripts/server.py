@@ -905,8 +905,8 @@ def resolve_task_agent(task_meta: Dict[str, Any]) -> str:
     return "@programmer"
 
 
-def queue_task_execution(root_dir: Path, task_path: Path, task_meta: Dict[str, Any], agent: str) -> Dict[str, Any]:
-    """Record an in_progress task to the dispatch queue and print the execution trigger."""
+def queue_task_execution(root_dir: Path, task_path: Path, task_meta: Dict[str, Any], agent: str, action: Optional[str] = None) -> Dict[str, Any]:
+    """Record an in_progress task or human inquiry to the dispatch queue and print the execution trigger."""
     queue_file = root_dir / "workforces" / "tasks" / ".dispatch_queue.json"
     queue_file.parent.mkdir(parents=True, exist_ok=True)
 
@@ -926,7 +926,7 @@ def queue_task_execution(root_dir: Path, task_path: Path, task_meta: Dict[str, A
         "title": title,
         "file": rel_file,
         "agent": agent,
-        "action": task_meta.get("suggested_action") or f"Execute task {title}",
+        "action": action or task_meta.get("suggested_action") or f"Execute task {title}",
         "timestamp": datetime.datetime.now().isoformat(),
         "status": "pending_execution",
         "notified": False
@@ -1184,6 +1184,31 @@ def save_comment(root_dir: Path, comment_data: Dict[str, Any]) -> Dict[str, Any]
             note_text = f"{entry['author']}: {entry['comment']}{pin_str}{stitch_str}"
             update_task_file(root_dir, resolved_task_file, {"evolution_note": note_text})
             entry["task_updated"] = resolved_task_file
+
+            # If comment is from a human user, queue an inquiry action in dispatch queue
+            author_str = str(entry.get("author", "")).lower()
+            if author_str in ("@human", "human"):
+                full_task_path = root_dir / resolved_task_file
+                if full_task_path.exists():
+                    try:
+                        task_meta = parse_yaml_frontmatter(full_task_path)
+                        comment_text = entry.get("comment", "")
+                        comment_lower = comment_text.lower()
+                        # Inquiry / verification keywords default to @researcher, otherwise task domain agent
+                        if any(kw in comment_lower for kw in ("check", "done", "close", "verify", "is this", "status", "already", "?")):
+                            target_agent = "@researcher"
+                        else:
+                            target_agent = task_meta.get("delegated_to") or task_meta.get("assignee") or resolve_task_agent(task_meta)
+                        queue_task_execution(
+                            root_dir,
+                            full_task_path,
+                            task_meta,
+                            target_agent,
+                            action=f"Human comment inquiry: {comment_text}"
+                        )
+                        entry["dispatched_agent"] = target_agent
+                    except Exception as q_err:
+                        sys.stderr.write(f"Warning: Could not queue comment dispatch: {q_err}\n")
         except Exception as e:
             sys.stderr.write(f"Warning: Could not append comment to task file: {e}\n")
 

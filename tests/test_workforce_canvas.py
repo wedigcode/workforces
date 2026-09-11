@@ -715,6 +715,38 @@ Brand tokens and mockups.
         notified_entry = next((i for i in queue_items_after if i.get("task_id") == "task-unassigned-01"), None)
         self.assertTrue(notified_entry.get("notified"))
 
+    def test_human_comment_inquiry_queues_dispatch(self):
+        """Verify adding an inquiry comment from @human queues an actionable entry in .dispatch_queue.json."""
+        task_file = self.tasks_dir / "20260906-audit-task.md"
+        task_file.write_text("""---
+id: "task-audit-01"
+title: "Audit DB Query Latency"
+type: "perf"
+priority: "P1"
+status: "todo"
+---
+Profile queries.
+""", encoding="utf-8")
+
+        comment_payload = {
+            "target_type": "task",
+            "target_id": "task-audit-01",
+            "file": "workforces/tasks/20260906-audit-task.md",
+            "comment": "can you check if this is done already",
+            "author": "@human"
+        }
+        res = server.save_comment(self.root_path, comment_payload)
+        self.assertEqual(res.get("dispatched_agent"), "@researcher")
+
+        # Verify queue contains the comment inquiry
+        queue_file = self.tasks_dir / ".dispatch_queue.json"
+        self.assertTrue(queue_file.exists())
+        queue_items = json.loads(queue_file.read_text(encoding="utf-8"))
+        entry = next((i for i in queue_items if i.get("task_id") == "task-audit-01"), None)
+        self.assertIsNotNone(entry)
+        self.assertEqual(entry.get("agent"), "@researcher")
+        self.assertIn("Human comment inquiry", entry.get("action", ""))
+
 
 if __name__ == "__main__":
     unittest.main()
