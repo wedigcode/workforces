@@ -606,6 +606,29 @@ Analyze roundtrip latency for web socket canvas syncing.
         state_stopped = json.loads(session_file.read_text(encoding="utf-8"))
         self.assertEqual(state_stopped["status"], "stopped")
 
+    def test_copilot_sidebar_visibility_and_web_elements(self):
+        """Verify web assets contain the intelligent copilot sidebar toggle and close elements."""
+        web_dir = REPO_ROOT / "skills" / "workforce-canvas" / "web"
+        index_html = (web_dir / "index.html").read_text(encoding="utf-8")
+        canvas_js = (web_dir / "canvas.js").read_text(encoding="utf-8")
+        canvas_css = (web_dir / "canvas.css").read_text(encoding="utf-8")
+
+        # HTML elements check
+        self.assertIn('id="studio-copilot-feed"', index_html)
+        self.assertIn('id="btn-close-copilot-panel"', index_html)
+        self.assertIn('id="btn-toggle-task-inspector"', index_html)
+
+        # CSS rule check
+        self.assertIn('#studio-copilot-feed.hidden', canvas_css)
+        self.assertIn('display: none !important;', canvas_css)
+
+        # JS contract checks
+        self.assertIn('btn-close-copilot-panel', canvas_js)
+        self.assertIn('btn-toggle-task-inspector', canvas_js)
+        self.assertIn("studioState.activeScenario === 'cockpit'", canvas_js)
+        self.assertIn("studioState.activeScenario === 'tasks'", canvas_js)
+        self.assertIn("copilotFeed.classList.add('hidden')", canvas_js)
+
 
 if __name__ == "__main__":
     unittest.main()

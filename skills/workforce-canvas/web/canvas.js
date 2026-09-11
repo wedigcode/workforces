@@ -1860,11 +1860,22 @@
       });
     }
 
+    const btnCloseCopilot = document.getElementById('btn-close-copilot-panel');
+    if (btnCloseCopilot) {
+      btnCloseCopilot.addEventListener('click', () => {
+        const copilotFeed = document.getElementById('studio-copilot-feed');
+        if (copilotFeed) copilotFeed.classList.add('hidden');
+      });
+    }
+
     renderRecommendedActions();
     updateCopilotActiveFileContext();
   }
 
   function updateCopilotActiveFileContext() {
+    const copilotFeed = document.getElementById('studio-copilot-feed');
+    if (!copilotFeed) return;
+
     const activeTab = studioState.openTabs.find(t => t.id === studioState.activeTabId);
     const targetLabel = document.getElementById('copilot-feedback-target-label');
     const targetTag = document.getElementById('copilot-active-file-tag');
@@ -1875,55 +1886,13 @@
 
     const taskPanel = document.getElementById('copilot-task-panel');
     const standupPanel = document.getElementById('copilot-standup-panel');
+    const btnToggleInspector = document.getElementById('btn-toggle-task-inspector');
+    const labelToggleInspector = document.getElementById('label-toggle-task-inspector');
 
-    const isTaskDoc = activeTab && (activeTab.type === 'task' || (activeTab.path && activeTab.path.includes('tasks/')));
-    const isSessionDoc = activeTab && (activeTab.type === 'session' || (activeTab.path && activeTab.path.includes('session-context/')));
-    const isGeneralDoc = activeTab && activeTab.type === 'doc';
-
-    if (studioState.activeScenario === 'document' && isTaskDoc) {
-      // Find matching task object
-      const task = (state.tasks || []).find(t => t.id === activeTab.id || (t.file && t.file === activeTab.path));
-      if (taskPanel) taskPanel.classList.remove('hidden');
-      if (standupPanel) standupPanel.classList.add('hidden');
-
-      if (contextTitle) contextTitle.innerText = "Task Inspector";
-      if (contextSub) contextSub.innerText = "Properties, blockers, and questions for this task.";
-
-      // Show footer for active task comment/evolution notes
-      if (copilotFooter) copilotFooter.classList.remove('hidden');
-      if (targetLabel) targetLabel.innerText = 'Note on active task:';
-      if (targetTag) {
-        targetTag.innerText = task ? task.title : (activeTab.title || 'Active Task');
-        targetTag.title = activeTab.path || 'Task file';
-      }
-      if (commentInput) {
-        commentInput.placeholder = `Add note or instruction for this task...`;
-      }
-
-      if (task) {
-        renderTaskCopilotPanel(task);
-      }
-    } else if (studioState.activeScenario === 'document' && (isSessionDoc || isGeneralDoc)) {
-      // Viewing a session context or markdown doc
-      if (taskPanel) taskPanel.classList.add('hidden');
-      if (standupPanel) standupPanel.classList.add('hidden');
-
-      if (contextTitle) contextTitle.innerText = isSessionDoc ? "Session Notes" : "Document Inspector";
-      if (contextSub) contextSub.innerText = activeTab.title || "Markdown file";
-
-      // Show footer for document notes
-      if (copilotFooter) copilotFooter.classList.remove('hidden');
-      if (targetLabel) targetLabel.innerText = isSessionDoc ? 'Note for session:' : 'Note for document:';
-      if (targetTag) {
-        targetTag.innerText = activeTab.title || 'Active Doc';
-        targetTag.title = activeTab.path || 'Document file';
-      }
-      if (commentInput) {
-        commentInput.placeholder = `Add note or instruction for this document...`;
-      }
-    } else {
-      // Standup / general overview mode (Cockpit, Tasks grid, Inbox, Hypotheses)
-      // When on overview screens with no specific document to comment on, hide footer
+    if (studioState.activeScenario === 'cockpit') {
+      // Main dashboard: Standup Copilot is visible ("its good on the main dashboard")
+      copilotFeed.classList.remove('hidden');
+      if (btnToggleInspector) btnToggleInspector.classList.add('hidden');
       if (taskPanel) taskPanel.classList.add('hidden');
       if (standupPanel) standupPanel.classList.remove('hidden');
 
@@ -1933,6 +1902,115 @@
       if (copilotFooter) copilotFooter.classList.add('hidden');
 
       renderStandupCopilotPanel();
+    } else if (studioState.activeScenario === 'tasks' || studioState.activeScenario === 'inbox' || studioState.activeScenario === 'hypotheses') {
+      // Other rail views (Tasks board, Extension Inbox, Hypotheses): Hide the copilot feed!
+      // These views have their own dedicated stages and actions (Kanban columns, inbox triage buttons, validation cards)
+      copilotFeed.classList.add('hidden');
+      if (btnToggleInspector) btnToggleInspector.classList.add('hidden');
+      if (taskPanel) taskPanel.classList.add('hidden');
+      if (standupPanel) standupPanel.classList.add('hidden');
+      if (copilotFooter) copilotFooter.classList.add('hidden');
+    } else if (studioState.activeScenario === 'document') {
+      const isTaskDoc = activeTab && (activeTab.type === 'task' || (activeTab.path && activeTab.path.includes('tasks/')));
+      const isSessionDoc = activeTab && (activeTab.type === 'session' || (activeTab.path && activeTab.path.includes('session-context/')));
+      const isGeneralDoc = activeTab && activeTab.type === 'doc';
+
+      if (isTaskDoc) {
+        const task = (state.tasks || []).find(t => t.id === activeTab.id || (t.file && t.file === activeTab.path));
+        const isBlocked = task && (task.status === 'blocked' || (task.blocked_by && task.blocked_by.length > 0));
+        const hasOpenQuestions = task && Array.isArray(task.open_questions) && task.open_questions.length > 0;
+        const hasTaskActions = task && ((task.suggested_action && task.suggested_action.trim().length > 0) || (Array.isArray(task.checklist) && task.checklist.length > 0));
+        const hasActions = isBlocked || hasOpenQuestions || hasTaskActions;
+
+        // Configure inspector toggle button in stage subbar
+        if (btnToggleInspector) {
+          btnToggleInspector.classList.remove('hidden');
+          if (labelToggleInspector) {
+            labelToggleInspector.innerText = hasActions ? 'Inspector (Action Needed)' : 'Inspector';
+          }
+          btnToggleInspector.onclick = () => {
+            const isNowHidden = copilotFeed.classList.toggle('hidden');
+            if (!isNowHidden) {
+              if (taskPanel) taskPanel.classList.remove('hidden');
+              if (standupPanel) standupPanel.classList.add('hidden');
+              if (copilotFooter) copilotFooter.classList.remove('hidden');
+              if (task) renderTaskCopilotPanel(task);
+            }
+          };
+        }
+
+        if (hasActions) {
+          // Show Task Inspector when there is an actual reason for the human to take action
+          copilotFeed.classList.remove('hidden');
+          if (taskPanel) taskPanel.classList.remove('hidden');
+          if (standupPanel) standupPanel.classList.add('hidden');
+
+          if (contextTitle) contextTitle.innerText = "Task Inspector";
+          if (contextSub) contextSub.innerText = "Properties, blockers, and questions for this task.";
+
+          if (copilotFooter) copilotFooter.classList.remove('hidden');
+          if (targetLabel) targetLabel.innerText = 'Note on active task:';
+          if (targetTag) {
+            targetTag.innerText = task ? task.title : (activeTab.title || 'Active Task');
+            targetTag.title = activeTab.path || 'Task file';
+          }
+          if (commentInput) {
+            commentInput.placeholder = `Add note or instruction for this task...`;
+          }
+
+          if (task) {
+            renderTaskCopilotPanel(task);
+          }
+        } else {
+          // Hide sidebar when there are no action items or blockers for this task
+          copilotFeed.classList.add('hidden');
+          if (taskPanel) taskPanel.classList.add('hidden');
+          if (standupPanel) standupPanel.classList.add('hidden');
+          if (copilotFooter) copilotFooter.classList.add('hidden');
+        }
+      } else if (isSessionDoc || isGeneralDoc) {
+        // Document / Session Context: Hide sidebar by default unless toggled
+        copilotFeed.classList.add('hidden');
+        if (taskPanel) taskPanel.classList.add('hidden');
+        if (standupPanel) standupPanel.classList.add('hidden');
+        if (copilotFooter) copilotFooter.classList.add('hidden');
+
+        if (btnToggleInspector) {
+          btnToggleInspector.classList.remove('hidden');
+          if (labelToggleInspector) labelToggleInspector.innerText = 'Notes';
+          btnToggleInspector.onclick = () => {
+            const isNowHidden = copilotFeed.classList.toggle('hidden');
+            if (!isNowHidden) {
+              if (taskPanel) taskPanel.classList.add('hidden');
+              if (standupPanel) standupPanel.classList.add('hidden');
+              if (contextTitle) contextTitle.innerText = isSessionDoc ? "Session Notes" : "Document Inspector";
+              if (contextSub) contextSub.innerText = activeTab.title || "Markdown file";
+              if (copilotFooter) copilotFooter.classList.remove('hidden');
+              if (targetLabel) targetLabel.innerText = isSessionDoc ? 'Note for session:' : 'Note for document:';
+              if (targetTag) {
+                targetTag.innerText = activeTab.title || 'Active Doc';
+                targetTag.title = activeTab.path || 'Document file';
+              }
+              if (commentInput) {
+                commentInput.placeholder = `Add note or instruction for this document...`;
+              }
+            }
+          };
+        }
+      } else {
+        // No document active
+        copilotFeed.classList.add('hidden');
+        if (btnToggleInspector) btnToggleInspector.classList.add('hidden');
+        if (taskPanel) taskPanel.classList.add('hidden');
+        if (standupPanel) standupPanel.classList.add('hidden');
+        if (copilotFooter) copilotFooter.classList.add('hidden');
+      }
+    } else {
+      copilotFeed.classList.add('hidden');
+      if (btnToggleInspector) btnToggleInspector.classList.add('hidden');
+      if (taskPanel) taskPanel.classList.add('hidden');
+      if (standupPanel) standupPanel.classList.add('hidden');
+      if (copilotFooter) copilotFooter.classList.add('hidden');
     }
   }
 

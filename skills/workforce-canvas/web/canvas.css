@@ -626,6 +626,11 @@ body, html {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  transition: width 0.2s ease, opacity 0.2s ease;
+}
+
+#studio-copilot-feed.hidden {
+  display: none !important;
 }
 
 .copilot-header {
