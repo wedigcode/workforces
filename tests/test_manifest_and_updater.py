@@ -72,6 +72,7 @@ class TestManifestAndUpdater(unittest.TestCase):
         self.assertTrue(len(files) > 0)
         # Check core files present
         self.assertIn(".agents/agents/project-manager.md", files)
+        self.assertIn(".agents/agents/heartbeat.md", files)
         self.assertIn(".agents/rules/base.md", files)
         self.assertIn(".agents/skills/wf-sync/SKILL.md", files)
         self.assertIn(".agents/skills/clean-coder/SKILL.md", files)

@@ -14,7 +14,7 @@ import re
 import argparse
 import datetime
 
-CORE_AGENTS = {'project-manager.md', 'scribe.md'}
+CORE_AGENTS = {'project-manager.md', 'scribe.md', 'heartbeat.md'}
 CORE_RULES = {'base.md', 'mcp-protection.md', 'session-context.md', 'file-integrity.md', 'git-workflow.md'}
 CORE_SKILLS = {
     'workforce-management', 'memory-management', 'task-tracker', 'issue-tracker',

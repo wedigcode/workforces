@@ -238,9 +238,9 @@ if [[ "$FORCE" == false && "$INSTALLED_HASH" == "$LATEST_HASH" && "$INSTALLED_HA
   NEW_TEAMS_AVAILABLE=()
   if [[ -d "$SOURCE_DIR/teams" ]]; then
     for stdir in "$SOURCE_DIR/teams"/*; do
-      [[ -d "$stdir" && ( -f "$stdir/pack.md" || -f "$stdir/team.json" ) ]] || continue
+      [[ -d "$stdir" && ( -f "$stdir/pack.md" || -f "$stdir/team.json" || -f "$stdir/pack.json" ) ]] || continue
       team_id=$(basename "$stdir")
-      if [[ ! -d "$TARGET/workforces/teams/$team_id" ]]; then
+      if [[ ! -d "$TARGET/$BASE_DIR/teams/$team_id" ]]; then
         NEW_TEAMS_AVAILABLE+=("$team_id")
       fi
     done
@@ -307,7 +307,7 @@ if [[ -f "$RESOLVER_SCRIPT" && -n "$PYTHON" ]]; then
   fi
 fi
 if [[ "$RESOLVER_OK" != true ]]; then
-  ALLOWED_AGENTS="project-manager.md scribe.md programmer.md designer.md"
+  ALLOWED_AGENTS="project-manager.md scribe.md heartbeat.md programmer.md designer.md"
   ALLOWED_RULES="base.md clean-coder.md design-standards.md mcp-protection.md session-context.md file-integrity.md git-workflow.md"
   ALLOWED_SKILLS="brand-guidelines clean-coder code-graph codebase-improvement design-anti-patterns doc-generator image-workflow integrity-validator issue-tracker jules-integration launch-playbook market-validation memory-management persona-management post-code-review pr-review session-context site-setup social-engagement task-tracker ui-ux-design usage-tracker visual-design-fundamentals workforce-management workforce-canvas wf-plan wf-sync wf-advisor wf-ideate wf-investigate wf-question-formulation"
   ALLOWED_WORKFLOWS=""
