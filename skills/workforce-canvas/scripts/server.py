@@ -878,6 +878,77 @@ def get_code_blast_radius(root_dir: Path, symbol_name: Optional[str] = None, fil
     }
 
 
+def resolve_task_agent(task_meta: Dict[str, Any]) -> str:
+    """Determine the specialist subagent based on task metadata."""
+    explicit = task_meta.get("delegated_to") or task_meta.get("assignee")
+    if explicit and explicit not in ("~", "@human", "unassigned", ""):
+        return explicit if explicit.startswith("@") else f"@{explicit}"
+    
+    t_type = str(task_meta.get("type", "")).lower()
+    t_team = str(task_meta.get("team", "")).lower()
+    t_reporter = str(task_meta.get("reporter", "")).lower()
+
+    if t_team == "design" or t_type in ("design", "ui", "ux", "visual", "brand") or "design" in t_reporter:
+        return "@designer"
+    elif t_team == "marketing" or t_type in ("marketing", "copy", "positioning", "launch") or "market" in t_reporter:
+        return "@marketer"
+    elif t_type in ("growth", "seo", "geo", "aiso", "acquisition"):
+        return "@growth"
+    elif t_team == "social" or t_type in ("social", "community", "reply", "triage") or "social" in t_reporter:
+        return "@social"
+    elif t_team == "strategy" or t_type in ("strategy", "advisor", "jtbd", "goal", "roadmap", "sync") or "manager" in t_reporter:
+        return "@project-manager"
+    elif t_type in ("research", "spec", "prd", "breakdown"):
+        return "@researcher"
+    elif t_type in ("sales", "outreach", "prospect"):
+        return "@sales"
+    return "@programmer"
+
+
+def queue_task_execution(root_dir: Path, task_path: Path, task_meta: Dict[str, Any], agent: str) -> Dict[str, Any]:
+    """Record an in_progress task to the dispatch queue and print the execution trigger."""
+    queue_file = root_dir / "workforces" / "tasks" / ".dispatch_queue.json"
+    queue_file.parent.mkdir(parents=True, exist_ok=True)
+
+    items = []
+    if queue_file.exists():
+        try:
+            items = json.loads(queue_file.read_text(encoding="utf-8"))
+        except Exception:
+            items = []
+
+    task_id = task_meta.get("id") or task_path.stem
+    title = task_meta.get("title") or task_path.stem
+    rel_file = str(task_path.relative_to(root_dir)) if root_dir in task_path.parents else str(task_path)
+
+    entry = {
+        "task_id": task_id,
+        "title": title,
+        "file": rel_file,
+        "agent": agent,
+        "action": task_meta.get("suggested_action") or f"Execute task {title}",
+        "timestamp": datetime.datetime.now().isoformat(),
+        "status": "pending_execution",
+        "notified": False
+    }
+
+    # Deduplicate / update
+    existing_idx = next((i for i, it in enumerate(items) if it.get("task_id") == task_id or it.get("file") == rel_file), None)
+    if existing_idx is not None:
+        items[existing_idx] = entry
+    else:
+        items.append(entry)
+
+    queue_file.write_text(json.dumps(items, indent=2), encoding="utf-8")
+
+    # Structured Antigravity task dispatch trigger banner
+    print(f"\n⚡ [TASK_DISPATCH_TRIGGER] Task '{title}' ({task_id}) moved to IN_PROGRESS. Delegated to {agent}.")
+    print(f"👉 File: {rel_file}")
+    sys.stdout.flush()
+
+    return entry
+
+
 def update_task_file(root_dir: Path, relative_file: str, updates: Dict[str, Any]) -> Dict[str, Any]:
     """
     Safely update a task's frontmatter fields (status, priority, blocked_by, evolution notes).
@@ -909,9 +980,24 @@ def update_task_file(root_dir: Path, relative_file: str, updates: Dict[str, Any]
         raise ValueError(f"Task file does not have valid YAML frontmatter: {relative_file}")
 
     raw_yaml, body = match.group(1), match.group(2)
-    yaml_lines = raw_yaml.splitlines()
+    current_meta = parse_yaml_frontmatter(task_path)
+    extracted = extract_task_sections(body)
+    for k, v in extracted.items():
+        if k not in current_meta:
+            current_meta[k] = v
 
     now_iso = datetime.datetime.now().isoformat()
+
+    # If transitioning to in_progress, ensure an agent is assigned and dispatched
+    dispatched_agent = None
+    if updates.get("status") == "in_progress":
+        dispatched_agent = resolve_task_agent({**current_meta, **updates})
+        if not updates.get("delegated_to") and not current_meta.get("delegated_to"):
+            updates["delegated_to"] = dispatched_agent
+        if not updates.get("assignee") or updates.get("assignee") in ("~", "@human", "unassigned"):
+            updates["assignee"] = dispatched_agent
+
+    yaml_lines = raw_yaml.splitlines()
 
     # Track if updated_at was modified
     has_updated_at = False
@@ -972,6 +1058,11 @@ def update_task_file(root_dir: Path, relative_file: str, updates: Dict[str, Any]
 
     new_content = "---\n" + "\n".join(new_yaml_lines) + "\n---\n" + body
     task_path.write_text(new_content, encoding="utf-8")
+
+    # Queue task for execution if it transitioned to in_progress
+    if dispatched_agent:
+        updated_meta = parse_yaml_frontmatter(task_path)
+        queue_task_execution(root_dir, task_path, updated_meta, dispatched_agent)
 
     # Resync workstate.md if personal_sync is available
     if sync_workstate_from_tasks:
@@ -1170,9 +1261,43 @@ class InboxHeartbeatWatcher:
         while not self.stop_event.is_set():
             try:
                 self._scan_and_route(pending_dir, processed_dir, human_dir, tasks_dir)
+                self._sweep_dispatch_queue(tasks_dir)
             except Exception as e:
                 sys.stderr.write(f"[InboxWatcher] Error during scan: {e}\n")
             self.stop_event.wait(self.interval)
+
+    def _sweep_dispatch_queue(self, tasks_dir: Path):
+        """Monitor .dispatch_queue.json for newly queued tasks and emit structured triggers."""
+        queue_file = tasks_dir / ".dispatch_queue.json"
+        if not queue_file.exists():
+            return
+
+        try:
+            items = json.loads(queue_file.read_text(encoding="utf-8"))
+            updated = False
+            for it in items:
+                if not it.get("notified"):
+                    t_title = it.get("title", "Task")
+                    t_agent = it.get("agent", "@programmer")
+                    t_id = it.get("task_id", "")
+                    t_file = it.get("file", "")
+                    action = it.get("action", "")
+                    
+                    # Print standard structured trigger to stdout
+                    sys.stdout.write(f"\n⚡ [TASK_DISPATCH_TRIGGER] Task '{t_title}' ({t_id}) is READY for {t_agent}.\n")
+                    sys.stdout.write(f"👉 File: {t_file}\n")
+                    if action:
+                        sys.stdout.write(f"🎯 Action: {action}\n")
+                    sys.stdout.flush()
+
+                    it["notified"] = True
+                    it["notified_at"] = datetime.datetime.now().isoformat()
+                    updated = True
+
+            if updated:
+                queue_file.write_text(json.dumps(items, indent=2), encoding="utf-8")
+        except Exception as e:
+            sys.stderr.write(f"[InboxWatcher] Error sweeping dispatch queue: {e}\n")
 
     def _scan_and_route(self, pending_dir: Path, processed_dir: Path, human_dir: Path, tasks_dir: Path):
         pending_dir.mkdir(parents=True, exist_ok=True)
@@ -1373,6 +1498,15 @@ class WorkforceCanvasHandler(http.server.SimpleHTTPRequestHandler):
         elif path == "/api/inbox":
             items = get_inbox_items(self.root_dir)
             self.send_json_response({"items": items, "count": len(items)})
+        elif path == "/api/task/dispatch-queue":
+            queue_file = self.root_dir / "workforces" / "tasks" / ".dispatch_queue.json"
+            queue_items = []
+            if queue_file.exists():
+                try:
+                    queue_items = json.loads(queue_file.read_text(encoding="utf-8"))
+                except Exception:
+                    pass
+            self.send_json_response({"queue": queue_items, "count": len(queue_items)})
         elif path == "/api/comments":
             target_id = query.get("target_id", [None])[0] or query.get("target", [None])[0]
             self.send_json_response({"comments": get_comments(self.root_dir, target_id)})
@@ -1530,6 +1664,22 @@ li {{ margin: 4px 0; }}
                 self.send_json_response({"success": True, "task": res})
             except Exception as err:
                 self.send_error(500, f"Update failed: {err}")
+
+        elif path == "/api/task/dispatch":
+            file_rel = data.get("file")
+            agent = data.get("agent")
+            if not file_rel:
+                self.send_error(400, "Missing 'file' parameter")
+                return
+            try:
+                task_res = update_task_file(self.root_dir, file_rel, {"status": "in_progress", "delegated_to": agent} if agent else {"status": "in_progress"})
+                self.send_json_response({
+                    "success": True,
+                    "message": f"Task dispatched to {task_res.get('delegated_to', '@programmer')}",
+                    "task": task_res
+                })
+            except Exception as err:
+                self.send_error(500, f"Dispatch failed: {err}")
 
         elif path == "/api/task/connect":
             blocker_id = data.get("blocker_id")

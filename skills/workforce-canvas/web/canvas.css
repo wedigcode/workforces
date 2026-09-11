@@ -954,4 +954,37 @@ body, html {
   border-left-color: #dc2626;
 }
 
+/* Agent Active Working Badge */
+.badge-agent {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  background-color: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+}
+
+.badge-agent.active-pulse {
+  animation: agent-pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes agent-pulse-glow {
+  0%, 100% {
+    opacity: 1;
+    border-color: #bae6fd;
+    background-color: #e0f2fe;
+  }
+  50% {
+    opacity: 0.75;
+    border-color: #38bdf8;
+    background-color: #bae6fd;
+  }
+}
+
+
 

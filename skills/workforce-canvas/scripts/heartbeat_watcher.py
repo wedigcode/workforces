@@ -45,6 +45,7 @@ def main():
     if args.once:
         items_before = len(list(pending_dir.glob("*.json")) + list(pending_dir.glob("*.md")))
         watcher._scan_and_route(pending_dir, processed_dir, human_dir, tasks_dir)
+        watcher._sweep_dispatch_queue(tasks_dir)
         items_after = len(list(pending_dir.glob("*.json")) + list(pending_dir.glob("*.md")))
         routed_count = items_before - items_after
         print(f"Sweep completed. {routed_count} item(s) processed. {items_after} pending.")

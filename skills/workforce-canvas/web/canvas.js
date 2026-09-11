@@ -2075,6 +2075,48 @@
       };
     }
 
+    // 2b. Assigned Agent Badge & Dispatch Button
+    const agentBadge = document.getElementById('task-panel-agent-badge');
+    const btnDispatch = document.getElementById('btn-task-panel-dispatch');
+    const labelDispatch = document.getElementById('task-panel-dispatch-label');
+    const assignedAgent = task.delegated_to || task.assignee || (task.team === 'design' ? '@designer' : (task.team === 'marketing' ? '@marketer' : '@programmer'));
+
+    if (agentBadge) {
+      agentBadge.innerHTML = `<i data-lucide="bot" class="w-3 h-3 ${task.status === 'in_progress' ? 'animate-pulse text-[#0284c7]' : ''}"></i> <span>${assignedAgent}</span>`;
+      if (task.status === 'in_progress') {
+        agentBadge.className = 'badge-agent active-pulse';
+      } else {
+        agentBadge.className = 'badge-agent';
+      }
+    }
+
+    if (btnDispatch) {
+      if (task.status === 'in_progress') {
+        if (labelDispatch) labelDispatch.innerText = 'Active (Dispatched)';
+        btnDispatch.className = 'px-2 py-0.5 rounded text-[10px] font-semibold bg-[#0369a1] text-white transition-colors flex items-center gap-1 cursor-default opacity-90';
+        btnDispatch.onclick = null;
+      } else {
+        if (labelDispatch) labelDispatch.innerText = 'Dispatch to AI';
+        btnDispatch.className = 'px-2 py-0.5 rounded text-[10px] font-semibold bg-[#202020] hover:bg-[#383838] text-white transition-colors flex items-center gap-1 cursor-pointer';
+        btnDispatch.onclick = async () => {
+          btnDispatch.innerText = 'Dispatching...';
+          try {
+            await fetch('/api/task/dispatch', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ file: task.file, agent: assignedAgent })
+            });
+            await fetchWorkforceState();
+            refreshActiveWorkspaceView();
+            const updated = (state.tasks || []).find(t => t.id === task.id);
+            if (updated) renderTaskCopilotPanel(updated);
+          } catch (e) {
+            alert(`Dispatch error: ${e.message}`);
+          }
+        };
+      }
+    }
+
     // 3. Blocker Card
     const blockerCard = document.getElementById('task-panel-blocker-card');
     const blockerText = document.getElementById('task-panel-blocker-text');
@@ -2555,7 +2597,12 @@
             ? '<span class="text-[9.5px] font-mono px-1.5 py-0.5 rounded bg-[#fee2e2] text-[#b91c1c] font-semibold">BLOCKED</span>'
             : '<span class="text-[9.5px] font-mono px-1.5 py-0.5 rounded bg-[#f4f4f5] text-[#52525b] font-semibold">TODO</span>'));
 
-      card.innerHTML = `
+        const assignedAgent = task.delegated_to || task.assignee || '@programmer';
+        const assigneeStageHtml = task.status === 'in_progress'
+          ? `<span class="badge-agent active-pulse"><i data-lucide="bot" class="w-3 h-3 text-[#0284c7]"></i> ${assignedAgent}</span>`
+          : `<span>${task.assignee || '@human'}</span>`;
+
+        card.innerHTML = `
         <div>
           <div class="flex items-center justify-between gap-2 mb-2">
             <div class="flex items-center gap-1.5">
@@ -2568,7 +2615,7 @@
           <p class="text-[11px] text-[#666] line-clamp-2 mt-1 leading-relaxed">${escapeHtml(task.body ? task.body.replace(/[#*`_]/g, '').trim() : '')}</p>
         </div>
         <div class="flex items-center justify-between pt-2 border-t border-[#f4f4f5] text-[10px] font-mono text-[#828282]">
-          <span>${task.assignee || '@human'}</span>
+          ${assigneeStageHtml}
           <div class="flex items-center gap-1.5">
             ${task.status === 'done' ? '<button class="px-2 py-0.5 rounded bg-white border border-[#e2e0dc] hover:text-[#c2410c] text-[#828282] font-medium btn-archive-task cursor-pointer" title="Archive task from board">Archive</button>' : ''}
             <button class="px-2 py-0.5 rounded bg-[#faf9f5] border border-[#e2e0dc] hover:border-[#c2410c] text-[#202020] font-medium btn-advance-task cursor-pointer">
@@ -2812,7 +2859,12 @@
         oneThingTeam.className = `badge-team badge-${(oneThing.team || 'dev').toLowerCase()}`;
       }
       if (oneThingAssignee) {
-        oneThingAssignee.innerText = `Assignee: ${oneThing.assignee || '@human'}`;
+        const assignedAgent = oneThing.delegated_to || oneThing.assignee || '@programmer';
+        if (oneThing.status === 'in_progress') {
+          oneThingAssignee.innerHTML = `<span class="badge-agent active-pulse"><i data-lucide="bot" class="w-3 h-3 text-[#0284c7]"></i> Working: ${assignedAgent}</span>`;
+        } else {
+          oneThingAssignee.innerHTML = `<span>Assignee: ${assignedAgent}</span>`;
+        }
       }
       if (oneThingDate) {
         const dt = oneThing.updated_at || oneThing.reported_at || '';
@@ -3098,6 +3150,11 @@
           `;
         }
 
+        const assignedAgent = task.delegated_to || task.assignee || '@programmer';
+        const assigneeHtml = task.status === 'in_progress'
+          ? `<span class="badge-agent active-pulse"><i data-lucide="bot" class="w-3 h-3 text-[#0284c7]"></i> ${assignedAgent}</span>`
+          : `<span class="text-[10px] font-mono text-[#828282] truncate max-w-[100px]">${task.assignee || '@human'}</span>`;
+
         card.innerHTML = `
           <div class="flex items-center justify-between mb-1.5">
             <span class="text-[9px] font-mono font-bold uppercase px-1.5 py-0.2 rounded ${task.priority === 'P0' ? 'bg-[#fee2e2] text-[#b91c1c]' : 'bg-[#f4f4f5] text-[#4d4d4d]'}">${task.priority || 'P1'}</span>
@@ -3105,7 +3162,7 @@
           </div>
           <h4 class="text-xs font-semibold text-[#202020] leading-snug mb-2 hover:text-[#c2410c] transition-colors cursor-pointer">${escapeHtml(task.title)}</h4>
           <div class="flex items-center justify-between pt-2 border-t border-[#f4f4f5]">
-            <span class="text-[10px] font-mono text-[#828282] truncate max-w-[90px]">${task.assignee || '@human'}</span>
+            ${assigneeHtml}
             ${actionHtml}
           </div>
         `;

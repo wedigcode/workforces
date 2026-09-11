@@ -663,6 +663,58 @@ Analyze roundtrip latency for web socket canvas syncing.
         t1 = next(t for t in tasks if t["id"] == "sample-task")
         self.assertTrue(t1["archived"])
 
+    def test_task_auto_assignment_and_dispatch_queue(self):
+        """Verify moving a task to in_progress auto-assigns the agent and records to dispatch queue."""
+        # Create unassigned dev task
+        unassigned_task = self.tasks_dir / "20260905-unassigned-feature.md"
+        unassigned_task.write_text("""---
+id: "task-unassigned-01"
+title: "Implement API Rate Limiter"
+type: "dev"
+priority: "P1"
+status: "todo"
+reporter: "@human"
+---
+Rate limiter token bucket algorithm.
+""", encoding="utf-8")
+
+        # Update to in_progress without providing assignee
+        updated = server.update_task_file(self.root_path, "20260905-unassigned-feature.md", {"status": "in_progress"})
+        self.assertEqual(updated.get("status"), "in_progress")
+        self.assertEqual(updated.get("delegated_to"), "@programmer")
+        self.assertEqual(updated.get("assignee"), "@programmer")
+
+        # Check dispatch queue file was created
+        queue_file = self.tasks_dir / ".dispatch_queue.json"
+        self.assertTrue(queue_file.exists())
+        queue_items = json.loads(queue_file.read_text(encoding="utf-8"))
+        self.assertTrue(len(queue_items) > 0)
+        q_entry = next((i for i in queue_items if i.get("task_id") == "task-unassigned-01"), None)
+        self.assertIsNotNone(q_entry)
+        self.assertEqual(q_entry.get("agent"), "@programmer")
+        self.assertEqual(q_entry.get("status"), "pending_execution")
+
+        # Create design task and verify @designer mapping
+        design_task = self.tasks_dir / "20260905-brand-refresh.md"
+        design_task.write_text("""---
+id: "task-design-01"
+title: "Create Brand Mockups"
+type: "design"
+priority: "P2"
+status: "todo"
+---
+Brand tokens and mockups.
+""", encoding="utf-8")
+        updated_design = server.update_task_file(self.root_path, "20260905-brand-refresh.md", {"status": "in_progress"})
+        self.assertEqual(updated_design.get("delegated_to"), "@designer")
+
+        # Verify watcher sweeps queue without error
+        watcher = server.InboxHeartbeatWatcher(self.root_path)
+        watcher._sweep_dispatch_queue(self.tasks_dir)
+        queue_items_after = json.loads(queue_file.read_text(encoding="utf-8"))
+        notified_entry = next((i for i in queue_items_after if i.get("task_id") == "task-unassigned-01"), None)
+        self.assertTrue(notified_entry.get("notified"))
+
 
 if __name__ == "__main__":
     unittest.main()

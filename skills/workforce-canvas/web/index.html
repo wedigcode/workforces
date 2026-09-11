@@ -137,6 +137,17 @@
               <h3 id="task-panel-title" class="text-xs font-bold text-[#202020] leading-snug">Personal Sync &amp; Follow-Up Radar Workflow</h3>
               <p id="task-panel-file" class="text-[10px] font-mono text-[#828282] truncate mt-0.5">workforces/tasks/...</p>
             </div>
+            <!-- Assigned Agent & Dispatch Strip -->
+            <div class="flex items-center justify-between pt-1.5 border-t border-[#e2e0dc]/70 text-[10.5px]">
+              <div class="flex items-center gap-1 font-mono text-[#828282]">
+                <span>Agent:</span>
+                <span id="task-panel-agent-badge" class="badge-agent">@programmer</span>
+              </div>
+              <button id="btn-task-panel-dispatch" class="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#202020] hover:bg-[#383838] text-white transition-colors flex items-center gap-1 cursor-pointer" title="Dispatch to AI Agent">
+                <i data-lucide="play" class="w-2.5 h-2.5"></i>
+                <span id="task-panel-dispatch-label">Dispatch</span>
+              </button>
+            </div>
           </div>
 
           <!-- Blocker Card (Dynamic) -->
