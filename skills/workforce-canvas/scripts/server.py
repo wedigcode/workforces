@@ -108,6 +108,50 @@ def parse_yaml_frontmatter(file_path: Path) -> Dict[str, Any]:
     return metadata
 
 
+def extract_task_sections(body: str) -> Dict[str, Any]:
+    """Extract structured sections like suggested action, open questions, checklists, and evolution notes from markdown body."""
+    res = {
+        "suggested_action": "",
+        "open_questions": [],
+        "checklist": [],
+        "evolution_notes": []
+    }
+    if not body:
+        return res
+
+    # Suggested action
+    sug_m = re.search(r'##\s+Suggested Action\s*\n+([^#]+)', body, re.IGNORECASE)
+    if sug_m:
+        res["suggested_action"] = sug_m.group(1).strip()
+
+    # Open questions section
+    oq_m = re.search(r'##\s+Open Questions?\s*\n+([^#]+)', body, re.IGNORECASE)
+    if oq_m:
+        lines = [line.strip().lstrip("-* \t") for line in oq_m.group(1).strip().splitlines() if line.strip()]
+        res["open_questions"].extend(lines)
+
+    # Inline questions ending with ? or checklist items
+    for line in body.splitlines():
+        line_s = line.strip()
+        if line_s.startswith(("- ", "* ", "- [ ]")) and line_s.endswith("?"):
+            clean_q = re.sub(r"^[-*]\s*(\[[ x]\])?\s*", "", line_s)
+            if clean_q not in res["open_questions"]:
+                res["open_questions"].append(clean_q)
+        elif line_s.startswith("- [ ] "):
+            item = line_s[6:].strip()
+            if item:
+                res["checklist"].append(item)
+
+    # Evolution notes / Session lineage
+    lin_m = re.search(r'##\s+.*Session Lineage.*?\n+([^#]+)', body, re.IGNORECASE)
+    if lin_m:
+        for l in lin_m.group(1).strip().splitlines():
+            cl = l.strip().lstrip("-* \t")
+            if cl:
+                res["evolution_notes"].append(cl)
+    return res
+
+
 def get_all_tasks(root_dir: Path) -> List[Dict[str, Any]]:
     """Scan workforces/tasks/*.md and extract all task nodes with full metadata."""
     tasks = []
@@ -140,6 +184,16 @@ def get_all_tasks(root_dir: Path) -> List[Dict[str, Any]]:
         elif task_type in ("ops", "infra", "deploy"):
             team = "ops"
 
+        body = meta.get("_body") or ""
+        extracted = extract_task_sections(body)
+
+        # Merge open questions from frontmatter if present
+        meta_oq = meta.get("open_questions")
+        if isinstance(meta_oq, list):
+            for q in meta_oq:
+                if q not in extracted["open_questions"]:
+                    extracted["open_questions"].append(q)
+
         task_node = {
             "id": task_id,
             "file": str(task_file.relative_to(root_dir)),
@@ -157,7 +211,11 @@ def get_all_tasks(root_dir: Path) -> List[Dict[str, Any]]:
             "blocked_by": meta.get("blocked_by") or [],
             "delegated_to": meta.get("delegated_to") or "",
             "deciding_factors": meta.get("deciding_factors") or [],
-            "body": meta.get("_body") or "",
+            "suggested_action": extracted["suggested_action"],
+            "open_questions": extracted["open_questions"],
+            "checklist": extracted["checklist"],
+            "evolution_notes": extracted["evolution_notes"],
+            "body": body,
             "updated_at": meta.get("updated_at") or meta.get("created_at") or "",
             "linked_commits": [],
             "linked_docs": [],
@@ -894,6 +952,17 @@ def update_task_file(root_dir: Path, relative_file: str, updates: Dict[str, Any]
     if evolution_note:
         evolution_block = f"\n\n### 📝 Evolution Note ({now_iso[:16]})\n- {evolution_note.strip()}"
         body = body.rstrip() + evolution_block + "\n"
+
+    # Handle question answer append
+    answer_data = updates.get("answer_question")
+    if answer_data:
+        if isinstance(answer_data, dict):
+            q_text = answer_data.get("question", "").strip()
+            a_text = answer_data.get("answer", "").strip()
+            answer_block = f"\n\n### 💡 Decision & Answer ({now_iso[:16]})\n- **Question:** {q_text}\n- **Answer:** {a_text}"
+        else:
+            answer_block = f"\n\n### 💡 Decision & Answer ({now_iso[:16]})\n- {str(answer_data).strip()}"
+        body = body.rstrip() + answer_block + "\n"
 
     new_content = "---\n" + "\n".join(new_yaml_lines) + "\n---\n" + body
     task_path.write_text(new_content, encoding="utf-8")

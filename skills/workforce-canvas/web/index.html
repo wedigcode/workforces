@@ -97,55 +97,139 @@
     <!-- Left Copilot & Audit Feed -->
     <aside id="studio-copilot-feed">
       <div class="copilot-header">
-        <div class="flex items-center justify-between mb-2">
+        <div class="flex items-center justify-between mb-1.5">
           <div class="flex items-center gap-2">
-            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-            <h2 class="text-xs font-semibold text-[#202020] uppercase tracking-wider" id="copilot-context-title">Workforces Copilot</h2>
+            <span class="w-2 h-2 rounded-full bg-emerald-500" id="copilot-status-dot"></span>
+            <h2 class="text-xs font-semibold text-[#202020] uppercase tracking-wider font-mono" id="copilot-context-title">Task Inspector</h2>
           </div>
           <span class="quality-gate-badge" id="copilot-quality-badge">
             <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
-            TRIAD PASSED
+            ACTIVE CONTEXT
           </span>
         </div>
         <p class="text-[11px] text-[#828282] leading-relaxed" id="copilot-context-subtitle">
-          Autonomous execution stream &amp; turn verification record.
+          Task properties, blockers, and recommended actions.
         </p>
       </div>
 
       <div class="copilot-body">
-        <!-- Turn Summary Telemetry Box -->
-        <div class="turn-files-card">
-          <div class="turn-files-title flex items-center justify-between">
-            <span>Turn Activity &amp; Telemetry</span>
-            <i data-lucide="activity" class="w-3.5 h-3.5 text-[#828282]"></i>
+        <!-- Task-Specific Dossier Panel (Shown when a task is open) -->
+        <div id="copilot-task-panel" class="space-y-3.5">
+          <!-- Task Status & Meta Card -->
+          <div class="p-3 bg-[#faf9f5] border border-[#e2e0dc] rounded-lg space-y-2">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-1.5">
+                <span id="task-panel-priority" class="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-[#fee2e2] text-[#b91c1c] border border-[#fecaca]">P1</span>
+                <span id="task-panel-team" class="badge-team badge-dev">DEV</span>
+              </div>
+              <!-- Status Cycler Button -->
+              <button id="task-panel-status-btn" class="px-2.5 py-1 rounded-full text-[11px] font-mono font-semibold uppercase flex items-center gap-1.5 bg-white border border-[#e2e0dc] hover:border-[#c2410c] transition-all cursor-pointer" title="Click to advance status">
+                <span class="w-2 h-2 rounded-full bg-[#0369a1]" id="task-panel-status-dot"></span>
+                <span id="task-panel-status-label">IN PROGRESS</span>
+              </button>
+            </div>
+            <div>
+              <h3 id="task-panel-title" class="text-xs font-bold text-[#202020] leading-snug">Personal Sync &amp; Follow-Up Radar Workflow</h3>
+              <p id="task-panel-file" class="text-[10px] font-mono text-[#828282] truncate mt-0.5">workforces/tasks/...</p>
+            </div>
           </div>
-          <div class="text-[11.5px] text-[#4d4d4d] leading-relaxed font-mono whitespace-pre-wrap max-h-40 overflow-y-auto" id="copilot-turn-summary-text">
-            Loading session telemetry...
+
+          <!-- Blocker Card (Dynamic) -->
+          <div id="task-panel-blocker-card" class="p-3 bg-[#fef2f2] border border-[#fecaca] rounded-lg space-y-2 hidden">
+            <div class="flex items-center gap-1.5 text-[10.5px] font-bold text-[#b91c1c] font-mono uppercase">
+              <i data-lucide="shield-alert" class="w-3.5 h-3.5 text-[#b91c1c]"></i>
+              <span>Active Blocker</span>
+            </div>
+            <p id="task-panel-blocker-text" class="text-xs text-[#991b1b] leading-relaxed">Blocked by: ...</p>
+            <button id="btn-task-resolve-blocker" class="px-2.5 py-1 rounded bg-[#b91c1c] text-white text-[10.5px] font-medium hover:bg-[#991b1b] transition-colors flex items-center gap-1">
+              <i data-lucide="unlock" class="w-3 h-3"></i>
+              <span>Mark Blocker Resolved</span>
+            </button>
+          </div>
+
+          <!-- Open Questions & Input Card -->
+          <div id="task-panel-questions-card" class="p-3 bg-[#fff7ed] border border-[#fed7aa] rounded-lg space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-[10.5px] font-bold text-[#c2410c] uppercase font-mono tracking-wider flex items-center gap-1.5">
+                <i data-lucide="help-circle" class="w-3.5 h-3.5 text-[#c2410c]"></i>
+                Open Questions &amp; Input
+              </span>
+              <span id="task-panel-questions-count" class="text-[9.5px] font-mono text-[#c2410c] bg-white px-1.5 py-0.2 rounded border border-[#fed7aa]">0</span>
+            </div>
+            <div id="task-panel-questions-list" class="space-y-2 text-xs text-[#4d4d4d]">
+              <!-- Dynamically populated open questions -->
+            </div>
+          </div>
+
+          <!-- Recommended Next Actions (This Task) -->
+          <div class="space-y-2 pt-2 border-t border-[#e2e0dc]" id="task-panel-actions-card">
+            <div class="flex items-center justify-between">
+              <span class="text-[10.5px] font-bold text-[#202020] uppercase tracking-wider flex items-center gap-1.5 font-mono">
+                <i data-lucide="play-circle" class="w-3.5 h-3.5 text-[#c2410c]"></i>
+                Next Action (This Task)
+              </span>
+            </div>
+            <div id="task-panel-actions-list" class="space-y-1.5">
+              <!-- Dynamically populated action items for this task -->
+            </div>
+          </div>
+
+          <!-- Task Evolution Log -->
+          <div class="space-y-2 pt-2 border-t border-[#e2e0dc]" id="task-panel-history-card">
+            <div class="flex items-center justify-between">
+              <span class="text-[10.5px] font-bold text-[#828282] uppercase tracking-wider flex items-center gap-1.5 font-mono">
+                <i data-lucide="history" class="w-3.5 h-3.5"></i>
+                Evolution History
+              </span>
+              <span id="task-panel-history-count" class="text-[9.5px] font-mono text-[#828282]">0 entries</span>
+            </div>
+            <div id="task-panel-history-list" class="space-y-1.5 max-h-36 overflow-y-auto pr-1 text-xs text-[#4d4d4d]">
+              <!-- Past notes on this task -->
+            </div>
           </div>
         </div>
 
-        <!-- Files From This Turn -->
-        <div class="turn-files-card">
-          <div class="turn-files-title flex items-center justify-between">
-            <span>Files From This Turn</span>
-            <span class="text-[10px] font-normal text-[#828282]" id="copilot-files-count">0 files</span>
+        <!-- Standup Overview Panel (Shown when on Standup Cockpit) -->
+        <div id="copilot-standup-panel" class="space-y-3.5 hidden">
+          <!-- Today's Commitment / Sprint Focus -->
+          <div class="p-3 bg-[#faf9f5] border border-[#e2e0dc] rounded-lg space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-[10.5px] font-bold uppercase tracking-wider text-[#c2410c] font-mono flex items-center gap-1.5">
+                <i data-lucide="target" class="w-3.5 h-3.5 text-[#c2410c]"></i>
+                Sprint Focus (P0)
+              </span>
+              <span class="text-[9.5px] font-mono text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">Active</span>
+            </div>
+            <h4 id="standup-copilot-focus-title" class="text-xs font-semibold text-[#202020] leading-snug cursor-pointer hover:text-[#c2410c] transition-colors">Loading highest priority task...</h4>
+            <p id="standup-copilot-focus-desc" class="text-[11px] text-[#666] line-clamp-2">Evaluating sprint priorities...</p>
           </div>
-          <div id="copilot-files-list" class="space-y-1">
-            <!-- Dynamically rendered turn files -->
-          </div>
-        </div>
 
-        <!-- Dynamic Recommended Next Actions -->
-        <div class="space-y-2 mt-4 pt-3 border-t border-[#e2e0dc]" id="copilot-recommended-actions-container">
-          <div class="flex items-center justify-between">
-            <span class="text-[10.5px] font-bold text-[#202020] uppercase tracking-wider flex items-center gap-1.5 font-mono">
-              <i data-lucide="compass" class="w-3.5 h-3.5 text-[#c2410c]"></i>
-              Recommended Next Actions
-            </span>
-            <span class="text-[9.5px] font-mono text-[#828282]">workstate.md</span>
+          <!-- Global Recommended Next Actions -->
+          <div class="space-y-2 pt-2 border-t border-[#e2e0dc]" id="copilot-recommended-actions-container">
+            <div class="flex items-center justify-between">
+              <span class="text-[10.5px] font-bold text-[#202020] uppercase tracking-wider flex items-center gap-1.5 font-mono">
+                <i data-lucide="compass" class="w-3.5 h-3.5 text-[#c2410c]"></i>
+                Recommended Next Actions
+              </span>
+              <span class="text-[9.5px] font-mono text-[#828282]">workstate.md</span>
+            </div>
+            <div id="copilot-recommended-actions-list" class="space-y-1.5">
+              <!-- Dynamically rendered from state.standup.recommended_actions -->
+            </div>
           </div>
-          <div id="copilot-recommended-actions-list" class="space-y-1.5">
-            <!-- Dynamically rendered from state.standup.recommended_actions -->
+
+          <!-- Recent Architectural Decisions -->
+          <div class="space-y-2 pt-2 border-t border-[#e2e0dc]" id="copilot-decisions-container">
+            <div class="flex items-center justify-between">
+              <span class="text-[10.5px] font-bold text-[#828282] uppercase tracking-wider flex items-center gap-1.5 font-mono">
+                <i data-lucide="git-commit" class="w-3.5 h-3.5 text-[#c2410c]"></i>
+                Recent Decisions
+              </span>
+              <span id="copilot-decisions-session" class="text-[9.5px] font-mono text-[#828282]">Session</span>
+            </div>
+            <div id="copilot-decisions-feed" class="space-y-1.5 max-h-40 overflow-y-auto pr-1 text-xs text-[#4d4d4d]">
+              <!-- Dynamically rendered decisions -->
+            </div>
           </div>
         </div>
       </div>
@@ -155,12 +239,12 @@
         <div class="flex items-center justify-between mb-1.5">
           <label class="text-[11px] font-semibold text-[#202020] flex items-center gap-1.5">
             <i data-lucide="file-edit" class="w-3.5 h-3.5 text-[#c2410c]"></i>
-            <span id="copilot-feedback-target-label">Note on active file:</span>
+            <span id="copilot-feedback-target-label">Note on active task:</span>
           </label>
-          <span id="copilot-active-file-tag" class="text-[10px] font-mono text-[#828282] bg-[#efefef] px-1.5 py-0.5 rounded max-w-[130px] truncate" title="Active Target File">General Session</span>
+          <span id="copilot-active-file-tag" class="text-[10px] font-mono text-[#828282] bg-[#efefef] px-1.5 py-0.5 rounded max-w-[130px] truncate" title="Active Target File">Task</span>
         </div>
         <div class="flex items-center gap-2">
-          <input type="text" id="copilot-comment-input" placeholder="Add note or instruction for this file..." class="flex-1 bg-[#faf9f5] border border-[#e2e0dc] rounded-md px-3 py-1.5 text-xs text-[#202020] placeholder-[#828282] focus:outline-none focus:border-[#c2410c] transition-colors">
+          <input type="text" id="copilot-comment-input" placeholder="Add note or instruction for this task..." class="flex-1 bg-[#faf9f5] border border-[#e2e0dc] rounded-md px-3 py-1.5 text-xs text-[#202020] placeholder-[#828282] focus:outline-none focus:border-[#c2410c] transition-colors">
           <button id="btn-copilot-submit-comment" title="Submit Note & Evolution History" class="p-2 rounded-md bg-[#202020] hover:bg-[#383838] text-white text-xs transition-colors flex items-center justify-center">
             <i data-lucide="send" class="w-3.5 h-3.5"></i>
           </button>
@@ -388,6 +472,75 @@
               <p class="text-[#828282] italic">Loading recently completed tasks...</p>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- Dedicated Tasks & Sprint Board Stage -->
+      <div id="stage-tasks-view" class="h-full overflow-y-auto p-6 space-y-6 hidden">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#e2e0dc]">
+          <div>
+            <div class="flex items-center gap-2">
+              <i data-lucide="check-square" class="w-4 h-4 text-[#c2410c]"></i>
+              <h2 class="text-sm font-bold tracking-tight text-[#202020] uppercase font-mono">Tasks &amp; Sprint Board</h2>
+            </div>
+            <p class="text-xs text-[#828282] mt-0.5">Authoritative backlog synchronized with workforces/tasks/.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <span id="tasks-stage-count-badge" class="px-2.5 py-1 rounded-full text-xs font-mono font-semibold bg-[#faf9f5] border border-[#e2e0dc] text-[#4d4d4d]">0 Tasks</span>
+            <button id="btn-tasks-stage-new" class="px-3 py-1.5 rounded-full text-xs font-semibold bg-[#202020] hover:bg-[#333333] text-white flex items-center gap-1.5 transition-all">
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+              <span>New Task</span>
+            </button>
+          </div>
+        </div>
+        <!-- Team Filter Chips & Search for Tasks Stage -->
+        <div class="flex items-center justify-between gap-3 flex-wrap">
+          <div class="flex items-center gap-1.5 text-xs" id="tasks-stage-team-filters">
+            <button class="team-filter-chip active" data-team="all">All Teams</button>
+            <button class="team-filter-chip" data-team="dev">Dev</button>
+            <button class="team-filter-chip" data-team="design">Design</button>
+            <button class="team-filter-chip" data-team="marketing">Marketing</button>
+            <button class="team-filter-chip" data-team="growth">Growth</button>
+            <button class="team-filter-chip" data-team="ops">Ops</button>
+          </div>
+        </div>
+        <!-- Tasks Grid -->
+        <div id="tasks-stage-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <!-- Dedicated Extension Inbox & Captures Stage -->
+      <div id="stage-inbox-view" class="h-full overflow-y-auto p-6 space-y-6 hidden">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#e2e0dc]">
+          <div>
+            <div class="flex items-center gap-2">
+              <i data-lucide="inbox" class="w-4 h-4 text-[#c2410c]"></i>
+              <h2 class="text-sm font-bold tracking-tight text-[#202020] uppercase font-mono">Extension Captures &amp; Inbox</h2>
+            </div>
+            <p class="text-xs text-[#828282] mt-0.5">Review and triage research, snippets, and ideas captured via the Chrome extension.</p>
+          </div>
+          <span id="inbox-stage-count-badge" class="px-2.5 py-1 rounded-full text-xs font-mono font-semibold bg-[#fff7ed] text-[#c2410c] border border-[#fed7aa]">0 Items</span>
+        </div>
+        <div id="inbox-stage-list" class="space-y-3">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <!-- Dedicated Hypotheses & Market Validation Stage -->
+      <div id="stage-hypotheses-view" class="h-full overflow-y-auto p-6 space-y-6 hidden">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#e2e0dc]">
+          <div>
+            <div class="flex items-center gap-2">
+              <i data-lucide="flask-conical" class="w-4 h-4 text-[#c2410c]"></i>
+              <h2 class="text-sm font-bold tracking-tight text-[#202020] uppercase font-mono">Hypotheses &amp; Market Validation</h2>
+            </div>
+            <p class="text-xs text-[#828282] mt-0.5">Scientific hypothesis tracking and market validation experiments in workforces/hypotheses/.</p>
+          </div>
+          <span id="hypotheses-stage-count-badge" class="px-2.5 py-1 rounded-full text-xs font-mono font-semibold bg-[#faf9f5] border border-[#e2e0dc] text-[#4d4d4d]">0 Hypotheses</span>
+        </div>
+        <div id="hypotheses-stage-list" class="space-y-4">
+          <!-- Populated dynamically -->
         </div>
       </div>
 

@@ -1713,21 +1713,10 @@
     railButtons.forEach(btn => {
       btn.addEventListener('click', () => {
         const view = btn.getAttribute('data-view');
-        railButtons.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-
         if (view === 'radar') {
           switchToRadarMode();
-        } else if (view === 'cockpit') {
-          switchToStudioMode('cockpit');
-        } else if (view === 'inbox') {
-          openInboxTab();
-        } else if (view === 'tasks') {
-          openTasksOverviewTab();
-        } else if (view === 'hypotheses') {
-          openHypothesesTab();
         } else {
-          switchToStudioMode('document');
+          switchToView(view);
         }
       });
     });
@@ -1749,8 +1738,8 @@
     if (window.lucide) window.lucide.createIcons();
   }
 
-  function switchToStudioMode(scenario = 'document') {
-    studioState.activeScenario = scenario;
+  function switchToView(viewName) {
+    studioState.activeScenario = viewName;
     const studioContainer = document.getElementById('studio-workspace-container');
     const canvasViewport = document.getElementById('canvas-viewport');
     const radarDock = document.getElementById('radar-dock');
@@ -1758,25 +1747,43 @@
     if (radarDock) radarDock.style.display = 'none';
     if (studioContainer) studioContainer.classList.remove('hidden');
 
+    // Update left rail active class
     document.querySelectorAll('#studio-sidebar-rail .rail-item').forEach(r => r.classList.remove('active'));
-    const targetRail = document.getElementById(`rail-btn-${scenario === 'cockpit' ? 'cockpit' : (scenario === 'document' ? 'docs' : scenario)}`);
+    const railKey = viewName === 'document' ? 'docs' : viewName;
+    const targetRail = document.getElementById(`rail-btn-${railKey}`);
     if (targetRail) targetRail.classList.add('active');
 
-    const cockpitView = document.getElementById('stage-cockpit-view');
-    const docView = document.getElementById('stage-document-view');
+    // Hide all stage containers
+    const stageIds = ['stage-cockpit-view', 'stage-tasks-view', 'stage-inbox-view', 'stage-hypotheses-view', 'stage-document-view'];
+    stageIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.add('hidden');
+    });
 
-    if (scenario === 'cockpit') {
-      if (cockpitView) cockpitView.classList.remove('hidden');
-      if (docView) docView.classList.add('hidden');
+    // Show selected stage container
+    const targetStageId = `stage-${viewName === 'cockpit' ? 'cockpit' : (viewName === 'tasks' ? 'tasks' : (viewName === 'inbox' ? 'inbox' : (viewName === 'hypotheses' ? 'hypotheses' : 'document')))}-view`;
+    const targetStageEl = document.getElementById(targetStageId);
+    if (targetStageEl) targetStageEl.classList.remove('hidden');
+
+    // Render corresponding view data
+    if (viewName === 'cockpit') {
       renderStandupCockpit();
-    } else {
-      if (cockpitView) cockpitView.classList.add('hidden');
-      if (docView) docView.classList.remove('hidden');
+    } else if (viewName === 'tasks') {
+      renderTasksStage();
+    } else if (viewName === 'inbox') {
+      renderInboxStage();
+    } else if (viewName === 'hypotheses') {
+      renderHypothesesStage();
+    } else if (viewName === 'document') {
       renderActiveTabContent();
     }
 
     updateCopilotActiveFileContext();
     if (window.lucide) window.lucide.createIcons();
+  }
+
+  function switchToStudioMode(scenario = 'document') {
+    switchToView(scenario);
   }
 
   function setupStageControls() {
@@ -1862,18 +1869,43 @@
     const targetLabel = document.getElementById('copilot-feedback-target-label');
     const targetTag = document.getElementById('copilot-active-file-tag');
     const commentInput = document.getElementById('copilot-comment-input');
+    const contextTitle = document.getElementById('copilot-context-title');
+    const contextSub = document.getElementById('copilot-context-subtitle');
 
-    if (activeTab && studioState.activeScenario === 'document') {
-      const cleanName = activeTab.title || activeTab.path || 'Open File';
-      if (targetLabel) targetLabel.innerText = 'Note on active file:';
+    const taskPanel = document.getElementById('copilot-task-panel');
+    const standupPanel = document.getElementById('copilot-standup-panel');
+
+    const isTaskDoc = activeTab && (activeTab.type === 'task' || (activeTab.path && activeTab.path.includes('tasks/')));
+
+    if (studioState.activeScenario === 'document' && isTaskDoc) {
+      // Find matching task object
+      const task = (state.tasks || []).find(t => t.id === activeTab.id || (t.file && t.file === activeTab.path));
+      if (taskPanel) taskPanel.classList.remove('hidden');
+      if (standupPanel) standupPanel.classList.add('hidden');
+
+      if (contextTitle) contextTitle.innerText = "Task Inspector";
+      if (contextSub) contextSub.innerText = "Properties, blockers, and questions for this task.";
+
+      if (targetLabel) targetLabel.innerText = 'Note on active task:';
       if (targetTag) {
-        targetTag.innerText = cleanName;
-        targetTag.title = activeTab.path || cleanName;
+        targetTag.innerText = task ? task.title : (activeTab.title || 'Active Task');
+        targetTag.title = activeTab.path || 'Task file';
       }
       if (commentInput) {
-        commentInput.placeholder = `Add note or instruction for ${cleanName}...`;
+        commentInput.placeholder = `Add note or instruction for this task...`;
+      }
+
+      if (task) {
+        renderTaskCopilotPanel(task);
       }
     } else {
+      // Standup / general overview mode
+      if (taskPanel) taskPanel.classList.add('hidden');
+      if (standupPanel) standupPanel.classList.remove('hidden');
+
+      if (contextTitle) contextTitle.innerText = "Standup Copilot";
+      if (contextSub) contextSub.innerText = "Sprint focus, recommended actions, and decisions.";
+
       if (targetLabel) targetLabel.innerText = 'Note for active session:';
       if (targetTag) {
         targetTag.innerText = 'Standup Session';
@@ -1882,7 +1914,240 @@
       if (commentInput) {
         commentInput.placeholder = 'Add note or instruction for active workforce session...';
       }
+
+      renderStandupCopilotPanel();
     }
+  }
+
+  function renderTaskCopilotPanel(task) {
+    if (!task) return;
+
+    // 1. Task Title & File
+    const titleEl = document.getElementById('task-panel-title');
+    const fileEl = document.getElementById('task-panel-file');
+    const prioEl = document.getElementById('task-panel-priority');
+    const teamEl = document.getElementById('task-panel-team');
+
+    if (titleEl) titleEl.innerText = task.title || 'Untitled Task';
+    if (fileEl) fileEl.innerText = task.file || `workforces/tasks/${task.id}.md`;
+    if (prioEl) {
+      prioEl.innerText = task.priority || 'P2';
+      prioEl.className = `text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${task.priority === 'P0' ? 'bg-[#fee2e2] text-[#b91c1c] border border-[#fecaca]' : 'bg-[#f4f4f5] text-[#4d4d4d] border border-[#e2e0dc]'}`;
+    }
+    if (teamEl) {
+      teamEl.innerText = (task.team || 'dev').toUpperCase();
+      teamEl.className = `badge-team badge-${(task.team || 'dev').toLowerCase()}`;
+    }
+
+    // 2. Status Cycler Button
+    const statusBtn = document.getElementById('task-panel-status-btn');
+    const statusLabel = document.getElementById('task-panel-status-label');
+    const statusDot = document.getElementById('task-panel-status-dot');
+
+    if (statusLabel) statusLabel.innerText = (task.status || 'todo').toUpperCase();
+    if (statusDot) {
+      statusDot.className = `w-2 h-2 rounded-full ${task.status === 'in_progress' ? 'bg-[#0369a1]' : (task.status === 'done' ? 'bg-emerald-600' : (task.status === 'blocked' ? 'bg-[#b91c1c]' : 'bg-[#828282]'))}`;
+    }
+
+    if (statusBtn) {
+      statusBtn.onclick = async () => {
+        await cycleTaskStatus(task);
+        const updated = (state.tasks || []).find(t => t.id === task.id);
+        if (updated) renderTaskCopilotPanel(updated);
+      };
+    }
+
+    // 3. Blocker Card
+    const blockerCard = document.getElementById('task-panel-blocker-card');
+    const blockerText = document.getElementById('task-panel-blocker-text');
+    const resolveBtn = document.getElementById('btn-task-resolve-blocker');
+
+    const isBlocked = task.status === 'blocked' || (task.blocked_by && task.blocked_by.length > 0);
+    if (blockerCard) {
+      if (isBlocked) {
+        blockerCard.classList.remove('hidden');
+        const blockerIds = task.blocked_by && task.blocked_by.length > 0 ? task.blocked_by.join(', ') : 'Active roadblock flagged';
+        if (blockerText) blockerText.innerText = `Blocked by: ${blockerIds}`;
+        if (resolveBtn) {
+          resolveBtn.onclick = async () => {
+            await updateTaskOnServer(task.file, { status: 'in_progress', blocked_by: [] });
+            const updated = (state.tasks || []).find(t => t.id === task.id);
+            if (updated) renderTaskCopilotPanel(updated);
+          };
+        }
+      } else {
+        blockerCard.classList.add('hidden');
+      }
+    }
+
+    // 4. Open Questions Card & Inline Answer Form
+    const questionsCard = document.getElementById('task-panel-questions-card');
+    const questionsList = document.getElementById('task-panel-questions-list');
+    const questionsCount = document.getElementById('task-panel-questions-count');
+
+    const openQs = task.open_questions || [];
+    if (questionsCount) questionsCount.innerText = openQs.length;
+
+    if (questionsList) {
+      questionsList.innerHTML = '';
+      if (openQs.length === 0) {
+        questionsList.innerHTML = '<p class="text-[11px] text-[#828282] italic">Zero blockers or open questions for this task.</p>';
+      } else {
+        openQs.forEach((q, idx) => {
+          const qBox = document.createElement('div');
+          qBox.className = 'p-2.5 bg-white border border-[#fed7aa] rounded-md space-y-2';
+          qBox.innerHTML = `
+            <div class="flex items-start gap-1.5">
+              <span class="text-[10px] font-mono font-bold text-[#c2410c] mt-0.5">Q${idx + 1}:</span>
+              <p class="text-xs font-medium text-[#202020] leading-snug flex-1">${escapeHtml(q)}</p>
+            </div>
+            <div class="flex items-center gap-1.5 pt-1">
+              <input type="text" placeholder="Type answer for AI agent..." class="flex-1 text-[11px] px-2 py-1 bg-[#faf9f5] border border-[#e2e0dc] rounded focus:outline-none focus:border-[#c2410c] text-[#202020] answer-input">
+              <button class="px-2 py-1 bg-[#202020] hover:bg-[#383838] text-white text-[10px] font-semibold rounded shrink-0 btn-save-answer">
+                Answer
+              </button>
+            </div>
+          `;
+
+          const inputEl = qBox.querySelector('.answer-input');
+          const btnEl = qBox.querySelector('.btn-save-answer');
+
+          const submitAnswer = async () => {
+            const ans = inputEl.value.trim();
+            if (!ans) return;
+            btnEl.innerText = 'Saving...';
+            try {
+              await fetch('/api/task/update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  file: task.file,
+                  updates: {
+                    answer_question: { question: q, answer: ans }
+                  }
+                })
+              });
+              await fetchWorkforceState();
+              // Re-render task in active tab
+              openTaskTab(task.id);
+            } catch (e) {
+              alert(`Save answer error: ${e.message}`);
+            }
+          };
+
+          btnEl.onclick = submitAnswer;
+          inputEl.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') submitAnswer();
+          });
+
+          questionsList.appendChild(qBox);
+        });
+      }
+    }
+
+    // 5. Recommended Next Actions for this specific task
+    const actionsList = document.getElementById('task-panel-actions-list');
+    if (actionsList) {
+      actionsList.innerHTML = '';
+      const taskActions = [];
+      if (task.suggested_action) taskActions.push(task.suggested_action);
+      if (task.checklist && task.checklist.length > 0) {
+        task.checklist.slice(0, 3).forEach(c => taskActions.push(c));
+      }
+
+      if (taskActions.length === 0) {
+        actionsList.innerHTML = '<p class="text-[10.5px] text-[#828282] italic py-1">No explicit next step documented in task.</p>';
+      } else {
+        taskActions.forEach(act => {
+          const btn = document.createElement('button');
+          btn.className = 'recommended-action-item';
+          btn.innerHTML = `
+            <span class="action-text">${escapeHtml(act)}</span>
+            <i data-lucide="arrow-right" class="w-3.5 h-3.5 action-icon"></i>
+          `;
+          btn.onclick = () => {
+            const commentInput = document.getElementById('copilot-comment-input');
+            if (commentInput) {
+              commentInput.value = act;
+              commentInput.focus();
+            }
+          };
+          actionsList.appendChild(btn);
+        });
+      }
+    }
+
+    // 6. Task Evolution Log
+    const historyList = document.getElementById('task-panel-history-list');
+    const historyCount = document.getElementById('task-panel-history-count');
+    const notes = task.evolution_notes || [];
+
+    if (historyCount) historyCount.innerText = `${notes.length} entries`;
+    if (historyList) {
+      historyList.innerHTML = '';
+      if (notes.length === 0) {
+        historyList.innerHTML = '<p class="text-[10.5px] text-[#828282] italic">No evolution history recorded yet.</p>';
+      } else {
+        notes.slice(-5).reverse().forEach(n => {
+          const row = document.createElement('div');
+          row.className = 'p-1.5 bg-white border border-[#e2e0dc] rounded text-[11px] leading-relaxed';
+          row.innerText = n;
+          historyList.appendChild(row);
+        });
+      }
+    }
+
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  function renderStandupCopilotPanel() {
+    const standup = state.standup || {};
+    const oneThing = standup.one_thing || (state.tasks && state.tasks.length > 0 ? state.tasks[0] : null);
+
+    const focusTitle = document.getElementById('standup-copilot-focus-title');
+    const focusDesc = document.getElementById('standup-copilot-focus-desc');
+
+    if (oneThing && focusTitle) {
+      focusTitle.innerText = oneThing.title || 'Untitled';
+      focusTitle.onclick = () => openTaskTab(oneThing.id);
+      if (focusDesc) {
+        focusDesc.innerText = oneThing.body ? oneThing.body.replace(/[#*`_]/g, '').trim().slice(0, 140) + '...' : 'Evaluating sprint priorities...';
+      }
+    }
+
+    renderRecommendedActions();
+
+    // Decisions in standup copilot
+    const decContainer = document.getElementById('copilot-decisions-feed');
+    const decSession = document.getElementById('copilot-decisions-session');
+    const latestSession = standup.latest_session || {};
+
+    if (decSession) {
+      decSession.innerText = latestSession.id ? `Session ${latestSession.id}` : 'Session';
+    }
+
+    if (decContainer) {
+      const decisions = latestSession.decisions || [];
+      if (decisions.length === 0) {
+        decContainer.innerHTML = '<p class="text-[10.5px] text-[#828282] italic py-1">No decisions recorded in latest session.</p>';
+      } else {
+        decContainer.innerHTML = '';
+        decisions.slice(0, 4).forEach(d => {
+          const row = document.createElement('div');
+          row.className = 'p-2 bg-white border border-[#e2e0dc] rounded text-[11px] space-y-0.5';
+          row.innerHTML = `
+            <div class="font-semibold text-[#202020] flex items-center gap-1">
+              <i data-lucide="check" class="w-3 h-3 text-emerald-600"></i>
+              <span class="truncate">${escapeHtml(d.title || d.what || 'Decision')}</span>
+            </div>
+            ${d.why ? `<p class="text-[#666] line-clamp-2 text-[10.5px]">${escapeHtml(d.why)}</p>` : ''}
+          `;
+          decContainer.appendChild(row);
+        });
+      }
+    }
+
+    if (window.lucide) window.lucide.createIcons();
   }
 
   function renderRecommendedActions() {
@@ -1980,26 +2245,9 @@
       });
     }
 
-    // Populate initial document tab in background without overriding Cockpit view
-    if (state.tasks.length > 0) {
-      const firstTask = state.tasks[0];
-      const tab = {
-        id: firstTask.id,
-        title: firstTask.title,
-        type: 'task',
-        path: firstTask.file,
-        content: `# ${firstTask.title}\n\n**Status:** \`${firstTask.status}\` | **Priority:** \`${firstTask.priority}\` | **Team:** \`${firstTask.team}\`\n\n---\n\n${firstTask.body || "No task description."}`,
-        scenario: 'document',
-        pins: []
-      };
-      studioState.openTabs.push(tab);
-      studioState.activeTabId = tab.id;
-      renderTabStrip();
-    } else {
-      openDefaultDocumentTab();
-    }
-    // Ensure cockpit view remains selected on initial load
-    switchToStudioMode('cockpit');
+    // Start cleanly with 0 tabs open; user can open tasks/documents on demand
+    renderTabStrip();
+    switchToView('cockpit');
   }
 
   function openTab(tab) {
@@ -2019,8 +2267,11 @@
     if (studioState.activeTabId === tabId) {
       if (studioState.openTabs.length > 0) {
         studioState.activeTabId = studioState.openTabs[studioState.openTabs.length - 1].id;
+        switchToView('document');
       } else {
         studioState.activeTabId = null;
+        // If all tabs closed, return cleanly to Cockpit view
+        switchToView('cockpit');
       }
     }
     renderTabStrip();
@@ -2034,18 +2285,17 @@
 
     studioState.openTabs.forEach(tab => {
       const tabEl = document.createElement('div');
-      tabEl.className = `studio-tab ${tab.id === studioState.activeTabId ? 'active' : ''}`;
-      const iconName = tab.isMockup ? 'palette' : (tab.isWireframe ? 'layout' : (tab.isInbox ? 'inbox' : 'file-text'));
+      tabEl.className = `studio-tab ${tab.id === studioState.activeTabId && studioState.activeScenario === 'document' ? 'active' : ''}`;
+      const iconName = tab.type === 'task' ? 'check-square' : 'file-text';
       tabEl.innerHTML = `
         <i data-lucide="${iconName}" class="w-3.5 h-3.5"></i>
-        <span class="truncate max-w-[140px]">${tab.title}</span>
+        <span class="truncate max-w-[140px]">${escapeHtml(tab.title)}</span>
         <button class="studio-tab-close" title="Close tab">&times;</button>
       `;
       tabEl.addEventListener('click', () => {
         studioState.activeTabId = tab.id;
-        switchToStudioMode(tab.scenario || 'document');
+        switchToView('document');
         renderTabStrip();
-        renderActiveTabContent();
       });
       tabEl.querySelector('.studio-tab-close').addEventListener('click', (e) => {
         closeTab(tab.id, e);
@@ -2096,28 +2346,104 @@
   }
 
   function openDefaultDocumentTab() {
-    const welcomeContent = `# Workforce Productivity & Command Studio
-
-Welcome to the **Workforce Command Studio**.
-
-This dashboard helps you orchestrate and monitor your autonomous AI engineering workforce:
-- **Standup Cockpit**: Today's #1 commitment (P0 focus), immediate blockers, active sprint pipeline, and 24h verified wins.
-- **Tasks Board**: Full sprint pipeline with 4-state lifecycle (In Progress, Up Next, Blocked, Completed).
-- **Extension Inbox**: Captures research, documentation, and issues pushed from the Chrome Extension.
-- **Recommended Next Actions**: Synced in real-time from \`workforces/workstate.md\` to keep you in flow.
-- **Active Document Reader**: Full-width markdown reader with synchronized feedback and evolution notes.
-- **Radar Canvas**: Interactive architectural graph and symbol dependency analyzer.
-`;
-    openTab({
-      id: 'studio-welcome',
-      title: 'Studio Overview',
-      type: 'doc',
-      content: welcomeContent,
-      scenario: 'document'
-    });
+    // If tasks exist, open the first task by default
+    if (state.tasks && state.tasks.length > 0) {
+      openTaskTab(state.tasks[0].id);
+    }
   }
 
-  async function openInboxTab() {
+  // --------------------------------------------------------------------------
+  // Dedicated Stage Views (Tasks, Inbox, Hypotheses)
+  // --------------------------------------------------------------------------
+
+  let currentTasksStageTeamFilter = 'all';
+
+  function renderTasksStage() {
+    const tasks = state.tasks || [];
+    const countBadge = document.getElementById('tasks-stage-count-badge');
+    const grid = document.getElementById('tasks-stage-grid');
+    const newBtn = document.getElementById('btn-tasks-stage-new');
+
+    if (countBadge) countBadge.innerText = `${tasks.length} Tasks`;
+    if (newBtn) {
+      const mainNewBtn = document.getElementById('btn-cockpit-new-task');
+      newBtn.onclick = () => { if (mainNewBtn) mainNewBtn.click(); };
+    }
+
+    // Bind team filters for tasks stage
+    const teamChips = document.querySelectorAll('#tasks-stage-team-filters .team-filter-chip');
+    teamChips.forEach(chip => {
+      chip.onclick = () => {
+        teamChips.forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        currentTasksStageTeamFilter = chip.getAttribute('data-team') || 'all';
+        renderTasksStage();
+      };
+    });
+
+    if (!grid) return;
+    grid.innerHTML = '';
+
+    const filterTeam = currentTasksStageTeamFilter.toLowerCase();
+    const filtered = filterTeam === 'all' 
+      ? tasks 
+      : tasks.filter(t => (t.team || 'dev').toLowerCase() === filterTeam);
+
+    if (filtered.length === 0) {
+      grid.innerHTML = `<div class="col-span-full p-8 text-center text-xs text-[#828282] italic border border-dashed border-[#e2e0dc] rounded-lg">No tasks found for this filter.</div>`;
+      return;
+    }
+
+    filtered.forEach(task => {
+      const card = document.createElement('div');
+      const prioLower = (task.priority || 'P2').toLowerCase();
+      card.className = `kanban-card priority-${prioLower} flex flex-col justify-between space-y-3 p-4 bg-white border border-[#e2e0dc] rounded-lg hover:border-[#c2410c] cursor-pointer transition-all`;
+
+      const statusBadge = task.status === 'in_progress'
+        ? '<span class="text-[9.5px] font-mono px-1.5 py-0.5 rounded bg-[#e0f2fe] text-[#0369a1] font-semibold">IN PROGRESS</span>'
+        : (task.status === 'done'
+          ? '<span class="text-[9.5px] font-mono px-1.5 py-0.5 rounded bg-[#dcfce7] text-emerald-800 font-semibold">DONE</span>'
+          : (task.status === 'blocked'
+            ? '<span class="text-[9.5px] font-mono px-1.5 py-0.5 rounded bg-[#fee2e2] text-[#b91c1c] font-semibold">BLOCKED</span>'
+            : '<span class="text-[9.5px] font-mono px-1.5 py-0.5 rounded bg-[#f4f4f5] text-[#52525b] font-semibold">TODO</span>'));
+
+      card.innerHTML = `
+        <div>
+          <div class="flex items-center justify-between gap-2 mb-2">
+            <div class="flex items-center gap-1.5">
+              <span class="text-[9px] font-mono font-bold uppercase px-1.5 py-0.2 rounded ${task.priority === 'P0' ? 'bg-[#fee2e2] text-[#b91c1c]' : 'bg-[#f4f4f5] text-[#4d4d4d]'}">${task.priority || 'P1'}</span>
+              <span class="badge-team badge-${(task.team || 'dev').toLowerCase()}">${(task.team || 'dev').toUpperCase()}</span>
+            </div>
+            ${statusBadge}
+          </div>
+          <h4 class="text-xs font-bold text-[#202020] leading-snug hover:text-[#c2410c] transition-colors">${escapeHtml(task.title)}</h4>
+          <p class="text-[11px] text-[#666] line-clamp-2 mt-1 leading-relaxed">${escapeHtml(task.body ? task.body.replace(/[#*`_]/g, '').trim() : '')}</p>
+        </div>
+        <div class="flex items-center justify-between pt-2 border-t border-[#f4f4f5] text-[10px] font-mono text-[#828282]">
+          <span>${task.assignee || '@human'}</span>
+          <button class="px-2 py-0.5 rounded bg-[#faf9f5] border border-[#e2e0dc] hover:border-[#c2410c] text-[#202020] font-medium btn-advance-task">
+            Cycle Status
+          </button>
+        </div>
+      `;
+
+      card.onclick = () => openTaskTab(task.id);
+      card.querySelector('.btn-advance-task').onclick = (e) => {
+        e.stopPropagation();
+        cycleTaskStatus(task);
+      };
+
+      grid.appendChild(card);
+    });
+
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  async function renderInboxStage() {
+    const listContainer = document.getElementById('inbox-stage-list');
+    const badge = document.getElementById('inbox-stage-count-badge');
+    if (!listContainer) return;
+
     let items = [];
     try {
       const res = await fetch('/api/inbox');
@@ -2125,119 +2451,84 @@ This dashboard helps you orchestrate and monitor your autonomous AI engineering 
         const data = await res.json();
         items = data.items || [];
       }
-    } catch (err) {
-      console.warn("Could not fetch inbox items:", err);
+    } catch (e) {
+      console.warn("Could not load inbox items:", e);
     }
 
-    let itemsHtml = items.length === 0 ? '<p class="text-xs text-[#828282] py-8 text-center">No items currently in the inbox. Use the Chrome Extension to capture research or stitch URLs.</p>' : '';
+    if (badge) badge.innerText = `${items.length} Item${items.length === 1 ? '' : 's'}`;
 
+    if (items.length === 0) {
+      listContainer.innerHTML = '<div class="p-8 text-center text-xs text-[#828282] italic border border-dashed border-[#e2e0dc] rounded-lg">No pending captures in the extension inbox. Use the Chrome Extension to capture research, ask-gemini snippets, or issues.</div>';
+      return;
+    }
+
+    listContainer.innerHTML = '';
     items.forEach(item => {
       const dateStr = item.captured_at ? item.captured_at.slice(5, 16).replace('T', ' ') : '';
-      itemsHtml += `
-        <div class="p-4 bg-[#faf9f5] border border-[#e2e0dc] rounded-lg space-y-2 mb-3">
-          <div class="flex items-center justify-between">
-            <span class="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded bg-[#ffffff] border border-[#e2e0dc] text-[#4d4d4d]">${item.type || 'capture'}</span>
-            <span class="text-[10px] font-mono text-[#828282]">${dateStr}</span>
+      const card = document.createElement('div');
+      card.className = 'p-4 bg-white border border-[#e2e0dc] rounded-lg space-y-2 hover:border-[#c2410c] transition-all';
+      card.innerHTML = `
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="text-[9.5px] font-mono uppercase tracking-wider px-2 py-0.5 rounded bg-[#faf9f5] border border-[#e2e0dc] text-[#4d4d4d] font-semibold">${item.type || 'capture'}</span>
+            <span class="text-xs font-bold text-[#202020]">${escapeHtml(item.title || 'Untitled Capture')}</span>
           </div>
-          <h4 class="text-xs font-semibold text-[#202020]">${escapeHtml(item.title || 'Untitled')}</h4>
-          <p class="text-[11.5px] text-[#666] leading-relaxed whitespace-pre-wrap">${escapeHtml(item.content || item.selection || '')}</p>
-          ${item.source_url ? `<a href="${item.source_url}" target="_blank" class="text-[11px] text-[#c2410c] underline inline-block">Source URL &rarr;</a>` : ''}
+          <span class="text-[10px] font-mono text-[#828282]">${dateStr}</span>
+        </div>
+        <p class="text-xs text-[#666] leading-relaxed whitespace-pre-wrap">${escapeHtml(item.content || item.selection || '')}</p>
+        <div class="flex items-center justify-between pt-2 border-t border-[#f4f4f5]">
+          ${item.source_url ? `<a href="${item.source_url}" target="_blank" class="text-[11px] text-[#c2410c] underline inline-block">Source URL &rarr;</a>` : '<span></span>'}
+          <div class="flex items-center gap-1.5">
+            <button class="px-2.5 py-1 rounded bg-[#202020] hover:bg-[#383838] text-white text-[11px] font-semibold btn-convert-task">
+              Convert to Task
+            </button>
+            <button class="px-2 py-1 rounded bg-[#faf9f5] border border-[#e2e0dc] hover:border-[#b91c1c] text-[#b91c1c] text-[11px] font-medium btn-dismiss-inbox">
+              Dismiss
+            </button>
+          </div>
         </div>
       `;
+
+      card.querySelector('.btn-convert-task').onclick = () => handleInboxAction(item.id, 'approve');
+      card.querySelector('.btn-dismiss-inbox').onclick = () => handleInboxAction(item.id, 'reject');
+
+      listContainer.appendChild(card);
     });
 
-    const inboxFullContent = `
-      <div class="space-y-4">
-        <div class="border-b border-[#e2e0dc] pb-3 flex items-center justify-between">
-          <div>
-            <h2 class="text-lg font-bold text-[#202020]">Extension Captures &amp; Inbox</h2>
-            <p class="text-xs text-[#828282]">Review submissions pushed from Chrome (Ask Gemini, Google Flow, Stitch).</p>
-          </div>
-          <span class="text-xs font-mono font-medium text-[#c2410c]">${items.length} items</span>
-        </div>
-        <div>${itemsHtml}</div>
-      </div>
-    `;
-
-    openTab({
-      id: 'studio-inbox',
-      title: `Inbox (${items.length})`,
-      type: 'inbox',
-      isInbox: true,
-      content: inboxFullContent,
-      scenario: 'document',
-      pins: []
-    });
+    if (window.lucide) window.lucide.createIcons();
   }
 
-  function openTasksOverviewTab() {
-    let html = `
-      <div class="space-y-4">
-        <div class="border-b border-[#e2e0dc] pb-3">
-          <h2 class="text-lg font-bold text-[#202020]">Workforce Task Backlog</h2>
-          <p class="text-xs text-[#828282]">Authoritative tasks synchronized with workforces/tasks/.</p>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-    `;
+  function renderHypothesesStage() {
+    const listContainer = document.getElementById('hypotheses-stage-list');
+    const badge = document.getElementById('hypotheses-stage-count-badge');
+    if (!listContainer) return;
 
-    state.tasks.forEach(t => {
-      html += `
-        <div class="p-3 bg-[#faf9f5] border border-[#e2e0dc] rounded-lg">
-          <div class="flex items-center justify-between mb-1">
-            <span class="text-[9.5px] font-mono font-bold px-1.5 py-0.5 rounded ${t.priority === 'P0' ? 'bg-[#fee2e2] text-[#b91c1c]' : 'bg-[#f4f4f5] text-[#4d4d4d]'}">${t.priority}</span>
-            <span class="text-[10px] font-mono text-[#0369a1]">${t.status}</span>
-          </div>
-          <h4 class="text-xs font-semibold text-[#202020] mb-1">${escapeHtml(t.title)}</h4>
-          <p class="text-[11px] text-[#828282] truncate font-mono">${t.file}</p>
-        </div>
-      `;
-    });
+    const hypotheses = state.hypotheses || [];
+    if (badge) badge.innerText = `${hypotheses.length} Hypotheses`;
 
-    html += `</div></div>`;
-
-    openTab({
-      id: 'studio-tasks',
-      title: `Tasks (${state.tasks.length})`,
-      type: 'tasks',
-      content: html,
-      scenario: 'document',
-      pins: []
-    });
-  }
-
-  function openHypothesesTab() {
-    let html = `
-      <div class="space-y-4">
-        <div class="border-b border-[#e2e0dc] pb-3">
-          <h2 class="text-lg font-bold text-[#202020]">Hypotheses &amp; Market Validation</h2>
-          <p class="text-xs text-[#828282]">Customer demand and willingness-to-pay hypotheses.</p>
-        </div>
-        <div class="space-y-3">
-    `;
-
-    if (state.hypotheses.length === 0) {
-      html += `<p class="text-xs text-[#828282] py-6 text-center">No active hypotheses recorded in workforces/hypotheses/.</p>`;
-    } else {
-      state.hypotheses.forEach(h => {
-        html += `
-          <div class="p-4 bg-[#faf9f5] border border-[#e2e0dc] rounded-lg">
-            <h4 class="text-xs font-semibold text-[#202020]">${escapeHtml(h.title)}</h4>
-            <p class="text-[11px] text-[#666] mt-1 whitespace-pre-wrap">${escapeHtml(h.body || '')}</p>
-          </div>
-        `;
-      });
+    if (hypotheses.length === 0) {
+      listContainer.innerHTML = '<div class="p-8 text-center text-xs text-[#828282] italic border border-dashed border-[#e2e0dc] rounded-lg">No active hypotheses recorded in workforces/hypotheses/.</div>';
+      return;
     }
 
-    html += `</div></div>`;
-
-    openTab({
-      id: 'studio-hypotheses',
-      title: 'Hypotheses',
-      type: 'hypotheses',
-      content: html,
-      scenario: 'document',
-      pins: []
+    listContainer.innerHTML = '';
+    hypotheses.forEach(h => {
+      const card = document.createElement('div');
+      card.className = 'p-5 bg-white border border-[#e2e0dc] rounded-lg space-y-2 hover:border-[#c2410c] transition-all';
+      card.innerHTML = `
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <i data-lucide="flask-conical" class="w-4 h-4 text-[#c2410c]"></i>
+            <h3 class="text-xs font-bold text-[#202020]">${escapeHtml(h.title)}</h3>
+          </div>
+          <span class="text-[10px] font-mono text-[#828282] uppercase bg-[#faf9f5] px-2 py-0.5 rounded border border-[#e2e0dc]">Experiment</span>
+        </div>
+        <p class="text-xs text-[#666] leading-relaxed whitespace-pre-wrap">${escapeHtml(h.body || '')}</p>
+      `;
+      listContainer.appendChild(card);
     });
+
+    if (window.lucide) window.lucide.createIcons();
   }
 
   function openPluginsTab() {
