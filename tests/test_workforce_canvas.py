@@ -1033,6 +1033,77 @@ Profile queries.
         self.assertIn("last_processed_timestamp", cursor_data)
         self.assertGreaterEqual(cursor_data["total_processed"], 2)
 
+    def test_upload_api_and_task_create_event_emission(self):
+        """Verify /api/upload persists images and /api/task/create emits task_created event."""
+        events_dir = self.root_path / "workforces" / ".events"
+        pending_dir = events_dir / "pending"
+        if pending_dir.exists():
+            for f in pending_dir.glob("*.json"):
+                f.unlink()
+
+        # 1. Test POST /api/upload
+        upload_url = f"http://127.0.0.1:{self.port}/api/upload"
+        # 1x1 transparent PNG in base64
+        dummy_b64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+        upload_payload = json.dumps({
+            "filename": "screenshot_test.png",
+            "data": dummy_b64
+        }).encode("utf-8")
+
+        req_upload = urllib.request.Request(upload_url, data=upload_payload, headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req_upload, timeout=3) as resp:
+            self.assertEqual(resp.status, 200)
+            res_data = json.loads(resp.read().decode("utf-8"))
+            self.assertTrue(res_data["success"])
+            self.assertIn("url", res_data)
+            self.assertIn("screenshot_test.png", res_data["url"])
+            media_path = self.root_path / res_data["file"]
+            self.assertTrue(media_path.exists())
+
+        # 2. Test GET image serving via /workforces/media/...
+        media_url = f"http://127.0.0.1:{self.port}{res_data['url']}"
+        with urllib.request.urlopen(media_url, timeout=3) as media_resp:
+            self.assertEqual(media_resp.status, 200)
+            self.assertEqual(media_resp.headers.get("Content-Type"), "image/png")
+            media_bytes = media_resp.read()
+            self.assertGreater(len(media_bytes), 0)
+
+        # 3. Test POST /api/task/create emits task_created event
+        create_url = f"http://127.0.0.1:{self.port}/api/task/create"
+        task_payload = json.dumps({
+            "title": "Simplify Intake Modal",
+            "priority": "P1",
+            "type": "dev",
+            "description": "User requests simple markdown text area with copy-paste image support.",
+            "reporter": "@human",
+            "images": [res_data["url"]]
+        }).encode("utf-8")
+
+        req_create = urllib.request.Request(create_url, data=task_payload, headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req_create, timeout=3) as resp:
+            self.assertEqual(resp.status, 200)
+            create_res = json.loads(resp.read().decode("utf-8"))
+            self.assertTrue(create_res["success"])
+            self.assertEqual(create_res["task"]["title"], "Simplify Intake Modal")
+
+        # 4. Verify task_created event appeared in pending/
+        pending_files = list(pending_dir.glob("*_task_created.json"))
+        self.assertEqual(len(pending_files), 1)
+        ev_data = json.loads(pending_files[0].read_text(encoding="utf-8"))
+        self.assertEqual(ev_data["event_type"], "task_created")
+        self.assertEqual(ev_data["payload"]["title"], "Simplify Intake Modal")
+        self.assertEqual(ev_data["payload"]["priority"], "P1")
+        self.assertEqual(ev_data["payload"]["images"], [res_data["url"]])
+
+        # 5. Verify wait_for_message processes and formats the task_created event
+        events = wait_for_message.wait_for_message(self.root_path, once=True)
+        self.assertEqual(len(events), 1)
+        summary_text = wait_for_message.format_event_summary(events)
+        self.assertIn("TASK_CREATED", summary_text)
+        self.assertIn("Simplify Intake Modal", summary_text)
+        self.assertIn("@scribe", summary_text)
+        self.assertIn("@project-manager", summary_text)
+
 
 if __name__ == "__main__":
     unittest.main()

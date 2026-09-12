@@ -3246,25 +3246,165 @@
       };
     });
 
-    // 3. New Task Modal
+    // 3. New Task / Issue Modal (GitHub-Style)
     const btnNewTask = document.getElementById('btn-cockpit-new-task');
     const taskModal = document.getElementById('new-task-modal');
     const taskModalClose = document.getElementById('btn-task-modal-close');
     const taskModalCancel = document.getElementById('btn-task-modal-cancel');
     const taskModalSave = document.getElementById('btn-task-modal-save');
+    const tabWrite = document.getElementById('task-tab-write');
+    const tabPreview = document.getElementById('task-tab-preview');
+    const writePanel = document.getElementById('task-modal-write-panel');
+    const previewPanel = document.getElementById('task-modal-preview-panel');
+    const descTextarea = document.getElementById('task-modal-desc');
+    const fileInput = document.getElementById('task-modal-file-input');
+    const uploadStatus = document.getElementById('task-modal-upload-status');
+
+    let attachedImages = [];
 
     function openTaskModal() {
       if (taskModal) {
         document.getElementById('task-modal-title').value = '';
-        document.getElementById('task-modal-desc').value = '';
-        document.getElementById('task-modal-action').value = '';
+        if (descTextarea) descTextarea.value = '';
+        attachedImages = [];
+        showWriteTab();
         taskModal.classList.remove('hidden');
+        if (window.lucide) window.lucide.createIcons();
         document.getElementById('task-modal-title').focus();
       }
     }
 
     function closeTaskModal() {
       if (taskModal) taskModal.classList.add('hidden');
+    }
+
+    function showWriteTab() {
+      if (tabWrite && tabPreview && writePanel && previewPanel) {
+        tabWrite.className = 'px-2.5 py-1 font-semibold text-[#202020] bg-white border border-[#e2e0dc] border-b-white rounded-t-md -mb-[7px] text-xs';
+        tabPreview.className = 'px-2.5 py-1 font-medium text-[#828282] hover:text-[#202020] text-xs transition-colors';
+        writePanel.classList.remove('hidden');
+        previewPanel.classList.add('hidden');
+      }
+    }
+
+    function showPreviewTab() {
+      if (tabWrite && tabPreview && writePanel && previewPanel) {
+        tabPreview.className = 'px-2.5 py-1 font-semibold text-[#202020] bg-white border border-[#e2e0dc] border-b-white rounded-t-md -mb-[7px] text-xs';
+        tabWrite.className = 'px-2.5 py-1 font-medium text-[#828282] hover:text-[#202020] text-xs transition-colors';
+        writePanel.classList.add('hidden');
+        previewPanel.classList.remove('hidden');
+
+        const rawText = descTextarea ? descTextarea.value.trim() : '';
+        if (!rawText) {
+          previewPanel.innerHTML = '<span class="text-[#828282] italic">Nothing to preview</span>';
+        } else {
+          try {
+            previewPanel.innerHTML = window.marked ? window.marked.parse(rawText) : escapeHtml(rawText);
+          } catch (err) {
+            previewPanel.innerHTML = `<p>${escapeHtml(rawText)}</p>`;
+          }
+        }
+      }
+    }
+
+    if (tabWrite) tabWrite.onclick = (e) => { e.preventDefault(); showWriteTab(); };
+    if (tabPreview) tabPreview.onclick = (e) => { e.preventDefault(); showPreviewTab(); };
+
+    // Upload helper: uploads a File or Blob via /api/upload
+    async function uploadImageFile(file) {
+      if (!file || !file.type.startsWith('image/')) return;
+      if (uploadStatus) {
+        uploadStatus.innerText = 'Uploading image...';
+        uploadStatus.classList.remove('hidden');
+      }
+
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = async () => {
+          try {
+            const base64Data = reader.result;
+            const res = await fetch('/api/upload', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                filename: file.name || 'screenshot.png',
+                data: base64Data
+              })
+            });
+            const data = await res.json();
+            if (data.success && data.url) {
+              attachedImages.push(data.file || data.url);
+              // Insert markdown image tag at cursor position
+              const mdTag = `\n![${file.name || 'image'}](${data.url})\n`;
+              if (descTextarea) {
+                const start = descTextarea.selectionStart || descTextarea.value.length;
+                const end = descTextarea.selectionEnd || descTextarea.value.length;
+                const val = descTextarea.value;
+                descTextarea.value = val.substring(0, start) + mdTag + val.substring(end);
+                descTextarea.selectionStart = descTextarea.selectionEnd = start + mdTag.length;
+                descTextarea.focus();
+              }
+              if (uploadStatus) {
+                uploadStatus.innerText = 'Uploaded!';
+                setTimeout(() => uploadStatus.classList.add('hidden'), 2000);
+              }
+              resolve(data);
+            } else {
+              throw new Error(data.error || 'Upload failed');
+            }
+          } catch (err) {
+            if (uploadStatus) {
+              uploadStatus.innerText = `Upload failed: ${err.message}`;
+            }
+            reject(err);
+          }
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // Paste handler for screenshots (Cmd+V / Ctrl+V)
+    if (descTextarea) {
+      descTextarea.addEventListener('paste', async (e) => {
+        const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+        for (const item of items) {
+          if (item.kind === 'file' && item.type.startsWith('image/')) {
+            e.preventDefault();
+            const file = item.getAsFile();
+            await uploadImageFile(file);
+          }
+        }
+      });
+
+      // Drag & Drop onto textarea
+      descTextarea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        descTextarea.classList.add('border-[#c2410c]');
+      });
+      descTextarea.addEventListener('dragleave', () => {
+        descTextarea.classList.remove('border-[#c2410c]');
+      });
+      descTextarea.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        descTextarea.classList.remove('border-[#c2410c]');
+        if (e.dataTransfer && e.dataTransfer.files) {
+          for (const file of e.dataTransfer.files) {
+            if (file.type.startsWith('image/')) {
+              await uploadImageFile(file);
+            }
+          }
+        }
+      });
+    }
+
+    if (fileInput) {
+      fileInput.onchange = async (e) => {
+        if (e.target.files && e.target.files.length > 0) {
+          for (const file of e.target.files) {
+            await uploadImageFile(file);
+          }
+        }
+      };
     }
 
     if (btnNewTask) btnNewTask.onclick = openTaskModal;
@@ -3274,15 +3414,21 @@
     if (taskModalSave) {
       taskModalSave.onclick = async () => {
         const title = document.getElementById('task-modal-title').value.trim();
-        const priority = document.getElementById('task-modal-priority').value;
-        const team = document.getElementById('task-modal-team').value;
-        const desc = document.getElementById('task-modal-desc').value.trim();
-        const action = document.getElementById('task-modal-action').value.trim();
+        const priorityEl = document.getElementById('task-modal-priority');
+        const teamEl = document.getElementById('task-modal-team');
+        const priority = priorityEl ? priorityEl.value : 'P1';
+        const team = teamEl ? teamEl.value : 'dev';
+        const desc = descTextarea ? descTextarea.value.trim() : '';
 
         if (!title) {
-          alert('Please enter a task title.');
+          alert('Please enter a title for the task.');
+          document.getElementById('task-modal-title').focus();
           return;
         }
+
+        taskModalSave.disabled = true;
+        taskModalSave.innerHTML = '<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i> Submitting...';
+        if (window.lucide) window.lucide.createIcons();
 
         try {
           const res = await fetch('/api/task/create', {
@@ -3293,18 +3439,25 @@
               priority: priority,
               type: team,
               description: desc,
-              suggested_action: action,
-              reporter: '@human'
+              suggested_action: 'Triage requirements and begin autonomous execution.',
+              reporter: '@human',
+              images: attachedImages
             })
           });
           if (res.ok) {
             closeTaskModal();
             await fetchWorkforceState();
+            refreshActiveWorkspaceView();
           } else {
-            alert('Failed to create task');
+            const errData = await res.json();
+            alert(`Failed to create task: ${errData.error || 'Unknown error'}`);
           }
         } catch (err) {
           alert(`Error creating task: ${err.message}`);
+        } finally {
+          taskModalSave.disabled = false;
+          taskModalSave.innerHTML = '<i data-lucide="sparkles" class="w-3.5 h-3.5 text-[#fbbf24]"></i><span>Submit Task to AI</span>';
+          if (window.lucide) window.lucide.createIcons();
         }
       };
     }

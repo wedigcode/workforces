@@ -13,6 +13,7 @@ Exposes:
 """
 
 import argparse
+import base64
 import datetime
 import http.server
 import json
@@ -1716,7 +1717,19 @@ li {{ margin: 4px 0; }}
                     self.wfile.write(body_bytes)
                     return
                 else:
-                    self.serve_file(target, "text/plain")
+                    mime_map = {
+                        ".png": "image/png",
+                        ".jpg": "image/jpeg",
+                        ".jpeg": "image/jpeg",
+                        ".gif": "image/gif",
+                        ".webp": "image/webp",
+                        ".svg": "image/svg+xml",
+                        ".json": "application/json",
+                        ".txt": "text/plain",
+                        ".pdf": "application/pdf"
+                    }
+                    mime_type = mime_map.get(target.suffix.lower(), "text/plain")
+                    self.serve_file(target, mime_type)
                     return
             else:
                 self.send_error(404, "File Not Found")
@@ -1838,6 +1851,19 @@ li {{ margin: 4px 0; }}
         elif path == "/api/task/create":
             try:
                 task_res = create_task_file(self.root_dir, data)
+                # Emit task_created event to workforces/.events/pending/
+                event_payload = {
+                    "id": task_res.get("id"),
+                    "title": task_res.get("title"),
+                    "type": task_res.get("type"),
+                    "priority": task_res.get("priority"),
+                    "reporter": task_res.get("reporter", "@human"),
+                    "assignee": task_res.get("assignee"),
+                    "file": task_res.get("file"),
+                    "description": data.get("description", ""),
+                    "images": data.get("images", [])
+                }
+                emit_event(self.root_dir, "task_created", event_payload)
                 self.send_json_response({"success": True, "task": task_res, "state": self.handle_get_state()})
             except Exception as err:
                 self.send_error(500, f"Task creation failed: {err}")
@@ -1928,6 +1954,41 @@ li {{ margin: 4px 0; }}
                 self.send_json_response({"success": True, "comment": res})
             except Exception as err:
                 self.send_error(500, f"Failed to save comment: {err}")
+
+        elif path == "/api/upload":
+            raw_data = data.get("data") or data.get("image") or data.get("file")
+            filename = data.get("filename") or "upload.png"
+            if not raw_data:
+                self.send_error(400, "Missing 'data' parameter containing base64 string")
+                return
+
+            try:
+                # Strip data URL prefix if present (e.g. data:image/png;base64,...)
+                if "," in raw_data:
+                    header, b64_str = raw_data.split(",", 1)
+                else:
+                    b64_str = raw_data
+
+                file_bytes = base64.b64decode(b64_str)
+                now_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                clean_name = re.sub(r"[^a-zA-Z0-9_.-]", "_", filename).strip("_")
+                media_dir = self.root_dir / "workforces" / "media"
+                media_dir.mkdir(parents=True, exist_ok=True)
+                saved_file = media_dir / f"{now_str}_{clean_name}"
+                saved_file.write_bytes(file_bytes)
+
+                rel_url = f"/workforces/media/{saved_file.name}"
+                rel_path = str(saved_file.relative_to(self.root_dir))
+
+                self.send_json_response({
+                    "success": True,
+                    "filename": saved_file.name,
+                    "url": rel_url,
+                    "file": rel_path,
+                    "size": len(file_bytes)
+                })
+            except Exception as err:
+                self.send_error(500, f"Upload processing failed: {err}")
         else:
             self.send_error(404, "Not Found")
 
@@ -2038,7 +2099,10 @@ li {{ margin: 4px 0; }}
             return
         body = file_path.read_bytes()
         self.send_response(200)
-        self.send_header("Content-Type", f"{content_type}; charset=utf-8")
+        if content_type.startswith("image/"):
+            self.send_header("Content-Type", content_type)
+        else:
+            self.send_header("Content-Type", f"{content_type}; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-cache")
         self.end_headers()
