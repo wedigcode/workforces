@@ -608,6 +608,10 @@ def main() -> None:
         help="Output directory for task files (defaults to workforces/tasks/ or .scribe/tasks/)",
     )
     parser.add_argument(
+        "--output", default="",
+        help="AI execution output or resolution report to attach to the task body",
+    )
+    parser.add_argument(
         "--force", action="store_true",
         help="Skip duplicate check and write regardless",
     )
@@ -839,6 +843,48 @@ def main() -> None:
                 body = before + evo_entry + "\n" + after
             else:
                 body = body.rstrip() + f"\n\n{evo_header}\n\n{evo_entry}\n"
+
+        # Attach or update AI execution output if provided
+        if getattr(args, "output", None) and args.output.strip():
+            out_header = "## 🤖 AI Execution & Resolution Output"
+            out_block = f"{out_header}\n\n{args.output.strip()}"
+            if out_header in body:
+                body = re.sub(r"## 🤖 AI Execution & Resolution Output\s*\n\n.*?(?=\n\n##|\Z)", out_block, body, flags=re.DOTALL)
+            elif evo_header in body:
+                body = body.replace(evo_header, f"{out_block}\n\n{evo_header}", 1)
+            else:
+                body = body.rstrip() + f"\n\n{out_block}\n"
+
+        # Synchronize metadata badges in markdown body if present
+        if meta.get("status"):
+            body = re.sub(
+                r"(\*\*Status:\*\*\s*`)[^`]+(`)",
+                r"\g<1>" + meta["status"] + r"\g<2>",
+                body
+            )
+            body = re.sub(
+                r"(\|\s*Status:\s*)(?:todo|in_progress|blocked|done|dropped)",
+                r"\g<1>" + meta["status"],
+                body,
+                flags=re.IGNORECASE
+            )
+        if meta.get("priority"):
+            body = re.sub(
+                r"(\*\*Priority:\*\*\s*`)[^`]+(`)",
+                r"\g<1>" + meta["priority"] + r"\g<2>",
+                body
+            )
+        if meta.get("team"):
+            body = re.sub(
+                r"(\*\*Team:\*\*\s*`)[^`]+(`)",
+                r"\g<1>" + meta["team"] + r"\g<2>",
+                body
+            )
+        body = re.sub(
+            r"(\*\*Updated:\*\*\s*)[0-9]{4}-[0-9]{2}-[0-9]{2}(?:\s+[0-9]{2}:[0-9]{2})?",
+            r"\g<1>" + now.strftime("%Y-%m-%d %H:%M"),
+            body
+        )
 
         # Update frontmatter & write in-place
         new_content = dump_frontmatter(meta, body)
