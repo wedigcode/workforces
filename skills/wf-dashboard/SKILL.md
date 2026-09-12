@@ -78,14 +78,23 @@ Ensure tasks, workstate, and symbol index are aligned before launching:
    ```
    *(Fallback: `python3 skills/code-graph/scripts/graph_indexer.py --target-dir ./`)*
 
-### Step 3 — Autonomous Server & Daemon Launch
+### Step 3 — Autonomous Server & Event Watcher Launch
 
-**Never ask the user to run the command manually.** The AI agent MUST launch the background daemon on behalf of the user using `run_command` with `IsDaemon=True`:
+**Never ask the user to run commands manually.** The AI agent MUST launch BOTH background services on behalf of the user:
 
-```bash
-python3 .agents/skills/workforce-canvas/scripts/server.py --port 8765 --open
-```
-*(Fallback: `python3 skills/workforce-canvas/scripts/server.py --port 8765 --open`)*
+1. **Launch Studio & API Server** (`run_command` with `IsDaemon=True`):
+   ```bash
+   python3 .agents/skills/workforce-canvas/scripts/server.py --port 8765 --open
+   ```
+   *(Fallback: `python3 skills/workforce-canvas/scripts/server.py --port 8765 --open`)*
+
+2. **Launch Event Watcher & Dispatcher** (`run_command` with `WaitMsBeforeAsync=1000`):
+   ```bash
+   python3 .agents/skills/workforce-canvas/scripts/wait_for_message.py --root ./
+   ```
+   *(Fallback: `python3 skills/workforce-canvas/scripts/wait_for_message.py --root ./`)*
+
+   *Note: `wait_for_message.py` monitors `workforces/.events/pending/`. When a user submits a comment, pins a note, or updates a task on the canvas, `wait_for_message.py` processes the event, advances the cursor, and exits with code 0. This triggers Antigravity's reactive wakeup to notify the agent immediately.*
 
 ### Step 4 — Confirm Launch & Report Sprint Radar
 
@@ -96,4 +105,31 @@ python3 .agents/skills/workforce-canvas/scripts/server.py --port 8765 --open
    - **The One Thing (P0)**: Current primary focus task.
    - **Active Pipeline**: Up Next (Todo), In Progress, Blocked / Stalled, Completed.
    - **Roadblocks**: Any blocked tasks with resolution options.
-   - **Inbox Watcher**: Confirmation that background ingestion is active.
+   - **Daemons Active**: Dashboard server (`server.py`) and Event Dispatcher (`wait_for_message.py`).
+
+---
+
+## ⚡ Reactive Event Dispatch & Re-Arming Protocol
+
+When Antigravity wakes up from `wait_for_message.py` with an event:
+`⚡ WORKFORCE CANVAS EVENT DISPATCH (X event(s) processed)`:
+1. **Handle the Event**: Inspect the event type and payload. If it's a task update, evolution note, or comment inquiry, execute the requested action or delegate to the appropriate agent (`@programmer`, `@designer`, etc.).
+2. **Re-arm the Watcher**: Immediately re-launch `wait_for_message.py` in the background so the canvas listener remains active:
+   ```bash
+   python3 .agents/skills/workforce-canvas/scripts/wait_for_message.py --root ./
+   ```
+
+---
+
+## ⏰ Cron Alternative (`/wf-dashboard --cron`)
+
+If preferred over a continuous background task, or if running in an environment where long-running background tasks are killed:
+Instead of running `wait_for_message.py` continuously, schedule a recurring cron check using the `schedule` tool:
+```python
+schedule(
+    CronExpression="* * * * *",
+    Prompt="Check for new workforce canvas events and process them: python3 .agents/skills/workforce-canvas/scripts/wait_for_message.py --root ./ --once",
+    IsDaemon=True
+)
+```
+This sweeps `workforces/.events/pending/` every 1 minute via `--once`.
