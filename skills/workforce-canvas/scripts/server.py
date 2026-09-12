@@ -27,6 +27,11 @@ import urllib.parse
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 
+try:
+    import fcntl
+except ImportError:
+    fcntl = None
+
 # Add skills/task-tracker and skills/code-graph to sys.path for direct utility composition
 CURRENT_DIR = Path(__file__).resolve().parent
 SKILLS_DIR = CURRENT_DIR.parent.parent
@@ -1124,6 +1129,95 @@ def get_comments(root_dir: Path, target_id: Optional[str] = None) -> List[Dict[s
         return []
 
 
+
+_EVENT_LOCK = threading.Lock()
+
+
+def emit_event(root_dir: Path, event_type: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Emit an immutable, timestamped event to workforces/.events/pending/.
+
+    Creates workforces/.events/pending/ and workforces/.events/processed/ if needed.
+    Writes an immutable, timestamped JSON event file: <ISO_or_compact_timestamp>_<seq>_<event_type>.json
+    """
+    root_dir = Path(root_dir).resolve()
+    events_dir = root_dir / "workforces" / ".events"
+    pending_dir = events_dir / "pending"
+    processed_dir = events_dir / "processed"
+
+    pending_dir.mkdir(parents=True, exist_ok=True)
+    processed_dir.mkdir(parents=True, exist_ok=True)
+
+    event_type_clean = re.sub(r"[^a-zA-Z0-9_-]", "_", str(event_type).strip().lower()) if event_type else "event"
+    if not isinstance(payload, dict):
+        payload = {"data": payload}
+
+    with _EVENT_LOCK:
+        seq_file = events_dir / ".seq"
+        lock_file = events_dir / ".seq.lock"
+        lf = None
+        if fcntl is not None:
+            try:
+                lf = open(lock_file, "w")
+                fcntl.flock(lf.fileno(), fcntl.LOCK_EX)
+            except Exception:
+                lf = None
+
+        try:
+            current_seq = 0
+            if seq_file.exists():
+                try:
+                    current_seq = int(seq_file.read_text(encoding="utf-8").strip())
+                except Exception:
+                    current_seq = 0
+            else:
+                # Scan existing event files across pending and processed to initialize sequence safely
+                for directory in (pending_dir, processed_dir):
+                    if directory.exists():
+                        for f in directory.glob("*.json"):
+                            parts = f.stem.split("_")
+                            if len(parts) >= 2:
+                                try:
+                                    seq_num = int(parts[1])
+                                    if seq_num > current_seq:
+                                        current_seq = seq_num
+                                except ValueError:
+                                    pass
+            next_seq = current_seq + 1
+            try:
+                seq_tmp = seq_file.with_suffix(".tmp")
+                seq_tmp.write_text(str(next_seq), encoding="utf-8")
+                seq_tmp.replace(seq_file)
+            except Exception as e:
+                sys.stderr.write(f"Warning: Could not write sequence file {seq_file}: {e}\n")
+        finally:
+            if lf is not None:
+                try:
+                    fcntl.flock(lf.fileno(), fcntl.LOCK_UN)
+                    lf.close()
+                except Exception:
+                    pass
+
+    now = datetime.datetime.now(datetime.timezone.utc)
+    ts_compact = now.strftime("%Y%m%dT%H%M%SZ")
+    event_id = f"{ts_compact}_{next_seq:04d}_{event_type_clean}"
+    event_file = pending_dir / f"{event_id}.json"
+
+    event_record = {
+        "id": event_id,
+        "event_type": event_type,
+        "type": event_type,
+        "timestamp": now.isoformat(),
+        "payload": payload,
+    }
+
+    # Write atomically via temp file to avoid race conditions with watchers reading incomplete JSON
+    tmp_file = event_file.with_suffix(".tmp")
+    tmp_file.write_text(json.dumps(event_record, indent=2), encoding="utf-8")
+    tmp_file.replace(event_file)
+
+    return event_record
+
+
 def save_comment(root_dir: Path, comment_data: Dict[str, Any]) -> Dict[str, Any]:
     """Save a visual pin or review comment and append an evolution note if linked to a task."""
     comments_file = root_dir / "workforces" / ".canvas-comments.json"
@@ -1789,6 +1883,21 @@ li {{ margin: 4px 0; }}
             out_file = inbox_dir / f"{item_id}.json"
             out_file.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
+            # Emit inbox_submission event with title, type, content, source_url
+            event_payload = {
+                "id": item_id,
+                "title": raw_title,
+                "type": data.get("type", "general"),
+                "content": data.get("content", ""),
+                "source_url": data.get("source_url", ""),
+                "file": str(out_file.relative_to(self.root_dir)),
+                "selection": data.get("selection", ""),
+                "auto_dispatch": auto_dispatch,
+                "task_id": data.get("task_id", ""),
+                "tags": data.get("tags", [])
+            }
+            emit_event(self.root_dir, "inbox_submission", event_payload)
+
             self.send_json_response({
                 "success": True,
                 "id": item_id,
@@ -1803,6 +1912,19 @@ li {{ margin: 4px 0; }}
                 return
             try:
                 res = save_comment(self.root_dir, data)
+                # Emit comment event with target file/id, comment text, author, coordinates/pin if present
+                event_payload = {
+                    "target_type": data.get("target_type", "task"),
+                    "target_id": data.get("target_id") or data.get("file", ""),
+                    "file": data.get("file", ""),
+                    "comment": comment_text,
+                    "author": data.get("author", "@human"),
+                    "pin": data.get("pin"),
+                    "stitch_url": data.get("stitch_url", ""),
+                    "comment_id": res.get("id") if isinstance(res, dict) else None,
+                    "task_updated": res.get("task_updated") if isinstance(res, dict) else None
+                }
+                emit_event(self.root_dir, "comment", event_payload)
                 self.send_json_response({"success": True, "comment": res})
             except Exception as err:
                 self.send_error(500, f"Failed to save comment: {err}")

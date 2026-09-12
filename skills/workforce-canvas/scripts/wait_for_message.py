@@ -1,0 +1,334 @@
+#!/usr/bin/env python3
+"""
+Workforce Canvas Message Watcher & Event Dispatcher
+Monitors workforces/.events/pending/ and dispatches events to agents with zero race conditions.
+
+Features:
+- Immediate Catch-Up Phase: Checks pending events on launch; if events exist, processes them
+  chronologically, moves them to processed/, updates cursor.json, and exits 0 immediately without sleeping.
+- Polling Loop: If no events are pending, polls until an event arrives, timeout expires, or canvas stops.
+- Cursor Offset Tracking: Persists last_processed_id and last_processed_timestamp in workforces/.events/cursor.json.
+- Signal Handling: Handles SIGINT and SIGTERM gracefully.
+
+Usage:
+  python3 skills/workforce-canvas/scripts/wait_for_message.py --root ./ --once
+  python3 skills/workforce-canvas/scripts/wait_for_message.py --root ./ --timeout 30 --max-batch 10
+"""
+
+import argparse
+import datetime
+import json
+import os
+import shutil
+import signal
+import sys
+import time
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+_STOP_REQUESTED = False
+
+
+def _event_sort_key(f: Path):
+    """Extract chronological sort key: (timestamp, integer sequence, filename)."""
+    parts = f.stem.split("_")
+    ts_str = parts[0]
+    seq_num = 0
+    if len(parts) >= 2:
+        try:
+            seq_num = int(parts[1])
+        except ValueError:
+            seq_num = 0
+    return (ts_str, seq_num, f.name)
+
+
+def get_pending_event_files(pending_dir: Path) -> List[Path]:
+    """Retrieve all pending JSON event files sorted in strict chronological order."""
+    if not pending_dir.exists():
+        return []
+    # Ignore temporary files (.tmp) created during atomic writes
+    files = [f for f in pending_dir.glob("*.json") if not f.name.endswith(".tmp")]
+    return sorted(files, key=_event_sort_key)
+
+
+def get_cursor(root_dir: Path) -> Dict[str, Any]:
+    """Read cursor.json from workforces/.events/cursor.json, or return default empty cursor."""
+    root_dir = Path(root_dir).resolve()
+    cursor_file = root_dir / "workforces" / ".events" / "cursor.json"
+    if cursor_file.exists():
+        try:
+            return json.loads(cursor_file.read_text(encoding="utf-8"))
+        except Exception as err:
+            sys.stderr.write(f"Warning: Failed reading cursor.json: {err}\n")
+    return {
+        "last_processed_id": None,
+        "last_processed_timestamp": None,
+        "updated_at": None,
+        "batch_size": 0,
+        "total_processed": 0,
+    }
+
+
+def format_event_summary(events: List[Dict[str, Any]]) -> str:
+    """Format processed events into a structured, agent-friendly summary string."""
+    if not events:
+        return "No pending events."
+
+    divider = "=" * 72
+    lines = [
+        divider,
+        f"⚡ WORKFORCE CANVAS EVENT DISPATCH ({len(events)} event{'s' if len(events) != 1 else ''} processed)",
+        divider,
+    ]
+
+    for idx, ev in enumerate(events, 1):
+        ev_id = ev.get("id", "unknown")
+        ev_type = ev.get("event_type") or ev.get("type", "unknown")
+        ev_ts = ev.get("timestamp", "")
+        payload = ev.get("payload", {})
+        if not isinstance(payload, dict):
+            payload = {"data": payload}
+
+        lines.append(f"\n[{idx}/{len(events)}] EVENT: {ev_type.upper()} | ID: {ev_id}")
+        if ev_ts:
+            lines.append(f"  Timestamp:   {ev_ts}")
+
+        if ev_type == "comment":
+            author = payload.get("author", "@human")
+            target_id = payload.get("target_id") or payload.get("file", "")
+            file_path = payload.get("file", "")
+            comment = payload.get("comment", "")
+            pin = payload.get("pin")
+            stitch_url = payload.get("stitch_url")
+
+            lines.append(f"  Author:      {author}")
+            if target_id:
+                lines.append(f"  Target ID:   {target_id}")
+            if file_path and file_path != target_id:
+                lines.append(f"  Target File: {file_path}")
+            if pin and isinstance(pin, dict):
+                lines.append(f"  Pin:         x={pin.get('x')}%, y={pin.get('y')}%")
+            if stitch_url:
+                lines.append(f"  Stitch URL:  {stitch_url}")
+            lines.append(f"  Comment:     {comment}")
+
+        elif ev_type == "inbox_submission":
+            title = payload.get("title", "Untitled")
+            sub_type = payload.get("type", "general")
+            content = payload.get("content", "")
+            source_url = payload.get("source_url", "")
+            file_path = payload.get("file", "")
+            tags = payload.get("tags", [])
+
+            lines.append(f"  Title:       {title}")
+            lines.append(f"  Type:        {sub_type}")
+            if content:
+                lines.append(f"  Content:     {content}")
+            if source_url:
+                lines.append(f"  Source URL:  {source_url}")
+            if file_path:
+                lines.append(f"  File:        {file_path}")
+            if tags:
+                lines.append(f"  Tags:        {', '.join(str(t) for t in tags)}")
+
+        else:
+            for k, v in payload.items():
+                lines.append(f"  {k}: {v}")
+
+    lines.append("\n" + divider)
+    return "\n".join(lines)
+
+
+def process_pending_events(root_dir: Path, max_batch: int = 10) -> List[Dict[str, Any]]:
+    """Process pending events in chronological order, move them to processed/, and update cursor.json."""
+    root_dir = Path(root_dir).resolve()
+    events_dir = root_dir / "workforces" / ".events"
+    pending_dir = events_dir / "pending"
+    processed_dir = events_dir / "processed"
+    processed_dir.mkdir(parents=True, exist_ok=True)
+
+    pending_files = get_pending_event_files(pending_dir)
+    if not pending_files:
+        return []
+
+    if max_batch > 0:
+        batch_files = pending_files[:max_batch]
+    else:
+        batch_files = pending_files
+
+    processed_events: List[Dict[str, Any]] = []
+    last_id: Optional[str] = None
+    last_ts: Optional[str] = None
+
+    for f in batch_files:
+        dest = processed_dir / f.name
+        # Attempt atomic claim by moving from pending to processed first.
+        # This eliminates race conditions where multiple workers try to read/unlink the same file.
+        try:
+            f.rename(dest)
+        except FileNotFoundError:
+            # Another process or thread already claimed this event file; safely skip
+            continue
+        except FileExistsError:
+            try:
+                f.replace(dest)
+            except FileNotFoundError:
+                continue
+            except Exception:
+                try:
+                    shutil.move(str(f), str(dest))
+                except (FileNotFoundError, Exception):
+                    continue
+        except OSError:
+            try:
+                shutil.move(str(f), str(dest))
+            except (FileNotFoundError, Exception):
+                continue
+
+        # File is now safely claimed at dest. Read and parse event record.
+        try:
+            content = dest.read_text(encoding="utf-8")
+            event_data = json.loads(content)
+        except Exception as err:
+            sys.stderr.write(f"Warning: Failed reading claimed event file {dest.name}: {err}\n")
+            event_data = {"id": dest.stem, "error": str(err)}
+
+        processed_events.append(event_data)
+        last_id = event_data.get("id") or dest.stem
+        last_ts = event_data.get("timestamp") or datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+    # Update cursor.json atomically
+    if processed_events and last_id:
+        cursor_file = events_dir / "cursor.json"
+        prev_cursor = get_cursor(root_dir)
+        total_processed = int(prev_cursor.get("total_processed", 0)) + len(processed_events)
+
+        cursor_data = {
+            "last_processed_id": last_id,
+            "last_processed_timestamp": last_ts,
+            "updated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "batch_size": len(processed_events),
+            "total_processed": total_processed,
+        }
+        try:
+            cursor_tmp = cursor_file.with_suffix(".tmp")
+            cursor_tmp.write_text(json.dumps(cursor_data, indent=2), encoding="utf-8")
+            cursor_tmp.replace(cursor_file)
+        except Exception as cursor_err:
+            sys.stderr.write(f"Warning: Failed writing cursor.json: {cursor_err}\n")
+
+    return processed_events
+
+
+def wait_for_message(
+    root_dir: Path,
+    timeout: Optional[float] = None,
+    once: bool = False,
+    max_batch: int = 10,
+    poll_interval: float = 0.5,
+) -> List[Dict[str, Any]]:
+    """Wait for messages / events with Immediate Catch-Up Phase.
+
+    1. Checks pending/ immediately. If events exist, processes them and returns immediately.
+    2. If no events exist and once=True, returns immediately.
+    3. Otherwise, enters a polling loop (interval=0.5s) until an event arrives, timeout expires,
+       or canvas session is marked 'stopped'.
+    """
+    root_dir = Path(root_dir).resolve()
+    events_dir = root_dir / "workforces" / ".events"
+    pending_dir = events_dir / "pending"
+    session_file = root_dir / "workforces" / ".canvas-session.json"
+
+    # --- Phase 1: Immediate Catch-Up Phase ---
+    # Catches events that arrived while the agent was offline or busy; does NOT sleep!
+    pending_files = get_pending_event_files(pending_dir)
+    if pending_files:
+        events = process_pending_events(root_dir, max_batch=max_batch)
+        if events:
+            print(format_event_summary(events))
+            return events
+
+    if once or _STOP_REQUESTED:
+        print("No pending events found.")
+        return []
+
+    # --- Phase 2: Polling Loop ---
+    start_time = time.time()
+    while not _STOP_REQUESTED:
+        time.sleep(poll_interval)
+        if _STOP_REQUESTED:
+            break
+
+        # Check canvas session status
+        if session_file.exists():
+            try:
+                st = json.loads(session_file.read_text(encoding="utf-8"))
+                if st.get("status") == "stopped":
+                    print("Canvas session marked as stopped. Exiting wait_for_message.")
+                    return []
+            except Exception:
+                pass
+
+        # Check timeout
+        if timeout is not None and (time.time() - start_time) >= timeout:
+            print(f"Timeout of {timeout}s reached. No pending events.")
+            return []
+
+        # Check for new pending events
+        pending_files = get_pending_event_files(pending_dir)
+        if pending_files:
+            events = process_pending_events(root_dir, max_batch=max_batch)
+            if events:
+                print(format_event_summary(events))
+                return events
+            # If events was empty (e.g. claimed by another concurrent worker), continue polling!
+
+    return []
+
+
+def _handle_signal(signum, frame):
+    """Clean exit on SIGINT or SIGTERM."""
+    global _STOP_REQUESTED
+    _STOP_REQUESTED = True
+    sys.stderr.write(f"\nReceived signal {signum}. Stopping wait_for_message cleanly...\n")
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Wait for Workforce Canvas events and dispatch to agent (Approach 2: Persistent Queue & Cursor Tracking)"
+    )
+    parser.add_argument("--root", type=str, default=".", help="Root workspace directory")
+    parser.add_argument(
+        "--timeout",
+        type=float,
+        default=None,
+        help="Max wait timeout in seconds (default: wait indefinitely until event or canvas stop)",
+    )
+    parser.add_argument(
+        "--once",
+        action="store_true",
+        help="Check once for pending events and exit immediately without polling",
+    )
+    parser.add_argument(
+        "--max-batch",
+        type=int,
+        default=10,
+        help="Max events to process per batch (default: 10, 0 for all)",
+    )
+    args = parser.parse_args()
+
+    signal.signal(signal.SIGINT, _handle_signal)
+    signal.signal(signal.SIGTERM, _handle_signal)
+
+    root_dir = Path(args.root).resolve()
+    wait_for_message(
+        root_dir=root_dir,
+        timeout=args.timeout,
+        once=args.once,
+        max_batch=args.max_batch,
+    )
+    sys.exit(0)
+
+
+if __name__ == "__main__":
+    main()

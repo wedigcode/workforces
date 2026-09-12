@@ -28,6 +28,7 @@ if not CANVAS_SCRIPT_DIR.exists():
 sys.path.insert(0, str(CANVAS_SCRIPT_DIR))
 
 import server
+import wait_for_message
 
 
 class TestWorkforceCanvas(unittest.TestCase):
@@ -257,6 +258,229 @@ Ad campaigns on Google and Twitter.
         self.assertEqual(res["action"], "approved")
         self.assertFalse(inbox_file.exists())
         self.assertTrue((self.root_path / res["task"]["file"]).exists())
+
+    def test_emit_event_creates_immutable_pending_file(self):
+        """Verify emit_event creates pending/ and processed/ directories and writes immutable event files."""
+        payload1 = {"comment": "Check JWT validation", "author": "@human", "target_id": "task-auth-01"}
+        event1 = server.emit_event(self.root_path, "comment", payload1)
+
+        events_dir = self.root_path / "workforces" / ".events"
+        pending_dir = events_dir / "pending"
+        processed_dir = events_dir / "processed"
+        self.assertTrue(pending_dir.exists())
+        self.assertTrue(processed_dir.exists())
+
+        event1_file = pending_dir / f"{event1['id']}.json"
+        self.assertTrue(event1_file.exists())
+        self.assertIn("_0001_comment", event1["id"])
+
+        data1 = json.loads(event1_file.read_text(encoding="utf-8"))
+        self.assertEqual(data1["id"], event1["id"])
+        self.assertEqual(data1["event_type"], "comment")
+        self.assertEqual(data1["payload"]["comment"], "Check JWT validation")
+
+        # Emit second event and verify sequence increment
+        payload2 = {"title": "Add OAuth support", "type": "feature", "content": "Support Google OAuth"}
+        event2 = server.emit_event(self.root_path, "inbox_submission", payload2)
+        self.assertIn("_0002_inbox_submission", event2["id"])
+        self.assertTrue((pending_dir / f"{event2['id']}.json").exists())
+
+    def test_wait_for_message_immediate_catchup_offline_queue(self):
+        """Verify immediate catch-up when events arrive while the watcher is offline (zero sleep, zero dropped messages)."""
+        # 1. Queue events while watcher is offline
+        ev1 = server.emit_event(self.root_path, "comment", {"comment": "First offline comment", "author": "@human"})
+        ev2 = server.emit_event(self.root_path, "inbox_submission", {"title": "Offline Inbox Item", "type": "task"})
+        ev3 = server.emit_event(self.root_path, "comment", {"comment": "Third offline comment", "author": "@designer"})
+
+        pending_dir = self.root_path / "workforces" / ".events" / "pending"
+        processed_dir = self.root_path / "workforces" / ".events" / "processed"
+        cursor_file = self.root_path / "workforces" / ".events" / "cursor.json"
+
+        self.assertEqual(len(list(pending_dir.glob("*.json"))), 3)
+
+        # 2. Launch wait_for_message - must catch up immediately without sleeping
+        t_start = time.time()
+        processed = wait_for_message.wait_for_message(self.root_path, once=True)
+        duration = time.time() - t_start
+
+        # Zero-sleep catch-up should complete in well under 0.4s
+        self.assertLess(duration, 0.4)
+        self.assertEqual(len(processed), 3)
+        self.assertEqual(processed[0]["id"], ev1["id"])
+        self.assertEqual(processed[1]["id"], ev2["id"])
+        self.assertEqual(processed[2]["id"], ev3["id"])
+
+        # 3. Verify all pending events moved to processed/ and zero files remain in pending/
+        self.assertEqual(len(list(pending_dir.glob("*.json"))), 0)
+        self.assertEqual(len(list(processed_dir.glob("*.json"))), 3)
+
+        # 4. Verify cursor.json is updated with last_processed_id and last_processed_timestamp
+        self.assertTrue(cursor_file.exists())
+        cursor_data = json.loads(cursor_file.read_text(encoding="utf-8"))
+        self.assertEqual(cursor_data["last_processed_id"], ev3["id"])
+        self.assertEqual(cursor_data["last_processed_timestamp"], ev3["timestamp"])
+        self.assertEqual(cursor_data["total_processed"], 3)
+
+        # 5. Subsequent run with no new events returns empty list immediately
+        subsequent = wait_for_message.wait_for_message(self.root_path, once=True)
+        self.assertEqual(subsequent, [])
+
+    def test_wait_for_message_batch_processing_and_cursor(self):
+        """Verify max-batch limits event processing and properly advances cursor across batches."""
+        ev1 = server.emit_event(self.root_path, "comment", {"comment": "Batch 1", "author": "@human"})
+        ev2 = server.emit_event(self.root_path, "comment", {"comment": "Batch 2", "author": "@human"})
+        ev3 = server.emit_event(self.root_path, "comment", {"comment": "Batch 3", "author": "@human"})
+
+        cursor_file = self.root_path / "workforces" / ".events" / "cursor.json"
+
+        # First batch: max 2 events
+        batch1 = wait_for_message.wait_for_message(self.root_path, once=True, max_batch=2)
+        self.assertEqual(len(batch1), 2)
+        self.assertEqual(batch1[0]["id"], ev1["id"])
+        self.assertEqual(batch1[1]["id"], ev2["id"])
+
+        cursor1 = json.loads(cursor_file.read_text(encoding="utf-8"))
+        self.assertEqual(cursor1["last_processed_id"], ev2["id"])
+        self.assertEqual(cursor1["total_processed"], 2)
+
+        # Second batch: remaining 1 event
+        batch2 = wait_for_message.wait_for_message(self.root_path, once=True, max_batch=2)
+        self.assertEqual(len(batch2), 1)
+        self.assertEqual(batch2[0]["id"], ev3["id"])
+
+        cursor2 = json.loads(cursor_file.read_text(encoding="utf-8"))
+        self.assertEqual(cursor2["last_processed_id"], ev3["id"])
+        self.assertEqual(cursor2["total_processed"], 3)
+
+    def test_wait_for_message_polling_detects_new_event(self):
+        """Verify polling loop detects an event written after watcher starts."""
+        results = []
+
+        def worker():
+            res = wait_for_message.wait_for_message(self.root_path, timeout=5.0, poll_interval=0.1)
+            results.extend(res)
+
+        t = threading.Thread(target=worker)
+        t.start()
+
+        time.sleep(0.2)
+        server.emit_event(self.root_path, "comment", {"comment": "Dynamically arriving event", "author": "@human"})
+
+        t.join(timeout=3.0)
+        self.assertFalse(t.is_alive())
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["payload"]["comment"], "Dynamically arriving event")
+
+    def test_wait_for_message_stopped_session_exits(self):
+        """Verify wait_for_message exits cleanly if canvas session is marked stopped."""
+        session_file = self.root_path / "workforces" / ".canvas-session.json"
+        session_file.write_text(json.dumps({"status": "stopped"}), encoding="utf-8")
+
+        t_start = time.time()
+        res = wait_for_message.wait_for_message(self.root_path, timeout=5.0, poll_interval=0.1)
+        duration = time.time() - t_start
+
+        self.assertEqual(res, [])
+        self.assertLess(duration, 1.0)
+
+    def test_wait_for_message_cli_execution(self):
+        """Verify running wait_for_message.py via CLI executes properly and outputs formatted dispatch summary."""
+        server.emit_event(self.root_path, "comment", {
+            "comment": "CLI test verification",
+            "author": "@programmer",
+            "target_id": "task-auth-01",
+            "file": "workforces/tasks/20260901-010000-build-auth-service.md",
+            "pin": {"x": 10.0, "y": 20.0}
+        })
+
+        cli_script = CANVAS_SCRIPT_DIR / "wait_for_message.py"
+        res = subprocess.run(
+            [sys.executable, str(cli_script), "--root", str(self.root_path), "--once"],
+            capture_output=True,
+            text=True
+        )
+        self.assertEqual(res.returncode, 0)
+        self.assertIn("WORKFORCE CANVAS EVENT DISPATCH", res.stdout)
+        self.assertIn("CLI test verification", res.stdout)
+        self.assertIn("@programmer", res.stdout)
+
+    def test_wait_for_message_concurrent_workers_race_condition(self):
+        """Verify multiple concurrent workers drain pending events with zero dropped events and zero deletions."""
+        total_events = 12
+        for i in range(total_events):
+            server.emit_event(self.root_path, "comment", {"comment": f"Concurrent comment {i}", "author": "@tester"})
+
+        pending_dir = self.root_path / "workforces" / ".events" / "pending"
+        processed_dir = self.root_path / "workforces" / ".events" / "processed"
+        self.assertEqual(len(list(pending_dir.glob("*.json"))), total_events)
+
+        worker_results = [[], [], []]
+
+        def worker(idx):
+            res = wait_for_message.wait_for_message(self.root_path, once=True, max_batch=5)
+            worker_results[idx].extend(res)
+
+        threads = [threading.Thread(target=worker, args=(i,)) for i in range(3)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        # Collect all processed IDs across all workers
+        processed_ids = []
+        for r in worker_results:
+            for ev in r:
+                self.assertNotIn("error", ev, f"Worker encountered error event: {ev}")
+                processed_ids.append(ev["id"])
+
+        # No duplicate events claimed across workers
+        self.assertEqual(len(processed_ids), len(set(processed_ids)))
+
+        # Drain any remaining events in a final pass
+        remaining = wait_for_message.wait_for_message(self.root_path, once=True, max_batch=20)
+        for ev in remaining:
+            self.assertNotIn("error", ev)
+            processed_ids.append(ev["id"])
+
+        self.assertEqual(len(processed_ids), total_events)
+        self.assertEqual(len(list(pending_dir.glob("*.json"))), 0)
+        self.assertEqual(len(list(processed_dir.glob("*.json"))), total_events)
+
+    def test_wait_for_message_chronological_ordering_beyond_padding(self):
+        """Verify sorting handles sequence numbers with differing digit lengths (e.g. 9999 vs 10000)."""
+        pending_dir = self.root_path / "workforces" / ".events" / "pending"
+        pending_dir.mkdir(parents=True, exist_ok=True)
+
+        now_ts = "20260912T120000Z"
+        f1 = pending_dir / f"{now_ts}_9999_comment.json"
+        f2 = pending_dir / f"{now_ts}_10000_comment.json"
+        f3 = pending_dir / f"{now_ts}_10001_comment.json"
+
+        f1.write_text(json.dumps({"id": f"{now_ts}_9999_comment", "timestamp": "2026-09-12T12:00:00Z", "payload": {"num": 1}}), encoding="utf-8")
+        f2.write_text(json.dumps({"id": f"{now_ts}_10000_comment", "timestamp": "2026-09-12T12:00:00Z", "payload": {"num": 2}}), encoding="utf-8")
+        f3.write_text(json.dumps({"id": f"{now_ts}_10001_comment", "timestamp": "2026-09-12T12:00:00Z", "payload": {"num": 3}}), encoding="utf-8")
+
+        processed = wait_for_message.wait_for_message(self.root_path, once=True)
+        self.assertEqual(len(processed), 3)
+        self.assertEqual(processed[0]["id"], f"{now_ts}_9999_comment")
+        self.assertEqual(processed[1]["id"], f"{now_ts}_10000_comment")
+        self.assertEqual(processed[2]["id"], f"{now_ts}_10001_comment")
+
+    def test_wait_for_message_get_cursor_helper(self):
+        """Verify get_cursor returns valid defaults when missing and parsed state when present."""
+        empty_dir = Path(tempfile.mkdtemp(prefix="test_cursor_"))
+        cursor_default = wait_for_message.get_cursor(empty_dir)
+        self.assertIsNone(cursor_default["last_processed_id"])
+        self.assertEqual(cursor_default["total_processed"], 0)
+
+        ev = server.emit_event(empty_dir, "comment", {"comment": "Cursor test", "author": "@tester"})
+        wait_for_message.wait_for_message(empty_dir, once=True)
+
+        cursor_active = wait_for_message.get_cursor(empty_dir)
+        self.assertEqual(cursor_active["last_processed_id"], ev["id"])
+        self.assertEqual(cursor_active["total_processed"], 1)
+        shutil.rmtree(empty_dir, ignore_errors=True)
+
 
 
 
@@ -578,20 +802,6 @@ Analyze roundtrip latency for web socket canvas syncing.
         self.assertEqual(len(created_ideas), 1)
         self.assertIn("WebXR", created_ideas[0].read_text(encoding="utf-8"))
 
-        # 5. Test CLI sweep via heartbeat_watcher.py --once
-        test_cli_item = {
-            "id": "inbox-cli-01",
-            "title": "CLI Swept Item",
-            "content": "Swept via heartbeat_watcher.py CLI.",
-            "type": "general",
-            "auto_dispatch": False
-        }
-        (pending_dir / "cli-item.json").write_text(json.dumps(test_cli_item), encoding="utf-8")
-        cli_path = REPO_ROOT / "skills" / "workforce-canvas" / "scripts" / "heartbeat_watcher.py"
-        res = subprocess.run([sys.executable, str(cli_path), "--root", str(self.root_path), "--once"], capture_output=True, text=True)
-        self.assertEqual(res.returncode, 0)
-        self.assertIn("1 item(s) processed", res.stdout)
-
     def test_session_state_file_lifecycle(self):
         server.write_session_state(self.root_path, "running", 8765, 12345, {"test_mode": True})
         session_file = self.root_path / "workforces" / ".canvas-session.json"
@@ -746,6 +956,82 @@ Profile queries.
         self.assertIsNotNone(entry)
         self.assertEqual(entry.get("agent"), "@researcher")
         self.assertIn("Human comment inquiry", entry.get("action", ""))
+
+    def test_http_event_emission_for_comments_and_inbox(self):
+        """Verify POST /api/comments and POST /api/inbox/submit emit events into workforces/.events/pending/."""
+        # Drain any existing events from previous tests
+        events_dir = self.root_path / "workforces" / ".events"
+        pending_dir = events_dir / "pending"
+        if pending_dir.exists():
+            for f in pending_dir.glob("*.json"):
+                f.unlink()
+
+        # 1. POST /api/comments
+        comment_url = f"http://127.0.0.1:{self.port}/api/comments"
+        comment_payload = json.dumps({
+            "target_type": "task",
+            "target_id": "sample-task",
+            "file": "workforces/tasks/20260901-task.md",
+            "comment": "Event emission test comment on task.",
+            "author": "@auditor",
+            "pin": {"x": 33.3, "y": 66.6},
+            "stitch_url": "https://stitch.example.com/item/1"
+        }).encode("utf-8")
+
+        req1 = urllib.request.Request(comment_url, data=comment_payload, headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req1, timeout=3) as resp:
+            self.assertEqual(resp.status, 200)
+
+        # 2. POST /api/inbox/submit
+        inbox_url = f"http://127.0.0.1:{self.port}/api/inbox/submit"
+        inbox_payload = json.dumps({
+            "title": "Event Emission Inbox Item",
+            "content": "Verify event queue pipeline capture.",
+            "type": "feature",
+            "source_url": "https://example.com/feature-request",
+            "selection": "Code snippet",
+            "auto_dispatch": False,
+            "tags": ["event", "pipeline"]
+        }).encode("utf-8")
+
+        req2 = urllib.request.Request(inbox_url, data=inbox_payload, headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req2, timeout=3) as resp:
+            self.assertEqual(resp.status, 200)
+
+        # 3. Verify events appeared in pending/
+        self.assertTrue(pending_dir.exists())
+        pending_files = list(pending_dir.glob("*.json"))
+        self.assertEqual(len(pending_files), 2)
+
+        # Find comment event
+        comment_event_file = next((f for f in pending_files if "_comment.json" in f.name), None)
+        self.assertIsNotNone(comment_event_file)
+        c_data = json.loads(comment_event_file.read_text(encoding="utf-8"))
+        self.assertEqual(c_data["event_type"], "comment")
+        self.assertEqual(c_data["payload"]["comment"], "Event emission test comment on task.")
+        self.assertEqual(c_data["payload"]["author"], "@auditor")
+        self.assertEqual(c_data["payload"]["pin"]["x"], 33.3)
+
+        # Find inbox submission event
+        inbox_event_file = next((f for f in pending_files if "_inbox_submission.json" in f.name), None)
+        self.assertIsNotNone(inbox_event_file)
+        i_data = json.loads(inbox_event_file.read_text(encoding="utf-8"))
+        self.assertEqual(i_data["event_type"], "inbox_submission")
+        self.assertEqual(i_data["payload"]["title"], "Event Emission Inbox Item")
+        self.assertEqual(i_data["payload"]["type"], "feature")
+        self.assertEqual(i_data["payload"]["source_url"], "https://example.com/feature-request")
+
+        # 4. Drain pending events using wait_for_message and verify cursor
+        processed = wait_for_message.wait_for_message(self.root_path, once=True)
+        self.assertEqual(len(processed), 2)
+        self.assertEqual(len(list(pending_dir.glob("*.json"))), 0)
+
+        cursor_file = events_dir / "cursor.json"
+        self.assertTrue(cursor_file.exists())
+        cursor_data = json.loads(cursor_file.read_text(encoding="utf-8"))
+        self.assertIn("last_processed_id", cursor_data)
+        self.assertIn("last_processed_timestamp", cursor_data)
+        self.assertGreaterEqual(cursor_data["total_processed"], 2)
 
 
 if __name__ == "__main__":
