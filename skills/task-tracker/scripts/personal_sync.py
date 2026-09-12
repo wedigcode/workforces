@@ -210,6 +210,9 @@ def sync_task_to_session_file(
             task_entry = f"- [~~{title}~~](file://{os.path.abspath(task_file_path)}) (~~`{task_type}`~~ | ~~{priority}~~) — ❌ **Dropped:** {summary_text}"
         elif status == "done":
             task_entry = f"- [{title}](file://{os.path.abspath(task_file_path)}) (`{task_type}` | {priority}) — ✅ **Done:** {summary_text}"
+        elif status == "review":
+            reviewer_tag = f" (Reviewer: {task_meta.get('reviewer', '@human')})"
+            task_entry = f"- [{title}](file://{os.path.abspath(task_file_path)}) (`{task_type}` | {priority}) — 🔍 **Awaiting Review{reviewer_tag}:** {summary_text}"
         elif status == "in_progress":
             task_entry = f"- [{title}](file://{os.path.abspath(task_file_path)}) (`{task_type}` | {priority}) — ⏳ **In Progress:** {summary_text}"
         elif status == "blocked":
@@ -464,6 +467,7 @@ def get_tasks_summary(root_dir: str, assignee: Optional[str] = None) -> Dict[str
     """Scan workforces/tasks/ for active, blocked, and pending tasks."""
     summary: Dict[str, Any] = {
         "in_progress": [],
+        "review": [],
         "blocked": [],
         "high_priority_todo": [],
         "total_active": 0,
@@ -497,6 +501,7 @@ def get_tasks_summary(root_dir: str, assignee: Optional[str] = None) -> Dict[str
                 "priority": priority,
                 "status": status,
                 "assignee": task_assignee,
+                "reviewer": meta.get("reviewer", ""),
                 "updated_at": meta.get("updated_at", ""),
                 "suggested_action": meta.get("suggested_action", ""),
             }
@@ -507,6 +512,9 @@ def get_tasks_summary(root_dir: str, assignee: Optional[str] = None) -> Dict[str
 
             if status == "in_progress":
                 summary["in_progress"].append(task_item)
+                summary["total_active"] += 1
+            elif status == "review":
+                summary["review"].append(task_item)
                 summary["total_active"] += 1
             elif status == "blocked":
                 summary["blocked"].append(task_item)
@@ -879,7 +887,7 @@ def sync_workstate_from_tasks(root_dir: str) -> bool:
     completed_tasks: List[Dict[str, Any]] = []
 
     priority_weight = {"P0": 0, "P1": 1, "P2": 2, "P3": 3}
-    status_weight = {"in_progress": 0, "blocked": 1, "todo": 2}
+    status_weight = {"in_progress": 0, "review": 1, "blocked": 2, "todo": 3}
 
     for fname in sorted(os.listdir(tasks_dir)):
         if not fname.endswith(".md"):
@@ -923,7 +931,7 @@ def sync_workstate_from_tasks(root_dir: str) -> bool:
                 "note": note,
             }
 
-            if status in ("in_progress", "blocked", "todo"):
+            if status in ("in_progress", "review", "blocked", "todo"):
                 active_tasks.append(task_dict)
             elif status in ("done", "dropped", "completed"):
                 completed_tasks.append(task_dict)
@@ -1145,6 +1153,15 @@ def format_markdown_report(data: Dict[str, Any]) -> str:
         for issue in gh["assigned_issues"][:5]:
             repo_prefix = f"[`{issue['repo']}`] " if issue.get("repo") else ""
             lines.append(f"  - {repo_prefix}[Issue #{issue['number']}: {issue['title']}]({issue['url']})")
+        has_action_items = True
+
+    if tasks.get("review"):
+        lines.append("- **🔍 Tasks Awaiting Review:**")
+        for t in tasks["review"]:
+            rev = t.get("reviewer") or "@human"
+            lines.append(f"  - [{t['title']}]({t['file']}) (Reviewer: `{rev}` | `{t['type']}` | **{t['priority']}**)")
+            if t.get("suggested_action"):
+                lines.append(f"    - *Details:* {t['suggested_action']}")
         has_action_items = True
 
     if tasks.get("blocked"):

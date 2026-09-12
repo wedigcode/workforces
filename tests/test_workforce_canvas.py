@@ -848,18 +848,19 @@ Analyze roundtrip latency for web socket canvas syncing.
         # Verify pipeline ordering in HTML
         todo_pos = index_html.find('id="kanban-col-todo"')
         in_prog_pos = index_html.find('id="kanban-col-in-progress"')
+        review_pos = index_html.find('id="kanban-col-review"')
         blocked_pos = index_html.find('id="kanban-col-blocked"')
         done_pos = index_html.find('id="kanban-col-done"')
 
-        self.assertTrue(todo_pos != -1 and in_prog_pos != -1 and blocked_pos != -1 and done_pos != -1)
-        self.assertTrue(todo_pos < in_prog_pos < blocked_pos < done_pos, "Pipeline columns must be ordered: Up Next (todo), In Progress, Blocked / Stalled, Completed (done)")
+        self.assertTrue(todo_pos != -1 and in_prog_pos != -1 and review_pos != -1 and blocked_pos != -1 and done_pos != -1)
+        self.assertTrue(todo_pos < in_prog_pos < review_pos < blocked_pos < done_pos, "Pipeline columns must be ordered: Up Next (todo), In Progress, Review, Blocked / Stalled, Completed (done)")
 
         # Verify hide completed button and archive buttons in HTML
         self.assertIn('id="btn-toggle-completed-filter"', index_html)
         self.assertIn('id="btn-kanban-archive-all-done"', index_html)
 
         # Verify JS contracts
-        self.assertIn("['todo', 'in_progress', 'blocked', 'done']", canvas_js)
+        self.assertIn("['todo', 'in_progress', 'review', 'blocked', 'done']", canvas_js)
         self.assertIn('refreshActiveWorkspaceView', canvas_js)
         self.assertIn('btn-archive-task', canvas_js)
         self.assertIn('btn-toggle-completed-filter', canvas_js)
@@ -872,6 +873,48 @@ Analyze roundtrip latency for web socket canvas syncing.
         tasks = server.get_all_tasks(self.root_path)
         t1 = next(t for t in tasks if t["id"] == "sample-task")
         self.assertTrue(t1["archived"])
+
+    def test_task_review_status_and_reviewer_tagging(self):
+        """Verify transitioning a task to review status defaults reviewer to @human and emits task_review event."""
+        test_task = self.tasks_dir / "20260912-test-review-task.md"
+        test_task.write_text("""---
+title: Test Feature for Review
+status: in_progress
+priority: P1
+type: dev
+assignee: "@programmer"
+---
+Test task awaiting review.
+""", encoding="utf-8")
+
+        # Update task status to review without specifying reviewer
+        server.update_task_file(self.root_path, str(test_task.relative_to(self.root_path)), {"status": "review"})
+
+        # Verify file frontmatter
+        content = test_task.read_text(encoding="utf-8")
+        self.assertIn('status: "review"', content)
+        self.assertIn('reviewer: "@human"', content)
+
+        # Verify get_all_tasks returns reviewer
+        tasks = server.get_all_tasks(self.root_path)
+        t = next(x for x in tasks if x["id"] == test_task.stem)
+        self.assertEqual(t["status"], "review")
+        self.assertEqual(t["reviewer"], "@human")
+
+        # Verify standup includes review task and adds it to needs_attention
+        standup = server.get_standup_data(self.root_path, tasks, [], [])
+        self.assertTrue(any(r["id"] == test_task.stem for r in standup.get("review", [])))
+        self.assertTrue(any(na.get("type") == "task_review" and na.get("id") == test_task.stem for na in standup.get("needs_attention", [])))
+
+        # Verify event was emitted to workforces/.events/pending/
+        pending_events = list((self.root_path / "workforces" / ".events" / "pending").glob("*.json"))
+        review_events = []
+        for pe in pending_events:
+            ev_data = json.loads(pe.read_text(encoding="utf-8"))
+            if ev_data.get("event_type") == "task_review":
+                review_events.append(ev_data)
+        self.assertTrue(len(review_events) > 0)
+        self.assertEqual(review_events[0]["payload"]["reviewer"], "@human")
 
     def test_task_auto_assignment_and_dispatch_queue(self):
         """Verify moving a task to in_progress auto-assigns the agent and records to dispatch queue."""

@@ -409,8 +409,8 @@
             </div>
           </div>
 
-          <!-- 4 Kanban Columns (Ordered: Up Next, In Progress, Blocked, Completed) -->
-          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4" id="kanban-columns-grid">
+          <!-- 5 Kanban Columns (Ordered: Up Next, In Progress, Review, Blocked, Completed) -->
+          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4" id="kanban-columns-grid">
             <!-- Column 1: Up Next (Todo) -->
             <div class="kanban-col bg-[#faf9f5] rounded-lg border border-[#e2e0dc] p-3 flex flex-col" id="kanban-col-todo">
               <div class="flex items-center justify-between pb-2 mb-2 border-b border-[#e2e0dc]">
@@ -435,7 +435,19 @@
               <div class="kanban-cards-container space-y-2.5 flex-1 min-h-[140px]" id="kanban-cards-in-progress"></div>
             </div>
 
-            <!-- Column 3: Blocked / Stalled -->
+            <!-- Column 3: Review (Awaiting Review) -->
+            <div class="kanban-col bg-[#faf9f5] rounded-lg border border-[#fde68a]/70 p-3 flex flex-col" id="kanban-col-review">
+              <div class="flex items-center justify-between pb-2 mb-2 border-b border-[#fde68a]">
+                <span class="text-xs font-bold text-amber-700 font-mono flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                  Review
+                </span>
+                <span class="text-[11px] font-mono font-medium text-amber-700" id="kanban-count-review">0</span>
+              </div>
+              <div class="kanban-cards-container space-y-2.5 flex-1 min-h-[140px]" id="kanban-cards-review"></div>
+            </div>
+
+            <!-- Column 4: Blocked / Stalled -->
             <div class="kanban-col bg-[#faf9f5] rounded-lg border border-[#fee2e2]/70 p-3 flex flex-col" id="kanban-col-blocked">
               <div class="flex items-center justify-between pb-2 mb-2 border-b border-[#fecaca]">
                 <span class="text-xs font-bold text-[#b91c1c] font-mono flex items-center gap-1.5">
@@ -447,7 +459,7 @@
               <div class="kanban-cards-container space-y-2.5 flex-1 min-h-[140px]" id="kanban-cards-blocked"></div>
             </div>
 
-            <!-- Column 4: Completed (Done) -->
+            <!-- Column 5: Completed (Done) -->
             <div class="kanban-col bg-[#faf9f5] rounded-lg border border-[#e2e0dc] p-3 flex flex-col" id="kanban-col-done">
               <div class="flex items-center justify-between pb-2 mb-2 border-b border-[#e2e0dc]">
                 <span class="text-xs font-bold text-emerald-700 font-mono flex items-center gap-1.5">
@@ -649,6 +661,7 @@
           <select id="drawer-status" class="w-full bg-white border border-[#e2e0dc] rounded-none px-2.5 py-1.5 text-xs text-[#202020] focus:outline-none focus:border-[#c2410c]">
             <option value="todo">To Do</option>
             <option value="in_progress">In Progress</option>
+            <option value="review">Review</option>
             <option value="blocked">Blocked</option>
             <option value="done">Done</option>
             <option value="dropped">Dropped</option>

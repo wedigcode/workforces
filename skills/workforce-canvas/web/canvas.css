@@ -79,6 +79,10 @@
   --status-in-progress-bg: #e0f2fe;
   --status-in-progress-border: #bae6fd;
 
+  --status-review: #d97706;
+  --status-review-bg: #fffbeb;
+  --status-review-border: #fde68a;
+
   --status-blocked: #b91c1c;
   --status-blocked-bg: #fee2e2;
   --status-blocked-border: #fecaca;
@@ -977,6 +981,11 @@ body, html {
   border-left-color: #dc2626;
 }
 
+.attention-card.task_review {
+  border-color: #fde68a;
+  border-left-color: #d97706;
+}
+
 /* Agent Active Working Badge */
 .badge-agent {
   display: inline-flex;
@@ -990,6 +999,21 @@ body, html {
   background-color: #e0f2fe;
   color: #0369a1;
   border: 1px solid #bae6fd;
+}
+
+/* Reviewer Badge */
+.badge-reviewer {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  background-color: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fde68a;
 }
 
 .badge-agent.active-pulse {

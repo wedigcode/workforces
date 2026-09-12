@@ -212,6 +212,9 @@ def get_all_tasks(root_dir: Path) -> List[Dict[str, Any]]:
                 if q not in extracted["open_questions"]:
                     extracted["open_questions"].append(q)
 
+        task_status = (meta.get("status") or "todo").lower()
+        reviewer = meta.get("reviewer") or ("@human" if task_status == "review" else "")
+
         task_node = {
             "id": task_id,
             "file": str(task_file.relative_to(root_dir)),
@@ -219,9 +222,10 @@ def get_all_tasks(root_dir: Path) -> List[Dict[str, Any]]:
             "type": task_type,
             "team": team,
             "priority": (meta.get("priority") or "P2").upper(),
-            "status": (meta.get("status") or "todo").lower(),
+            "status": task_status,
             "reporter": meta.get("reporter") or "@human",
             "assignee": meta.get("assignee") or "",
+            "reviewer": reviewer,
             "session_id": meta.get("session_id") or "",
             "session_file": meta.get("session_file") or meta.get("origin_session") or "",
             "github_issue": meta.get("github_issue") or "",
@@ -460,6 +464,9 @@ def get_standup_data(root_dir: Path, tasks: List[Dict[str, Any]], inbox_items: L
     in_progress = [t for t in active_tasks if t.get("status") == "in_progress"]
     in_progress.sort(key=lambda t: priority_order.get(str(t.get("priority", "p2")).lower(), 2))
     
+    review = [t for t in active_tasks if t.get("status") == "review"]
+    review.sort(key=lambda t: priority_order.get(str(t.get("priority", "p2")).lower(), 2))
+
     todo = [t for t in active_tasks if t.get("status") == "todo"]
     todo.sort(key=lambda t: priority_order.get(str(t.get("priority", "p2")).lower(), 2))
     
@@ -471,6 +478,8 @@ def get_standup_data(root_dir: Path, tasks: List[Dict[str, Any]], inbox_items: L
     one_thing = None
     if in_progress:
         one_thing = in_progress[0]
+    elif review:
+        one_thing = review[0]
     elif todo:
         one_thing = todo[0]
     elif done:
@@ -478,6 +487,17 @@ def get_standup_data(root_dir: Path, tasks: List[Dict[str, Any]], inbox_items: L
 
     # 2. Needs Attention List
     needs_attention = []
+    for r in review:
+        rev = r.get("reviewer") or "@human"
+        needs_attention.append({
+            "type": "task_review",
+            "id": r["id"],
+            "title": r["title"],
+            "priority": r.get("priority", "P1"),
+            "reason": f"Awaiting review from {rev}",
+            "task": r,
+        })
+
     for b in blocked:
         blocker_names = b.get("blocked_by", [])
         needs_attention.append({
@@ -604,6 +624,7 @@ def get_standup_data(root_dir: Path, tasks: List[Dict[str, Any]], inbox_items: L
         "needs_attention": needs_attention,
         "wins_24h": wins,
         "in_progress": in_progress,
+        "review": review,
         "todo": todo,
         "blocked": blocked,
         "done": done,
@@ -1105,6 +1126,13 @@ def update_task_file(root_dir: Path, relative_file: str, updates: Dict[str, Any]
         if not updates.get("assignee") or updates.get("assignee") in ("~", "@human", "unassigned"):
             updates["assignee"] = dispatched_agent
 
+    # If transitioning to review, ensure reviewer is set (default to @human)
+    transitioned_to_review = False
+    if updates.get("status") == "review":
+        transitioned_to_review = (current_meta.get("status") != "review")
+        if not updates.get("reviewer") and not current_meta.get("reviewer"):
+            updates["reviewer"] = "@human"
+
     yaml_lines = raw_yaml.splitlines()
 
     # Track if updated_at was modified
@@ -1171,6 +1199,27 @@ def update_task_file(root_dir: Path, relative_file: str, updates: Dict[str, Any]
     if dispatched_agent:
         updated_meta = parse_yaml_frontmatter(task_path)
         queue_task_execution(root_dir, task_path, updated_meta, dispatched_agent)
+
+    # Emit task_review event if transitioned to review
+    if transitioned_to_review:
+        try:
+            updated_meta = parse_yaml_frontmatter(task_path)
+            rev_event_payload = {
+                "id": updated_meta.get("id") or task_path.stem,
+                "title": updated_meta.get("title") or task_path.stem,
+                "file": str(task_path.relative_to(root_dir)) if root_dir in task_path.parents else str(task_path),
+                "team": updated_meta.get("team") or "dev",
+                "type": updated_meta.get("type") or "dev",
+                "priority": updated_meta.get("priority") or "P1",
+                "status": "review",
+                "reviewer": updated_meta.get("reviewer") or "@human",
+                "agent": updated_meta.get("assignee") or updated_meta.get("delegated_to") or "@programmer",
+                "action": updated_meta.get("suggested_action") or f"Review task {updated_meta.get('title')}",
+                "description": updated_meta.get("description", "")
+            }
+            emit_event(root_dir, "task_review", rev_event_payload)
+        except Exception as ev_err:
+            sys.stderr.write(f"Failed to emit task_review event: {ev_err}\n")
 
     # Resync workstate.md if personal_sync is available
     if sync_workstate_from_tasks:
@@ -2155,6 +2204,7 @@ li {{ margin: 4px 0; }}
             "total_tasks": len(tasks),
             "todo": len([t for t in tasks if t["status"] == "todo"]),
             "in_progress": len([t for t in tasks if t["status"] == "in_progress"]),
+            "review": len([t for t in tasks if t["status"] == "review"]),
             "blocked": len([t for t in tasks if t["status"] == "blocked" or t.get("blocked_by")]),
             "done": len([t for t in tasks if t["status"] == "done"]),
             "sessions_count": len(sessions),

@@ -176,6 +176,35 @@ def format_event_summary(events: List[Dict[str, Any]]) -> str:
             lines.append(f"     - {agent}: commence immediate autonomous execution of this task")
             lines.append("     - @scribe: record session context & task lineage if appropriate")
 
+        elif ev_type in ("task_review", "task_awaiting_review"):
+            title = payload.get("title", "Untitled Task")
+            task_type = payload.get("type", "feature")
+            priority = payload.get("priority", "P1")
+            team = payload.get("team", "dev")
+            reviewer = payload.get("reviewer", "@human")
+            agent = payload.get("agent") or payload.get("assignee", "@programmer")
+            file_path = payload.get("file", "")
+            action = payload.get("action", "")
+            description = payload.get("description", "")
+
+            lines.append(f"  Title:       {title}")
+            lines.append(f"  Priority:    {priority} | Team: {team} | Type: {task_type}")
+            lines.append(f"  Reviewer:    {reviewer}")
+            lines.append(f"  Completed by:{agent}")
+            if file_path:
+                lines.append(f"  File:        {file_path}")
+            if action:
+                lines.append(f"  Action:      {action}")
+            if description:
+                desc_snip = description[:300] + ("..." if len(description) > 300 else "")
+                lines.append(f"  Description: {desc_snip}")
+            lines.append("  👉 Directives:")
+            if reviewer in ("@human", "~", ""):
+                lines.append("     - Human review requested: review implementation, verify quality gates, and approve (done) or request rework (in_progress)")
+            else:
+                lines.append(f"     - {reviewer}: review completed work and provide approval or rework feedback")
+            lines.append("     - @scribe: record session context & task lineage if appropriate")
+
         else:
             for k, v in payload.items():
                 lines.append(f"  {k}: {v}")

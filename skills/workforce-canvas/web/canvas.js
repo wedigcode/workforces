@@ -473,10 +473,11 @@
 
   function renderWorkstateLayout() {
     const columns = [
-      { id: 'in_progress', label: 'In Progress (Active Focus)', status: 'in_progress', x: 400, color: 'var(--status-in-progress)' },
-      { id: 'blocked', label: 'Blocked / Needs Unblocking', status: 'blocked', x: 800, color: 'var(--status-blocked)' },
       { id: 'todo', label: 'Ready Queue / Backlog', status: 'todo', x: 50, color: 'var(--status-todo)' },
-      { id: 'done', label: 'Completed Deliverables', status: 'done', x: 1200, color: 'var(--status-done)' }
+      { id: 'in_progress', label: 'In Progress (Active Focus)', status: 'in_progress', x: 420, color: 'var(--status-in-progress)' },
+      { id: 'review', label: 'Review (Awaiting Approval)', status: 'review', x: 790, color: 'var(--status-review)' },
+      { id: 'blocked', label: 'Blocked / Needs Unblocking', status: 'blocked', x: 1160, color: 'var(--status-blocked)' },
+      { id: 'done', label: 'Completed Deliverables', status: 'done', x: 1530, color: 'var(--status-done)' }
     ];
 
     columns.forEach(col => {
@@ -2065,7 +2066,7 @@
 
     if (statusLabel) statusLabel.innerText = (task.status || 'todo').toUpperCase();
     if (statusDot) {
-      statusDot.className = `w-2 h-2 rounded-full ${task.status === 'in_progress' ? 'bg-[#0369a1]' : (task.status === 'done' ? 'bg-emerald-600' : (task.status === 'blocked' ? 'bg-[#b91c1c]' : 'bg-[#828282]'))}`;
+      statusDot.className = `w-2 h-2 rounded-full ${task.status === 'in_progress' ? 'bg-[#0369a1]' : (task.status === 'review' ? 'bg-amber-500' : (task.status === 'done' ? 'bg-emerald-600' : (task.status === 'blocked' ? 'bg-[#b91c1c]' : 'bg-[#828282]')))}`;
     }
 
     if (statusBtn) {
@@ -2676,16 +2677,23 @@
 
       const statusBadge = task.status === 'in_progress'
         ? '<span class="text-[9.5px] font-mono px-1.5 py-0.5 rounded bg-[#e0f2fe] text-[#0369a1] font-semibold">IN PROGRESS</span>'
-        : (task.status === 'done'
-          ? '<span class="text-[9.5px] font-mono px-1.5 py-0.5 rounded bg-[#dcfce7] text-emerald-800 font-semibold">DONE</span>'
-          : (task.status === 'blocked'
-            ? '<span class="text-[9.5px] font-mono px-1.5 py-0.5 rounded bg-[#fee2e2] text-[#b91c1c] font-semibold">BLOCKED</span>'
-            : '<span class="text-[9.5px] font-mono px-1.5 py-0.5 rounded bg-[#f4f4f5] text-[#52525b] font-semibold">TODO</span>'));
+        : (task.status === 'review'
+          ? '<span class="text-[9.5px] font-mono px-1.5 py-0.5 rounded bg-[#fffbeb] text-amber-700 font-semibold border border-[#fde68a]">REVIEW</span>'
+          : (task.status === 'done'
+            ? '<span class="text-[9.5px] font-mono px-1.5 py-0.5 rounded bg-[#dcfce7] text-emerald-800 font-semibold">DONE</span>'
+            : (task.status === 'blocked'
+              ? '<span class="text-[9.5px] font-mono px-1.5 py-0.5 rounded bg-[#fee2e2] text-[#b91c1c] font-semibold">BLOCKED</span>'
+              : '<span class="text-[9.5px] font-mono px-1.5 py-0.5 rounded bg-[#f4f4f5] text-[#52525b] font-semibold">TODO</span>')));
 
         const assignedAgent = task.delegated_to || task.assignee || '@programmer';
-        const assigneeStageHtml = task.status === 'in_progress'
-          ? `<span class="badge-agent active-pulse"><i data-lucide="bot" class="w-3 h-3 text-[#0284c7]"></i> ${assignedAgent}</span>`
-          : `<span>${task.assignee || '@human'}</span>`;
+        let assigneeStageHtml = '';
+        if (task.status === 'in_progress') {
+          assigneeStageHtml = `<span class="badge-agent active-pulse"><i data-lucide="bot" class="w-3 h-3 text-[#0284c7]"></i> ${assignedAgent}</span>`;
+        } else if (task.status === 'review') {
+          assigneeStageHtml = `<span class="badge-reviewer"><i data-lucide="user-check" class="w-3 h-3 text-amber-600"></i> ${task.reviewer || '@human'}</span>`;
+        } else {
+          assigneeStageHtml = `<span>${task.assignee || '@human'}</span>`;
+        }
 
         card.innerHTML = `
         <div>
@@ -2932,6 +2940,8 @@
         oneThingStatus.innerText = (oneThing.status || 'todo').toUpperCase();
         if (oneThing.status === 'in_progress') {
           oneThingStatus.className = 'px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase font-mono bg-[#e0f2fe] text-[#0369a1]';
+        } else if (oneThing.status === 'review') {
+          oneThingStatus.className = 'px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase font-mono bg-[#fffbeb] text-amber-700 border border-[#fde68a]';
         } else if (oneThing.status === 'done') {
           oneThingStatus.className = 'px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase font-mono bg-[#dcfce7] text-emerald-800';
         } else {
@@ -2947,6 +2957,8 @@
         const assignedAgent = oneThing.delegated_to || oneThing.assignee || '@programmer';
         if (oneThing.status === 'in_progress') {
           oneThingAssignee.innerHTML = `<span class="badge-agent active-pulse"><i data-lucide="bot" class="w-3 h-3 text-[#0284c7]"></i> Working: ${assignedAgent}</span>`;
+        } else if (oneThing.status === 'review') {
+          oneThingAssignee.innerHTML = `<span class="badge-reviewer"><i data-lucide="user-check" class="w-3 h-3 text-amber-600"></i> Reviewer: ${oneThing.reviewer || '@human'}</span>`;
         } else {
           oneThingAssignee.innerHTML = `<span>Assignee: ${assignedAgent}</span>`;
         }
@@ -2958,7 +2970,7 @@
       if (oneThingCycleBtn) {
         oneThingCycleBtn.onclick = () => cycleTaskStatus(oneThing);
         if (oneThingCycleLabel) {
-          oneThingCycleLabel.innerText = oneThing.status === 'todo' ? 'Start Task' : (oneThing.status === 'in_progress' ? 'Mark Done' : 'Restart Task');
+          oneThingCycleLabel.innerText = oneThing.status === 'todo' ? 'Start Task' : (oneThing.status === 'in_progress' ? 'Submit Review' : (oneThing.status === 'review' ? 'Approve Task' : 'Restart Task'));
         }
       }
       if (oneThingInspectBtn) {
@@ -2989,7 +3001,7 @@
         attentionList.innerHTML = '';
         needsAttention.forEach(item => {
           const card = document.createElement('div');
-          card.className = `attention-card ${item.type === 'blocker' ? 'blocker' : ''}`;
+          card.className = `attention-card ${item.type === 'blocker' ? 'blocker' : (item.type === 'task_review' ? 'task_review' : '')}`;
           
           let actionBtns = '';
           if (item.type === 'inbox_review') {
@@ -2997,6 +3009,18 @@
               <div class="flex items-center gap-1.5 mt-1">
                 <button class="px-2 py-0.5 rounded text-[10.5px] font-semibold bg-[#202020] text-white hover:bg-[#333] transition-colors btn-approve-inbox">Approve &amp; Task</button>
                 <button class="px-2 py-0.5 rounded text-[10.5px] font-medium text-[#828282] hover:bg-[#faf9f5] border border-[#e2e0dc] transition-colors btn-dismiss-inbox">Dismiss</button>
+              </div>
+            `;
+          } else if (item.type === 'task_review') {
+            actionBtns = `
+              <div class="flex items-center gap-1.5 mt-1">
+                <button class="px-2 py-0.5 rounded text-[10.5px] font-semibold bg-emerald-700 hover:bg-emerald-800 text-white transition-colors btn-approve-attention flex items-center gap-1">
+                  <i data-lucide="check" class="w-3 h-3"></i>
+                  <span>Approve</span>
+                </button>
+                <button class="px-2 py-0.5 rounded text-[10.5px] font-medium text-[#828282] hover:bg-[#faf9f5] border border-[#e2e0dc] transition-colors btn-open-task">
+                  Review &rarr;
+                </button>
               </div>
             `;
           } else {
@@ -3007,9 +3031,10 @@
             `;
           }
 
+          const badgeColorClass = item.type === 'blocker' ? 'text-[#b91c1c]' : (item.type === 'task_review' ? 'text-amber-700' : 'text-[#ea580c]');
           card.innerHTML = `
             <div class="flex items-center justify-between">
-              <span class="text-[9.5px] font-mono font-bold uppercase tracking-wider ${item.type === 'blocker' ? 'text-[#b91c1c]' : 'text-[#ea580c]'}">${item.type.replace('_', ' ')}</span>
+              <span class="text-[9.5px] font-mono font-bold uppercase tracking-wider ${badgeColorClass}">${item.type.replace('_', ' ')}</span>
               <span class="text-[9.5px] font-mono text-[#828282]">${item.priority || 'P1'}</span>
             </div>
             <h4 class="text-xs font-semibold text-[#202020] leading-snug cursor-pointer hover:text-[#c2410c]">${escapeHtml(item.title)}</h4>
@@ -3023,6 +3048,15 @@
             if (approveBtn) approveBtn.onclick = () => handleInboxAction(item.id, 'approve');
             if (dismissBtn) dismissBtn.onclick = () => handleInboxAction(item.id, 'dismiss');
           } else {
+            if (item.type === 'task_review') {
+              const approveAttBtn = card.querySelector('.btn-approve-attention');
+              if (approveAttBtn && item.task) {
+                approveAttBtn.onclick = (e) => {
+                  e.stopPropagation();
+                  updateTaskOnServer(item.task.file, { status: 'done' });
+                };
+              }
+            }
             const openBtn = card.querySelector('.btn-open-task');
             if (openBtn) {
               openBtn.onclick = () => {
@@ -3135,10 +3169,11 @@
           return taskTeam === filterTeam;
         });
 
-    // Exact pipeline order requested by user: Up Next (todo), In Progress, Blocked / Stalled, Completed (done)
+    // Exact pipeline order requested by user: Up Next (todo), In Progress, Review, Blocked / Stalled, Completed (done)
     const cols = {
       todo: filtered.filter(t => t.status === 'todo'),
       in_progress: filtered.filter(t => t.status === 'in_progress'),
+      review: filtered.filter(t => t.status === 'review'),
       blocked: filtered.filter(t => t.status === 'blocked' || (t.blocked_by && t.blocked_by.length > 0)),
       done: filtered.filter(t => t.status === 'done'),
     };
@@ -3163,8 +3198,8 @@
         btnToggleCompleted.classList.add('bg-[#faf9f5]', 'text-[#c2410c]', 'border-[#fed7aa]');
         if (kanbanColDone) kanbanColDone.classList.add('hidden');
         if (kanbanGrid) {
-          kanbanGrid.classList.remove('xl:grid-cols-4');
-          kanbanGrid.classList.add('xl:grid-cols-3');
+          kanbanGrid.classList.remove('xl:grid-cols-5');
+          kanbanGrid.classList.add('xl:grid-cols-4');
         }
       } else {
         if (labelToggleCompleted) labelToggleCompleted.innerText = 'Hide Completed';
@@ -3172,8 +3207,8 @@
         btnToggleCompleted.classList.remove('bg-[#faf9f5]', 'text-[#c2410c]', 'border-[#fed7aa]');
         if (kanbanColDone) kanbanColDone.classList.remove('hidden');
         if (kanbanGrid) {
-          kanbanGrid.classList.remove('xl:grid-cols-3');
-          kanbanGrid.classList.add('xl:grid-cols-4');
+          kanbanGrid.classList.remove('xl:grid-cols-4');
+          kanbanGrid.classList.add('xl:grid-cols-5');
         }
       }
     }
@@ -3189,8 +3224,8 @@
       };
     }
 
-    // Render columns in exact user-specified order: todo, in_progress, blocked, done
-    ['todo', 'in_progress', 'blocked', 'done'].forEach(colKey => {
+    // Render columns in exact user-specified order: todo, in_progress, review, blocked, done
+    ['todo', 'in_progress', 'review', 'blocked', 'done'].forEach(colKey => {
       const container = document.getElementById(`kanban-cards-${colKey.replace('_', '-')}`);
       const countEl = document.getElementById(`kanban-count-${colKey.replace('_', '-')}`);
       const list = cols[colKey] || [];
@@ -3219,10 +3254,22 @@
           `;
         } else if (task.status === 'in_progress') {
           actionHtml = `
-            <button class="px-2.5 py-1 rounded text-[10px] font-semibold bg-emerald-700 hover:bg-emerald-800 text-white transition-colors btn-cycle-status flex items-center gap-1 cursor-pointer" title="Mark Done">
-              <i data-lucide="check" class="w-3 h-3"></i>
-              <span>Done</span>
+            <button class="px-2.5 py-1 rounded text-[10px] font-semibold bg-[#d97706] hover:bg-[#b45309] text-white transition-colors btn-cycle-status flex items-center gap-1 cursor-pointer" title="Submit for Review">
+              <i data-lucide="user-check" class="w-3 h-3"></i>
+              <span>Review</span>
             </button>
+          `;
+        } else if (task.status === 'review') {
+          actionHtml = `
+            <div class="flex items-center gap-1.5">
+              <button class="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-700 hover:bg-emerald-800 text-white transition-colors btn-approve-review flex items-center gap-1 cursor-pointer" title="Approve Task">
+                <i data-lucide="check" class="w-3 h-3"></i>
+                <span>Approve</span>
+              </button>
+              <button class="px-2 py-0.5 rounded text-[10px] font-semibold text-[#828282] hover:text-[#c2410c] hover:bg-[#faf9f5] border border-[#e2e0dc] transition-colors btn-rework-review cursor-pointer" title="Request Changes">
+                Rework
+              </button>
+            </div>
           `;
         } else if (task.status === 'blocked') {
           actionHtml = `
@@ -3246,9 +3293,15 @@
         }
 
         const assignedAgent = task.delegated_to || task.assignee || '@programmer';
-        const assigneeHtml = task.status === 'in_progress'
-          ? `<span class="badge-agent active-pulse"><i data-lucide="bot" class="w-3 h-3 text-[#0284c7]"></i> ${assignedAgent}</span>`
-          : `<span class="text-[10px] font-mono text-[#828282] truncate max-w-[100px]">${task.assignee || '@human'}</span>`;
+        let assigneeHtml = '';
+        if (task.status === 'in_progress') {
+          assigneeHtml = `<span class="badge-agent active-pulse"><i data-lucide="bot" class="w-3 h-3 text-[#0284c7]"></i> ${assignedAgent}</span>`;
+        } else if (task.status === 'review') {
+          const reviewerTag = task.reviewer || '@human';
+          assigneeHtml = `<span class="badge-reviewer" title="Reviewer: ${reviewerTag}"><i data-lucide="user-check" class="w-3 h-3 text-amber-600"></i> ${reviewerTag}</span>`;
+        } else {
+          assigneeHtml = `<span class="text-[10px] font-mono text-[#828282] truncate max-w-[100px]">${task.assignee || '@human'}</span>`;
+        }
 
         card.innerHTML = `
           <div class="flex items-center justify-between mb-1.5">
@@ -3270,6 +3323,20 @@
             cycleTaskStatus(task);
           };
         }
+        const approveReviewBtn = card.querySelector('.btn-approve-review');
+        if (approveReviewBtn) {
+          approveReviewBtn.onclick = (e) => {
+            e.stopPropagation();
+            updateTaskOnServer(task.file, { status: 'done' });
+          };
+        }
+        const reworkReviewBtn = card.querySelector('.btn-rework-review');
+        if (reworkReviewBtn) {
+          reworkReviewBtn.onclick = (e) => {
+            e.stopPropagation();
+            updateTaskOnServer(task.file, { status: 'in_progress' });
+          };
+        }
         const archiveBtn = card.querySelector('.btn-archive-task');
         if (archiveBtn) {
           archiveBtn.onclick = (e) => {
@@ -3286,7 +3353,8 @@
   async function cycleTaskStatus(task) {
     let nextStatus = 'in_progress';
     if (task.status === 'todo') nextStatus = 'in_progress';
-    else if (task.status === 'in_progress') nextStatus = 'done';
+    else if (task.status === 'in_progress') nextStatus = 'review';
+    else if (task.status === 'review') nextStatus = 'done';
     else if (task.status === 'done') nextStatus = 'todo';
     else if (task.status === 'blocked') nextStatus = 'in_progress';
 

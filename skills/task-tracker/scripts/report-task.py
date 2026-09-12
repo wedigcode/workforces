@@ -65,7 +65,7 @@ except ImportError:
         def reconcile_github_tasks(root_dir: str, **kwargs) -> list:
             return []
 
-VALID_STATUSES = ["todo", "in_progress", "blocked", "done", "dropped"]
+VALID_STATUSES = ["todo", "in_progress", "review", "blocked", "done", "dropped"]
 VALID_PRIORITIES = ["P0", "P1", "P2", "P3"]
 
 
@@ -525,11 +525,19 @@ def main() -> None:
     parser.add_argument(
         "--status",
         choices=VALID_STATUSES,
-        help="Task status: todo | in_progress | blocked | done | dropped",
+        help="Task status: todo | in_progress | review | blocked | done | dropped",
     )
     parser.add_argument(
         "--start", "--in-progress", dest="start_task", action="store_true",
         help="Set task status to 'in_progress'",
+    )
+    parser.add_argument(
+        "--review", "--awaiting-review", dest="review_task", action="store_true",
+        help="Set task status to 'review' (awaiting review/approval)",
+    )
+    parser.add_argument(
+        "--reviewer", default="",
+        help="Tagged reviewer for task review (e.g. '@human' or agent like '@programmer')",
     )
     parser.add_argument(
         "--block", nargs="?", const="Blocked on external dependency",
@@ -792,12 +800,19 @@ def main() -> None:
             meta["status"] = args.status
         elif args.start_task:
             meta["status"] = "in_progress"
+        elif args.review_task:
+            meta["status"] = "review"
         elif args.block:
             meta["status"] = "blocked"
         elif args.done_task:
             meta["status"] = "done"
         elif args.drop_reason:
             meta["status"] = "dropped"
+
+        if args.reviewer:
+            meta["reviewer"] = args.reviewer
+        elif meta.get("status") == "review" and not meta.get("reviewer"):
+            meta["reviewer"] = "@human"
 
         # Remove legacy triage fields if present
         if "triage_status" in meta:
@@ -829,6 +844,9 @@ def main() -> None:
         elif args.done_task:
             note_text = args.evolution_note or "Task completed."
             evo_entry = f"- **{now.strftime('%Y-%m-%d %H:%M')}:** ✅ Completed: {note_text}"
+        elif args.review_task or meta.get("status") == "review":
+            note_text = args.evolution_note or f"Ready for review by {meta.get('reviewer', '@human')}."
+            evo_entry = f"- **{now.strftime('%Y-%m-%d %H:%M')}:** 🔍 Awaiting Review: {note_text}"
         elif args.start_task:
             note_text = args.evolution_note or "Started task execution."
             evo_entry = f"- **{now.strftime('%Y-%m-%d %H:%M')}:** ⏳ In Progress: {note_text}"
