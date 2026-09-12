@@ -78,6 +78,7 @@
       state.installedTeams = data.installed_teams || [];
       state.workstateMarkdown = data.workstate_markdown || '';
       updateTopBarStats();
+      populateTaskModalTeams();
       renderStandupCockpit();
     } catch (err) {
       console.error('Fetch error:', err);
@@ -2079,7 +2080,19 @@
     const agentBadge = document.getElementById('task-panel-agent-badge');
     const btnDispatch = document.getElementById('btn-task-panel-dispatch');
     const labelDispatch = document.getElementById('task-panel-dispatch-label');
-    const assignedAgent = task.delegated_to || task.assignee || (task.team === 'design' ? '@designer' : (task.team === 'marketing' ? '@marketer' : '@programmer'));
+    const assignedAgent = (task.delegated_to && task.delegated_to !== '~') ? task.delegated_to : 
+      (task.assignee && task.assignee !== '~' && task.assignee !== '@human' ? task.assignee : (
+        task.team === 'design' ? '@designer' :
+        task.team === 'marketing' ? '@marketer' :
+        task.team === 'growth' ? '@growth' :
+        task.team === 'social' ? '@social' :
+        task.team === 'sales' ? '@sales' :
+        task.team === 'launch' ? '@launcher' :
+        (task.team === 'advisor' || task.team === 'strategy') ? '@project-manager' :
+        (task.team === 'ops' || task.team === 'operations') ? '@operations' :
+        task.team === 'compliance' ? '@compliance' :
+        '@programmer'
+      ));
 
     if (agentBadge) {
       agentBadge.innerHTML = `<i data-lucide="bot" class="w-3 h-3 ${task.status === 'in_progress' ? 'animate-pulse text-[#0284c7]' : ''}"></i> <span>${assignedAgent}</span>`;
@@ -2541,8 +2554,79 @@
   }
 
   // --------------------------------------------------------------------------
-  // Dedicated Stage Views (Tasks, Inbox, Hypotheses)
+  // Dedicated Stage Views (Tasks, Inbox, Hypotheses) & Dynamic Team Filters
   // --------------------------------------------------------------------------
+
+  const TEAM_CONFIG = {
+    dev: { label: 'Dev (Engineering)', name: 'Dev', badge: 'badge-dev' },
+    design: { label: 'Design (UI / UX)', name: 'Design', badge: 'badge-design' },
+    marketing: { label: 'Marketing', name: 'Marketing', badge: 'badge-marketing' },
+    growth: { label: 'Growth & SEO', name: 'Growth', badge: 'badge-growth' },
+    operations: { label: 'Operations & Infra', name: 'Operations', badge: 'badge-ops' },
+    ops: { label: 'Operations & Infra', name: 'Operations', badge: 'badge-ops' },
+    sales: { label: 'Sales & Outreach', name: 'Sales', badge: 'badge-sales' },
+    social: { label: 'Social Engagement', name: 'Social', badge: 'badge-social' },
+    launch: { label: 'Launch & Pre-Sales', name: 'Launch', badge: 'badge-launch' },
+    advisor: { label: 'Advisor & Strategy', name: 'Advisor', badge: 'badge-advisor' },
+    strategy: { label: 'Advisor & Strategy', name: 'Strategy', badge: 'badge-strategy' },
+    compliance: { label: 'Compliance & Legal', name: 'Compliance', badge: 'badge-compliance' }
+  };
+
+  function getActiveInstalledTeams() {
+    if (state.installedTeams && state.installedTeams.length > 0) {
+      return state.installedTeams;
+    }
+    return ['dev', 'design', 'marketing', 'growth', 'operations'];
+  }
+
+  function renderTeamFilterChips(containerId, activeTeam, onSelect) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    const teams = getActiveInstalledTeams();
+    const currentActive = (activeTeam || 'all').toLowerCase();
+
+    let html = `<button class="team-filter-chip ${currentActive === 'all' ? 'active' : ''}" data-team="all">All Teams</button>`;
+    teams.forEach(tKey => {
+      const kLower = tKey.toLowerCase();
+      const cfg = TEAM_CONFIG[kLower] || { name: kLower.charAt(0).toUpperCase() + kLower.slice(1) };
+      const isActive = (currentActive === kLower) ||
+        ((currentActive === 'ops' || currentActive === 'operations') && (kLower === 'ops' || kLower === 'operations'));
+      html += `<button class="team-filter-chip ${isActive ? 'active' : ''}" data-team="${kLower}">${cfg.name}</button>`;
+    });
+    container.innerHTML = html;
+
+    const chips = container.querySelectorAll('.team-filter-chip');
+    chips.forEach(chip => {
+      chip.onclick = () => {
+        chips.forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        const selected = chip.getAttribute('data-team') || 'all';
+        onSelect(selected);
+      };
+    });
+  }
+
+  function populateTaskModalTeams() {
+    const select = document.getElementById('task-modal-team');
+    if (!select) return;
+    const teams = getActiveInstalledTeams();
+    const currentVal = (select.value || 'dev').toLowerCase();
+    select.innerHTML = '';
+    teams.forEach(tKey => {
+      const kLower = tKey.toLowerCase();
+      const cfg = TEAM_CONFIG[kLower] || { label: kLower.charAt(0).toUpperCase() + kLower.slice(1) };
+      const opt = document.createElement('option');
+      opt.value = kLower;
+      opt.innerText = cfg.label || kLower;
+      if (kLower === currentVal || (currentVal === 'dev' && kLower === 'dev')) {
+        opt.selected = true;
+      }
+      select.appendChild(opt);
+    });
+    if (!select.value && select.options.length > 0) {
+      select.selectedIndex = 0;
+    }
+  }
 
   let currentTasksStageTeamFilter = 'all';
 
@@ -2560,15 +2644,10 @@
       newBtn.onclick = () => { if (mainNewBtn) mainNewBtn.click(); };
     }
 
-    // Bind team filters for tasks stage
-    const teamChips = document.querySelectorAll('#tasks-stage-team-filters .team-filter-chip');
-    teamChips.forEach(chip => {
-      chip.onclick = () => {
-        teamChips.forEach(c => c.classList.remove('active'));
-        chip.classList.add('active');
-        currentTasksStageTeamFilter = chip.getAttribute('data-team') || 'all';
-        renderTasksStage();
-      };
+    // Render dynamic team filter chips for tasks stage
+    renderTeamFilterChips('tasks-stage-team-filters', currentTasksStageTeamFilter, (selectedTeam) => {
+      currentTasksStageTeamFilter = selectedTeam;
+      renderTasksStage();
     });
 
     if (!grid) return;
@@ -2577,7 +2656,13 @@
     const filterTeam = currentTasksStageTeamFilter.toLowerCase();
     const filtered = filterTeam === 'all' 
       ? visibleTasks 
-      : visibleTasks.filter(t => (t.team || 'dev').toLowerCase() === filterTeam);
+      : visibleTasks.filter(t => {
+          const taskTeam = (t.team || 'dev').toLowerCase();
+          if (filterTeam === 'ops' || filterTeam === 'operations') {
+            return taskTeam === 'ops' || taskTeam === 'operations';
+          }
+          return taskTeam === filterTeam;
+        });
 
     if (filtered.length === 0) {
       grid.innerHTML = `<div class="col-span-full p-8 text-center text-xs text-[#828282] italic border border-dashed border-[#e2e0dc] rounded-lg">No tasks found for this filter.</div>`;
@@ -2965,7 +3050,11 @@
     const statWins = document.getElementById('stat-card-wins');
     if (statWins) statWins.innerText = wins.length;
 
-    // 4. Render 4-Column Sprint Kanban
+    // 4. Render 4-Column Sprint Kanban & Dynamic Team Filter Chips
+    renderTeamFilterChips('kanban-team-filters', currentKanbanTeamFilter, (selectedTeam) => {
+      currentKanbanTeamFilter = selectedTeam;
+      renderKanbanColumns();
+    });
     renderKanbanColumns();
 
     // 5. Render Architectural Decisions & 24h Wins
@@ -3038,7 +3127,13 @@
 
     const filtered = filterTeam === 'all' 
       ? tasks 
-      : tasks.filter(t => (t.team || 'dev').toLowerCase() === filterTeam);
+      : tasks.filter(t => {
+          const taskTeam = (t.team || 'dev').toLowerCase();
+          if (filterTeam === 'ops' || filterTeam === 'operations') {
+            return taskTeam === 'ops' || taskTeam === 'operations';
+          }
+          return taskTeam === filterTeam;
+        });
 
     // Exact pipeline order requested by user: Up Next (todo), In Progress, Blocked / Stalled, Completed (done)
     const cols = {
@@ -3264,6 +3359,7 @@
 
     function openTaskModal() {
       if (taskModal) {
+        populateTaskModalTeams();
         document.getElementById('task-modal-title').value = '';
         if (descTextarea) descTextarea.value = '';
         attachedImages = [];
@@ -3438,6 +3534,7 @@
               title: title,
               priority: priority,
               type: team,
+              team: team,
               description: desc,
               suggested_action: 'Triage requirements and begin autonomous execution.',
               reporter: '@human',

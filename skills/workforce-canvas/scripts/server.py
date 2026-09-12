@@ -175,20 +175,32 @@ def get_all_tasks(root_dir: Path) -> List[Dict[str, Any]]:
         task_id = meta.get("id") or task_file.stem
         task_type = (meta.get("type") or "other").lower()
 
-        # Categorize team based on type/tags
-        team = "dev"
-        if task_type in ("marketing", "growth", "seo", "acquisition"):
+        # Categorize team based on explicit meta.team or inferred from type/tags
+        explicit_team = str(meta.get("team") or "").lower().strip()
+        if explicit_team:
+            team = "operations" if explicit_team in ("ops", "operations") else explicit_team
+        elif task_type in ("marketing", "copy", "positioning"):
             team = "marketing"
+        elif task_type in ("growth", "seo", "geo", "aiso", "acquisition"):
+            team = "growth"
         elif task_type in ("social", "community", "reply", "triage"):
             team = "social"
         elif task_type in ("design", "ui", "ux", "visual", "brand"):
             team = "design"
         elif task_type in ("product", "strategy", "advisor", "jtbd", "goal"):
-            team = "strategy"
+            team = "advisor"
         elif task_type in ("compliance", "security", "legal"):
             team = "compliance"
-        elif task_type in ("ops", "infra", "deploy"):
-            team = "ops"
+        elif task_type in ("ops", "operations", "infra", "deploy"):
+            team = "operations"
+        elif task_type in ("sales", "outreach", "prospect"):
+            team = "sales"
+        elif task_type in ("launch", "presale", "mvp"):
+            team = "launch"
+        elif task_type in ("dev", "engineering", "bug", "feature", "refactor", "code", "architecture"):
+            team = "dev"
+        else:
+            team = "dev"
 
         body = meta.get("_body") or ""
         extracted = extract_task_sections(body)
@@ -373,6 +385,73 @@ def get_all_sessions(root_dir: Path) -> List[Dict[str, Any]]:
     return sessions
 
 
+def get_installed_teams_list(root_dir: Path) -> List[str]:
+    """Parses workforces/workrules.md or workspace team folders to discover installed teams."""
+    installed_teams = []
+    workrules_file = root_dir / "workforces" / "workrules.md"
+    if workrules_file.exists():
+        try:
+            content = workrules_file.read_text(encoding="utf-8", errors="ignore")
+            # 1. Frontmatter check if present
+            w_meta = parse_yaml_frontmatter(workrules_file)
+            if w_meta.get("installed_teams"):
+                raw = w_meta["installed_teams"]
+                if isinstance(raw, list):
+                    installed_teams = [str(x).strip() for x in raw if str(x).strip()]
+                elif isinstance(raw, str):
+                    installed_teams = [x.strip() for x in raw.split(",") if x.strip()]
+
+            # 2. Markdown bulleted list under ## Installed Teams
+            if not installed_teams:
+                m_block = re.search(r'## Installed Teams\s*\n((?:\s*-\s*[^\n]+\n?)+)', content)
+                if m_block:
+                    for line in m_block.group(1).splitlines():
+                        line = line.strip()
+                        if line.startswith('-'):
+                            val = line.lstrip('- ').strip().strip('\'\"')
+                            if val.startswith('installed_teams:'):
+                                val = val.replace('installed_teams:', '').strip().strip('[]\'\"')
+                                if val:
+                                    for t in val.split(','):
+                                        t = t.strip().strip('\'\"')
+                                        if t:
+                                            installed_teams.append(t)
+                            elif val and val != '[]':
+                                installed_teams.append(val)
+
+            # 3. Fallback inline installed_teams: [...]
+            if not installed_teams:
+                m = re.search(r'installed_teams:\s*\[?(.*?)\]?(\n|$)', content)
+                if m and m.group(1).strip():
+                    for t in m.group(1).split(','):
+                        t = t.strip().strip('\'\"- ')
+                        if t:
+                            installed_teams.append(t)
+        except Exception:
+            pass
+
+    # 4. Fallback to workforces/teams directory
+    if not installed_teams:
+        teams_dir = root_dir / "workforces" / "teams"
+        if teams_dir.is_dir():
+            installed_teams = [
+                d.name for d in teams_dir.iterdir()
+                if d.is_dir() and not d.name.startswith(".")
+            ]
+
+    # 5. Default fallback
+    if not installed_teams:
+        installed_teams = ["dev", "design", "marketing", "growth", "operations"]
+
+    seen = set()
+    result = []
+    for t in installed_teams:
+        if t not in seen:
+            seen.add(t)
+            result.append(t)
+    return result
+
+
 def get_standup_data(root_dir: Path, tasks: List[Dict[str, Any]], inbox_items: List[Dict[str, Any]], sessions: List[Dict[str, Any]]) -> Dict[str, Any]:
     """Compile multi-source standup and executive productivity intelligence."""
     priority_order = {"p0": 0, "p1": 1, "p2": 2, "p3": 3}
@@ -460,14 +539,7 @@ def get_standup_data(root_dir: Path, tasks: List[Dict[str, Any]], inbox_items: L
         })
 
     # 4. Installed Teams
-    installed_teams = []
-    workrules_file = root_dir / "workforces" / "workrules.md"
-    if workrules_file.exists():
-        try:
-            w_meta = parse_yaml_frontmatter(workrules_file)
-            installed_teams = w_meta.get("installed_teams") or []
-        except Exception:
-            pass
+    installed_teams = get_installed_teams_list(root_dir)
 
     # 5. Git Status
     git_info = {"branch": "main", "clean": True, "modified_count": 0, "recent_commits": []}
@@ -555,15 +627,17 @@ def create_task_file(root_dir: Path, data: Dict[str, Any]) -> Dict[str, Any]:
     task_path.parent.mkdir(parents=True, exist_ok=True)
     
     task_type = data.get("type", "feature").strip()
+    team = data.get("team", "").strip() or task_type
     priority = data.get("priority", "P1").strip().upper()
     reporter = data.get("reporter", "@human").strip()
     assignee = data.get("assignee", "").strip()
+    delegated = resolve_task_agent({"type": task_type, "team": team, "reporter": reporter})
     suggested_action = data.get("suggested_action", "").strip()
     description = data.get("description", "").strip() or data.get("body", "").strip()
     
     body_text = f"""# {title}
 
-**Type:** `{task_type}` | **Priority:** `{priority}` | **Status:** `todo` | **Reporter:** `{reporter}`  
+**Team:** `{team}` | **Type:** `{task_type}` | **Priority:** `{priority}` | **Status:** `todo` | **Reporter:** `{reporter}`  
 **Reported:** {now.strftime("%Y-%m-%d %H:%M")} | **Updated:** {now.strftime("%Y-%m-%d %H:%M")}
 
 ## Description
@@ -581,6 +655,7 @@ def create_task_file(root_dir: Path, data: Dict[str, Any]) -> Dict[str, Any]:
     frontmatter = f"""---
 title: "{title}"
 type: "{task_type}"
+team: "{team}"
 priority: "{priority}"
 status: "todo"
 reporter: "{reporter}"
@@ -591,7 +666,7 @@ file: "{str(task_path.relative_to(root_dir))}"
 session_id: ""
 session_file: ""
 recommended_tools: []
-delegated_to: ~
+delegated_to: "{delegated}"
 github_labels: []
 github_issue: ~
 github_pr: ~
@@ -612,10 +687,12 @@ github_pr: ~
         "file": str(task_path.relative_to(root_dir)),
         "title": title,
         "type": task_type,
+        "team": team,
         "priority": priority,
         "status": "todo",
         "reporter": reporter,
-        "assignee": assignee,
+        "assignee": assignee or delegated,
+        "delegated_to": delegated,
         "body": body_text
     }
 
@@ -896,18 +973,24 @@ def resolve_task_agent(task_meta: Dict[str, Any]) -> str:
 
     if t_team == "design" or t_type in ("design", "ui", "ux", "visual", "brand") or "design" in t_reporter:
         return "@designer"
-    elif t_team == "marketing" or t_type in ("marketing", "copy", "positioning", "launch") or "market" in t_reporter:
+    elif t_team == "marketing" or t_type in ("marketing", "copy", "positioning") or "market" in t_reporter:
         return "@marketer"
-    elif t_type in ("growth", "seo", "geo", "aiso", "acquisition"):
+    elif t_team == "growth" or t_type in ("growth", "seo", "geo", "aiso", "acquisition") or "growth" in t_reporter:
         return "@growth"
     elif t_team == "social" or t_type in ("social", "community", "reply", "triage") or "social" in t_reporter:
         return "@social"
-    elif t_team == "strategy" or t_type in ("strategy", "advisor", "jtbd", "goal", "roadmap", "sync") or "manager" in t_reporter:
+    elif t_team in ("advisor", "strategy") or t_type in ("strategy", "advisor", "jtbd", "goal", "roadmap", "sync") or "manager" in t_reporter or "advisor" in t_reporter:
         return "@project-manager"
+    elif t_team == "sales" or t_type in ("sales", "outreach", "prospect") or "sales" in t_reporter:
+        return "@sales"
+    elif t_team == "launch" or t_type in ("launch", "presale", "mvp") or "launch" in t_reporter:
+        return "@launcher"
+    elif t_team in ("operations", "ops") or t_type in ("ops", "operations", "infra", "deploy", "velocity", "telemetry") or "operation" in t_reporter:
+        return "@operations"
+    elif t_team == "compliance" or t_type in ("compliance", "security", "legal") or "compliance" in t_reporter:
+        return "@compliance"
     elif t_type in ("research", "spec", "prd", "breakdown"):
         return "@researcher"
-    elif t_type in ("sales", "outreach", "prospect"):
-        return "@sales"
     return "@programmer"
 
 

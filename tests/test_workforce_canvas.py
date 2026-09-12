@@ -1104,6 +1104,62 @@ Profile queries.
         self.assertIn("@scribe", summary_text)
         self.assertIn("@project-manager", summary_text)
 
+    def test_installed_teams_discovery_and_filtering(self):
+        """Verify server parses all installed teams from workrules.md and returns them in /api/state."""
+        workforces_dir = self.root_path / "workforces"
+        workrules_file = workforces_dir / "workrules.md"
+        workrules_file.write_text("""# Work Rules
+
+## Type
+- type: workforce
+
+## Installed Teams
+- installed_teams:
+  - advisor
+  - compliance
+  - design
+  - dev
+  - growth
+  - marketing
+  - operations
+  - sales
+  - social
+  - launch
+""", encoding="utf-8")
+
+        teams = server.get_installed_teams_list(self.root_path)
+        self.assertEqual(len(teams), 10)
+        self.assertIn("advisor", teams)
+        self.assertIn("growth", teams)
+        self.assertIn("launch", teams)
+        self.assertIn("sales", teams)
+
+        # Test state API endpoint returns installed_teams
+        state_url = f"http://127.0.0.1:{self.port}/api/state"
+        req_state = urllib.request.Request(state_url)
+        with urllib.request.urlopen(req_state, timeout=3) as resp:
+            self.assertEqual(resp.status, 200)
+            state_data = json.loads(resp.read().decode("utf-8"))
+            self.assertEqual(state_data.get("installed_teams"), teams)
+
+        # Test creating a task with a specific team (e.g. sales)
+        task_data = server.create_task_file(self.root_path, {
+            "title": "Outbound Prospecting Sequence",
+            "priority": "P1",
+            "team": "sales",
+            "type": "sales",
+            "description": "Launch cold outreach sequence.",
+            "reporter": "@human"
+        })
+        self.assertEqual(task_data["team"], "sales")
+        self.assertEqual(task_data["delegated_to"], "@sales")
+
+        # Verify task is returned with team in get_all_tasks
+        all_tasks = server.get_all_tasks(self.root_path)
+        created_task = next((t for t in all_tasks if t["title"] == "Outbound Prospecting Sequence"), None)
+        self.assertIsNotNone(created_task)
+        self.assertEqual(created_task["team"], "sales")
+
 
 if __name__ == "__main__":
     unittest.main()

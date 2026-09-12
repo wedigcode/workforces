@@ -30,6 +30,10 @@
   --team-marketing-bg: #ecfdf5;
   --team-marketing-border: #a7f3d0;
 
+  --team-growth: #0d9488;
+  --team-growth-bg: #f0fdfa;
+  --team-growth-border: #99f6e4;
+
   --team-social: #7c3aed;
   --team-social-bg: #f5f3ff;
   --team-social-border: #ddd6fe;
@@ -42,13 +46,29 @@
   --team-strategy-bg: #fff7ed;
   --team-strategy-border: #fed7aa;
 
+  --team-advisor: #c2410c;
+  --team-advisor-bg: #fff7ed;
+  --team-advisor-border: #fed7aa;
+
   --team-ops: #0891b2;
   --team-ops-bg: #ecfeff;
   --team-ops-border: #a5f3fc;
 
+  --team-operations: #0891b2;
+  --team-operations-bg: #ecfeff;
+  --team-operations-border: #a5f3fc;
+
   --team-compliance: #475569;
   --team-compliance-bg: #f1f5f9;
   --team-compliance-border: #cbd5e1;
+
+  --team-sales: #b45309;
+  --team-sales-bg: #fffbeb;
+  --team-sales-border: #fde68a;
+
+  --team-launch: #ea580c;
+  --team-launch-bg: #fff7ed;
+  --team-launch-border: #ffedd5;
 
   /* Archival Status Indicators (WCAG AA Compliant) */
   --status-todo: #52525b;
@@ -360,11 +380,14 @@ body, html {
 
 .badge-dev { color: var(--team-dev); background-color: var(--team-dev-bg); border-color: var(--team-dev-border); }
 .badge-marketing { color: var(--team-marketing); background-color: var(--team-marketing-bg); border-color: var(--team-marketing-border); }
+.badge-growth { color: var(--team-growth); background-color: var(--team-growth-bg); border-color: var(--team-growth-border); }
 .badge-social { color: var(--team-social); background-color: var(--team-social-bg); border-color: var(--team-social-border); }
 .badge-design { color: var(--team-design); background-color: var(--team-design-bg); border-color: var(--team-design-border); }
-.badge-strategy { color: var(--team-strategy); background-color: var(--team-strategy-bg); border-color: var(--team-strategy-border); }
-.badge-ops { color: var(--team-ops); background-color: var(--team-ops-bg); border-color: var(--team-ops-border); }
+.badge-strategy, .badge-advisor { color: var(--team-strategy); background-color: var(--team-strategy-bg); border-color: var(--team-strategy-border); }
+.badge-ops, .badge-operations { color: var(--team-ops); background-color: var(--team-ops-bg); border-color: var(--team-ops-border); }
 .badge-compliance { color: var(--team-compliance); background-color: var(--team-compliance-bg); border-color: var(--team-compliance-border); }
+.badge-sales { color: var(--team-sales); background-color: var(--team-sales-bg); border-color: var(--team-sales-border); }
+.badge-launch { color: var(--team-launch); background-color: var(--team-launch-bg); border-color: var(--team-launch-border); }
 
 /* Archival Status Toggle Button (WCAG AA Compliant) */
 .status-pill {
