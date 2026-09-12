@@ -152,6 +152,30 @@ def format_event_summary(events: List[Dict[str, Any]]) -> str:
             lines.append("     - @project-manager: sequence task into active sprint / backlog")
             lines.append("     - @programmer: triage requirements and commence execution")
 
+        elif ev_type in ("task_started", "task_dispatched"):
+            title = payload.get("title", "Untitled Task")
+            task_type = payload.get("type", "feature")
+            priority = payload.get("priority", "P1")
+            team = payload.get("team", "dev")
+            agent = payload.get("agent") or payload.get("delegated_to", "@programmer")
+            file_path = payload.get("file", "")
+            action = payload.get("action", "")
+            description = payload.get("description", "")
+
+            lines.append(f"  Title:       {title}")
+            lines.append(f"  Priority:    {priority} | Team: {team} | Type: {task_type}")
+            lines.append(f"  Assigned:    {agent}")
+            if file_path:
+                lines.append(f"  File:        {file_path}")
+            if action:
+                lines.append(f"  Action:      {action}")
+            if description:
+                desc_snip = description[:300] + ("..." if len(description) > 300 else "")
+                lines.append(f"  Description: {desc_snip}")
+            lines.append("  👉 Directives:")
+            lines.append(f"     - {agent}: commence immediate autonomous execution of this task")
+            lines.append("     - @scribe: record session context & task lineage if appropriate")
+
         else:
             for k, v in payload.items():
                 lines.append(f"  {k}: {v}")

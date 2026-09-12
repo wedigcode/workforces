@@ -1160,7 +1160,51 @@ Profile queries.
         self.assertIsNotNone(created_task)
         self.assertEqual(created_task["team"], "sales")
 
+    def test_task_started_event_emission_and_formatting(self):
+        """Verify transitioning a task to in_progress emits task_started event picked up by wait_for_message."""
+        # Create a sample todo task
+        todo_task_file = self.tasks_dir / "20260912-100000-sample-todo.md"
+        todo_task_file.write_text("""---
+id: "task-todo-99"
+title: "Implement Dark Mode Switch"
+type: "feature"
+team: "design"
+priority: "P1"
+status: "todo"
+reporter: "@human"
+blocked_by: []
+---
+User wants to toggle dark mode from the navigation bar.
+""", encoding="utf-8")
+
+        # Update task status to in_progress via update_task_file
+        rel_path = str(todo_task_file.relative_to(self.root_path))
+        server.update_task_file(self.root_path, rel_path, {"status": "in_progress"})
+
+        # Check that an event was written to workforces/.events/pending/
+        pending_dir = self.root_path / "workforces" / ".events" / "pending"
+        self.assertTrue(pending_dir.exists())
+        pending_files = list(pending_dir.glob("*.json"))
+        self.assertTrue(len(pending_files) >= 1)
+
+        # Process the pending events using wait_for_message
+        events = wait_for_message.process_pending_events(self.root_path)
+        self.assertTrue(len(events) >= 1)
+        started_event = next((e for e in events if e.get("event_type") == "task_started" and e.get("payload", {}).get("id") == "task-todo-99"), None)
+        self.assertIsNotNone(started_event)
+        self.assertEqual(started_event["payload"]["title"], "Implement Dark Mode Switch")
+        self.assertEqual(started_event["payload"]["status"], "in_progress")
+        self.assertEqual(started_event["payload"]["agent"], "@designer")
+
+        # Format the event summary and assert directives are present
+        summary = wait_for_message.format_event_summary(events)
+        self.assertIn("EVENT: TASK_STARTED", summary)
+        self.assertIn("Implement Dark Mode Switch", summary)
+        self.assertIn("Assigned:    @designer", summary)
+        self.assertIn("@designer: commence immediate autonomous execution", summary)
+
 
 if __name__ == "__main__":
     unittest.main()
+
 

@@ -1035,6 +1035,25 @@ def queue_task_execution(root_dir: Path, task_path: Path, task_meta: Dict[str, A
     print(f"👉 File: {rel_file}")
     sys.stdout.flush()
 
+    # Emit task_started event so wait_for_message.py picks it up and alerts Antigravity
+    try:
+        event_payload = {
+            "id": task_id,
+            "title": title,
+            "file": rel_file,
+            "team": task_meta.get("team") or "dev",
+            "type": task_meta.get("type") or "dev",
+            "priority": task_meta.get("priority") or "P1",
+            "status": "in_progress",
+            "agent": agent,
+            "delegated_to": agent,
+            "action": action or task_meta.get("suggested_action") or f"Execute task {title}",
+            "description": task_meta.get("description") or task_meta.get("_body", "")
+        }
+        emit_event(root_dir, "task_started", event_payload)
+    except Exception as ev_err:
+        sys.stderr.write(f"Failed to emit task_started event: {ev_err}\n")
+
     return entry
 
 
