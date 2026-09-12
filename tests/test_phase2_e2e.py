@@ -34,7 +34,7 @@ VALIDATE_REFERENCES_SCRIPT = SCRIPTS_DIR / "validate-references.py"
 PERSONAL_SYNC_SCRIPT = SKILLS_DIR / "task-tracker" / "scripts" / "personal_sync.py"
 
 # Authoritative Constants derived from PROJECT.md and ORIGINAL_REQUEST.md
-EXPECTED_SKILL_COUNT = 37
+EXPECTED_SKILL_COUNT = 39
 EXPECTED_EXECUTION_AGENTS = {
     "programmer.md",
     "designer.md",

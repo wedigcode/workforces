@@ -160,9 +160,9 @@ class TestEmpiricalSemanticDiscovery(unittest.TestCase):
 
         cls.retriever = BM25Retriever(cls.skills)
 
-    def test_all_37_skills_present(self):
-        """Assert exactly 37 skills are indexed."""
-        self.assertEqual(len(self.skills), 37, f"Expected 37 skills, found {len(self.skills)}")
+    def test_all_39_skills_present(self):
+        """Assert exactly 39 skills are indexed."""
+        self.assertEqual(len(self.skills), 39, f"Expected 39 skills, found {len(self.skills)}")
 
     def test_strict_yaml_validity_via_ruby_psych(self):
         """Empirically test every SKILL.md with Ruby's libyaml engine (Psych) in strict mode."""

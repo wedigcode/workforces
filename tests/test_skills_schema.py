@@ -14,18 +14,20 @@ from typing import Any, Dict, Optional
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SKILLS_DIR = REPO_ROOT / "skills"
 
-# 6 discrete slash-command workflow skills (wf-work retired per R3)
+# 8 discrete slash-command workflow skills (wf-work retired per R3)
 DISCRETE_WF_SKILLS = {
     "wf-advisor",
+    "wf-dashboard",
     "wf-ideate",
     "wf-investigate",
     "wf-plan",
     "wf-question-formulation",
     "wf-sync",
+    "wf-update",
 }
 
-# Total expected skills: 31 domain skills + 6 discrete wf-* skills = 37
-EXPECTED_TOTAL_SKILLS = 37
+# Total expected skills: 31 domain skills + 8 discrete wf-* skills = 39
+EXPECTED_TOTAL_SKILLS = 39
 
 
 def parse_yaml_frontmatter(content: str) -> Optional[Dict[str, str]]:

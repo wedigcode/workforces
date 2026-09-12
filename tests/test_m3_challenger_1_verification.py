@@ -143,12 +143,12 @@ class TestMilestone3EmpiricalChallenger(unittest.TestCase):
         self.assertFalse((SKILLS_DIR / "wf-work").exists(), "skills/wf-work must not exist")
         self.assertFalse((WORKFLOWS_DIR / "wf-work.md").exists(), "workflows/wf-work.md must not exist")
 
-    def test_exactly_37_skills_in_skills_dir(self):
-        """Verify exactly 37 skills exist in skills/ directory."""
+    def test_exactly_39_skills_in_skills_dir(self):
+        """Verify exactly 39 skills exist in skills/ directory."""
         self.assertEqual(
             len(self.skill_dirs),
-            37,
-            f"Expected exactly 37 skills in skills/, but found {len(self.skill_dirs)}: {[d.name for d in self.skill_dirs]}"
+            39,
+            f"Expected exactly 39 skills in skills/, but found {len(self.skill_dirs)}: {[d.name for d in self.skill_dirs]}"
         )
         self.assertNotIn("wf-work", [d.name for d in self.skill_dirs])
 

@@ -21,7 +21,7 @@ CORE_SKILLS = {
     'session-context', 'usage-tracker', 'integrity-validator', 'workforce-canvas',
     'github-project-planning', 'hypothesis-tracker',
     'wf-plan', 'wf-sync', 'wf-advisor', 'wf-ideate', 'wf-investigate',
-    'wf-question-formulation'
+    'wf-question-formulation', 'wf-update', 'wf-dashboard'
 }
 CORE_WORKFLOWS = set()
 CORE_PLUGINS = {'workforce-usage-plugin', 'workforce-integrity-plugin'}
