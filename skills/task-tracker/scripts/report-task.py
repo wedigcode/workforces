@@ -275,6 +275,7 @@ def build_task_markdown(
     suggested_action: str = "",
     file_path: str = "",
     session_id: str = "",
+    chat_session_id: str = "",
     session_file: str = "",
     recommended_tools: Optional[List[str]] = None,
     delegated_to: Optional[str] = None,
@@ -300,6 +301,7 @@ def build_task_markdown(
         "updated_at": up_now.isoformat(),
         "file": file_path or "",
         "session_id": session_id or None,
+        "chat_session_id": chat_session_id or os.environ.get("ANTIGRAVITY_CONVERSATION_ID") or None,
         "session_file": session_file or None,
         "recommended_tools": recommended_tools or [],
         "delegated_to": delegated_to or None,
@@ -558,6 +560,10 @@ def main() -> None:
     parser.add_argument("--description", default="", help="Full description of the task or action")
     parser.add_argument("--suggested-action", default="", help="Recommended next step or implementation plan")
     parser.add_argument("--session-id", default="", help="Associated session sequence ID (e.g. '026')")
+    parser.add_argument(
+        "--chat-session-id", default="",
+        help="Antigravity chat session ID (auto-detected from ANTIGRAVITY_CONVERSATION_ID if omitted)",
+    )
     parser.add_argument("--session-file", default="", help="Path to session context markdown note")
     parser.add_argument(
         "--tools", "--recommended-tools", dest="recommended_tools",
@@ -770,6 +776,8 @@ def main() -> None:
             meta["file"] = args.file
         if args.session_id:
             meta["session_id"] = args.session_id
+        if args.chat_session_id:
+            meta["chat_session_id"] = args.chat_session_id
         if args.session_file:
             meta["session_file"] = args.session_file
         if args.recommended_tools:
@@ -990,6 +998,7 @@ def main() -> None:
         suggested_action=args.suggested_action,
         file_path=args.file,
         session_id=args.session_id,
+        chat_session_id=args.chat_session_id,
         session_file=args.session_file,
         recommended_tools=tools_list,
         delegated_to=args.delegated_to,

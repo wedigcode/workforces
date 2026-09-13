@@ -77,8 +77,11 @@
       state.git = data.git || {};
       state.installedTeams = data.installed_teams || [];
       state.workstateMarkdown = data.workstate_markdown || '';
+      state.chatSessions = data.chat_sessions || {};
+      state.currentChatSessionId = data.current_chat_session_id || '';
       updateTopBarStats();
       populateTaskModalTeams();
+      populateChatSessionSelectors();
       renderStandupCockpit();
     } catch (err) {
       console.error('Fetch error:', err);
@@ -1455,6 +1458,11 @@
     document.getElementById('drawer-status').value = task.status;
     document.getElementById('drawer-priority').value = task.priority;
 
+    const drawerChatSelect = document.getElementById('drawer-chat-session');
+    if (drawerChatSelect) {
+      drawerChatSelect.value = task.chat_session_id || task.session_id || '';
+    }
+
     const bodyEl = document.getElementById('drawer-body');
     if (window.marked) {
       bodyEl.innerHTML = window.marked.parse(task.body || '*No task description available.*');
@@ -1470,9 +1478,14 @@
     saveBtn.onclick = () => {
       const newStatus = document.getElementById('drawer-status').value;
       const newPriority = document.getElementById('drawer-priority').value;
+      const newChatSession = drawerChatSelect ? drawerChatSelect.value : (task.chat_session_id || '');
       const note = document.getElementById('drawer-note-input').value.trim();
 
-      const updates = { status: newStatus, priority: newPriority };
+      const updates = {
+        status: newStatus,
+        priority: newPriority,
+        chat_session_id: newChatSession
+      };
       if (note) updates.evolution_note = note;
 
       updateTaskOnServer(task.file, updates);
@@ -2629,6 +2642,109 @@
     }
   }
 
+  function populateChatSessionSelectors() {
+    const sessions = state.chatSessions || {};
+    const currId = state.currentChatSessionId || '';
+
+    // 1. Task Modal dropdown
+    const modalSelect = document.getElementById('task-modal-chat-session');
+    if (modalSelect) {
+      const prevVal = modalSelect.value;
+      modalSelect.innerHTML = '<option value="">(Auto-assign to current chat)</option>';
+      Object.entries(sessions).forEach(([sid, sinfo]) => {
+        const opt = document.createElement('option');
+        opt.value = sid;
+        const alias = sinfo.alias || `Chat ${sinfo.short_id || sid.slice(0, 8)}`;
+        const roleTag = sinfo.role ? ` [${sinfo.role}]` : '';
+        const portTag = sinfo.port ? ` :${sinfo.port}` : '';
+        opt.innerText = `${alias}${roleTag}${portTag}${sid === currId ? ' (current)' : ''}`;
+        if (prevVal === sid || (!prevVal && sid === currId)) {
+          opt.selected = true;
+        }
+        modalSelect.appendChild(opt);
+      });
+    }
+
+    // 2. Task Inspector Drawer dropdown
+    const drawerSelect = document.getElementById('drawer-chat-session');
+    if (drawerSelect) {
+      const prevVal = drawerSelect.value;
+      drawerSelect.innerHTML = '<option value="">(Any / Default Chat)</option>';
+      Object.entries(sessions).forEach(([sid, sinfo]) => {
+        const opt = document.createElement('option');
+        opt.value = sid;
+        const alias = sinfo.alias || `Chat ${sinfo.short_id || sid.slice(0, 8)}`;
+        const roleTag = sinfo.role ? ` [${sinfo.role}]` : '';
+        opt.innerText = `${alias}${roleTag}${sid === currId ? ' (current)' : ''}`;
+        if (prevVal === sid) {
+          opt.selected = true;
+        }
+        drawerSelect.appendChild(opt);
+      });
+    }
+
+    // 3. Message Session Target dropdown
+    const msgSelect = document.getElementById('session-message-target');
+    if (msgSelect) {
+      const prevVal = msgSelect.value;
+      msgSelect.innerHTML = '<option value="all">All Active Sessions (Broadcast)</option>';
+      Object.entries(sessions).forEach(([sid, sinfo]) => {
+        const opt = document.createElement('option');
+        opt.value = sid;
+        const alias = sinfo.alias || `Chat ${sinfo.short_id || sid.slice(0, 8)}`;
+        const roleTag = sinfo.role ? ` [${sinfo.role}]` : '';
+        const portTag = sinfo.port ? ` :${sinfo.port}` : '';
+        opt.innerText = `${alias}${roleTag}${portTag}${sid === currId ? ' (current)' : ''}`;
+        if (prevVal === sid) {
+          opt.selected = true;
+        }
+        msgSelect.appendChild(opt);
+      });
+    }
+  }
+
+  let currentKanbanSessionFilter = 'all';
+
+  function renderSessionFilterChips(containerId, activeSessionId, onSelect) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    const sessions = state.chatSessions || {};
+    const currActive = activeSessionId || 'all';
+
+    let html = `
+      <button class="session-filter-chip ${currActive === 'all' ? 'active' : ''}" data-session="all">
+        <i data-lucide="messages-square" class="w-3 h-3"></i>
+        <span>All Chats</span>
+      </button>
+    `;
+
+    Object.entries(sessions).forEach(([sid, sinfo]) => {
+      const isActive = currActive === sid;
+      const alias = sinfo.alias || `Chat ${sinfo.short_id || sid.slice(0, 8)}`;
+      const isCurrent = (sid === state.currentChatSessionId);
+      html += `
+        <button class="session-filter-chip ${isActive ? 'active' : ''}" data-session="${sid}" title="${escapeHtml(sid)}">
+          <i data-lucide="message-square" class="w-3 h-3"></i>
+          <span>${escapeHtml(alias)}${isCurrent ? ' *' : ''}</span>
+        </button>
+      `;
+    });
+
+    container.innerHTML = html;
+
+    const chips = container.querySelectorAll('.session-filter-chip');
+    chips.forEach(chip => {
+      chip.onclick = () => {
+        chips.forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        const selected = chip.getAttribute('data-session') || 'all';
+        onSelect(selected);
+      };
+    });
+
+    if (window.lucide) window.lucide.createIcons();
+  }
+
   let currentTasksStageTeamFilter = 'all';
 
   function renderTasksStage() {
@@ -2701,6 +2817,7 @@
             <div class="flex items-center gap-1.5">
               <span class="text-[9px] font-mono font-bold uppercase px-1.5 py-0.2 rounded ${task.priority === 'P0' ? 'bg-[#fee2e2] text-[#b91c1c]' : 'bg-[#f4f4f5] text-[#4d4d4d]'}">${task.priority || 'P1'}</span>
               <span class="badge-team badge-${(task.team || 'dev').toLowerCase()}">${(task.team || 'dev').toUpperCase()}</span>
+              ${task.chat_session_id ? `<span class="badge-chat-session ${task.chat_session_id === state.currentChatSessionId ? 'is-active-session' : ''}" title="Assigned chat session: ${escapeHtml(task.chat_session_id)}"><i data-lucide="message-square" class="w-2.5 h-2.5"></i> ${(state.chatSessions[task.chat_session_id]?.alias || task.chat_session_id.slice(0, 8))}</span>` : ''}
             </div>
             ${statusBadge}
           </div>
@@ -3084,9 +3201,13 @@
     const statWins = document.getElementById('stat-card-wins');
     if (statWins) statWins.innerText = wins.length;
 
-    // 4. Render 4-Column Sprint Kanban & Dynamic Team Filter Chips
+    // 4. Render Sprint Kanban & Dynamic Team/Session Filter Chips
     renderTeamFilterChips('kanban-team-filters', currentKanbanTeamFilter, (selectedTeam) => {
       currentKanbanTeamFilter = selectedTeam;
+      renderKanbanColumns();
+    });
+    renderSessionFilterChips('kanban-session-filters', currentKanbanSessionFilter, (selectedSession) => {
+      currentKanbanSessionFilter = selectedSession;
       renderKanbanColumns();
     });
     renderKanbanColumns();
@@ -3158,8 +3279,9 @@
     // Filter out archived tasks from the active sprint pipeline board
     const tasks = allTasks.filter(t => !t.archived && t.status !== 'archived');
     const filterTeam = currentKanbanTeamFilter.toLowerCase();
+    const filterSession = (currentKanbanSessionFilter || 'all').trim();
 
-    const filtered = filterTeam === 'all' 
+    let filtered = filterTeam === 'all' 
       ? tasks 
       : tasks.filter(t => {
           const taskTeam = (t.team || 'dev').toLowerCase();
@@ -3168,6 +3290,13 @@
           }
           return taskTeam === filterTeam;
         });
+
+    if (filterSession !== 'all') {
+      filtered = filtered.filter(t => {
+        const sid = (t.chat_session_id || t.session_id || '').trim();
+        return sid === filterSession;
+      });
+    }
 
     // Exact pipeline order requested by user: Up Next (todo), In Progress, Review, Blocked / Stalled, Completed (done)
     const cols = {
@@ -3305,8 +3434,11 @@
 
         card.innerHTML = `
           <div class="flex items-center justify-between mb-1.5">
-            <span class="text-[9px] font-mono font-bold uppercase px-1.5 py-0.2 rounded ${task.priority === 'P0' ? 'bg-[#fee2e2] text-[#b91c1c]' : 'bg-[#f4f4f5] text-[#4d4d4d]'}">${task.priority || 'P1'}</span>
-            <span class="text-[9.5px] font-mono uppercase text-[#828282]">${(task.team || 'dev').toUpperCase()}</span>
+            <div class="flex items-center gap-1">
+              <span class="text-[9px] font-mono font-bold uppercase px-1.5 py-0.2 rounded ${task.priority === 'P0' ? 'bg-[#fee2e2] text-[#b91c1c]' : 'bg-[#f4f4f5] text-[#4d4d4d]'}">${task.priority || 'P1'}</span>
+              <span class="text-[9.5px] font-mono uppercase text-[#828282]">${(task.team || 'dev').toUpperCase()}</span>
+            </div>
+            ${task.chat_session_id ? `<span class="badge-chat-session ${task.chat_session_id === state.currentChatSessionId ? 'is-active-session' : ''}" title="Assigned chat session: ${escapeHtml(task.chat_session_id)}"><i data-lucide="message-square" class="w-2.5 h-2.5"></i> ${(state.chatSessions[task.chat_session_id]?.alias || task.chat_session_id.slice(0, 8))}</span>` : ''}
           </div>
           <h4 class="text-xs font-semibold text-[#202020] leading-snug mb-2 hover:text-[#c2410c] transition-colors cursor-pointer">${escapeHtml(task.title)}</h4>
           <div class="flex items-center justify-between pt-2 border-t border-[#f4f4f5]">
@@ -3584,6 +3716,9 @@
         const team = teamEl ? teamEl.value : 'dev';
         const desc = descTextarea ? descTextarea.value.trim() : '';
 
+        const chatSessionSelect = document.getElementById('task-modal-chat-session');
+        const selectedChatSession = chatSessionSelect ? chatSessionSelect.value : '';
+
         if (!title) {
           alert('Please enter a title for the task.');
           document.getElementById('task-modal-title').focus();
@@ -3604,6 +3739,7 @@
               type: team,
               team: team,
               description: desc,
+              chat_session_id: selectedChatSession,
               suggested_action: 'Triage requirements and begin autonomous execution.',
               reporter: '@human',
               images: attachedImages
@@ -3622,6 +3758,84 @@
         } finally {
           taskModalSave.disabled = false;
           taskModalSave.innerHTML = '<i data-lucide="sparkles" class="w-3.5 h-3.5 text-[#fbbf24]"></i><span>Submit Task to AI</span>';
+          if (window.lucide) window.lucide.createIcons();
+        }
+      };
+    }
+
+    // Message Chat Session Modal wiring
+    setupSessionMessaging();
+  }
+
+  function setupSessionMessaging() {
+    const btnOpenMsg = document.getElementById('btn-message-chat-session');
+    const msgModal = document.getElementById('session-message-modal');
+    const btnCloseMsg = document.getElementById('btn-session-message-close');
+    const btnCancelMsg = document.getElementById('btn-session-message-cancel');
+    const btnSendMsg = document.getElementById('btn-session-message-send');
+    const targetSelect = document.getElementById('session-message-target');
+    const msgInput = document.getElementById('session-message-input');
+
+    function openMsgModal() {
+      if (!msgModal) return;
+      populateChatSessionSelectors();
+      if (currentKanbanSessionFilter && currentKanbanSessionFilter !== 'all' && targetSelect) {
+        targetSelect.value = currentKanbanSessionFilter;
+      }
+      msgModal.classList.remove('hidden');
+      if (msgInput) {
+        msgInput.value = '';
+        msgInput.focus();
+      }
+      if (window.lucide) window.lucide.createIcons();
+    }
+
+    function closeMsgModal() {
+      if (!msgModal) return;
+      msgModal.classList.add('hidden');
+    }
+
+    if (btnOpenMsg) btnOpenMsg.onclick = openMsgModal;
+    if (btnCloseMsg) btnCloseMsg.onclick = closeMsgModal;
+    if (btnCancelMsg) btnCancelMsg.onclick = closeMsgModal;
+
+    if (btnSendMsg && msgInput) {
+      btnSendMsg.onclick = async () => {
+        const text = msgInput.value.trim();
+        const targetSid = targetSelect ? targetSelect.value : 'all';
+        if (!text) {
+          alert('Please enter a directive message for the chat session.');
+          msgInput.focus();
+          return;
+        }
+
+        btnSendMsg.disabled = true;
+        btnSendMsg.innerHTML = '<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i> Sending...';
+        if (window.lucide) window.lucide.createIcons();
+
+        try {
+          const res = await fetch('/api/chat-sessions/message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              session_id: targetSid,
+              message: text,
+              sender: '@human',
+              priority: 'P1'
+            })
+          });
+          if (res.ok) {
+            closeMsgModal();
+            alert(`Directive dispatched to chat session (${targetSid})!`);
+          } else {
+            const errData = await res.json();
+            alert(`Failed to send message: ${errData.error || 'Server error'}`);
+          }
+        } catch (err) {
+          alert(`Error sending message: ${err.message}`);
+        } finally {
+          btnSendMsg.disabled = false;
+          btnSendMsg.innerHTML = '<i data-lucide="send" class="w-3.5 h-3.5 text-[#c2410c]"></i><span>Send Directive</span>';
           if (window.lucide) window.lucide.createIcons();
         }
       };

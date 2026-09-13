@@ -937,6 +937,59 @@ body, html {
   border-color: #202020;
 }
 
+/* Chat Session Filter Chips */
+.session-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 500;
+  background-color: #f4f4f5;
+  color: var(--text-muted);
+  border: 1px solid var(--border-subtle);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.session-filter-chip:hover {
+  background-color: #e4e4e7;
+  color: var(--text-main);
+}
+
+.session-filter-chip.active {
+  background-color: #c2410c;
+  color: #ffffff;
+  border-color: #c2410c;
+}
+
+.session-filter-chip.active i {
+  color: #ffffff !important;
+}
+
+/* Chat Session Badge on Task Cards */
+.badge-chat-session {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  font-weight: 600;
+  background-color: #faf5ff;
+  color: #7e22ce;
+  border: 1px solid #e9d5ff;
+}
+
+.badge-chat-session.is-active-session {
+  background-color: #fdf4ff;
+  color: #a21caf;
+  border-color: #f0abfc;
+}
+
 .kanban-card {
   background-color: #ffffff;
   border: 1px solid var(--border-subtle);

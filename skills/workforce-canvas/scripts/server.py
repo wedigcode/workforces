@@ -61,6 +61,30 @@ except ImportError:
     load_code_graph = None
     resolve_target_dir = None
 
+try:
+    from session_registry import (
+        detect_current_chat_session,
+        get_chat_sessions,
+        register_chat_session,
+        heartbeat_chat_session,
+        unregister_chat_session,
+        emit_session_directive,
+    )
+except ImportError:
+    # Safe fallbacks if running in standalone test environment
+    def detect_current_chat_session(fallback=None):
+        return os.environ.get("ANTIGRAVITY_CONVERSATION_ID") or fallback or "session-default"
+    def get_chat_sessions(root_dir, prune_stale_seconds=120):
+        return {}
+    def register_chat_session(root_dir, session_id, **kwargs):
+        return {"session_id": session_id}
+    def heartbeat_chat_session(root_dir, session_id, **kwargs):
+        return True
+    def unregister_chat_session(root_dir, session_id, **kwargs):
+        return True
+    def emit_session_directive(root_dir, target_session_id, message, **kwargs):
+        return {"event_type": "session_directive", "target_chat_session_id": target_session_id}
+
 
 def parse_yaml_frontmatter(file_path: Path) -> Dict[str, Any]:
     """Extract YAML frontmatter and body from a markdown file with zero pyyaml dependency."""
@@ -227,6 +251,7 @@ def get_all_tasks(root_dir: Path) -> List[Dict[str, Any]]:
             "assignee": meta.get("assignee") or "",
             "reviewer": reviewer,
             "session_id": meta.get("session_id") or "",
+            "chat_session_id": meta.get("chat_session_id") or meta.get("chat_session") or "",
             "session_file": meta.get("session_file") or meta.get("origin_session") or "",
             "github_issue": meta.get("github_issue") or "",
             "github_pr": meta.get("github_pr") or "",
@@ -655,6 +680,7 @@ def create_task_file(root_dir: Path, data: Dict[str, Any]) -> Dict[str, Any]:
     delegated = resolve_task_agent({"type": task_type, "team": team, "reporter": reporter})
     suggested_action = data.get("suggested_action", "").strip()
     description = data.get("description", "").strip() or data.get("body", "").strip()
+    chat_session_id = data.get("chat_session_id") or data.get("chat_session") or detect_current_chat_session()
     
     body_text = f"""# {title}
 
@@ -685,6 +711,7 @@ reported_at: "{now.isoformat()}"
 updated_at: "{now.isoformat()}"
 file: "{str(task_path.relative_to(root_dir))}"
 session_id: ""
+chat_session_id: "{chat_session_id}"
 session_file: ""
 recommended_tools: []
 delegated_to: "{delegated}"
@@ -714,6 +741,7 @@ github_pr: ~
         "reporter": reporter,
         "assignee": assignee or delegated,
         "delegated_to": delegated,
+        "chat_session_id": chat_session_id,
         "body": body_text
     }
 
@@ -1232,7 +1260,7 @@ def update_task_file(root_dir: Path, relative_file: str, updates: Dict[str, Any]
 
 
 def write_session_state(root_dir: Path, status: str, port: int, pid: int, extra: Optional[Dict[str, Any]] = None):
-    """Write or update workforces/.canvas-session.json with current runtime telemetry."""
+    """Write or update workforces/.canvas-session.json and .canvas-servers.json with runtime telemetry."""
     try:
         session_file = root_dir / "workforces" / ".canvas-session.json"
         session_file.parent.mkdir(parents=True, exist_ok=True)
@@ -1246,8 +1274,49 @@ def write_session_state(root_dir: Path, status: str, port: int, pid: int, extra:
         if extra:
             data.update(extra)
         session_file.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+        # Multi-server tracking across ports
+        servers_file = root_dir / "workforces" / ".canvas-servers.json"
+        servers_data = {}
+        if servers_file.exists():
+            try:
+                servers_data = json.loads(servers_file.read_text(encoding="utf-8"))
+            except Exception:
+                servers_data = {}
+        if not isinstance(servers_data, dict):
+            servers_data = {}
+
+        port_str = str(port)
+        if status == "stopped":
+            if port_str in servers_data:
+                servers_data[port_str]["status"] = "stopped"
+                servers_data[port_str]["stopped_at"] = datetime.datetime.now().isoformat()
+        else:
+            servers_data[port_str] = {
+                "port": port,
+                "pid": pid,
+                "status": status,
+                "url": f"http://127.0.0.1:{port}",
+                "chat_session_id": (extra or {}).get("chat_session_id", ""),
+                "updated_at": datetime.datetime.now().isoformat(),
+            }
+        servers_file.write_text(json.dumps(servers_data, indent=2), encoding="utf-8")
+
+        # Session registry update
+        chat_sess = (extra or {}).get("chat_session_id") or detect_current_chat_session()
+        if status == "running":
+            register_chat_session(
+                root_dir=root_dir,
+                session_id=chat_sess,
+                role="webserver",
+                port=port,
+                pid=pid,
+                status="active"
+            )
+        elif status == "stopped":
+            unregister_chat_session(root_dir=root_dir, session_id=chat_sess, status="stopped")
     except Exception as e:
-        sys.stderr.write(f"Error writing .canvas-session.json: {e}\n")
+        sys.stderr.write(f"Error writing session state: {e}\n")
 
 
 def get_comments(root_dir: Path, target_id: Optional[str] = None) -> List[Dict[str, Any]]:
@@ -1759,6 +1828,14 @@ class WorkforceCanvasHandler(http.server.SimpleHTTPRequestHandler):
             })
         elif path == "/api/state":
             self.send_json_response(self.handle_get_state())
+        elif path == "/api/chat-sessions":
+            sessions = get_chat_sessions(self.root_dir)
+            current_sid = getattr(self, "chat_session_id", None) or getattr(WorkforceCanvasHandler, "chat_session_id", None) or detect_current_chat_session()
+            self.send_json_response({
+                "chat_sessions": sessions,
+                "current_chat_session_id": current_sid,
+                "count": len(sessions)
+            })
         elif path in ("/api/sync", "/api/standup"):
             if sync_workstate_from_tasks:
                 try:
@@ -1999,6 +2076,64 @@ li {{ margin: 4px 0; }}
             fresh_state = self.handle_get_state()
             self.send_json_response({"success": True, "message": "Workstate synchronized from tasks", "state": fresh_state})
 
+        elif path == "/api/chat-sessions/register":
+            session_id = data.get("session_id") or data.get("id") or detect_current_chat_session()
+            alias = data.get("alias")
+            role = data.get("role", "watcher")
+            port = data.get("port")
+            pid = data.get("pid")
+            status = data.get("status", "active")
+            reg_entry = register_chat_session(
+                root_dir=self.root_dir,
+                session_id=session_id,
+                alias=alias,
+                role=role,
+                port=port,
+                pid=pid,
+                status=status
+            )
+            self.send_json_response({"success": True, "session": reg_entry})
+
+        elif path == "/api/chat-sessions/heartbeat":
+            session_id = data.get("session_id") or data.get("id")
+            if not session_id:
+                self.send_error(400, "Missing 'session_id'")
+                return
+            current_task = data.get("current_task")
+            heartbeat_chat_session(self.root_dir, session_id, current_task=current_task)
+            self.send_json_response({"success": True, "session_id": session_id})
+
+        elif path == "/api/chat-sessions/message":
+            target_sid = data.get("session_id") or data.get("target_chat_session_id") or "all"
+            message_text = data.get("message", "").strip()
+            sender = data.get("sender", "@human")
+            priority = data.get("priority", "P1")
+            action = data.get("action")
+            if not message_text:
+                self.send_error(400, "Missing 'message' content")
+                return
+            ev_record = emit_session_directive(
+                root_dir=self.root_dir,
+                target_session_id=target_sid,
+                message=message_text,
+                sender=sender,
+                priority=priority,
+                action=action
+            )
+            self.send_json_response({"success": True, "event": ev_record})
+
+        elif path == "/api/task/assign-session":
+            file_rel = data.get("file")
+            chat_session_id = data.get("chat_session_id") or data.get("session_id") or ""
+            if not file_rel:
+                self.send_error(400, "Missing 'file' parameter")
+                return
+            try:
+                task_res = update_task_file(self.root_dir, file_rel, {"chat_session_id": chat_session_id})
+                self.send_json_response({"success": True, "task": task_res})
+            except Exception as err:
+                self.send_error(500, f"Assign chat session failed: {err}")
+
         elif path == "/api/task/create":
             try:
                 task_res = create_task_file(self.root_dir, data)
@@ -2233,6 +2368,8 @@ li {{ margin: 4px 0; }}
             "installed_teams": standup.get("installed_teams", []),
             "workstate_markdown": standup.get("workstate_markdown", ""),
             "stats": stats,
+            "chat_sessions": get_chat_sessions(self.root_dir),
+            "current_chat_session_id": getattr(self, "chat_session_id", None) or getattr(WorkforceCanvasHandler, "chat_session_id", None) or detect_current_chat_session(),
             "timestamp": datetime.datetime.now().isoformat(),
         }
 
@@ -2271,12 +2408,16 @@ def run_server(
     root_dir: Optional[str] = None,
     open_browser: bool = False,
     idle_timeout: int = 300,
+    chat_session_id: Optional[str] = None,
+    alias: Optional[str] = None,
 ):
     resolved_root = Path(root_dir).resolve() if root_dir else Path.cwd().resolve()
+    actual_chat_session = chat_session_id or detect_current_chat_session()
     WorkforceCanvasHandler.root_dir = resolved_root
     WorkforceCanvasHandler.idle_timeout = idle_timeout
     WorkforceCanvasHandler.last_activity_time = time.time()
     WorkforceCanvasHandler.is_shutting_down = False
+    WorkforceCanvasHandler.chat_session_id = actual_chat_session
 
     class ReusableTCPServer(socketserver.TCPServer):
         allow_reuse_address = True
@@ -2300,8 +2441,18 @@ def run_server(
     WorkforceCanvasHandler.httpd_instance = httpd
     WorkforceCanvasHandler.server_port = selected_port
 
-    # Record active session state to workforces/.canvas-session.json
-    write_session_state(resolved_root, "running", selected_port, os.getpid(), {"started_at": datetime.datetime.now().isoformat()})
+    # Record active session state to workforces/.canvas-session.json & .canvas-servers.json
+    write_session_state(
+        resolved_root,
+        "running",
+        selected_port,
+        os.getpid(),
+        {
+            "started_at": datetime.datetime.now().isoformat(),
+            "chat_session_id": actual_chat_session,
+            "alias": alias or f"Chat {actual_chat_session[:8]}"
+        }
+    )
 
     # Start Inbox Heartbeat Watcher for background task routing
     watcher = InboxHeartbeatWatcher(resolved_root)
@@ -2333,6 +2484,7 @@ def run_server(
             print(f"👉 Automatically allocated port: {selected_port}")
         print(f"\n🚀 Workforce Command Canvas active at: {url}")
         print(f"📁 Root workspace: {resolved_root}")
+        print(f"💬 Chat session: {actual_chat_session} ({alias or actual_chat_session[:8]})")
         print(f"📥 Inbox Watcher: active (monitoring workforces/inbox/pending/)")
         if idle_timeout > 0:
             print(f"⏱️  Auto-shutdown watchdog: {idle_timeout}s idle timeout (auto-stops when browser tab closes)")
@@ -2355,7 +2507,16 @@ def run_server(
             WorkforceCanvasHandler.is_shutting_down = True
             if watcher:
                 watcher.stop()
-            write_session_state(resolved_root, "stopped", selected_port, os.getpid(), {"stopped_at": datetime.datetime.now().isoformat()})
+            write_session_state(
+                resolved_root,
+                "stopped",
+                selected_port,
+                os.getpid(),
+                {
+                    "stopped_at": datetime.datetime.now().isoformat(),
+                    "chat_session_id": actual_chat_session
+                }
+            )
 
 
 if __name__ == "__main__":
@@ -2365,6 +2526,16 @@ if __name__ == "__main__":
     parser.add_argument("--root", type=str, default="./", help="Root workforce directory")
     parser.add_argument("--open", action="store_true", help="Automatically open canvas in default browser")
     parser.add_argument("--idle-timeout", type=int, default=300, help="Idle timeout in seconds before auto-shutdown (default: 300 / 5 minutes, 0 to disable)")
+    parser.add_argument("--chat-session-id", type=str, default=None, help="Antigravity chat session ID (auto-detected by default)")
+    parser.add_argument("--alias", type=str, default=None, help="Human-readable alias for this chat session")
 
     args = parser.parse_args()
-    run_server(port=args.port, host=args.host, root_dir=args.root, open_browser=args.open, idle_timeout=args.idle_timeout)
+    run_server(
+        port=args.port,
+        host=args.host,
+        root_dir=args.root,
+        open_browser=args.open,
+        idle_timeout=args.idle_timeout,
+        chat_session_id=args.chat_session_id,
+        alias=args.alias,
+    )

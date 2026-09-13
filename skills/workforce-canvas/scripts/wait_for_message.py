@@ -26,6 +26,27 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+CURRENT_DIR = Path(__file__).resolve().parent
+if str(CURRENT_DIR) not in sys.path:
+    sys.path.insert(0, str(CURRENT_DIR))
+
+try:
+    from session_registry import (
+        detect_current_chat_session,
+        register_chat_session,
+        heartbeat_chat_session,
+        unregister_chat_session,
+    )
+except ImportError:
+    def detect_current_chat_session(fallback=None):
+        return os.environ.get("ANTIGRAVITY_CONVERSATION_ID") or fallback or "session-default"
+    def register_chat_session(root_dir, session_id, **kwargs):
+        return {"session_id": session_id}
+    def heartbeat_chat_session(root_dir, session_id, **kwargs):
+        return True
+    def unregister_chat_session(root_dir, session_id, **kwargs):
+        return True
+
 _STOP_REQUESTED = False
 
 
@@ -205,6 +226,23 @@ def format_event_summary(events: List[Dict[str, Any]]) -> str:
                 lines.append(f"     - {reviewer}: review completed work and provide approval or rework feedback")
             lines.append("     - @scribe: record session context & task lineage if appropriate")
 
+        elif ev_type in ("session_directive", "chat_message"):
+            sender = payload.get("sender", "@human")
+            msg = payload.get("message", "")
+            action = payload.get("action", "Directive from workforce dashboard")
+            prio = payload.get("priority", "P1")
+            target_sid = ev.get("target_chat_session_id") or payload.get("session_id", "current")
+
+            lines.append(f"  Sender:      {sender}")
+            lines.append(f"  Priority:    {prio}")
+            lines.append(f"  Target Chat: {target_sid}")
+            if action:
+                lines.append(f"  Context:     {action}")
+            lines.append(f"  Message:     {msg}")
+            lines.append("  👉 Directives:")
+            lines.append(f"     - Process human instruction and respond or begin autonomous execution immediately")
+            lines.append("     - @scribe: record session context & decisions if appropriate")
+
         else:
             for k, v in payload.items():
                 lines.append(f"  {k}: {v}")
@@ -213,7 +251,11 @@ def format_event_summary(events: List[Dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
-def process_pending_events(root_dir: Path, max_batch: int = 10) -> List[Dict[str, Any]]:
+def process_pending_events(
+    root_dir: Path,
+    max_batch: int = 10,
+    chat_session_id: Optional[str] = None,
+) -> List[Dict[str, Any]]:
     """Process pending events in chronological order, move them to processed/, and update cursor.json."""
     root_dir = Path(root_dir).resolve()
     events_dir = root_dir / "workforces" / ".events"
@@ -225,16 +267,31 @@ def process_pending_events(root_dir: Path, max_batch: int = 10) -> List[Dict[str
     if not pending_files:
         return []
 
-    if max_batch > 0:
-        batch_files = pending_files[:max_batch]
-    else:
-        batch_files = pending_files
-
     processed_events: List[Dict[str, Any]] = []
     last_id: Optional[str] = None
     last_ts: Optional[str] = None
 
-    for f in batch_files:
+    for f in pending_files:
+        if max_batch > 0 and len(processed_events) >= max_batch:
+            break
+
+        # Targeted event check BEFORE claiming: if event targets a different session, leave for that session
+        if chat_session_id:
+            try:
+                peek_data = json.loads(f.read_text(encoding="utf-8"))
+                target_sid = (
+                    peek_data.get("target_chat_session_id")
+                    or (peek_data.get("payload") or {}).get("target_chat_session_id")
+                    or (peek_data.get("payload") or {}).get("session_id")
+                    if peek_data.get("event_type") == "session_directive"
+                    else None
+                )
+                if target_sid and target_sid not in ("all", chat_session_id):
+                    # Event is explicitly targeted to another chat session; do not claim it!
+                    continue
+            except Exception:
+                pass
+
         dest = processed_dir / f.name
         # Attempt atomic claim by moving from pending to processed first.
         # This eliminates race conditions where multiple workers try to read/unlink the same file.
@@ -283,6 +340,7 @@ def process_pending_events(root_dir: Path, max_batch: int = 10) -> List[Dict[str
             "updated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             "batch_size": len(processed_events),
             "total_processed": total_processed,
+            "chat_session_id": chat_session_id or prev_cursor.get("chat_session_id"),
         }
         try:
             cursor_tmp = cursor_file.with_suffix(".tmp")
@@ -300,24 +358,30 @@ def wait_for_message(
     once: bool = False,
     max_batch: int = 10,
     poll_interval: float = 0.5,
+    chat_session_id: Optional[str] = None,
+    alias: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
-    """Wait for messages / events with Immediate Catch-Up Phase.
-
-    1. Checks pending/ immediately. If events exist, processes them and returns immediately.
-    2. If no events exist and once=True, returns immediately.
-    3. Otherwise, enters a polling loop (interval=0.5s) until an event arrives, timeout expires,
-       or canvas session is marked 'stopped'.
-    """
+    """Wait for messages / events with Immediate Catch-Up Phase and Chat Session Registration."""
     root_dir = Path(root_dir).resolve()
     events_dir = root_dir / "workforces" / ".events"
     pending_dir = events_dir / "pending"
     session_file = root_dir / "workforces" / ".canvas-session.json"
 
+    actual_chat_session = chat_session_id or detect_current_chat_session()
+    register_chat_session(
+        root_dir=root_dir,
+        session_id=actual_chat_session,
+        alias=alias,
+        role="watcher",
+        status="active"
+    )
+
+    last_hb_time = time.time()
+
     # --- Phase 1: Immediate Catch-Up Phase ---
-    # Catches events that arrived while the agent was offline or busy; does NOT sleep!
     pending_files = get_pending_event_files(pending_dir)
     if pending_files:
-        events = process_pending_events(root_dir, max_batch=max_batch)
+        events = process_pending_events(root_dir, max_batch=max_batch, chat_session_id=actual_chat_session)
         if events:
             print(format_event_summary(events))
             return events
@@ -328,34 +392,41 @@ def wait_for_message(
 
     # --- Phase 2: Polling Loop ---
     start_time = time.time()
-    while not _STOP_REQUESTED:
-        time.sleep(poll_interval)
-        if _STOP_REQUESTED:
-            break
+    try:
+        while not _STOP_REQUESTED:
+            time.sleep(poll_interval)
+            if _STOP_REQUESTED:
+                break
 
-        # Check canvas session status
-        if session_file.exists():
-            try:
-                st = json.loads(session_file.read_text(encoding="utf-8"))
-                if st.get("status") == "stopped":
-                    print("Canvas session marked as stopped. Exiting wait_for_message.")
-                    return []
-            except Exception:
-                pass
+            now_t = time.time()
+            if (now_t - last_hb_time) >= 10.0:
+                heartbeat_chat_session(root_dir, actual_chat_session)
+                last_hb_time = now_t
 
-        # Check timeout
-        if timeout is not None and (time.time() - start_time) >= timeout:
-            print(f"Timeout of {timeout}s reached. No pending events.")
-            return []
+            # Check canvas session status
+            if session_file.exists():
+                try:
+                    st = json.loads(session_file.read_text(encoding="utf-8"))
+                    if st.get("status") == "stopped":
+                        print("Canvas session marked as stopped. Exiting wait_for_message.")
+                        return []
+                except Exception:
+                    pass
 
-        # Check for new pending events
-        pending_files = get_pending_event_files(pending_dir)
-        if pending_files:
-            events = process_pending_events(root_dir, max_batch=max_batch)
-            if events:
-                print(format_event_summary(events))
-                return events
-            # If events was empty (e.g. claimed by another concurrent worker), continue polling!
+            # Check timeout
+            if timeout is not None and (time.time() - start_time) >= timeout:
+                print(f"Timeout of {timeout}s reached. No pending events.")
+                return []
+
+            # Check for new pending events
+            pending_files = get_pending_event_files(pending_dir)
+            if pending_files:
+                events = process_pending_events(root_dir, max_batch=max_batch, chat_session_id=actual_chat_session)
+                if events:
+                    print(format_event_summary(events))
+                    return events
+    finally:
+        unregister_chat_session(root_dir, actual_chat_session, status="idle")
 
     return []
 
@@ -389,6 +460,18 @@ def main():
         default=10,
         help="Max events to process per batch (default: 10, 0 for all)",
     )
+    parser.add_argument(
+        "--chat-session-id",
+        type=str,
+        default=None,
+        help="Antigravity chat session ID (auto-detected by default)",
+    )
+    parser.add_argument(
+        "--alias",
+        type=str,
+        default=None,
+        help="Human-readable alias for this chat session",
+    )
     args = parser.parse_args()
 
     signal.signal(signal.SIGINT, _handle_signal)
@@ -400,6 +483,8 @@ def main():
         timeout=args.timeout,
         once=args.once,
         max_batch=args.max_batch,
+        chat_session_id=args.chat_session_id,
+        alias=args.alias,
     )
     sys.exit(0)
 

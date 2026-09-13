@@ -402,6 +402,20 @@
                 <button class="team-filter-chip active" data-team="all">All Teams</button>
               </div>
               <div class="h-4 w-px bg-[#e2e0dc] mx-0.5"></div>
+              <!-- Chat Session Filter Chips -->
+              <div class="flex flex-wrap items-center gap-1.5 text-xs" id="kanban-session-filters">
+                <button class="session-filter-chip active" data-session="all">
+                  <i data-lucide="messages-square" class="w-3 h-3 text-[#828282]"></i>
+                  <span>All Chats</span>
+                </button>
+              </div>
+              <div class="h-4 w-px bg-[#e2e0dc] mx-0.5"></div>
+              <!-- Message Chat Session Button -->
+              <button id="btn-message-chat-session" class="px-2.5 py-1 rounded-full text-xs font-mono font-medium border border-[#e2e0dc] bg-white text-[#202020] hover:border-[#c2410c] transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs" title="Send direct instruction to a specific chat session">
+                <i data-lucide="send" class="w-3 h-3 text-[#c2410c]"></i>
+                <span>Message Chat</span>
+              </button>
+              <div class="h-4 w-px bg-[#e2e0dc] mx-0.5"></div>
               <button id="btn-toggle-completed-filter" class="px-2.5 py-1 rounded-full text-xs font-mono font-medium border border-[#e2e0dc] bg-white text-[#52525b] hover:border-[#c2410c] hover:text-[#202020] transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs" title="Toggle visibility of Completed tasks">
                 <i data-lucide="eye-off" class="w-3.5 h-3.5 text-[#828282]" id="icon-toggle-completed"></i>
                 <span id="label-toggle-completed">Hide Completed</span>
@@ -678,6 +692,13 @@
         </div>
       </div>
 
+      <div class="pt-2">
+        <label class="text-[11px] font-medium text-[#4d4d4d] block mb-1">Assigned Chat Session</label>
+        <select id="drawer-chat-session" class="w-full bg-white border border-[#e2e0dc] rounded-none px-2.5 py-1.5 text-xs text-[#202020] focus:outline-none focus:border-[#c2410c] font-mono">
+          <option value="">(Any / Default Chat)</option>
+        </select>
+      </div>
+
       <div>
         <label class="text-[11px] font-medium text-[#4d4d4d] block mb-1">Description &amp; Lineage</label>
         <div id="drawer-body" class="markdown-body bg-[#fbfbf9] border border-[#e2e0dc] rounded-none p-3 max-h-56 overflow-y-auto leading-relaxed"></div>
@@ -799,6 +820,12 @@
                 <option value="dev" selected>Dev (Engineering)</option>
               </select>
             </div>
+            <div class="col-span-2">
+              <label class="text-[10.5px] font-semibold uppercase tracking-wider text-[#666] block mb-1">Assign to Chat Session</label>
+              <select id="task-modal-chat-session" class="w-full bg-white border border-[#e2e0dc] rounded px-2.5 py-1.5 text-xs text-[#202020] focus:outline-none focus:border-[#c2410c] font-mono">
+                <option value="">(Auto-assign to current chat)</option>
+              </select>
+            </div>
           </div>
         </details>
       </div>
@@ -810,6 +837,45 @@
           <button id="btn-task-modal-save" class="px-4 py-1.5 rounded bg-[#202020] text-xs font-semibold text-white hover:bg-[#383838] transition-colors flex items-center gap-1.5 shadow-xs">
             <i data-lucide="sparkles" class="w-3.5 h-3.5 text-[#fbbf24]"></i>
             <span>Submit Task to AI</span>
+          </button>
+        </div>
+      </div>
+  <!-- Message Chat Session Modal -->
+  <div id="session-message-modal" class="hidden fixed inset-0 z-50 bg-[#202020]/50 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white border border-[#e2e0dc] rounded-xl max-w-lg w-full p-6 shadow-2xl flex flex-col">
+      <div class="flex items-center justify-between pb-3 border-b border-[#e2e0dc]">
+        <div class="flex items-center gap-2 text-sm font-semibold text-[#202020]">
+          <span class="w-5 h-5 rounded-full bg-[#202020] text-white text-[11px] flex items-center justify-center font-mono">
+            <i data-lucide="send" class="w-3 h-3 text-[#c2410c]"></i>
+          </span>
+          <span>Message Chat Session</span>
+        </div>
+        <button id="btn-session-message-close" class="text-[#828282] hover:text-[#202020] transition-colors p-1">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3.5 pt-4">
+        <div>
+          <label class="text-[11px] font-semibold text-[#4d4d4d] block mb-1">Target Chat Session</label>
+          <select id="session-message-target" class="w-full bg-[#faf9f5] border border-[#e2e0dc] rounded px-3 py-1.5 text-xs text-[#202020] focus:outline-none focus:border-[#c2410c] font-mono">
+            <option value="all">All Active Sessions (Broadcast)</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="text-[11px] font-semibold text-[#4d4d4d] block mb-1">Instruction / Directive for AI</label>
+          <textarea id="session-message-input" rows="4" placeholder="Type prompt or directive for this chat session (e.g. Focus on PR review #12 or Start working on task X)..." class="w-full bg-[#faf9f5] border border-[#e2e0dc] rounded-md p-3 text-xs text-[#202020] placeholder-[#828282] focus:outline-none focus:border-[#c2410c] focus:bg-white transition-all resize-none"></textarea>
+        </div>
+      </div>
+
+      <div class="mt-4 pt-3 border-t border-[#e2e0dc] flex items-center justify-between">
+        <span class="text-[11px] text-[#828282] font-mono">Triggers targeted watcher alert</span>
+        <div class="flex items-center gap-2">
+          <button id="btn-session-message-cancel" class="px-3 py-1.5 rounded bg-[#f4f4f5] text-xs font-medium text-[#4d4d4d] hover:bg-[#e5e5e5] transition-colors">Cancel</button>
+          <button id="btn-session-message-send" class="px-4 py-1.5 rounded bg-[#202020] text-xs font-semibold text-white hover:bg-[#383838] transition-colors flex items-center gap-1.5 shadow-xs">
+            <i data-lucide="send" class="w-3.5 h-3.5 text-[#c2410c]"></i>
+            <span>Send Directive</span>
           </button>
         </div>
       </div>
