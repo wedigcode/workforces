@@ -232,7 +232,115 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
         reloaded = post_code_reviewer.load_security_bypass_cache(self.test_dir)
         self.assertEqual(reloaded["bypasses"]["npm:vulnerability in semver"]["next_retry"], future_retry)
 
+    def test_security_bypass_remediation_attempt_success(self):
+        """Test remediation attempt (npm audit fix) success clears bypass and resumes normal routine."""
+        from unittest.mock import patch
+        cache = {"bypasses": {"npm:vulnerability in tar": {"ecosystem": "npm", "summary": "vulnerability in tar", "status": "bypassed", "next_retry": "2020-01-01T00:00:00"}}}
+        bypasses = cache["bypasses"]
+
+        with patch.object(post_code_reviewer, "attempt_remediation", return_value=True):
+            result = post_code_reviewer.handle_security_failure("npm", "vulnerability in tar", bypasses, self.test_dir, cache)
+
+        self.assertIn("Security Remediation Succeeded", result)
+        self.assertIn("Returned to normal routine", result)
+        self.assertNotIn("npm:vulnerability in tar", bypasses)
+
+    def test_security_bypass_remediation_attempt_failure_and_weekly_schedule(self):
+        """Test remediation failure logs learnings to bypass cache and schedules 7-day retry."""
+        from unittest.mock import patch
+        cache = {"bypasses": {}}
+        bypasses = cache["bypasses"]
+
+        with patch.object(post_code_reviewer, "attempt_remediation", return_value=False):
+            result = post_code_reviewer.handle_security_failure("npm", "unresolvable CVE-9999", bypasses, self.test_dir, cache)
+
+        self.assertIn("Fix attempted but `unresolvable CVE-9999` unresolvable", result)
+        self.assertIn("weekly retry", result)
+        self.assertIn("npm:unresolvable CVE-9999", bypasses)
+        entry = bypasses["npm:unresolvable CVE-9999"]
+        self.assertEqual(entry["status"], "bypassed")
+        self.assertIn("npm audit fix", entry.get("attempt", ""))
+        self.assertIn("learnings", entry)
+
+    def test_security_bypass_cache_corruption_resilience(self):
+        """Test corrupted or invalid JSON in security-bypass.json recovers gracefully."""
+        cache_path = self.test_dir / "workforces" / "memory" / "security-bypass.json"
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Non-JSON content
+        cache_path.write_text("corrupted non-json { syntax", encoding="utf-8")
+        loaded = post_code_reviewer.load_security_bypass_cache(self.test_dir)
+        self.assertEqual(loaded, {"bypasses": {}})
+
+        # Non-dict JSON (e.g. array)
+        cache_path.write_text("[\"invalid\", \"array\"]", encoding="utf-8")
+        loaded_arr = post_code_reviewer.load_security_bypass_cache(self.test_dir)
+        self.assertEqual(loaded_arr, {"bypasses": {}})
+
+    def test_ai_pushback_with_no_justification(self):
+        """Test rule violation without justification triggers AI pushback."""
+        long_func = "def big_runner():\n" + "".join(f"    val_{i} = {i}\n" for i in range(40)) + "    return val_39\n"
+        py_file = self.test_dir / "runner.py"
+        py_file.write_text(long_func, encoding="utf-8")
+        diff = f"+++ b/runner.py\n@@ -0,0 +1,42 @@\n+{long_func.replace(chr(10), chr(10)+'+')}"
+
+        form_md, passed, pushbacks, _ = post_code_reviewer.evaluate_pr_verification_form(
+            diff, ["runner.py"], [], self.test_dir, justification=None
+        )
+        self.assertFalse(passed)
+        self.assertTrue(any("Pushback" in p for p in pushbacks))
+        self.assertTrue(any("No explanation provided" in p for p in pushbacks))
+        self.assertIn("- [ ] **no new code exceeds 35 lines:**", form_md)
+
+    def test_ai_pushback_with_bad_reason_rejected(self):
+        """Test rule violation with trivial/evasive justification is rejected with pushback."""
+        long_func = "def big_runner():\n" + "".join(f"    val_{i} = {i}\n" for i in range(40)) + "    return val_39\n"
+        py_file = self.test_dir / "runner.py"
+        py_file.write_text(long_func, encoding="utf-8")
+        diff = f"+++ b/runner.py\n@@ -0,0 +1,42 @@\n+{long_func.replace(chr(10), chr(10)+'+')}"
+
+        form_md, passed, pushbacks, _ = post_code_reviewer.evaluate_pr_verification_form(
+            diff, ["runner.py"], [], self.test_dir, justification="lazy"
+        )
+        self.assertFalse(passed)
+        self.assertTrue(any("'lazy' is not an acceptable technical justification" in p for p in pushbacks))
+
+    def test_ai_pushback_with_valid_technical_justification_accepted(self):
+        """Test rule violation with legitimate technical rationale is accepted as justified."""
+        long_func = "def big_runner():\n" + "".join(f"    val_{i} = {i}\n" for i in range(40)) + "    return val_39\n"
+        py_file = self.test_dir / "runner.py"
+        py_file.write_text(long_func, encoding="utf-8")
+        diff = f"+++ b/runner.py\n@@ -0,0 +1,42 @@\n+{long_func.replace(chr(10), chr(10)+'+')}"
+
+        form_md, passed, pushbacks, _ = post_code_reviewer.evaluate_pr_verification_form(
+            diff, ["runner.py"], [], self.test_dir,
+            justification="Third-party AST visitor pattern requiring contiguous traversal structure"
+        )
+        self.assertTrue(passed)
+        self.assertEqual(len(pushbacks), 0)
+        self.assertIn("- [x] **no new code exceeds 35 lines:** [Justified:", form_md)
+
+    def test_ai_pushback_in_diff_comment_justification(self):
+        """Test justification provided directly in diff comments is extracted and accepted."""
+        code_lines = [
+            "# justification: Legacy protocol parser with strictly ordered packet decoding",
+            "def parse_protocol():"
+        ] + [f"    field_{i} = {i}" for i in range(38)] + ["    return field_37"]
+        full_code = "\n".join(code_lines) + "\n"
+
+        py_file = self.test_dir / "protocol.py"
+        py_file.write_text(full_code, encoding="utf-8")
+        diff = f"+++ b/protocol.py\n@@ -0,0 +1,42 @@\n+{full_code.replace(chr(10), chr(10)+'+')}"
+
+        form_md, passed, pushbacks, _ = post_code_reviewer.evaluate_pr_verification_form(
+            diff, ["protocol.py"], [], self.test_dir
+        )
+        self.assertTrue(passed)
+        self.assertEqual(len(pushbacks), 0)
+        self.assertIn("- [x] **no new code exceeds 35 lines:** [Justified:", form_md)
+
 
 if __name__ == "__main__":
     unittest.main()
+
 

@@ -144,9 +144,11 @@ def audit_class_helper_reuse(modified_files: List[str], diff_text: str, root_dir
         full_path = root_dir / rel_path
         if not full_path.exists() or not rel_path.endswith((".php", ".ts", ".js", ".py")):
             continue
+        if "post_code_reviewer" in rel_path or any(t in rel_path.lower() for t in ["test_", "tests/"]):
+            continue
         try:
             content = full_path.read_text(encoding="utf-8", errors="ignore")
-            existing = [kw for kw in helper_kws if kw in content]
+            existing = [kw for kw in helper_kws if re.search(r"(?:def|function|\bpublic|\bprivate|\bprotected)\s+" + kw, content)]
             if not existing:
                 continue
             diff_lines = [l for l in diff_text.splitlines() if l.startswith("+") and not l.startswith("+++")]
@@ -167,14 +169,16 @@ def get_security_bypass_path(target_dir: Path) -> Path:
     return p1 if (target_dir / "workforces").exists() else (p2 if (target_dir / ".agents").exists() else p1)
 
 def load_security_bypass_cache(target_dir: Path) -> Dict[str, Any]:
-    """Load cached security bypass entries."""
+    """Load cached security bypass entries safely."""
     path = get_security_bypass_path(target_dir)
-    if path.exists():
-        try:
-            return json.loads(path.read_text(encoding="utf-8"))
-        except Exception as err:
-            sys.stderr.write(f"[post_code_reviewer] load_security_bypass_cache notice: {err}\n")
-            return {"bypasses": {}}
+    if not path.exists():
+        return {"bypasses": {}}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if isinstance(data, dict) and isinstance(data.get("bypasses"), dict):
+            return data
+    except Exception as err:
+        sys.stderr.write(f"[post_code_reviewer] load_security_bypass_cache notice: {err}\n")
     return {"bypasses": {}}
 
 def save_security_bypass_cache(target_dir: Path, cache_data: Dict[str, Any]) -> None:
@@ -186,33 +190,69 @@ def save_security_bypass_cache(target_dir: Path, cache_data: Dict[str, Any]) -> 
     except Exception as err:
         sys.stderr.write(f"[post_code_reviewer] save_security_bypass_cache notice: {err}\n")
 
-def handle_security_failure(ecosystem: str, summary: str, bypasses: Dict[str, Any], target_dir: Path, cache: Dict[str, Any]) -> str:
-    """Process failure against weekly bypass cache, returning non-blocking notice."""
+def find_bypass_entry(ecosystem: str, summary: str, bypasses: Dict[str, Any]) -> Tuple[Optional[str], Optional[Dict[str, Any]], bool]:
+    """Find matching bypass entry and check if unexpired."""
+    key = f"{ecosystem}:{summary.strip()}"
+    now_dt = datetime.datetime.now()
+    for k, v in bypasses.items():
+        if v.get("ecosystem") == ecosystem and (k in key or key in k):
+            try:
+                is_expired = now_dt >= datetime.datetime.fromisoformat(v.get("next_retry", ""))
+            except Exception:
+                is_expired = True
+            return k, v, is_expired
+    return None, None, True
+
+def attempt_remediation(ecosystem: str, target_dir: Path) -> bool:
+    """Attempt automated remediation (e.g. npm audit fix). Return True if command succeeded."""
+    if ecosystem == "npm" and shutil.which("npm"):
+        try:
+            res = subprocess.run(["npm", "audit", "fix"], cwd=target_dir, capture_output=True, text=True, timeout=30)
+            return res.returncode == 0
+        except Exception as err:
+            sys.stderr.write(f"[post_code_reviewer] remediation attempt error: {err}\n")
+    return False
+
+def record_security_bypass(ecosystem: str, summary: str, bypasses: Dict[str, Any], target_dir: Path, cache: Dict[str, Any]) -> str:
+    """Record unresolvable security failure to bypass cache for 7-day retry."""
     key = f"{ecosystem}:{summary.strip()}"
     now_dt = datetime.datetime.now()
     now_iso = now_dt.isoformat()
     retry_iso = (now_dt + datetime.timedelta(days=7)).isoformat()
-
-    matched = next((v for k, v in bypasses.items() if v.get("ecosystem") == ecosystem and (k in key or key in k)), None)
-    if matched:
-        try:
-            is_expired = now_dt >= datetime.datetime.fromisoformat(matched.get("next_retry", ""))
-        except Exception:
-            is_expired = True
-
-        if not is_expired:
-            return f"ℹ️ **Security Bypass Active (Weekly Re-check):** `{summary}` bypassed (next retry: {matched.get('next_retry')})."
-        matched["last_tried"] = now_iso
-        matched["next_retry"] = retry_iso
-        save_security_bypass_cache(target_dir, cache)
-        return f"⚠️ **Security Notice (Weekly Re-try):** Re-checked `{summary}` after 7 days; upstream unpatched. Extended to {retry_iso}."
+    attempt_cmd = "npm audit fix" if ecosystem == "npm" else f"{ecosystem} automated fix"
 
     bypasses[key] = {
         "ecosystem": ecosystem, "summary": summary, "first_detected": now_iso,
-        "last_tried": now_iso, "next_retry": retry_iso, "status": "bypassed"
+        "last_tried": now_iso, "next_retry": retry_iso, "status": "bypassed",
+        "attempt": attempt_cmd,
+        "learnings": f"Remediation attempt ({attempt_cmd}) unable to resolve 3rd-party vulnerability; bypassed for 7 days."
     }
     save_security_bypass_cache(target_dir, cache)
-    return f"⚠️ **Security Notice (3rd-Party Tool / Deprecation):** `{summary}` logged to bypass cache (weekly retry: {retry_iso})."
+    return f"⚠️ **Security Notice (3rd-Party Tool / Deprecation):** Fix attempted but `{summary}` unresolvable. Logged to bypass cache (weekly retry: {retry_iso})."
+
+def handle_security_failure(ecosystem: str, summary: str, bypasses: Dict[str, Any], target_dir: Path, cache: Dict[str, Any]) -> str:
+    """Process failure against weekly bypass cache with remediation attempt."""
+    match_key, matched, is_expired = find_bypass_entry(ecosystem, summary, bypasses)
+    now_dt = datetime.datetime.now()
+    now_iso = now_dt.isoformat()
+    retry_iso = (now_dt + datetime.timedelta(days=7)).isoformat()
+
+    if matched and not is_expired:
+        return f"ℹ️ **Security Bypass Active (Weekly Re-check):** `{summary}` bypassed (next retry: {matched.get('next_retry')})."
+
+    if attempt_remediation(ecosystem, target_dir):
+        if match_key:
+            bypasses.pop(match_key, None)
+            save_security_bypass_cache(target_dir, cache)
+        return f"✅ **Security Remediation Succeeded:** Automated fix resolved `{summary}`. Returned to normal routine."
+
+    if matched:
+        matched["last_tried"] = now_iso
+        matched["next_retry"] = retry_iso
+        save_security_bypass_cache(target_dir, cache)
+        return f"⚠️ **Security Notice (Weekly Re-try):** Re-attempted fix for `{summary}` after 7 days; upstream unpatched. Extended to {retry_iso}."
+
+    return record_security_bypass(ecosystem, summary, bypasses, target_dir, cache)
 
 def _run_node_audit(touched: List[str], target_dir: Path, bypasses: Dict[str, Any], cache: Dict[str, Any]) -> List[str]:
     """Execute npm audit and process findings."""
@@ -360,30 +400,100 @@ def audit_code_maintainability(diff_text: str, modified_files: List[str], symbol
     candidates.extend(blast_radius)
     return len(violations) == 0, violations, candidates
 
-def evaluate_pr_verification_form(diff_text: str, modified_files: List[str], symbols: List[Dict[str, Any]], target_dir: Path) -> Tuple[str, bool, List[str], List[str]]:
-    """Generate and evaluate the 5-point PR-style verification form."""
+def evaluate_justification(justification: Optional[str]) -> Tuple[bool, str]:
+    """Validate whether provided justification gives an acceptable technical reason."""
+    if not justification or not justification.strip():
+        return False, "No explanation provided."
+    clean = justification.strip().lower()
+    bad_reasons = {"none", "skip", "idk", "lazy", "pass", "todo", "no reason", "ignore", "n/a", "no"}
+    if clean in bad_reasons or len(clean) < 10:
+        return False, f"'{justification.strip()}' is not an acceptable technical justification."
+    return True, justification.strip()
+
+def extract_diff_justifications(diff_text: str) -> Dict[str, str]:
+    """Extract in-line justifications from diff comments."""
+    justs: Dict[str, str] = {}
+    pattern = re.compile(r"^\+\s*(?:#|//|/\*|\*)\s*justification(?:\(([^)]+)\))?:\s*(.+)", re.IGNORECASE | re.MULTILINE)
+    for match in pattern.finditer(diff_text):
+        scope = (match.group(1) or "global").strip().lower()
+        reason = match.group(2).strip().rstrip("*/").strip()
+        justs[scope] = reason
+    return justs
+
+def find_criterion_justification(name: str, diff_justs: Dict[str, str], cli_just: Optional[str]) -> Optional[str]:
+    """Resolve justification for a specific criterion."""
+    if cli_just and cli_just.strip():
+        if ":" in cli_just and cli_just.split(":", 1)[0].strip().lower() in name.lower():
+            return cli_just.split(":", 1)[1].strip()
+        return cli_just.strip()
+    for scope, text in diff_justs.items():
+        if scope in name.lower() or scope == "global":
+            return text
+    return None
+
+def _eval_badge(
+    ok: bool,
+    label: str,
+    viols: List[str],
+    hint: str,
+    diff_justs: Dict[str, str],
+    cli_just: Optional[str]
+) -> Tuple[str, bool, Optional[str]]:
+    """Evaluate badge display and handle justified exceptions vs pushbacks."""
+    if ok:
+        return f"- [x] **{label}:** {hint}", True, None
+    just_str = find_criterion_justification(label, diff_justs, cli_just)
+    is_valid, reason = evaluate_justification(just_str)
+    if is_valid:
+        return f"- [x] **{label}:** [Justified: {reason}]", True, None
+    pushback = f"Criterion '{label}' violated ({viols[0]}). Pushback: {reason}. You MUST fix this code."
+    return f"- [ ] **{label}:** {viols[0]}", False, pushback
+
+def _build_pr_checks_list(
+    diff_text: str,
+    modified_files: List[str],
+    symbols: List[Dict[str, Any]],
+    target_dir: Path
+) -> Tuple[List[Tuple[bool, str, List[str], str]], List[str]]:
+    """Audit diff against 5 PR criteria and return checklist definitions with candidates."""
     dry_ok, dry_v, dry_c = audit_dry_principles(diff_text, modified_files, symbols, target_dir)
     len_ok, len_v, len_c = audit_function_length(diff_text, modified_files, target_dir, max_lines=35)
     scop_ok, scop_v, scop_c = audit_method_scoping(diff_text, modified_files, target_dir)
     simp_ok, simp_v, simp_c = audit_simplicity_and_verbosity(diff_text, modified_files)
     maint_ok, maint_v, maint_c = audit_code_maintainability(diff_text, modified_files, symbols, target_dir)
 
-    all_v = dry_v + len_v + scop_v + simp_v + maint_v
-    all_c = dry_c + len_c + scop_c + simp_c + maint_c
-    all_passed = dry_ok and len_ok and scop_ok and simp_ok and maint_ok
-
-    def _badge(ok: bool, label: str, viols: List[str], hint: str) -> str:
-        return f"- [x] **{label}:** {hint}" if ok else f"- [ ] **{label}:** {viols[0]}"
-
-    lines = [
-        "### 📋 PR-Style Code Review Verification Form",
-        _badge(dry_ok, "is it dry", dry_v, "Verified clean. No duplicate helper logic detected."),
-        _badge(len_ok, "no new code exceeds 35 lines", len_v, "All modified functions within line limits."),
-        _badge(scop_ok, "should any new code be in its own method", scop_v, "Method granularity is clean; no deeply nested blocks."),
-        _badge(simp_ok, "is any of it too verbose or can it be simplified", simp_v, "Clean, idiomatic expressions without redundant boilerplate."),
-        _badge(maint_ok, "code maintainability", maint_v, "Error propagation preserved, caller contracts intact.")
+    checks = [
+        (dry_ok, "is it dry", dry_v, "Verified clean. No duplicate helper logic detected."),
+        (len_ok, "no new code exceeds 35 lines", len_v, "All modified functions within line limits."),
+        (scop_ok, "should any new code be in its own method", scop_v, "Method granularity is clean; no deeply nested blocks."),
+        (simp_ok, "is any of it too verbose or can it be simplified", simp_v, "Clean, idiomatic expressions without redundant boilerplate."),
+        (maint_ok, "code maintainability", maint_v, "Error propagation preserved, caller contracts intact.")
     ]
-    return "\n".join(lines), all_passed, all_v, all_c
+    return checks, dry_c + len_c + scop_c + simp_c + maint_c
+
+def evaluate_pr_verification_form(
+    diff_text: str,
+    modified_files: List[str],
+    symbols: List[Dict[str, Any]],
+    target_dir: Path,
+    justification: Optional[str] = None
+) -> Tuple[str, bool, List[str], List[str]]:
+    """Generate and evaluate the 5-point PR-style verification form with pushback."""
+    checks, candidates = _build_pr_checks_list(diff_text, modified_files, symbols, target_dir)
+    diff_justs = extract_diff_justifications(diff_text)
+    badges, pushbacks = [], []
+    all_passed = True
+
+    for ok, label, viols, hint in checks:
+        line, passed, pushback = _eval_badge(ok, label, viols, hint, diff_justs, justification)
+        badges.append(line)
+        if not passed:
+            all_passed = False
+            if pushback:
+                pushbacks.append(pushback)
+
+    lines = ["### 📋 PR-Style Code Review Verification Form"] + badges
+    return "\n".join(lines), all_passed, pushbacks, candidates
 
 # --- Quality Toolchain Detection & Execution ---
 
@@ -435,6 +545,13 @@ def run_quality_gate_checks(target_dir: Path, commands: Dict[str, str]) -> Tuple
                 issues.append(err_msg)
     return issues, all_passed
 
+def _format_candidate_backlog_items(candidates: List[str]) -> List[str]:
+    """Format candidate backlog items with suggested reporting commands."""
+    lines = ["\n### 💡 Discovered Code Issues (Candidate Backlog Items)"]
+    for c in set(candidates[:6]):
+        clean_title = re.sub(r"[^\w\s-]", "", c)[:50].strip()
+        lines.append(f"- {c}\n  👉 Track via: `python3 skills/task-tracker/scripts/report-task.py --title \"{clean_title}\" --type dev --priority P2`")
+    return lines
 
 def _build_review_report_output(
     target_dir: Path,
@@ -449,30 +566,33 @@ def _build_review_report_output(
     output = [
         "### 🔍 [Post-Hook Code Review & Quality Gate Feedback]",
         f"**Target Repository Audited:** `{target_dir}`",
-        f"**Modified Files Audited:** {len(modified_files)} file(s)",
-        "",
+        f"**Modified Files Audited:** {len(modified_files)} file(s)\n",
         form_md
     ]
     if pushbacks:
-        output.extend(["", "🛑 **AI PUSHBACK — Coding Principles Verification Required:**", "The following review checks failed:"])
+        output.extend(["\n🛑 **AI PUSHBACK — Coding Principles Verification Required:**", "The following review checks failed without valid justification:"])
         output.extend([f"- {p}" for p in pushbacks[:6]])
-        output.append("\n👉 **Action Required:** Refactor code to comply or document an explicit justification in your PR.")
+        output.append("\n👉 **Action Required:** Refactor code to comply or provide an acceptable technical justification.")
 
     if all_issues:
-        output.append("\n**Actionable Items Flagged:**")
-        output.extend([f"- {i}" for i in all_issues[:10]])
+        output.extend(["\n**Actionable Items Flagged:**"] + [f"- {i}" for i in all_issues[:10]])
         if has_blockers:
-            output.append("\n🛑 **PRE-HANDOFF BLOCKER:** One or more quality gates (tests, static analysis, linters, security, or PR review criteria) failed. You MUST resolve all errors before concluding or handing over code.")
+            output.append("\n🛑 **PRE-HANDOFF BLOCKER:** Quality gates or PR review criteria failed. You MUST resolve all errors before handoff.")
     elif not pushbacks:
         output.append("\n✅ **Review & Quality Gate Passed:** All design principles, tests, and verification checks clean.")
 
     if candidates:
-        output.append("\n### 💡 Discovered Code Issues (Candidate Backlog Items)")
-        output.extend([f"- {c}" for c in set(candidates[:6])])
+        output.extend(_format_candidate_backlog_items(candidates))
 
     return "\n".join(output)
 
-def run_code_review_gate(root_dir: Path, target_dir_arg: Optional[str] = None, run_checks: bool = False, strict: bool = False) -> Tuple[str, bool]:
+def run_code_review_gate(
+    root_dir: Path,
+    target_dir_arg: Optional[str] = None,
+    run_checks: bool = False,
+    strict: bool = False,
+    justification: Optional[str] = None
+) -> Tuple[str, bool]:
     """Execute complete post-code review audit, PR verification form, and quality gates."""
     target_dir = resolve_target_dir(root_arg=str(root_dir), target_dir_arg=target_dir_arg)
     modified_files = get_modified_files(target_dir)
@@ -482,7 +602,8 @@ def run_code_review_gate(root_dir: Path, target_dir_arg: Optional[str] = None, r
     if not modified_files and not diff_text.strip() and not run_checks:
         return (f"### 🔍 [Post-Hook Code Review]\n✅ No modified files detected in target repo `{target_dir}`.", True)
 
-    form_md, pr_passed, pushbacks, candidates = evaluate_pr_verification_form(diff_text, modified_files, symbols, target_dir)
+    just = justification or os.getenv("WORKFORCE_REVIEW_JUSTIFICATION")
+    form_md, pr_passed, pushbacks, candidates = evaluate_pr_verification_form(diff_text, modified_files, symbols, target_dir, justification=just)
     sec_issues = audit_dependency_security(modified_files, target_dir)
     detected_cmds = detect_quality_commands(target_dir)
 
@@ -508,10 +629,17 @@ def main():
     parser.add_argument("--target-dir", help="Target project codebase directory")
     parser.add_argument("--run-checks", action="store_true", default=False)
     parser.add_argument("--strict", action="store_true", default=False)
+    parser.add_argument("--justification", "-j", help="Documented technical justification for skipped principles")
     args = parser.parse_args()
 
     run_checks = args.run_checks or (os.getenv("WORKFORCE_RUN_CHECKS", "0") in ("1", "true", "True"))
-    report, passed = run_code_review_gate(Path(args.root).resolve(), target_dir_arg=args.target_dir, run_checks=run_checks, strict=args.strict)
+    report, passed = run_code_review_gate(
+        Path(args.root).resolve(),
+        target_dir_arg=args.target_dir,
+        run_checks=run_checks,
+        strict=args.strict,
+        justification=args.justification
+    )
     print(report)
     if args.strict and not passed:
         sys.exit(1)

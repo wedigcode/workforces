@@ -16,9 +16,9 @@ Automated whole-codebase code reviewer and quality gate that audits code modific
    - `[ ] - should any new code be in its own method` (detects deeply nested blocks or monolithic branches)
    - `[ ] - is any of it too verbose or can it be simplified?` (identifies redundant boilerplate or verbose returns)
    - `[ ] - code maintainability` (verifies error safety, missing tests, and caller blast radius)
-2. **AI Pushback on Skipped Principles**: Flags checklist failures and demands either code remediation or documented justification before code handoff.
+2. **AI Pushback on Skipped Principles**: Flags checklist failures and demands either code remediation or documented technical justification before code handoff (via `--justification "<reason>"`, in-code `# justification: <reason>`, or commit messages). Evasive reasons ('lazy', 'skip') are rejected with pushback.
 3. **Candidate Issue Discovery**: Discovered maintainability problems or technical debt outside immediate scope are surfaced with copy-paste `report-task.py` commands.
-4. **Resilient 3rd-Party Security Bypass**: Dependency security audits (`npm audit`, `pip-audit`, `composer audit`) catch vulnerabilities. If a 3rd-party / transitive issue cannot be fixed automatically, learnings are cached in `workforces/memory/security-bypass.json` with a 7-day retry schedule, informing the user with non-blocking notices rather than blocking every session.
+4. **Resilient 3rd-Party Security Bypass & Remediation**: Dependency security audits (`npm audit`, `pip-audit`, `composer audit`) catch vulnerabilities. The reviewer first executes an automated remediation attempt (`npm audit fix`). If the issue cannot be resolved automatically, learnings are cached in `workforces/memory/security-bypass.json` with a 7-day retry schedule, informing the user with non-blocking notices rather than blocking every session. If later fixed upstream, the system automatically returns to its normal routine.
 5. **Quality Triad Execution**: Runs configured unit tests, static analysis/strict type checks (`tsc`, `mypy`, `phpstan`), and linters (`biome`, `eslint`, `ruff`).
 6. **Strict Quality Gate**: Blocks handoff if unbypassed critical errors, test regressions, or unaddressed pushback violations exist.
 
