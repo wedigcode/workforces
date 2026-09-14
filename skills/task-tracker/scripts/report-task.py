@@ -4,7 +4,7 @@ report-task — Task & Action Item capture, evolution, and lifecycle management 
 
 Usage:
     # 1. Report a new task linked to a session:
-    python3 skills/task-tracker/scripts/report-task.py \
+    python3 .agents/skills/task-tracker/scripts/report-task.py \
         --title "Follow up with pilot team lead" \
         --type follow-up \
         --priority P1 \
@@ -18,28 +18,30 @@ Usage:
         --sync-session
 
     # 2. Update status in-place (e.g. start working on it):
-    python3 skills/task-tracker/scripts/report-task.py \
+    python3 .agents/skills/task-tracker/scripts/report-task.py \
         --update "workforces/tasks/20260823-120000-follow-up-with-pilot-team-lead.md" \
         --start \
         --evolution-note "Started drafting email response." \
         --sync-session
 
     # 3. Mark task as blocked or done:
-    python3 skills/task-tracker/scripts/report-task.py \
+    python3 .agents/skills/task-tracker/scripts/report-task.py \
         --update "follow-up-with-pilot-team-lead" \
         --done \
         --evolution-note "Sent email and scheduled call for Thursday." \
         --sync-session
 
     # 4. Drop a task with deciding factors / reason:
-    python3 skills/task-tracker/scripts/report-task.py \
+    python3 .agents/skills/task-tracker/scripts/report-task.py \
         --update "follow-up-with-pilot-team-lead" \
         --drop "Lead reached out directly; separate follow-up no longer required." \
         --sync-session
 
     # 5. Check for similar tasks before creating:
-    python3 skills/task-tracker/scripts/report-task.py \
+    python3 .agents/skills/task-tracker/scripts/report-task.py \
         --find-similar "pilot team lead"
+
+    *(Fallback for toolkit development: substitute skills/task-tracker/scripts/report-task.py)*
 """
 
 import argparse
