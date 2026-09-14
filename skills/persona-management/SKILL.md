@@ -38,10 +38,32 @@ Manages project-specific personas dynamically without hardcoded voices in agent 
 }
 ```
 
+```json
+// target_audience (workforces/personas/target-audiences/<slug>.json)
+{
+  "id": "enterprise-decision-maker",
+  "name": "Enterprise Tech Decision Maker",
+  "type": "target_audience",
+  "role": "VP of Engineering, CTO, Head of Infrastructure",
+  "pain_points": [
+    "Security compliance",
+    "Team context switching",
+    "Vendor lock-in",
+    "High downtime risk"
+  ],
+  "triggers": [
+    "SOC2/HIPAA compliance",
+    "SLAs",
+    "Dedicated support",
+    "Clear ROI"
+  ]
+}
+```
+
 | Type | Purpose | Consumers |
 | :--- | :--- | :--- |
 | `author_voice` | Defines WHO is speaking (perspective, tone, phrasing rules). | `@social` (replies), `@marketer` (blogs/newsletters), `@sales` (emails). |
-| `target_audience` | Defines WHO is being addressed (pains, triggers, objections). | `@sales` (prospecting), `@growth` (SEO intent), `@marketer` (landing pages). |
+| `target_audience` | Defines WHO is being addressed (role, pain points, triggers). | `@sales` (prospecting), `@growth` (SEO intent), `@marketer` (landing pages). |
 
 ---
 

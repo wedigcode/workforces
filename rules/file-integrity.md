@@ -12,10 +12,11 @@ Enforces reference lineage, zero broken links, subtask tracking, and adaptive ga
 - **Strict Invariant**: Every referenced file path or markdown link (`[text](path)`) MUST exist on disk.
 - If a created file references a target that does not exist, immediately create the target file with structured content.
 
-## 2. Task Tracking & Session Lineage
+## 2. Task Tracking, Session Lineage & Completion Gates
 - Whenever new feature horizons, dependencies, unhandled risks, or tasks (`- [ ]`) are discussed:
 - Report each item to `workforces/tasks/` via `report-task.py` with `--session-id`, `--session-file`, and `--sync-session`.
 - `workforces/tasks/*.md` is the authoritative single source of truth; `workstate.md` is a projected dashboard synchronized by tooling.
+- **Completion Gate**: Never declare a parent task or turn complete until all immediate child files, assets, dependent tasks, and session records are satisfied and persisted to disk.
 
 ## 3. Decision Escalation Threshold (Stop & Ask)
 - Major or breaking architectural discoveries (auth breaks, DB schema mutations, brand strategy pivots) require an immediate halt:

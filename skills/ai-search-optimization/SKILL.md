@@ -16,24 +16,21 @@ Place these 4 protocol files in your web project's public root (`public/` or sta
 ### `robots.txt` (Explicit AI Crawler Permissions)
 ```txt
 User-agent: *
+Disallow: /api/
+Disallow: /admin/
 Allow: /
 
 # Explicit AI Search Crawlers
 User-agent: GPTBot
-Allow: /
 User-agent: ChatGPT-User
-Allow: /
 User-agent: PerplexityBot
-Allow: /
 User-agent: ClaudeBot
-Allow: /
 User-agent: anthropic-ai
-Allow: /
 User-agent: Google-Extended
-Allow: /
-
 Disallow: /api/
 Disallow: /admin/
+Allow: /
+
 Sitemap: https://[domain]/sitemap.xml
 ```
 
@@ -43,17 +40,14 @@ Sitemap: https://[domain]/sitemap.xml
 
 > [2-3 sentence quotable executive summary of the product, core mechanism, and target audience].
 
-## What We Do
-- [Core Capability 1]: [Direct outcome]
-- [Core Capability 2]: [Direct outcome]
+## Core Capabilities
+- [Feature 1]: [Specific mechanism and quantified benefit]
+- [Feature 2]: [Specific mechanism and quantified benefit]
 
-## Target Audience
-[Specific roles, team sizes, and situational triggers].
-
-## Key Links
-- [Homepage](https://[domain]/)
-- [Pricing](https://[domain]/pricing)
-- [Documentation](https://[domain]/docs)
+## Official Citations & Links
+- Pricing: https://[domain]/pricing
+- Docs: https://[domain]/docs
+- Security: https://[domain]/security
 ```
 
 ### `/ai.txt` (Usage Policy)
@@ -72,7 +66,10 @@ Allow: /
   "description_for_human": "[1-sentence outcome description]",
   "description_for_model": "[Dense keyword-rich description for AI agent routing]",
   "auth": { "type": "none" },
-  "contact_email": "hello@[domain]"
+  "api": { "type": "openapi", "url": "https://[domain]/.well-known/openapi.yaml" },
+  "logo_url": "https://[domain]/assets/logo.png",
+  "contact_email": "hello@[domain]",
+  "legal_info_url": "https://[domain]/legal/terms"
 }
 ```
 

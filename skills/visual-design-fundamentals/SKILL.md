@@ -23,7 +23,7 @@ Guide user attention through deliberate contrast, sizing, and breathing room:
 | Rule | Technical Parameter | Purpose |
 |------|---------------------|---------|
 | **Font Count** | **Max 2 font families** | 1 character Display font + 1 clean UI Sans-Serif (Inter, Geist). |
-| **Modular Scale** | **1.25× (Major Third)** or **1.333× (Perfect Fourth)** | `12px` (caption), `14px` (sub), `16px` (body), `20px` (h4), `24px` (h3), `32px` (h2), `48px` (h1). |
+| **Font Scale Ladder** | **Reference Type Ladder** (based on 16px base) | `12px` (caption), `14px` (sub), `16px` (body), `20px` (h4), `24px` (h3), `32px` (h2), `48px` (h1). |
 | **Line Height** | **1.4×–1.6×** for body; **1.1×–1.2×** for headings | Tight headings prevent line drifting; spacious body enhances legibility. |
 | **Line Length** | **45–75 characters** (`max-w-prose` / ~65ch) | Prevents eye fatigue from over-extended reading lines. |
 
@@ -35,7 +35,7 @@ Build palettes using functional surface layers rather than arbitrary color picki
 - **60% Dominant Surface**: Neutral background canvas (`bg-background`, `bg-surface`, deep slate `#090d16` or warm off-white).
 - **30% Structural Secondary**: Card surfaces, sidebars, borders (`border-border/40`), and secondary text (`text-muted`).
 - **10% High-Intent Accent**: Reserved strictly for primary interactive CTAs, active status indicators, and key focus rings.
-- **User Preference Adherence**: Always verify selections against [`workforces/memory/design-preferences.md`](../../workforces/memory/design-preferences.md).
+- **User Preference Adherence**: Always verify selections against `workforces/memory/design-preferences.md`.
 
 ---
 

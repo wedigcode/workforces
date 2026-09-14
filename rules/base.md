@@ -21,7 +21,7 @@ These core operational rules govern all workforce interactions and execution loo
 ## 2. Coordinator & Execution Topologies (`agent-parallelization`)
 
 When in auto-execution mode (`--auto`, `--all`, or `auto_delegate: true`):
-- **Autonomous Execution**: Never stop between tasks to ask "Should I do task 2 now?". Proceed through unblocked tasks.
+- **Autonomous Execution**: Never stop between tasks to ask "Should I do task 2 now?". Proceed through unblocked tasks. Update task records and `workforces/workstate.md`, unblock downstream dependents, and iterate until all tasks are complete before outputting the final execution summary.
 - **Topology Protocol**:
   1. **Horizontal Fan-Out (Parallel Worktrees)**: 2+ independent tasks $\rightarrow$ Spawn subagents with `Workspace: 'share'` (Git worktrees in `.worktrees/<slug>`). **NEVER run concurrent subagents in `Workspace: 'inherit'`.**
   2. **Vertical Relay**: Layered epic dependencies $\rightarrow$ Sequential relay using `gh stack`.
@@ -40,7 +40,7 @@ When in auto-execution mode (`--auto`, `--all`, or `auto_delegate: true`):
 ## 4. Implementation Plans & Fast Path
 
 - **Mandatory Plans**: Greenfield epics and major architectural refactors require an `implementation_plan.md` artifact with an `## Existing Codebase Audit Findings` section.
-- **Fast Path Exemption**: Localized bugfixes (< 50 lines) and targeted Q&A bypass implementation plans and pre-plan audit rituals per [`lean-execution`](lean-execution.md).
+- **Fast Path Exemption**: Localized bug fixes, targeted helper modifications, single-file edits (< 50 lines), and direct Q&A bypass implementation plans and pre-plan audit rituals per [`lean-execution`](lean-execution.md).
 
 ---
 

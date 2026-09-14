@@ -28,6 +28,7 @@ A structured, scientific experimentation framework for workforce teams. Turns gr
 | :--- | :--- | :--- |
 | `draft` | `workforces/hypotheses/draft/` | Proposed experiment, pending budget or telemetry setup. |
 | `running` | `workforces/hypotheses/running/` | Active experiment in market with live telemetry logging. |
+| `review` | *(checkpoint)* | Transient sync review checkpoint evaluated before terminal resolution. |
 | `validated` | `workforces/hypotheses/validated/` | Target metrics achieved; proven playbook ready for scale. |
 | `invalidated`| `workforces/hypotheses/invalidated/` | Target missed or kill threshold breached; stopped to prevent waste. |
 | `pivoted` | `workforces/hypotheses/pivoted/` | Strategy adapted based on customer discovery findings. |
@@ -40,9 +41,9 @@ All scripts run via `.agents/skills/hypothesis-tracker/scripts/hypothesis.py` (F
 
 | Action | Command Pattern |
 | :--- | :--- |
-| **Create** | `python3 .agents/skills/hypothesis-tracker/scripts/hypothesis.py --create --title "<Title>" --owner <team> --goal-id "<ID>" --statement "<XYZ>" --timeframe-weeks <W> --kill-threshold "<Kill>" --pivot-plan "<Pivot>" --metrics '<JSON>' --sync-session` |
-| **Update Telemetry** | `python3 .agents/skills/hypothesis-tracker/scripts/hypothesis.py --update "<ID>" --current-week <N> --metrics-data "<K1>=<V1>,<K2>=<V2>" --insight "<Learnings>" --sync-session` |
+| **Create** | `python3 .agents/skills/hypothesis-tracker/scripts/hypothesis.py --create --title "<Title>" --owner <team> --goal-id "<ID>" --statement "<XYZ>" --timeframe-weeks <W> --kill-threshold "<Kill>" --pivot-plan "<Pivot>" --metrics '<JSON>' --session-id "<Seq>" --session-file "workforces/session-context/<file>.md" --sync-session` |
+| **Update Telemetry** | `python3 .agents/skills/hypothesis-tracker/scripts/hypothesis.py --update "<ID>" --current-week <N> --metrics-data "<K1>=<V1>,<K2>=<V2>" --insight "<Learnings>" --session-id "<Seq>" --session-file "workforces/session-context/<file>.md" --sync-session` |
 | **Review Queue** | `python3 .agents/skills/hypothesis-tracker/scripts/hypothesis.py --review` (or `--list --status running`) |
-| **Kill / Invalidate**| `python3 .agents/skills/hypothesis-tracker/scripts/hypothesis.py --kill "<ID>" --rationale "<Reason>" --sync-session` |
-| **Pivot Strategy** | `python3 .agents/skills/hypothesis-tracker/scripts/hypothesis.py --pivot "<ID>" --rationale "<Adjustment>" --sync-session` |
-| **Validate & Scale** | `python3 .agents/skills/hypothesis-tracker/scripts/hypothesis.py --validate "<ID>" --rationale "<Success evidence>" --sync-session` |
+| **Kill / Invalidate**| `python3 .agents/skills/hypothesis-tracker/scripts/hypothesis.py --kill "<ID>" --rationale "<Reason>" --session-id "<Seq>" --session-file "workforces/session-context/<file>.md" --sync-session` |
+| **Pivot Strategy** | `python3 .agents/skills/hypothesis-tracker/scripts/hypothesis.py --pivot "<ID>" --rationale "<Adjustment>" --session-id "<Seq>" --session-file "workforces/session-context/<file>.md" --sync-session` |
+| **Validate & Scale** | `python3 .agents/skills/hypothesis-tracker/scripts/hypothesis.py --validate "<ID>" --rationale "<Success evidence>" --session-id "<Seq>" --session-file "workforces/session-context/<file>.md" --sync-session` |

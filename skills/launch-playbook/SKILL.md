@@ -34,7 +34,7 @@ Day 6–7: Delivery    ──> Fulfill manually (Concierge MVP) + 15-min onboard
 
 | Framework | Implementation | Actionable Pattern |
 | :--- | :--- | :--- |
-| **Pre-Sale Painted Door** | Test purchasing intent before backend code exists. | 1. **Direct Payment**: Stripe Payment Link with 100% money-back guarantee.<br>2. **Card Hold**: Stripe `SetupIntent` (capture card now, charge upon delivery).<br>3. **Capacity Modal**: Honest early-bird cap reserving priority discount. |
+| **Pre-Sale Painted Door** | Test purchasing intent before backend code exists. | 1. **Direct Payment**: Stripe Payment Link with 100% money-back guarantee.<br>2. **Card Authorization**: Authorize payment hold (`capture_method: manual` on `PaymentIntent`) or save card via `SetupIntent` with explicit customer consent to charge upon feature delivery.<br>3. **Capacity Modal**: Honest early-bird cap reserving priority discount. |
 | **Concierge MVP (Wizard of Oz)** | Deliver product output manually before automating. | Fulfill data scraping, prompt outputs, or audits manually via spreadsheet or email within 2 hours to learn real customer edge cases. |
 
 ---

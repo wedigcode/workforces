@@ -35,8 +35,8 @@ All scripts run via `.agents/skills/social-engagement/scripts/` (Fallback: `skil
 
 | Operation | Command Pattern |
 | :--- | :--- |
-| **Evaluate & Draft** | `python3 .agents/skills/social-engagement/scripts/engagement_evaluator.py workforces/social/posts.json` |
-| **Render Dashboard** | `python3 .agents/skills/social-engagement/scripts/render_dashboard.py` |
+| **Evaluate & Draft** | `python3 .agents/skills/social-engagement/scripts/engagement_evaluator.py --evaluate-json workforces/social/posts.json` |
+| **Render Dashboard** | `python3 .agents/skills/social-engagement/scripts/dashboard_generator.py` |
 | **Progressive Scroll**| `python3 .agents/skills/social-engagement/scripts/social_crawler.py --generate-browser-script` |
 | **Unfold Thread** | `python3 .agents/skills/social-engagement/scripts/social_crawler.py --unfold-thread thread.json --output posts.json` |
 | **Index Stats** | `python3 .agents/skills/social-engagement/scripts/social_indexer.py --stats` |
