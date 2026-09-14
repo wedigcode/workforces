@@ -15,7 +15,7 @@ Agents and Scribe invoke the task tracker automatically via `report-task.py` and
 - **Create Task**: User says *"Add task: [title]"* or an agent detects an unhandled follow-up.
 - **Update Status**: User says *"Mark task X as done/blocked/dropped"* or an agent finishes a work item.
 - **Show Active Tasks**: User asks *"What are my active tasks?"*, *"What do we have to work on?"*, or during `/wf-sync`.
-- **Personal Sync**: Aggregated via `python3 skills/task-tracker/scripts/personal_sync.py --root ./`.
+- **Personal Sync**: Aggregated via `python3 .agents/skills/task-tracker/scripts/personal_sync.py --root ./` (Fallback: `python3 skills/task-tracker/scripts/personal_sync.py --root ./`).
 - **Antigravity Execution**: Active tasks route directly to modern Antigravity subagents via `agent-parallelization` (isolated worktrees in `.worktrees/<slug>`).
 
 ---
@@ -59,7 +59,7 @@ Status transitions modify frontmatter (`status: in_progress`, `status: done`, et
 ### 1. Report a New Task
 
 ```bash
-python3 skills/task-tracker/scripts/report-task.py \
+python3 .agents/skills/task-tracker/scripts/report-task.py \
     --title "Follow up with pilot team lead regarding security questionnaire" \
     --type follow-up \
     --priority P1 \
@@ -72,26 +72,27 @@ python3 skills/task-tracker/scripts/report-task.py \
     --evolution-note "Initial discussion: user agreed to follow up by Tuesday." \
     --sync-session
 ```
+*(Fallback: `python3 skills/task-tracker/scripts/report-task.py ...`)*
 
 ### 2. Update Status In-Place
 
 ```bash
 # Start working on a task:
-python3 skills/task-tracker/scripts/report-task.py \
+python3 .agents/skills/task-tracker/scripts/report-task.py \
     --update "follow-up-with-pilot-team-lead" \
     --start \
     --evolution-note "Started drafting email response." \
     --sync-session
 
 # Mark task as completed:
-python3 skills/task-tracker/scripts/report-task.py \
+python3 .agents/skills/task-tracker/scripts/report-task.py \
     --update "follow-up-with-pilot-team-lead" \
     --done \
     --evolution-note "Sent email and scheduled call for Thursday." \
     --sync-session
 
 # Mark task as blocked:
-python3 skills/task-tracker/scripts/report-task.py \
+python3 .agents/skills/task-tracker/scripts/report-task.py \
     --update "follow-up-with-pilot-team-lead" \
     --block "Waiting for updated SOC2 bridge letter from legal." \
     --sync-session
@@ -102,7 +103,7 @@ python3 skills/task-tracker/scripts/report-task.py \
 When a task is dropped or rejected, keep the audit trail and record the rationale:
 
 ```bash
-python3 skills/task-tracker/scripts/report-task.py \
+python3 .agents/skills/task-tracker/scripts/report-task.py \
     --update "follow-up-with-pilot-team-lead" \
     --drop "Lead reached out directly; separate follow-up no longer required." \
     --sync-session
@@ -112,10 +113,10 @@ python3 skills/task-tracker/scripts/report-task.py \
 
 ```bash
 # Check similarity before creating:
-python3 skills/task-tracker/scripts/report-task.py --find-similar "security questionnaire"
+python3 .agents/skills/task-tracker/scripts/report-task.py --find-similar "security questionnaire"
 
 # List todo and in-progress tasks:
-python3 skills/task-tracker/scripts/report-task.py --list --status todo
+python3 .agents/skills/task-tracker/scripts/report-task.py --list --status todo
 ```
 
 ### 5. Personal Sync & Follow-Up Aggregator (`/sync --me`)
@@ -124,11 +125,12 @@ Aggregate your in-flight tasks, git workspace, session context, and GitHub revie
 
 ```bash
 # Run personal sync in markdown format:
-python3 skills/task-tracker/scripts/personal_sync.py --root ./ --format markdown
+python3 .agents/skills/task-tracker/scripts/personal_sync.py --root ./ --format markdown
 
 # Output as JSON for programmatic integration:
-python3 skills/task-tracker/scripts/personal_sync.py --root ./ --format json
+python3 .agents/skills/task-tracker/scripts/personal_sync.py --root ./ --format json
 ```
+*(Fallback: `python3 skills/task-tracker/scripts/personal_sync.py --root ./ ...`)*
 
 ---
 

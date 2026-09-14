@@ -28,10 +28,12 @@ Automated whole-codebase code reviewer and quality gate that audits code modific
 
 ### 1. Post-Edit Heuristic & PR Verification Check
 ```bash
-python3 skills/post-code-review/scripts/post_code_reviewer.py --root ./
+python3 .agents/skills/post-code-review/scripts/post_code_reviewer.py --root ./
 ```
+*(Fallback: `python3 skills/post-code-review/scripts/post_code_reviewer.py --root ./`)*
 
 ### 2. Pre-Handoff Quality Gate Verification (MANDATORY BEFORE COMPLETION)
 ```bash
-python3 skills/post-code-review/scripts/post_code_reviewer.py --root ./ --run-checks --strict
+python3 .agents/skills/post-code-review/scripts/post_code_reviewer.py --root ./ --run-checks --strict
 ```
+*(Fallback: `python3 skills/post-code-review/scripts/post_code_reviewer.py --root ./ --run-checks --strict`)*

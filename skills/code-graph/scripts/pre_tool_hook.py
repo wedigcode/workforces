@@ -26,7 +26,7 @@ def find_sibling_script(script_name: str) -> Optional[Path]:
     if candidate.is_file():
         return candidate
 
-    for base in [Path.cwd(), Path.cwd() / ".agents"]:
+    for base in [Path.cwd() / ".agents", Path.cwd()]:
         p = base / "skills" / "code-graph" / "scripts" / script_name
         if p.is_file():
             return p

@@ -15,7 +15,7 @@ The `persona-management` skill manages project-specific, non-hardcoded personas.
   - `workforces/personas/*.json` (individual persona cards)
   - `workforces/personas.json` (consolidated registry)
   - `docs/brand-context.md` (human-readable brand document)
-- **Runtime Discovery:** When prompted to write, engage, or outreach, the agent inspects `workforces/personas/` (or executes `python3 skills/persona-management/scripts/manage_personas.py --export-context`) to discover what personas are available.
+- **Runtime Discovery:** When prompted to write, engage, or outreach, the agent inspects `workforces/personas/` (or executes `python3 .agents/skills/persona-management/scripts/manage_personas.py --export-context`, fallback: `python3 skills/persona-management/scripts/manage_personas.py ...`) to discover what personas are available.
 
 ---
 

@@ -52,14 +52,24 @@ def get_modified_files(root_dir: Path) -> List[str]:
 
 def resolve_target_dir(root_arg: str = "./", target_dir_arg: Optional[str] = None) -> Path:
     """Resolve target project directory from args, env, or configuration."""
-    if target_dir_arg and Path(target_dir_arg).resolve().exists():
-        return Path(target_dir_arg).resolve()
-
-    env_target = os.getenv("WORKFORCE_TARGET_DIR")
-    if env_target and Path(env_target).resolve().exists():
-        return Path(env_target).resolve()
-
     root_path = Path(root_arg).resolve()
+
+    if target_dir_arg:
+        td = Path(target_dir_arg)
+        if not td.is_absolute():
+            td = (root_path / td).resolve()
+        if td.exists():
+            return td
+
+    for env_var in ["WORKFORCE_TARGET_DIR", "TARGET_REPO_ROOT", "PROJECT_ROOT"]:
+        env_val = os.getenv(env_var)
+        if env_val:
+            ev_p = Path(env_val)
+            if not ev_p.is_absolute():
+                ev_p = (root_path / ev_p).resolve()
+            if ev_p.exists():
+                return ev_p
+
     for fname in ["workforces/workrules.md", "workforces/workstate.md"]:
         s_file = root_path / fname
         if not s_file.exists():
@@ -74,7 +84,9 @@ def load_code_graph(root_dir: Path, target_dir: Path) -> List[Dict[str, Any]]:
     """Load symbols from code-graph.json if available."""
     candidates = [
         target_dir / "workforces" / "code-graph.json",
+        target_dir / "code-graph.json",
         root_dir / "workforces" / "code-graph.json",
+        root_dir / "code-graph.json",
         target_dir / ".agents" / "workforces" / "code-graph.json"
     ]
     for graph_path in candidates:
@@ -545,12 +557,17 @@ def run_quality_gate_checks(target_dir: Path, commands: Dict[str, str]) -> Tuple
                 issues.append(err_msg)
     return issues, all_passed
 
-def _format_candidate_backlog_items(candidates: List[str]) -> List[str]:
+def _format_candidate_backlog_items(candidates: List[str], target_dir: Optional[Path] = None) -> List[str]:
     """Format candidate backlog items with suggested reporting commands."""
     lines = ["\n### 💡 Discovered Code Issues (Candidate Backlog Items)"]
+    if target_dir:
+        use_dot_agents = (target_dir / ".agents").exists() or not (target_dir / "skills").exists()
+    else:
+        use_dot_agents = (Path.cwd() / ".agents").exists() or not (Path.cwd() / "skills").exists()
+    script_path = ".agents/skills/task-tracker/scripts/report-task.py" if use_dot_agents else "skills/task-tracker/scripts/report-task.py"
     for c in set(candidates[:6]):
         clean_title = re.sub(r"[^\w\s-]", "", c)[:50].strip()
-        lines.append(f"- {c}\n  👉 Track via: `python3 skills/task-tracker/scripts/report-task.py --title \"{clean_title}\" --type dev --priority P2`")
+        lines.append(f"- {c}\n  👉 Track via: `python3 {script_path} --title \"{clean_title}\" --type dev --priority P2`")
     return lines
 
 def _build_review_report_output(
@@ -582,7 +599,7 @@ def _build_review_report_output(
         output.append("\n✅ **Review & Quality Gate Passed:** All design principles, tests, and verification checks clean.")
 
     if candidates:
-        output.extend(_format_candidate_backlog_items(candidates))
+        output.extend(_format_candidate_backlog_items(candidates, target_dir))
 
     return "\n".join(output)
 

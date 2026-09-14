@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 -c \"import os, sys, subprocess; script = next((p for p in ['skills/usage-tracker/scripts/track_usage.py', '.agents/skills/usage-tracker/scripts/track_usage.py', '../../skills/usage-tracker/scripts/track_usage.py'] if os.path.exists(p)), None); subprocess.run([sys.executable, script, './'], capture_output=True, text=True) if script else None; print('{}')\"",
+            "command": "python3 -c \"import os, sys, subprocess; script = next((p for p in ['.agents/skills/usage-tracker/scripts/track_usage.py', 'skills/usage-tracker/scripts/track_usage.py', '../../skills/usage-tracker/scripts/track_usage.py'] if os.path.exists(p)), None); subprocess.run([sys.executable, script, './'], capture_output=True, text=True) if script else None; print('{}')\"",
             "timeout": 30
           }
         ]

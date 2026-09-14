@@ -25,7 +25,7 @@ def find_reviewer_script() -> Optional[Path]:
     if candidate.is_file():
         return candidate
 
-    for base in [Path.cwd(), Path.cwd() / ".agents"]:
+    for base in [Path.cwd() / ".agents", Path.cwd()]:
         p = base / "skills" / "post-code-review" / "scripts" / "post_code_reviewer.py"
         if p.is_file():
             return p

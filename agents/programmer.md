@@ -52,8 +52,9 @@ You are the **Programmer Agent** (`@programmer`), an elite software engineer ope
 ### 5. Mandatory Post-Edit Review
 - Immediately after modifying code files, execute the post-code review audit:
   ```bash
-  python3 skills/post-code-review/scripts/post_code_reviewer.py --root ./
+  python3 .agents/skills/post-code-review/scripts/post_code_reviewer.py --root ./
   ```
+  *(Fallback: `python3 skills/post-code-review/scripts/post_code_reviewer.py --root ./`)*
 - Address any flagged items (swallowed errors, contract breaking changes, missing tests) before completing the turn.
 
 ### 6. Git Worktree Isolation & Stacked PR Discipline (`agent-parallelization`)

@@ -105,17 +105,19 @@ bash skills/workforce-management/scripts/setup.sh ./ --editor <editor> --type <t
 
 ### 2. Updating Toolkit
 ```bash
-bash skills/workforce-management/scripts/update.sh ./
+bash .agents/skills/workforce-management/scripts/update.sh ./
 ```
+*(Fallback: `bash skills/workforce-management/scripts/update.sh ./`)*
 
 ### 3. Pruning & Uninstalling Teams (`prune-team.py`)
 ```bash
 # Safely prune unneeded team while preserving shared dependencies and workspace personas
-python3 skills/workforce-management/scripts/prune-team.py <team-name>
+python3 .agents/skills/workforce-management/scripts/prune-team.py <team-name>
 
 # Preview changes without modifying files
-python3 skills/workforce-management/scripts/prune-team.py <team-name> --dry
+python3 .agents/skills/workforce-management/scripts/prune-team.py <team-name> --dry
 
 # Hard wipe including workspace data folder
-python3 skills/workforce-management/scripts/prune-team.py <team-name> --purge-data
+python3 .agents/skills/workforce-management/scripts/prune-team.py <team-name> --purge-data
 ```
+*(Fallback: `python3 skills/workforce-management/scripts/prune-team.py ...`)*
