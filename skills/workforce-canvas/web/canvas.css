@@ -952,6 +952,13 @@ body, html {
   border: 1px solid var(--border-subtle);
   cursor: pointer;
   transition: all 0.15s ease;
+  max-width: 220px;
+}
+
+.session-filter-chip span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .session-filter-chip:hover {
@@ -982,6 +989,13 @@ body, html {
   background-color: #faf5ff;
   color: #7e22ce;
   border: 1px solid #e9d5ff;
+  max-width: 170px;
+}
+
+.badge-chat-session span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .badge-chat-session.is-active-session {

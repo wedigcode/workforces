@@ -2654,7 +2654,7 @@
       Object.entries(sessions).forEach(([sid, sinfo]) => {
         const opt = document.createElement('option');
         opt.value = sid;
-        const alias = sinfo.alias || `Chat ${sinfo.short_id || sid.slice(0, 8)}`;
+        const alias = sinfo.title || sinfo.alias || (sinfo.short_id ? `Chat ${sinfo.short_id}` : `Chat ${sid.slice(0, 8)}`);
         const roleTag = sinfo.role ? ` [${sinfo.role}]` : '';
         const portTag = sinfo.port ? ` :${sinfo.port}` : '';
         opt.innerText = `${alias}${roleTag}${portTag}${sid === currId ? ' (current)' : ''}`;
@@ -2673,7 +2673,7 @@
       Object.entries(sessions).forEach(([sid, sinfo]) => {
         const opt = document.createElement('option');
         opt.value = sid;
-        const alias = sinfo.alias || `Chat ${sinfo.short_id || sid.slice(0, 8)}`;
+        const alias = sinfo.title || sinfo.alias || (sinfo.short_id ? `Chat ${sinfo.short_id}` : `Chat ${sid.slice(0, 8)}`);
         const roleTag = sinfo.role ? ` [${sinfo.role}]` : '';
         opt.innerText = `${alias}${roleTag}${sid === currId ? ' (current)' : ''}`;
         if (prevVal === sid) {
@@ -2691,7 +2691,7 @@
       Object.entries(sessions).forEach(([sid, sinfo]) => {
         const opt = document.createElement('option');
         opt.value = sid;
-        const alias = sinfo.alias || `Chat ${sinfo.short_id || sid.slice(0, 8)}`;
+        const alias = sinfo.title || sinfo.alias || (sinfo.short_id ? `Chat ${sinfo.short_id}` : `Chat ${sid.slice(0, 8)}`);
         const roleTag = sinfo.role ? ` [${sinfo.role}]` : '';
         const portTag = sinfo.port ? ` :${sinfo.port}` : '';
         opt.innerText = `${alias}${roleTag}${portTag}${sid === currId ? ' (current)' : ''}`;
@@ -2720,10 +2720,10 @@
 
     Object.entries(sessions).forEach(([sid, sinfo]) => {
       const isActive = currActive === sid;
-      const alias = sinfo.alias || `Chat ${sinfo.short_id || sid.slice(0, 8)}`;
+      const alias = sinfo.title || sinfo.alias || (sinfo.short_id ? `Chat ${sinfo.short_id}` : `Chat ${sid.slice(0, 8)}`);
       const isCurrent = (sid === state.currentChatSessionId);
       html += `
-        <button class="session-filter-chip ${isActive ? 'active' : ''}" data-session="${sid}" title="${escapeHtml(sid)}">
+        <button class="session-filter-chip ${isActive ? 'active' : ''}" data-session="${sid}" title="${escapeHtml(alias)} (${escapeHtml(sid)})">
           <i data-lucide="message-square" class="w-3 h-3"></i>
           <span>${escapeHtml(alias)}${isCurrent ? ' *' : ''}</span>
         </button>
@@ -2817,7 +2817,7 @@
             <div class="flex items-center gap-1.5">
               <span class="text-[9px] font-mono font-bold uppercase px-1.5 py-0.2 rounded ${task.priority === 'P0' ? 'bg-[#fee2e2] text-[#b91c1c]' : 'bg-[#f4f4f5] text-[#4d4d4d]'}">${task.priority || 'P1'}</span>
               <span class="badge-team badge-${(task.team || 'dev').toLowerCase()}">${(task.team || 'dev').toUpperCase()}</span>
-              ${task.chat_session_id ? `<span class="badge-chat-session ${task.chat_session_id === state.currentChatSessionId ? 'is-active-session' : ''}" title="Assigned chat session: ${escapeHtml(task.chat_session_id)}"><i data-lucide="message-square" class="w-2.5 h-2.5"></i> ${(state.chatSessions[task.chat_session_id]?.alias || task.chat_session_id.slice(0, 8))}</span>` : ''}
+              ${task.chat_session_id ? `<span class="badge-chat-session ${task.chat_session_id === state.currentChatSessionId ? 'is-active-session' : ''}" title="Assigned chat: ${escapeHtml(state.chatSessions[task.chat_session_id]?.title || state.chatSessions[task.chat_session_id]?.alias || task.chat_session_id)} (${escapeHtml(task.chat_session_id)})"><i data-lucide="message-square" class="w-2.5 h-2.5"></i> <span>${escapeHtml(state.chatSessions[task.chat_session_id]?.title || state.chatSessions[task.chat_session_id]?.alias || (task.chat_session_id.length > 8 ? `Chat ${task.chat_session_id.slice(0, 8)}` : task.chat_session_id))}</span></span>` : ''}
             </div>
             ${statusBadge}
           </div>
@@ -3438,7 +3438,7 @@
               <span class="text-[9px] font-mono font-bold uppercase px-1.5 py-0.2 rounded ${task.priority === 'P0' ? 'bg-[#fee2e2] text-[#b91c1c]' : 'bg-[#f4f4f5] text-[#4d4d4d]'}">${task.priority || 'P1'}</span>
               <span class="text-[9.5px] font-mono uppercase text-[#828282]">${(task.team || 'dev').toUpperCase()}</span>
             </div>
-            ${task.chat_session_id ? `<span class="badge-chat-session ${task.chat_session_id === state.currentChatSessionId ? 'is-active-session' : ''}" title="Assigned chat session: ${escapeHtml(task.chat_session_id)}"><i data-lucide="message-square" class="w-2.5 h-2.5"></i> ${(state.chatSessions[task.chat_session_id]?.alias || task.chat_session_id.slice(0, 8))}</span>` : ''}
+            ${task.chat_session_id ? `<span class="badge-chat-session ${task.chat_session_id === state.currentChatSessionId ? 'is-active-session' : ''}" title="Assigned chat: ${escapeHtml(state.chatSessions[task.chat_session_id]?.title || state.chatSessions[task.chat_session_id]?.alias || task.chat_session_id)} (${escapeHtml(task.chat_session_id)})"><i data-lucide="message-square" class="w-2.5 h-2.5"></i> <span>${escapeHtml(state.chatSessions[task.chat_session_id]?.title || state.chatSessions[task.chat_session_id]?.alias || (task.chat_session_id.length > 8 ? `Chat ${task.chat_session_id.slice(0, 8)}` : task.chat_session_id))}</span></span>` : ''}
           </div>
           <h4 class="text-xs font-semibold text-[#202020] leading-snug mb-2 hover:text-[#c2410c] transition-colors cursor-pointer">${escapeHtml(task.title)}</h4>
           <div class="flex items-center justify-between pt-2 border-t border-[#f4f4f5]">
@@ -3795,9 +3795,36 @@
       msgModal.classList.add('hidden');
     }
 
-    if (btnOpenMsg) btnOpenMsg.onclick = openMsgModal;
+    if (btnOpenMsg) {
+      btnOpenMsg.onclick = openMsgModal;
+      btnOpenMsg.addEventListener('click', openMsgModal);
+    }
     if (btnCloseMsg) btnCloseMsg.onclick = closeMsgModal;
     if (btnCancelMsg) btnCancelMsg.onclick = closeMsgModal;
+
+    // Close on backdrop click
+    if (msgModal) {
+      msgModal.onclick = (e) => {
+        if (e.target === msgModal) closeMsgModal();
+      };
+    }
+
+    // Close on Escape
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && msgModal && !msgModal.classList.contains('hidden')) {
+        closeMsgModal();
+      }
+    });
+
+    // Send with Cmd+Enter / Ctrl+Enter from textarea
+    if (msgInput) {
+      msgInput.addEventListener('keydown', (e) => {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+          e.preventDefault();
+          if (btnSendMsg) btnSendMsg.click();
+        }
+      });
+    }
 
     if (btnSendMsg && msgInput) {
       btnSendMsg.onclick = async () => {
@@ -3826,7 +3853,8 @@
           });
           if (res.ok) {
             closeMsgModal();
-            alert(`Directive dispatched to chat session (${targetSid})!`);
+            const targetName = targetSid === 'all' ? 'All Sessions (Broadcast)' : (state.chatSessions[targetSid]?.title || state.chatSessions[targetSid]?.alias || targetSid);
+            alert(`Directive dispatched to chat session: ${targetName}!`);
           } else {
             const errData = await res.json();
             alert(`Failed to send message: ${errData.error || 'Server error'}`);

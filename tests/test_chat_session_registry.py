@@ -149,5 +149,59 @@ class TestChatSessionRegistry(unittest.TestCase):
         updated = update_task_file(self.root_path, all_tasks[0]["file"], {"chat_session_id": "chat-session-delta"})
         self.assertEqual(updated["chat_session_id"], "chat-session-delta")
 
+    def test_resolve_chat_session_title_and_auto_upgrade(self):
+        from session_registry import resolve_chat_session_title
+
+        # Setup mock annotation
+        fake_app_dir = self.root_path / "mock_app_data"
+        annotations_dir = fake_app_dir / "annotations"
+        annotations_dir.mkdir(parents=True, exist_ok=True)
+        (annotations_dir / "test-session-uuid-1234.pbtxt").write_text(
+            'title:"Workflow Dashboard Access" last_user_view_time:{seconds:1789390917}\n',
+            encoding="utf-8"
+        )
+
+        old_app_dir = os.environ.get("ANTIGRAVITY_APP_DATA_DIR")
+        try:
+            os.environ["ANTIGRAVITY_APP_DATA_DIR"] = str(fake_app_dir)
+            title = resolve_chat_session_title("test-session-uuid-1234")
+            self.assertEqual(title, "Workflow Dashboard Access")
+
+            # Register with default alias and verify title is auto-resolved
+            entry = register_chat_session(
+                root_dir=self.root_path,
+                session_id="test-session-uuid-1234",
+                role="watcher",
+            )
+            self.assertEqual(entry["title"], "Workflow Dashboard Access")
+            self.assertEqual(entry["alias"], "Workflow Dashboard Access")
+
+            sessions = get_chat_sessions(self.root_path)
+            self.assertEqual(sessions["test-session-uuid-1234"]["alias"], "Workflow Dashboard Access")
+        finally:
+            if old_app_dir is not None:
+                os.environ["ANTIGRAVITY_APP_DATA_DIR"] = old_app_dir
+            else:
+                os.environ.pop("ANTIGRAVITY_APP_DATA_DIR", None)
+
+    def test_modal_html_structure(self):
+        html_path = Path(__file__).resolve().parent.parent / "skills" / "workforce-canvas" / "web" / "index.html"
+        content = html_path.read_text(encoding="utf-8")
+
+        # Verify #session-message-modal exists and is NOT inside #new-task-modal
+        self.assertIn('id="session-message-modal"', content)
+        self.assertIn('id="new-task-modal"', content)
+
+        idx_new_task = content.find('id="new-task-modal"')
+        idx_msg_modal = content.find('id="session-message-modal"')
+        self.assertTrue(idx_new_task < idx_msg_modal)
+
+        # Count divs between new-task-modal and session-message-modal to ensure proper closure
+        between = content[idx_new_task:idx_msg_modal]
+        open_divs = between.count("<div")
+        close_divs = between.count("</div")
+        self.assertEqual(open_divs, close_divs, "new-task-modal must have balanced opening and closing div tags before session-message-modal")
+
+
 if __name__ == "__main__":
     unittest.main()

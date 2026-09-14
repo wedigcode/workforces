@@ -50,6 +50,40 @@ def detect_current_chat_session(fallback: Optional[str] = None) -> str:
     return f"session-{uuid.uuid4().hex[:8]}"
 
 
+def resolve_chat_session_title(session_id: str, fallback_alias: Optional[str] = None) -> str:
+    """Resolve human-readable title for a chat session from Antigravity metadata."""
+    clean_id = session_id.strip()
+    if not clean_id:
+        return fallback_alias or "Chat"
+
+    # 1. Search Antigravity annotations for protobuf title
+    search_dirs: List[Path] = []
+    app_data_dir = os.environ.get("ANTIGRAVITY_APP_DATA_DIR", "").strip()
+    if app_data_dir:
+        search_dirs.append(Path(app_data_dir) / "annotations")
+    home_annotations = Path.home() / ".gemini" / "antigravity" / "annotations"
+    if home_annotations not in search_dirs:
+        search_dirs.append(home_annotations)
+
+    for adir in search_dirs:
+        pbtxt_path = adir / f"{clean_id}.pbtxt"
+        if pbtxt_path.exists():
+            try:
+                content = pbtxt_path.read_text(encoding="utf-8", errors="ignore")
+                match = re.search(r'title:\s*"([^"]+)"', content)
+                if match and match.group(1).strip():
+                    return match.group(1).strip()
+            except Exception:
+                pass
+
+    # 2. Return custom fallback alias if meaningful (not generic "Chat <hex>" or UUID)
+    if fallback_alias and not fallback_alias.startswith("Chat ") and fallback_alias != clean_id:
+        return fallback_alias.strip()
+
+    short_id = clean_id[:8] if len(clean_id) >= 8 else clean_id
+    return fallback_alias or f"Chat {short_id}"
+
+
 def get_chat_sessions_file(root_dir: Path) -> Path:
     """Return path to workforces/.chat-sessions.json."""
     return Path(root_dir).resolve() / "workforces" / ".chat-sessions.json"
@@ -121,6 +155,19 @@ def get_chat_sessions(root_dir: Path, prune_stale_seconds: int = 120) -> Dict[st
             except Exception:
                 pass
 
+        # Auto-resolve human-readable title if not yet resolved or if generic
+        current_alias = sinfo.get("alias", "")
+        current_title = sinfo.get("title", "")
+        if not current_title or current_alias.startswith("Chat ") or current_alias == sid[:8]:
+            resolved = resolve_chat_session_title(sid, current_alias)
+            if resolved and not resolved.startswith("Chat "):
+                sinfo["title"] = resolved
+                sinfo["alias"] = resolved
+                modified = True
+        elif current_title and not current_alias:
+            sinfo["alias"] = current_title
+            modified = True
+
     if modified:
         _write_registry(sessions_file, data)
 
@@ -146,12 +193,14 @@ def register_chat_session(
     now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
     clean_id = session_id.strip()
     short_id = clean_id[:8] if len(clean_id) >= 8 else clean_id
-    session_alias = alias.strip() if alias and alias.strip() else f"Chat {short_id}"
+    resolved_title = resolve_chat_session_title(clean_id, alias)
+    session_alias = alias.strip() if (alias and alias.strip() and not alias.strip().startswith("Chat ")) else resolved_title
 
     existing = sessions.get(clean_id, {})
     entry = {
         "session_id": clean_id,
         "short_id": short_id,
+        "title": resolved_title,
         "alias": session_alias,
         "role": role,
         "port": port if port is not None else existing.get("port"),

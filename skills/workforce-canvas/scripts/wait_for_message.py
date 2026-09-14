@@ -36,6 +36,7 @@ try:
         register_chat_session,
         heartbeat_chat_session,
         unregister_chat_session,
+        resolve_chat_session_title,
     )
 except ImportError:
     def detect_current_chat_session(fallback=None):
@@ -46,6 +47,8 @@ except ImportError:
         return True
     def unregister_chat_session(root_dir, session_id, **kwargs):
         return True
+    def resolve_chat_session_title(session_id, fallback=None):
+        return fallback or f"Chat {session_id[:8]}"
 
 _STOP_REQUESTED = False
 
@@ -235,7 +238,8 @@ def format_event_summary(events: List[Dict[str, Any]]) -> str:
 
             lines.append(f"  Sender:      {sender}")
             lines.append(f"  Priority:    {prio}")
-            lines.append(f"  Target Chat: {target_sid}")
+            target_label = f"{resolve_chat_session_title(target_sid)} ({target_sid})" if target_sid not in ("all", "current") else target_sid
+            lines.append(f"  Target Chat: {target_label}")
             if action:
                 lines.append(f"  Context:     {action}")
             lines.append(f"  Message:     {msg}")
