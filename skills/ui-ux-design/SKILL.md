@@ -59,7 +59,7 @@ Design interfaces that are intuitive, accessible, and conversion-optimized. For 
 | **Keyboard Navigation** | All interactive elements reachable via `Tab` | Visible `:focus-visible` focus ring on all interactive components. |
 | **Form Labels** | Every form control has an associated `<label>` | Explicit `htmlFor` / `id` pairing, not bare placeholder text. |
 | **Semantic Hierarchy** | Exactly one `<h1>` per page; sequential `<h2>` / `<h3>` | Screen-reader outline audit; no skipped heading levels. |
-| **Motion Safety** | Respect OS reduced-motion preferences | Wrap transitions in `@media (prefers-reduced-motion: reduce)`. |
+| **Motion Safety** | Respect OS reduced-motion preferences | Disable or shorten motion/transitions inside `@media (prefers-reduced-motion: reduce)`. |
 
 ---
 
@@ -69,5 +69,6 @@ Design interfaces that are intuitive, accessible, and conversion-optimized. For 
 - [ ] **Responsive Integrity**: Tested at 320px, 768px, and 1280px without horizontal scrollbars.
 - [ ] **Touch Targets**: All mobile buttons and links satisfy >= 44×44px hit boundaries.
 - [ ] **Loading & Empty States**: Clean skeleton placeholder when loading; actionable guidance when data is empty.
+- [ ] **Error Handling**: Clear, actionable error messages with recovery options on failed actions or invalid input.
 - [ ] **Contrast Compliance**: Body text satisfies WCAG AA >= 4.5:1 contrast ratio.
 - [ ] **Focus Rings**: All interactive controls display high-contrast focus rings on keyboard tab navigation.

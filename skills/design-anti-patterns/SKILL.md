@@ -43,23 +43,23 @@ AI tools reflexively default to predictable visual clichés. This skill provides
 
 ## Pre-Flight Self-Check Audit
 
-Verify these 16 checkpoints before handing off any UI implementation:
+Verify these 16 checkpoints before finalizing any design:
 
 | # | Checkpoint | Failure Trigger | Corrective Action |
 |---|------------|-----------------|-------------------|
-| 1 | **Emoji Scan** | Unicode emojis in buttons, badges, cards | Replace with Lucide/Heroicons SVG vector icon. |
-| 2 | **Icon Consistency** | Mixed icon families or missing `currentColor` | Standardize on one icon family; use `stroke="currentColor"`. |
-| 3 | **Typography Pairing** | Generic font or monospace used for UI body | Display font + clean Sans-Serif body (Inter, Geist, Plus Jakarta). |
-| 4 | **Heading Gradients** | Multi-color gradient text on headings | Replace with high-contrast solid color or single accent word. |
-| 5 | **Surface Depth** | Flat un-layered boxes or pitch-black background | Use layered surfaces (`bg-background`, `bg-surface`, `border-border/40`). |
-| 6 | **Color Contrast** | Low contrast or user-rejected combinations | Enforce WCAG AA (>= 4.5:1); check `workforces/memory/design-preferences.md`. |
-| 7 | **Layout Rhythm** | Three identical cards in a centered row | Break symmetry with 60/40 split or horizontal list. |
-| 8 | **Whitespace Scale** | Cramped sections or padding < 16px | Expand to generous padding (`p-6`, `gap-6` or `gap-8`). |
-| 9 | **Telemetry Clutter** | Decorative latency, protocol tags, raw UUIDs | Remove fake data; move secondary metrics to expandable drawers. |
-| 10 | **Widget Density** | 3+ competing sidebars/widgets on one screen | Remove kitchen-sink elements; focus on primary user journey. |
-| 11 | **Border Radius** | Everything set to `rounded-full` or `1rem+` | Use subtle 4–6px radii for cards/inputs; reserve pills for badges. |
-| 12 | **Shadow Budget** | Heavy dark shadows across all cards | Tighten to subtle `0 1px 3px rgba(0,0,0,0.08)` or 1px border. |
-| 13 | **Hover Restraint** | Everything scales or bounces on hover | Restrict hover lift to primary interactive cards (`translateY(-2px)`). |
-| 14 | **Tagline Clarity** | Vague "Simple. Powerful." taglines | Rewrite to state concrete user outcome and causal trigger. |
-| 15 | **Touch Targets** | Mobile tap targets smaller than 44×44px | Expand touch target sizing and spacing on mobile breakpoints. |
-| 16 | **Design Memory** | Uses pattern rejected in `design-preferences.md` | Audit against recorded user anti-preferences; replace immediately. |
+| 1 | **Accent Borders** | More than 1 card with colored left accent border | Remove extra accent borders; use surface depth or subtle top border. |
+| 2 | **Gradient Elements** | More than 2 gradient text or background elements | Switch to solid high-contrast colors or deep slate surfaces. |
+| 3 | **Column Grids** | Multiple identical 3-column feature card rows | Vary layout rhythm with 60/40 splits, horizontal rows, or alternating sides. |
+| 4 | **Alignment Audit** | Every section and heading centered | Left-align body copy and feature sections for natural reading flow. |
+| 5 | **Shadow Inventory** | Heavy, blurry drop-shadows on 3+ elements | Reduce to subtle `0 1px 3px rgba(0,0,0,0.08)` or clean 1px border. |
+| 6 | **Background Rhythm** | Alternating harsh white/gray zebra striping every section | Unify background tone; separate sections with generous whitespace. |
+| 7 | **Icon Genericness** | Generic check/shield/globe outline icons in 3×2 grid | Replace with real UI screenshots, numbered steps, or bold typography. |
+| 8 | **Hover Scale** | Cards, buttons, and badges all scale on hover | Restrict hover lift to primary interactive cards (`translateY(-2px)`). |
+| 9 | **Color Palette** | All-pastel or low-contrast combinations | Ensure WCAG AA contrast (>= 4.5:1); check `design-preferences.md`. |
+| 10 | **Border Radius** | All elements max-rounded (`rounded-full` / `1rem+`) | Mix sharp and subtle radii (4–6px); reserve pills for badges. |
+| 11 | **Emoji Scan** | Unicode emojis in UI buttons, badges, cards, or nav | Replace with Lucide, Heroicons, or Phosphor SVG vector icons. |
+| 12 | **Monospace Audit** | Monospace font used for headings or body copy | Switch to Sans-Serif (Inter, Geist); reserve monospace for code/hashes. |
+| 13 | **Surface Contrast** | Pure `#000000` pitch black with neon phosphor glows | Use layered slate/zinc dark surfaces (`#090d16`, `#0f172a`) with subtle borders. |
+| 14 | **Telemetry Clutter** | Fake ping latency, engine protocol tags, or raw UUIDs | Eliminate decorative counters; collapse technical details into drawers. |
+| 15 | **Component Density** | 3+ competing sidebars/widgets on one screen | Remove kitchen-sink elements; center the primary user workflow. |
+| 16 | **Copy & Data Realism**| Buzzword salad titles or default AI names (Alex Chen) | Write direct outcome-based copy and use authentic domain datasets. |
