@@ -49,7 +49,15 @@ Subordinate all secondary optimizations to solving the single primary throughput
 
 For every feature agreed upon, document in the session brief and register via `report-issue.py`:
 
-| # | Identified Pain Point / JTBD Trigger | Severity | Proposed Solution / Feature | Value Stick Wedge Impact |
-| :- | :--- | :--- | :--- | :--- |
-| **P-1** | [Situational trigger / pain point] | P0 | [Proposed feature] | Expands WTP (+Delight) |
-| **P-2** | [Manual workaround friction] | P1 | [Proposed automation] | Lowers WTS (+Efficiency) |
+```bash
+python3 .agents/skills/issue-tracker/scripts/report-issue.py \
+  --title "<Feature Title>" --type feature --priority P1 \
+  --reporter @advisor --session-id "<Seq>" \
+  --session-file "workforces/session-context/<file>.md" \
+  --description "<Problem & Value>" --suggested-action "<Implementation Path>" --sync-session
+```
+
+| # | Identified Pain Point / JTBD Trigger | Severity | Proposed Solution / Feature | Success Metric | Value Stick Wedge Impact |
+| :- | :--- | :--- | :--- | :--- | :--- |
+| **P-1** | [Situational trigger / pain point] | P0 | [Proposed feature] | [Measurable target KPI] | Expands WTP (+Delight) |
+| **P-2** | [Manual workaround friction] | P1 | [Proposed automation] | [Time / cost saved metric] | Lowers WTS (+Efficiency) |

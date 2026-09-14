@@ -29,7 +29,7 @@ All commands run via `.agents/skills/workforce-management/scripts/` (Fallback: `
 
 | Operation | Command Pattern | Key Invariant |
 | :--- | :--- | :--- |
-| **Setup & Install** | `bash skills/workforce-management/scripts/setup.sh ./ --teams <team>` | Copies configured agents, rules, and skills from `teams/<team>/pack.json`. |
-| **Toolkit Update** | `bash skills/workforce-management/scripts/update.sh ./ --non-interactive` | Prunes obsolete files via `.manifest.json` while protecting user files. |
-| **Prune Team** | `python3 skills/workforce-management/scripts/prune-team.py <team>` | **Reference-Counted**: Shared dependencies used by active teams are preserved. |
-| **Validate Refs** | `python3 skills/workforce-management/scripts/validate-references.py ./ --fix` | Verifies zero ghost references or broken paths across markdown and JSON files. |
+| **Setup & Install** | `bash .agents/skills/workforce-management/scripts/setup.sh ./ --teams <team>` | Copies configured agents, rules, and skills from `teams/<team>/pack.json`. |
+| **Toolkit Update** | `bash .agents/skills/workforce-management/scripts/update.sh ./ --non-interactive` | Prunes obsolete files via `.manifest.json` while protecting user files. |
+| **Prune Team** | `python3 .agents/skills/workforce-management/scripts/prune-team.py <team>` | **Reference-Counted**: Shared dependencies used by active teams are preserved. |
+| **Validate Refs** | `python3 .agents/skills/workforce-management/scripts/validate-references.py ./ --fix` | Verifies zero ghost references or broken paths across markdown and JSON files. |

@@ -24,12 +24,15 @@ Enforces brand consistency across all touchpoints. Led by `@marketer` and `@desi
 
 ## 2. Color System Tokens
 
+> [!IMPORTANT]
+> Always verify all color token choices against `workforces/memory/design-preferences.md` before generating palettes.
+
 | Role | Token Usage | Rule |
 | :--- | :--- | :--- |
 | **Primary** | Core brand identity, key CTAs | Exact hex match across all assets. |
 | **Secondary** | Structural cards, secondary buttons | Differentiates surfaces from background. |
 | **Neutral** | Background canvas, body text, borders | Minimum **4.5:1** contrast ratio (WCAG AA). |
-| **Accent** | Alerts, high-intent badges (<= 10% area)| Highlight action items; verify against `design-preferences.md`. |
+| **Accent** | Alerts, high-intent badges (<= 10% area)| Highlight action items (snaps to accent token). |
 | **Feedback** | Success (green), warning (amber), error (red) | Accessible semantic status indicators. |
 
 ---

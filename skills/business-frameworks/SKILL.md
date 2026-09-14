@@ -30,6 +30,8 @@ Detailed mathematical mechanics and case examples are located in `references/`:
 | :--- | :--- | :--- |
 | **Value Stick** | How does the feature divide economic value across WTP, Price, Cost, and WTS? | [`references/value-stick.md`](references/value-stick.md) |
 | **Jobs-to-be-Done (JTBD)** | What functional, emotional, and social job is being hired? | [`references/jobs-to-be-done.md`](references/jobs-to-be-done.md) |
+| **Connected Strategy** | Which relationship model (Respond-to-desire, Curated, Coach, Automatic) creates repeat engagement? | [`references/connected-strategy.md`](references/connected-strategy.md) |
 | **Growth Loops** | How does usage automatically compound acquisition without pure ad spend? | [`references/growth-loops.md`](references/growth-loops.md) |
+| **Multi-Sided Platforms** | How are cross-side network effects, pricing asymmetries, and chicken-and-egg solved? | [`references/platform-strategy.md`](references/platform-strategy.md) |
 | **Dynamic Capabilities** | How does the workforce systematically Sense, Seize, and Transform? | [`references/dynamic-capabilities.md`](references/dynamic-capabilities.md) |
 | **Unit Economics** | How are LTV, CAC, churn, and payback periods calculated and benchmarked? | [`references/unit-economics.md`](references/unit-economics.md) |

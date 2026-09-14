@@ -13,7 +13,7 @@ End-to-end ideation and opportunity incubation engine. Coordinates parallel rese
 
 | Engine | Lead Agent | Methodology & Evaluation Filters |
 | :--- | :--- | :--- |
-| **Engine A: Atomic Micro-SaaS** | `@unbundler` | • Isolate 1-minute magic moment vs. modern bloat point.<br>• **Viability Scorecard (1–5)**: Frequency, WTP, Standalone Integrity, Spreadsheet Moat.<br>• Bottom-up TAM/SAM/SOM to \$10k–\$100k MRR. |
+| **Engine A: Atomic Micro-SaaS** | `@unbundler` | • Isolate 1-minute magic moment vs. modern bloat point.<br>• **Viability Scorecard (1–5)**: Frequency, WTP, Standalone Integrity, Spreadsheet Moat.<br>• Bottom-up TAM/SAM/SOM market sizing and \$10k–\$100k MRR operating milestones. |
 | **Engine B: Market Disruption** | `@disruptor` | • Macro industry shifts (consulting reports, VC trends).<br>• **\$1B Market Math**: $\text{Target Customers} \times \text{Product Price} > \$1\text{B}$.<br>• **4 Leverage Criteria**: Subscription, $\ge 70\%$ Margin, Pure Tech Scaled, 100% Owned IP. |
 
 ---
