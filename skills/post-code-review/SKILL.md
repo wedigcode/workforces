@@ -1,58 +1,37 @@
 ---
 name: post-code-review
-description: Performs pre-handoff code analysis on git diffs, cross-referencing changes against the AST code-graph to detect broken contract signatures, unhandled errors, duplicate utility functions, and missing tests. Executes the automated quality gate triad (unit tests, static analysis/type checks, and linters) and dependency security audits to guarantee zero errors before code handoff. Reach for this skill immediately after modifying code to verify architectural hygiene, run quality gates, prevent regressions, and trigger automated self-healing before committing or opening a pull request.
+description: Performs pre-handoff code review and quality verification on git diffs. Validates against a PR-style verification form (DRY, <= 35 lines per function, method decomposition, simplicity, and maintainability), enforces AI pushback on skipped principles, executes the automated quality triad (unit tests, static analysis/type checks, linters), and manages weekly-retried 3rd-party security bypass caching. Reach for this skill immediately after modifying code.
 ---
-# Skill: Pre-Handoff Whole-Codebase Code Reviewer & Quality Gate
+# Skill: Pre-Handoff Code Reviewer & Quality Gate
 
-Automated whole-codebase code reviewer and quality gate designed to audit code modifications in context with the entire repository and verify zero test regressions, type errors, or lint failures before code handoff.
+Automated whole-codebase code reviewer and quality gate that audits code modifications, generates a PR-style review checklist, pushes back on skipped principles, executes quality gates, and handles 3rd-party security bypasses with weekly retry intervals.
 
 ---
 
 ## Capabilities
 
-1. **Downstream Blast Radius Audit**: Checks modified function/class signatures against caller files discovered in `workforces/code-graph.json`.
-2. **Resilience & Swallowed Error Detection**: Flags empty `catch`/`except` blocks or swallowed promise rejections.
-3. **Deduplication Check**: Cross-references new functions against existing indexed helper methods.
-4. **Over-Engineering & Class Helper Audit**: Audits newly added class methods to ensure neighboring static/public helper methods in the same class (e.g. `Format::convertNumber()`) are composed rather than duplicated with raw regex or manual type-casting.
-5. **Quality Gate Triad Execution (Tests + Static Analysis + Linters)**: Auto-detects and executes the target project's unit test suite, static analysis / strict typechecker (`tsc --noEmit`, `mypy`, `phpstan`), and linter (`biome`, `eslint`, `ruff`, `pint`).
-6. **Dependency Security Audits**: Triggers automated vulnerability checks (`npm audit`, `pip-audit`, `composer audit`) whenever dependency manifests or lockfiles are modified.
-7. **Zero-Handoff Gate Enforcement**: If any test fails, typecheck breaks, or linter reports errors, blocks completion and demands immediate self-remediation before handing over code.
+1. **PR-Style Verification Form**: Automatically evaluates diffs against the 5 core criteria:
+   - `[ ] - is it dry` (checks duplicate symbols across code-graph and neighboring class helpers)
+   - `[ ] - no new code exceeds 35 lines` (flags functions/methods exceeding max line thresholds)
+   - `[ ] - should any new code be in its own method` (detects deeply nested blocks or monolithic branches)
+   - `[ ] - is any of it too verbose or can it be simplified?` (identifies redundant boilerplate or verbose returns)
+   - `[ ] - code maintainability` (verifies error safety, missing tests, and caller blast radius)
+2. **AI Pushback on Skipped Principles**: Flags checklist failures and demands either code remediation or documented justification before code handoff.
+3. **Candidate Issue Discovery**: Discovered maintainability problems or technical debt outside immediate scope are surfaced with copy-paste `report-task.py` commands.
+4. **Resilient 3rd-Party Security Bypass**: Dependency security audits (`npm audit`, `pip-audit`, `composer audit`) catch vulnerabilities. If a 3rd-party / transitive issue cannot be fixed automatically, learnings are cached in `workforces/memory/security-bypass.json` with a 7-day retry schedule, informing the user with non-blocking notices rather than blocking every session.
+5. **Quality Triad Execution**: Runs configured unit tests, static analysis/strict type checks (`tsc`, `mypy`, `phpstan`), and linters (`biome`, `eslint`, `ruff`).
+6. **Strict Quality Gate**: Blocks handoff if unbypassed critical errors, test regressions, or unaddressed pushback violations exist.
 
 ---
 
 ## Execution Commands
 
-### 1. Mandatory Post-Edit Heuristic Check
-Fires on post-tool calls to audit diffs, blast radius, and swallowed errors:
+### 1. Post-Edit Heuristic & PR Verification Check
 ```bash
-python3 .agents/skills/post-code-review/scripts/post_code_reviewer.py --root ./
+python3 skills/post-code-review/scripts/post_code_reviewer.py --root ./
 ```
-*(Fallback: `python3 skills/post-code-review/scripts/post_code_reviewer.py --root ./` — automatically resolves target project root from `workrules.md`/`workstate.md`, `WORKFORCE_TARGET_DIR`, or pass explicit `--target-dir <path>`)*
 
 ### 2. Pre-Handoff Quality Gate Verification (MANDATORY BEFORE COMPLETION)
-Before declaring any task done or handing code over to the user, the agent MUST run the full quality gate verification:
 ```bash
-python3 .agents/skills/post-code-review/scripts/post_code_reviewer.py --root ./ --run-checks --strict
+python3 skills/post-code-review/scripts/post_code_reviewer.py --root ./ --run-checks --strict
 ```
-*(Fallback: `python3 skills/post-code-review/scripts/post_code_reviewer.py --root ./ --run-checks --strict`)*
-
-### 3. Pre-Hook Context Analysis (Pre-Coding)
-```bash
-python3 .agents/skills/code-graph/scripts/pre_impact_analyzer.py --file <target_file> [--target-dir <path>]
-```
-*(Fallback: `python3 skills/code-graph/scripts/pre_impact_analyzer.py ...`)*
-
----
-
-## Review Rules Checklist
-
-| Category | Check Description | Action |
-|---|---|---|
-| **Contract Compatibility** | Changed function signature in target file has callers in external files | Flag dependent caller files for parameter alignment |
-| **Error Handling** | `except: pass` or `catch {}` present in diff | Require logging or rethrowing with context |
-| **Deduplication** | Function logic duplicates an existing helper in `code-graph.json` | Recommend reusing existing helper utility |
-| **Class Helper Reuse** | Custom regex/parsing used when neighboring helper exists in same class file | Recommend composing existing class helper (e.g. `convertNumber`) |
-| **Unit Tests** | Unit test suite execution fails or regressions occur | **BLOCK HANDOFF**: Remediate all test failures immediately |
-| **Static Analysis** | Strict typecheck errors (`tsc`, `mypy`, `phpstan`) detected | **BLOCK HANDOFF**: Resolve type violations; zero `any` escapes |
-| **Styling & Linting** | Code formatting or lint rules violated (`biome`, `eslint`, `ruff`) | **BLOCK HANDOFF**: Fix lint errors before concluding |
-| **Dependency Security** | High/critical vulnerabilities introduced in manifests | **BLOCK HANDOFF**: Upgrade vulnerable packages before completing |

@@ -138,6 +138,101 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
         self.assertIn("PRE-HANDOFF BLOCKER", report)
         self.assertIn("Quality Gate Failed (Test)", report)
 
+    def test_evaluate_pr_verification_form_clean(self):
+        """Test PR verification form reports clean pass for compliant code."""
+        code = "def add(a: int, b: int) -> int:\n    return a + b\n"
+        py_file = self.test_dir / "math_utils.py"
+        py_file.write_text(code, encoding="utf-8")
+        diff = f"+++ b/math_utils.py\n@@ -0,0 +1,2 @@\n+{code.replace(chr(10), chr(10)+'+')}"
+
+        form_md, passed, pushbacks, candidates = post_code_reviewer.evaluate_pr_verification_form(
+            diff, ["math_utils.py"], [], self.test_dir
+        )
+        self.assertTrue(passed)
+        self.assertEqual(len(pushbacks), 0)
+        self.assertIn("- [x] **is it dry:**", form_md)
+        self.assertIn("- [x] **no new code exceeds 35 lines:**", form_md)
+        self.assertIn("- [x] **should any new code be in its own method:**", form_md)
+        self.assertIn("- [x] **is any of it too verbose or can it be simplified:**", form_md)
+        self.assertIn("- [x] **code maintainability:**", form_md)
+
+    def test_audit_function_length_violation_triggers_pushback(self):
+        """Test functions exceeding 35 lines are flagged and trigger AI pushback."""
+        long_func = "def process_big_data():\n" + "".join(f"    x_{i} = {i}\n" for i in range(40)) + "    return x_39\n"
+        py_file = self.test_dir / "big_task.py"
+        py_file.write_text(long_func, encoding="utf-8")
+        diff = f"+++ b/big_task.py\n@@ -0,0 +1,42 @@\n+{long_func.replace(chr(10), chr(10)+'+')}"
+
+        form_md, passed, pushbacks, candidates = post_code_reviewer.evaluate_pr_verification_form(
+            diff, ["big_task.py"], [], self.test_dir
+        )
+        self.assertFalse(passed)
+        self.assertTrue(any("exceeds 35 lines" in p or "limit" in p for p in pushbacks))
+        self.assertIn("- [ ] **no new code exceeds 35 lines:**", form_md)
+
+    def test_audit_method_scoping_nested_control_flow(self):
+        """Test deeply nested control flow blocks (indent >= 4) are flagged."""
+        nested_diff = (
+            "+++ b/service.py\n"
+            "@@ -10,10 +10,12 @@\n"
+            "+    if True:\n"
+            "+        for item in items:\n"
+            "+            while active:\n"
+            "+                if check():\n"
+            "+                    do_work()\n"
+        )
+        passed, violations, _ = post_code_reviewer.audit_method_scoping(
+            nested_diff, ["service.py"], self.test_dir
+        )
+        self.assertFalse(passed)
+        self.assertTrue(any("Deeply nested" in v for v in violations))
+
+    def test_audit_simplicity_redundant_boolean(self):
+        """Test redundant boolean ternary (? true : false) is flagged."""
+        diff = (
+            "+++ b/ui.ts\n"
+            "@@ -1,5 +1,5 @@\n"
+            "+const isValid = check() ? true : false;\n"
+        )
+        passed, violations, _ = post_code_reviewer.audit_simplicity_and_verbosity(diff, ["ui.ts"])
+        self.assertFalse(passed)
+        self.assertTrue(any("Redundant boolean ternary" in v for v in violations))
+
+    def test_security_bypass_caching_and_weekly_retry_lifecycle(self):
+        """Test security bypass caching, 7-day non-blocking window, and cache updates."""
+        import datetime
+        now = datetime.datetime.now()
+        manifest = self.test_dir / "package.json"
+        manifest.write_text(json.dumps({"name": "test-pkg"}), encoding="utf-8")
+
+        cache_path = self.test_dir / "workforces" / "memory" / "security-bypass.json"
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # 1. Simulate active bypass entry within 7 days
+        future_retry = (now + datetime.timedelta(days=5)).isoformat()
+        initial_cache = {
+            "bypasses": {
+                "npm:vulnerability in semver": {
+                    "ecosystem": "npm",
+                    "summary": "vulnerability in semver",
+                    "first_detected": now.isoformat(),
+                    "last_tried": now.isoformat(),
+                    "next_retry": future_retry,
+                    "status": "bypassed"
+                }
+            }
+        }
+        cache_path.write_text(json.dumps(initial_cache), encoding="utf-8")
+
+        loaded = post_code_reviewer.load_security_bypass_cache(self.test_dir)
+        self.assertIn("npm:vulnerability in semver", loaded["bypasses"])
+
+        # 2. Test saving and loading
+        post_code_reviewer.save_security_bypass_cache(self.test_dir, loaded)
+        reloaded = post_code_reviewer.load_security_bypass_cache(self.test_dir)
+        self.assertEqual(reloaded["bypasses"]["npm:vulnerability in semver"]["next_retry"], future_retry)
+
 
 if __name__ == "__main__":
     unittest.main()
+
