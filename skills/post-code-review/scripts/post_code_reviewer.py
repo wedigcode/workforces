@@ -25,12 +25,45 @@ from typing import Dict, List, Any, Set, Tuple, Optional
 
 IGNORE_DIRS = {".git", "node_modules", "vendor", "__pycache__", ".venv", "venv", "dist", "build", ".next", ".agents", ".worktrees"}
 
+def _generate_untracked_diff(root_dir: Path) -> str:
+    """Generate synthetic diff hunks for untracked files."""
+    try:
+        res = subprocess.run(
+            ["git", "ls-files", "--others", "--exclude-standard"],
+            cwd=root_dir, capture_output=True, text=True, timeout=5
+        )
+        if res.returncode != 0 or not res.stdout.strip():
+            return ""
+    except Exception as err:
+        sys.stderr.write(f"[post_code_reviewer] untracked diff notice: {err}\n")
+        return ""
+
+    hunks = []
+    for rel_path in res.stdout.splitlines():
+        rel_path = rel_path.strip()
+        if not rel_path or any(part in IGNORE_DIRS for part in Path(rel_path).parts):
+            continue
+        full_path = root_dir / rel_path
+        if not full_path.is_file() or full_path.stat().st_size > 1_000_000:
+            continue
+        try:
+            content = full_path.read_text(encoding="utf-8", errors="ignore")
+            lines = content.splitlines()
+            hunk = [f"diff --git a/{rel_path} b/{rel_path}", "--- /dev/null", f"+++ b/{rel_path}", f"@@ -0,0 +1,{len(lines)} @@"]
+            hunk.extend([f"+{line}" for line in lines])
+            hunks.append("\n".join(hunk))
+        except Exception:
+            continue
+    return "\n".join(hunks)
+
 def get_git_diff(root_dir: Path) -> str:
     """Extract current git diff (staged + unstaged + untracked changes)."""
     try:
         res = subprocess.run(["git", "diff", "HEAD"], cwd=root_dir, capture_output=True, text=True, timeout=5)
         res_status = subprocess.run(["git", "status", "--porcelain"], cwd=root_dir, capture_output=True, text=True, timeout=5)
-        return res.stdout + "\n" + res_status.stdout
+        untracked = _generate_untracked_diff(root_dir)
+        parts = [res.stdout, untracked, res_status.stdout]
+        return "\n".join(p for p in parts if p.strip())
     except Exception as err:
         sys.stderr.write(f"[post_code_reviewer] get_git_diff notice: {err}\n")
         return ""
@@ -266,18 +299,55 @@ def handle_security_failure(ecosystem: str, summary: str, bypasses: Dict[str, An
 
     return record_security_bypass(ecosystem, summary, bypasses, target_dir, cache)
 
+def _parse_npm_audit_payload(raw_json: str) -> Dict[str, Any]:
+    """Safely parse npm audit JSON output."""
+    try:
+        return json.loads(raw_json)
+    except json.JSONDecodeError:
+        idx1, idx2 = raw_json.find("{"), raw_json.rfind("}")
+        if idx1 != -1 and idx2 != -1:
+            return json.loads(raw_json[idx1:idx2 + 1])
+        raise
+
+def _process_npm_vulnerabilities(
+    vulns: Dict[str, Any],
+    bypasses: Dict[str, Any],
+    target_dir: Path,
+    cache: Dict[str, Any]
+) -> List[str]:
+    """Process vulnerabilities distinguishing direct (blocking) vs transitive (bypassed)."""
+    issues = []
+    for pkg, info in vulns.items():
+        is_direct = info.get("isDirect", False) if isinstance(info, dict) else False
+        severity = info.get("severity", "high") if isinstance(info, dict) else "high"
+        summary = f"vulnerability in {pkg}"
+        if is_direct:
+            issues.append(
+                f"❌ **Direct Security Vulnerability (npm):** Direct dependency `{pkg}` has {severity} vulnerability. Direct dependencies cannot be bypassed; update or replace `{pkg}`."
+            )
+        else:
+            issues.append(handle_security_failure("npm", summary, bypasses, target_dir, cache))
+    return issues
+
 def _run_node_audit(touched: List[str], target_dir: Path, bypasses: Dict[str, Any], cache: Dict[str, Any]) -> List[str]:
-    """Execute npm audit and process findings."""
+    """Execute npm audit --json and process findings."""
     if not any(m.endswith(("package.json", "package-lock.json", "pnpm-lock.yaml")) for m in touched) or not shutil.which("npm"):
         return []
     try:
-        res = subprocess.run(["npm", "audit", "--audit-level=high"], cwd=target_dir, capture_output=True, text=True, timeout=15)
-        if res.returncode != 0:
-            lines = [l.strip() for l in (res.stdout + res.stderr).splitlines() if "vulnerabilities" in l.lower() or "severity" in l.lower()]
-            return [handle_security_failure("npm", lines[0] if lines else f"exit {res.returncode}", bypasses, target_dir, cache)]
+        res = subprocess.run(["npm", "audit", "--json"], cwd=target_dir, capture_output=True, text=True, timeout=15)
+        if res.returncode == 0:
+            return []
+        data = _parse_npm_audit_payload(res.stdout or res.stderr)
+        if "error" in data:
+            err_msg = data["error"].get("summary") or data["error"].get("detail") or "npm audit error"
+            return [f"❌ **Security Audit Failed (npm):** {err_msg}"]
+        vulns = data.get("vulnerabilities", {})
+        if not vulns:
+            return []
+        return _process_npm_vulnerabilities(vulns, bypasses, target_dir, cache)
     except Exception as err:
         sys.stderr.write(f"[post_code_reviewer] npm audit notice: {err}\n")
-    return []
+        return [f"❌ **Security Audit Failed (npm):** {err}"]
 
 def _run_python_audit(touched: List[str], target_dir: Path, bypasses: Dict[str, Any], cache: Dict[str, Any]) -> List[str]:
     """Execute pip-audit and process findings."""
@@ -289,6 +359,7 @@ def _run_python_audit(touched: List[str], target_dir: Path, bypasses: Dict[str, 
             return [handle_security_failure("python", "pip-audit vulnerabilities", bypasses, target_dir, cache)]
     except Exception as err:
         sys.stderr.write(f"[post_code_reviewer] pip-audit notice: {err}\n")
+        return [f"❌ **Security Audit Failed (python):** {err}"]
     return []
 
 def audit_dependency_security(modified_files: List[str], target_dir: Path) -> List[str]:
@@ -304,19 +375,33 @@ def audit_dependency_security(modified_files: List[str], target_dir: Path) -> Li
 
 # --- PR Review Verification Form & Heuristic Checks ---
 
+def _parse_hunk_line(line: str, curr_line: int, touched: Set[int]) -> int:
+    """Process a single diff hunk line and update line tracking."""
+    if line.startswith("+") and not line.startswith("+++"):
+        touched.add(curr_line)
+        return curr_line + 1
+    if line.startswith("-") and not line.startswith("---"):
+        return curr_line
+    if line.startswith(" ") or line == "":
+        return curr_line + 1
+    return curr_line
+
 def _get_touched_lines(diff_text: str) -> Dict[str, Set[int]]:
-    """Parse git diff to extract modified line numbers per file."""
+    """Parse git diff to extract specifically added line numbers per file."""
     lines_by_file: Dict[str, Set[int]] = {}
-    curr = None
+    curr_file: Optional[str] = None
+    curr_line = 0
+
     for line in diff_text.splitlines():
         if line.startswith("+++ b/"):
-            curr = line[6:].strip()
-            lines_by_file.setdefault(curr, set())
-        elif line.startswith("@@ ") and curr:
-            m = re.search(r"\+(\d+)(?:,(\d+))?", line)
-            if m:
-                count = int(m.group(2)) if m.group(2) else 1
-                lines_by_file[curr].update(range(int(m.group(1)), int(m.group(1)) + count))
+            curr_file = line[6:].strip()
+            lines_by_file.setdefault(curr_file, set())
+        elif line.startswith("@@ ") and curr_file:
+            m = re.search(r"\+(\d+)", line)
+            curr_line = int(m.group(1)) if m else 0
+        elif curr_file and curr_line > 0:
+            curr_line = _parse_hunk_line(line, curr_line, lines_by_file[curr_file])
+
     return lines_by_file
 
 def _check_py_function_lengths(path: Path, rel: str, touched: Set[int], max_lines: int) -> Tuple[List[str], List[str]]:
@@ -354,7 +439,7 @@ def audit_function_length(diff_text: str, modified_files: List[str], target_dir:
     return len(violations) == 0, violations, candidates
 
 def audit_dry_principles(diff_text: str, modified_files: List[str], symbols: List[Dict[str, Any]], target_dir: Path) -> Tuple[bool, List[str], List[str]]:
-    """Check duplicate functions and class helper reuse."""
+    """Check duplicate functions and class helper reuse against code graph."""
     violations = audit_class_helper_reuse(modified_files, diff_text, target_dir)
     candidates = []
 
@@ -364,7 +449,8 @@ def audit_dry_principles(diff_text: str, modified_files: List[str], symbols: Lis
             continue
         matching = [s for s in symbols if s.get("name") == fn and s.get("file") not in modified_files]
         if matching:
-            candidates.append(f"Function `{fn}()` matches existing symbol in `{matching[0].get('file')}`:L{matching[0].get('line')}.")
+            msg = f"Function `{fn}()` matches existing symbol in `{matching[0].get('file')}`:L{matching[0].get('line')}."
+            violations.append(msg)
 
     return len(violations) == 0, violations, candidates
 
@@ -509,29 +595,80 @@ def evaluate_pr_verification_form(
 
 # --- Quality Toolchain Detection & Execution ---
 
-def detect_quality_commands(target_dir: Path) -> Dict[str, str]:
-    """Auto-detect configured test, static analysis, and linter commands."""
-    commands: Dict[str, str] = {}
+def _detect_node_commands(target_dir: Path, commands: Dict[str, str]) -> None:
+    """Detect Node/TS test, lint, and typecheck commands."""
     pkg_json = target_dir / "package.json"
-    if pkg_json.exists():
-        try:
-            s = json.loads(pkg_json.read_text(encoding="utf-8")).get("scripts", {})
-            if "typecheck" in s or "type-check" in s or "tsc" in s:
-                commands["typecheck"] = "npm run " + next(k for k in ["typecheck", "type-check", "tsc"] if k in s)
-            elif (target_dir / "tsconfig.json").exists() and shutil.which("npx"):
-                commands["typecheck"] = "npx tsc --noEmit"
-            if "lint" in s:
-                commands["lint"] = "npm run lint"
-            elif (target_dir / "biome.json").exists() and shutil.which("npx"):
-                commands["lint"] = "npx @biomejs/biome check ."
-            if "test" in s:
-                commands["test"] = "npm test"
-        except Exception as err:
-            sys.stderr.write(f"[post_code_reviewer] detect_quality_commands notice: {err}\n")
+    if not pkg_json.exists():
+        return
+    try:
+        s = json.loads(pkg_json.read_text(encoding="utf-8")).get("scripts", {})
+        if "typecheck" in s or "type-check" in s or "tsc" in s:
+            commands["typecheck"] = "npm run " + next(k for k in ["typecheck", "type-check", "tsc"] if k in s)
+        elif (target_dir / "tsconfig.json").exists() and shutil.which("npx"):
+            commands["typecheck"] = "npx --no-install tsc --noEmit"
+        if "lint" in s:
+            commands["lint"] = "npm run lint"
+        elif (target_dir / "biome.json").exists() and shutil.which("npx"):
+            commands["lint"] = "npx --no-install @biomejs/biome check ."
+        if "test" in s and "no test specified" not in str(s.get("test", "")).lower():
+            commands["test"] = "npm test"
+    except Exception as err:
+        sys.stderr.write(f"[post_code_reviewer] node command detection notice: {err}\n")
 
-    if (target_dir / "tests").is_dir() and any((target_dir / "tests").glob("test_*.py")):
-        commands.setdefault("test", "python3 -m unittest discover -s tests -p 'test_*.py'")
+def _detect_python_commands(target_dir: Path, commands: Dict[str, str]) -> None:
+    """Detect Python test, lint, and typecheck commands."""
+    has_py = any(target_dir.glob("*.py")) or (target_dir / "requirements.txt").exists() or (target_dir / "pyproject.toml").exists()
+    if not has_py and not (target_dir / "tests").is_dir():
+        return
+    if "test" not in commands:
+        if (target_dir / "pytest.ini").exists() or (target_dir / "tests").is_dir():
+            if shutil.which("pytest"):
+                commands["test"] = "pytest"
+            elif any((target_dir / "tests").glob("test_*.py")):
+                commands["test"] = "python3 -m unittest discover -s tests -p 'test_*.py'"
+    if "lint" not in commands and shutil.which("ruff"):
+        commands["lint"] = "ruff check ."
+    if "typecheck" not in commands and ((target_dir / "mypy.ini").exists() or (target_dir / ".mypy.ini").exists() or (target_dir / "pyproject.toml").exists()):
+        if shutil.which("mypy"):
+            commands["typecheck"] = "mypy ."
 
+def _detect_php_commands(target_dir: Path, commands: Dict[str, str]) -> None:
+    """Detect PHP test, typecheck, and lint commands."""
+    if not (target_dir / "composer.json").exists():
+        return
+    vbin = target_dir / "vendor" / "bin"
+    if (vbin / "pest").exists():
+        commands.setdefault("test", "./vendor/bin/pest")
+    elif (vbin / "phpunit").exists():
+        commands.setdefault("test", "./vendor/bin/phpunit")
+    if (vbin / "phpstan").exists():
+        commands.setdefault("typecheck", "./vendor/bin/phpstan analyse")
+    if (vbin / "pint").exists():
+        commands.setdefault("lint", "./vendor/bin/pint --test")
+
+def _detect_rust_commands(target_dir: Path, commands: Dict[str, str]) -> None:
+    """Detect Rust test, typecheck, and lint commands."""
+    if (target_dir / "Cargo.toml").exists() and shutil.which("cargo"):
+        commands.setdefault("test", "cargo test")
+        commands.setdefault("typecheck", "cargo check")
+        commands.setdefault("lint", "cargo clippy -- -D warnings")
+
+def _detect_go_commands(target_dir: Path, commands: Dict[str, str]) -> None:
+    """Detect Go test, typecheck (vet), and lint commands."""
+    if (target_dir / "go.mod").exists() and shutil.which("go"):
+        commands.setdefault("test", "go test ./...")
+        commands.setdefault("typecheck", "go vet ./...")
+        if shutil.which("golangci-lint"):
+            commands.setdefault("lint", "golangci-lint run")
+
+def detect_quality_commands(target_dir: Path) -> Dict[str, str]:
+    """Auto-detect configured test, static analysis, and linter commands across stacks."""
+    commands: Dict[str, str] = {}
+    _detect_node_commands(target_dir, commands)
+    _detect_python_commands(target_dir, commands)
+    _detect_php_commands(target_dir, commands)
+    _detect_rust_commands(target_dir, commands)
+    _detect_go_commands(target_dir, commands)
     return commands
 
 def _execute_single_check(target_dir: Path, check_type: str, cmd: str) -> Optional[str]:
