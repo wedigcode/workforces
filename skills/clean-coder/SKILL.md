@@ -1,80 +1,60 @@
 ---
 name: clean-coder
-description: Enforces software craftsmanship, Test-Driven Development (TDD), SOLID and DRY architecture, and zero-error-swallowing discipline across programming languages. Reach for this skill whenever writing, editing, or refactoring code, adding new functions or classes, fixing bugs, designing APIs, eliminating duplicated logic, or ensuring runtime errors are surfaced explicitly rather than silently caught.
+description: MANDATORY for any programming, coding, refactoring, bug fixing, or code modification task. Enforces software craftsmanship, Test-Driven Development (TDD) red-green-refactor, method stubs first, symbol deduplication via code-graph, single responsibility and SOLID architecture, <= 35 lines per function, method decomposition, zero error swallowing, PR-style code review verification checklist, AI pushback on skipped rules, weekly-retried 3rd-party security bypass, and pre-handoff quality gates. Reach for this skill whenever writing, editing, or refactoring code, adding new functions or classes, implementing APIs, fixing bugs, or modifying tests before and after code changes.
 ---
 # Skill: Clean Coder
 
-Provides step-by-step guidance for writing pristine, self-documenting, reusable code while preventing function duplication and error swallowing.
-
-> 💡 **Native Agent Integration**: Execute directly via `@programmer` custom agent or CLI command `jetski --agent programmer`.
-
+Lean, high-signal engineering workflow enforcing AI TDD, method stubs first, symbol deduplication, and automated PR-style review verification.
 
 ---
 
 ## Workflow Protocol
 
-### Step 1: Pre-Implementation Method & Target Class Inspection
-Before writing any code:
-1. Run symbol search via `code-graph` or `grep_search`:
+### Step 1: Pre-Implementation Graph Check & Method Stubs
+1. Run symbol discovery via `code-graph`:
    ```bash
-   python3 .agents/skills/code-graph/scripts/graph_indexer.py --query "<method_name_or_keyword>"
+   python3 .agents/skills/code-graph/scripts/graph_indexer.py --query "<method_or_keyword>"
    ```
-   *(Fallback: `python3 skills/code-graph/scripts/graph_indexer.py --query "<method_name_or_keyword>"`)*
-2. Inspect `workforces/knowledge-catalog/symbols/` or `workforces/code-graph.json` to check if a function already provides the required logic.
-3. **Inspect Target Class / File Methods**: BEFORE writing a new method inside an existing class or module, inspect all public and static methods in that target file (e.g. `Format::convertNumber()`). If any existing method normalizes or formats inputs, compose it instead of reimplementing custom regex or type parsing.
-4. If an existing method covers ~80% of requirements, extend or compose it cleanly rather than re-creating.
+   *(Fallback: `python3 skills/code-graph/scripts/graph_indexer.py --query "<method_or_keyword>"`)
+2. Check `workforces/code-graph.json` or target file helpers. If an existing method performs the required logic or formatting, compose or extend it.
+3. **AI TDD First Pass**: Author method signatures, type contracts, and stubs first. Do not jump immediately into full code generation.
 
-### Step 2: TDD Test & Contract Design
-1. State the input/output contract clearly.
-2. Write unit test cases (or assertion scripts) covering:
-   - Happy path
-   - Edge cases (null/undefined inputs, empty collections, extreme bounds)
-   - Failure modes & expected error exceptions
-3. Run the test to confirm failure (Red state).
-4. Write minimal, clean code to pass the test (Green state).
-5. Refactor for clarity and performance (Refactor state).
+### Step 2: Unit Tests First
+1. Write unit tests asserting input/output contracts, boundary values, and error conditions against the stubs.
+2. Confirm the test fails (Red).
+3. Implement minimal clean code to pass (Green).
+4. Refactor for clarity and simplicity (Refactor).
 
-### Step 3: Clean Code & Architecture Checklist
+### Step 3: Concrete Coding Constraints
+- **SOLID, DRY, KISS, YAGNI**: Apply standard design principles cleanly without redundant boilerplate.
+- **Function Line Limit (<= 35 lines)**: Keep all functions and methods concise and single-purpose.
+- **Method Decomposition**: Extract nested blocks (> 2 levels deep) into private helper methods.
+- **Simplicity**: Favor clean, idiomatic expressions over verbose intermediate variables or redundant ternary conditionals.
+- **Maintainability & Error Safety**: Always catch specific exceptions, attach contextual metadata, and propagate or log. Never swallow errors with empty `catch` or `except` blocks.
 
-- [ ] **Function Size**: Is the function focused and concise (<30 lines)?
-- [ ] **Single Responsibility**: Does this function solve one clear objective?
-- [ ] **Self-Documenting Names**: Are names unambiguous (verbs for methods, nouns for classes)?
-- [ ] **DRY Check**: Is there any duplicated logic across files?
-- [ ] **Class Helper Reuse**: Does this method reuse existing static/public helpers in the target file?
-- [ ] **Error Handling**: Are errors caught, enriched with context (stack traces, parameters), and re-thrown or handled gracefully?
+### Step 4: Pre-empt the PR Review Verification Form
+Ensure the code satisfies the 5-point post-hook verification checklist before declaring completion:
+- [x] **is it dry**: No duplicate logic or copy-pasted helpers across files.
+- [x] **no new code exceeds 35 lines**: All modified methods remain under the line limit.
+- [x] **should any new code be in its own method**: Monolithic or deeply nested code blocks extracted.
+- [x] **is any of it too verbose or can it be simplified**: Concise and idiomatic.
+- [x] **code maintainability**: Error propagation, contract compatibility, and tests verified.
 
-### Step 4: Mandatory Pre-Handoff Quality Gate Execution
-Immediately after modifying code and BEFORE declaring the task complete:
-1. Run the whole-codebase post-code review and quality gate script:
-   ```bash
-   python3 .agents/skills/post-code-review/scripts/post_code_reviewer.py --root ./ --run-checks --strict
-   ```
-   *(Fallback: `python3 skills/post-code-review/scripts/post_code_reviewer.py --root ./ --run-checks --strict`)*
-2. **Zero-Handoff on Failing Gates Rule**:
-   - **Unit Tests**: All tests must pass cleanly.
-   - **Static Analysis**: Zero type errors (`tsc --noEmit`, `mypy --strict`, `phpstan`); no `any` escapes.
-   - **Styling & Linting**: Zero linter errors (`biome check`, `eslint`, `ruff`).
-   - **Security Audits**: Zero high/critical dependency vulnerabilities.
-3. If ANY check fails, the developer/agent MUST diagnose and resolve all errors before concluding the turn or handing code over to the user.
-
-### Step 5: Graceful Error Handling Patterns
-
-#### ❌ Bad (Swallowing Errors)
-```typescript
-// NEVER DO THIS
-try {
-  await processPayment(user);
-} catch (e) {
-  // silent fail
-}
+### Step 5: Post-Hook Verification & Quality Gate
+Run the automated review and quality triad:
+```bash
+# Post-edit heuristic & checklist audit:
+python3 .agents/skills/post-code-review/scripts/post_code_reviewer.py --root ./
 ```
+*(Fallback: `python3 skills/post-code-review/scripts/post_code_reviewer.py --root ./`)*
 
-#### ✅ Good (Enriched Error Handling)
-```typescript
-try {
-  await processPayment(user);
-} catch (error) {
-  logger.error("Payment processing failed", { userId: user.id, error });
-  throw new PaymentProcessingError(`Failed to process payment for user ${user.id}`, { cause: error });
-}
+```bash
+# Mandatory pre-handoff quality gate verification:
+python3 .agents/skills/post-code-review/scripts/post_code_reviewer.py --root ./ --run-checks --strict
 ```
+*(Fallback: `python3 skills/post-code-review/scripts/post_code_reviewer.py --root ./ --run-checks --strict`)*
+
+- **Pushback Notice**: If any review criterion fails without documented justification, address the failure or document the rationale.
+- **Security Bypass**: Third-party or deprecation issues that cannot be resolved automatically are recorded to `workforces/memory/security-bypass.json` for weekly re-check without blocking every session.
+- **Discovered Issues**: Non-blocking issues or candidate tech debt surfaced by the reviewer can be recorded via `.agents/skills/task-tracker/scripts/report-task.py` (Fallback: `python3 skills/task-tracker/scripts/report-task.py`).
+- **Autonomous Git Workflow & PR Discipline**: Follow [`git-workflow`](../../rules/git-workflow.md) and [`agent-parallelization`](../agent-parallelization/SKILL.md) for worktree isolation (`Workspace: 'share'`) and stacked PRs via `gh-stack`.

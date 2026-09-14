@@ -138,6 +138,362 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
         self.assertIn("PRE-HANDOFF BLOCKER", report)
         self.assertIn("Quality Gate Failed (Test)", report)
 
+    def test_evaluate_pr_verification_form_clean(self):
+        """Test PR verification form reports clean pass for compliant code."""
+        code = "def add(a: int, b: int) -> int:\n    return a + b\n"
+        py_file = self.test_dir / "math_utils.py"
+        py_file.write_text(code, encoding="utf-8")
+        diff = f"+++ b/math_utils.py\n@@ -0,0 +1,2 @@\n+{code.replace(chr(10), chr(10)+'+')}"
+
+        form_md, passed, pushbacks, candidates = post_code_reviewer.evaluate_pr_verification_form(
+            diff, ["math_utils.py"], [], self.test_dir
+        )
+        self.assertTrue(passed)
+        self.assertEqual(len(pushbacks), 0)
+        self.assertIn("- [x] **is it dry:**", form_md)
+        self.assertIn("- [x] **no new code exceeds 35 lines:**", form_md)
+        self.assertIn("- [x] **should any new code be in its own method:**", form_md)
+        self.assertIn("- [x] **is any of it too verbose or can it be simplified:**", form_md)
+        self.assertIn("- [x] **code maintainability:**", form_md)
+
+    def test_audit_function_length_violation_triggers_pushback(self):
+        """Test functions exceeding 35 lines are flagged and trigger AI pushback."""
+        long_func = "def process_big_data():\n" + "".join(f"    x_{i} = {i}\n" for i in range(40)) + "    return x_39\n"
+        py_file = self.test_dir / "big_task.py"
+        py_file.write_text(long_func, encoding="utf-8")
+        diff = f"+++ b/big_task.py\n@@ -0,0 +1,42 @@\n+{long_func.replace(chr(10), chr(10)+'+')}"
+
+        form_md, passed, pushbacks, candidates = post_code_reviewer.evaluate_pr_verification_form(
+            diff, ["big_task.py"], [], self.test_dir
+        )
+        self.assertFalse(passed)
+        self.assertTrue(any("exceeds 35 lines" in p or "limit" in p for p in pushbacks))
+        self.assertIn("- [ ] **no new code exceeds 35 lines:**", form_md)
+
+    def test_audit_method_scoping_nested_control_flow(self):
+        """Test deeply nested control flow blocks (indent >= 4) are flagged."""
+        nested_diff = (
+            "+++ b/service.py\n"
+            "@@ -10,10 +10,12 @@\n"
+            "+    if True:\n"
+            "+        for item in items:\n"
+            "+            while active:\n"
+            "+                if check():\n"
+            "+                    do_work()\n"
+        )
+        passed, violations, _ = post_code_reviewer.audit_method_scoping(
+            nested_diff, ["service.py"], self.test_dir
+        )
+        self.assertFalse(passed)
+        self.assertTrue(any("Deeply nested" in v for v in violations))
+
+    def test_audit_simplicity_redundant_boolean(self):
+        """Test redundant boolean ternary (? true : false) is flagged."""
+        diff = (
+            "+++ b/ui.ts\n"
+            "@@ -1,5 +1,5 @@\n"
+            "+const isValid = check() ? true : false;\n"
+        )
+        passed, violations, _ = post_code_reviewer.audit_simplicity_and_verbosity(diff, ["ui.ts"])
+        self.assertFalse(passed)
+        self.assertTrue(any("Redundant boolean ternary" in v for v in violations))
+
+    def test_security_bypass_caching_and_weekly_retry_lifecycle(self):
+        """Test security bypass caching, 7-day non-blocking window, and cache updates."""
+        import datetime
+        now = datetime.datetime.now()
+        manifest = self.test_dir / "package.json"
+        manifest.write_text(json.dumps({"name": "test-pkg"}), encoding="utf-8")
+
+        cache_path = self.test_dir / "workforces" / "memory" / "security-bypass.json"
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # 1. Simulate active bypass entry within 7 days
+        future_retry = (now + datetime.timedelta(days=5)).isoformat()
+        initial_cache = {
+            "bypasses": {
+                "npm:vulnerability in semver": {
+                    "ecosystem": "npm",
+                    "summary": "vulnerability in semver",
+                    "first_detected": now.isoformat(),
+                    "last_tried": now.isoformat(),
+                    "next_retry": future_retry,
+                    "status": "bypassed"
+                }
+            }
+        }
+        cache_path.write_text(json.dumps(initial_cache), encoding="utf-8")
+
+        loaded = post_code_reviewer.load_security_bypass_cache(self.test_dir)
+        self.assertIn("npm:vulnerability in semver", loaded["bypasses"])
+
+        # 2. Test saving and loading
+        post_code_reviewer.save_security_bypass_cache(self.test_dir, loaded)
+        reloaded = post_code_reviewer.load_security_bypass_cache(self.test_dir)
+        self.assertEqual(reloaded["bypasses"]["npm:vulnerability in semver"]["next_retry"], future_retry)
+
+    def test_security_bypass_remediation_attempt_success(self):
+        """Test remediation attempt (npm audit fix) success clears bypass and resumes normal routine."""
+        from unittest.mock import patch
+        cache = {"bypasses": {"npm:vulnerability in tar": {"ecosystem": "npm", "summary": "vulnerability in tar", "status": "bypassed", "next_retry": "2020-01-01T00:00:00"}}}
+        bypasses = cache["bypasses"]
+
+        with patch.object(post_code_reviewer, "attempt_remediation", return_value=True):
+            result = post_code_reviewer.handle_security_failure("npm", "vulnerability in tar", bypasses, self.test_dir, cache)
+
+        self.assertIn("Security Remediation Succeeded", result)
+        self.assertIn("Returned to normal routine", result)
+        self.assertNotIn("npm:vulnerability in tar", bypasses)
+
+    def test_security_bypass_remediation_attempt_failure_and_weekly_schedule(self):
+        """Test remediation failure logs learnings to bypass cache and schedules 7-day retry."""
+        from unittest.mock import patch
+        cache = {"bypasses": {}}
+        bypasses = cache["bypasses"]
+
+        with patch.object(post_code_reviewer, "attempt_remediation", return_value=False):
+            result = post_code_reviewer.handle_security_failure("npm", "unresolvable CVE-9999", bypasses, self.test_dir, cache)
+
+        self.assertIn("Fix attempted but `unresolvable CVE-9999` unresolvable", result)
+        self.assertIn("weekly retry", result)
+        self.assertIn("npm:unresolvable CVE-9999", bypasses)
+        entry = bypasses["npm:unresolvable CVE-9999"]
+        self.assertEqual(entry["status"], "bypassed")
+        self.assertIn("npm audit fix", entry.get("attempt", ""))
+        self.assertIn("learnings", entry)
+
+    def test_security_bypass_cache_corruption_resilience(self):
+        """Test corrupted or invalid JSON in security-bypass.json recovers gracefully."""
+        cache_path = self.test_dir / "workforces" / "memory" / "security-bypass.json"
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Non-JSON content
+        cache_path.write_text("corrupted non-json { syntax", encoding="utf-8")
+        loaded = post_code_reviewer.load_security_bypass_cache(self.test_dir)
+        self.assertEqual(loaded, {"bypasses": {}})
+
+        # Non-dict JSON (e.g. array)
+        cache_path.write_text("[\"invalid\", \"array\"]", encoding="utf-8")
+        loaded_arr = post_code_reviewer.load_security_bypass_cache(self.test_dir)
+        self.assertEqual(loaded_arr, {"bypasses": {}})
+
+    def test_ai_pushback_with_no_justification(self):
+        """Test rule violation without justification triggers AI pushback."""
+        long_func = "def big_runner():\n" + "".join(f"    val_{i} = {i}\n" for i in range(40)) + "    return val_39\n"
+        py_file = self.test_dir / "runner.py"
+        py_file.write_text(long_func, encoding="utf-8")
+        diff = f"+++ b/runner.py\n@@ -0,0 +1,42 @@\n+{long_func.replace(chr(10), chr(10)+'+')}"
+
+        form_md, passed, pushbacks, _ = post_code_reviewer.evaluate_pr_verification_form(
+            diff, ["runner.py"], [], self.test_dir, justification=None
+        )
+        self.assertFalse(passed)
+        self.assertTrue(any("Pushback" in p for p in pushbacks))
+        self.assertTrue(any("No explanation provided" in p for p in pushbacks))
+        self.assertIn("- [ ] **no new code exceeds 35 lines:**", form_md)
+
+    def test_ai_pushback_with_bad_reason_rejected(self):
+        """Test rule violation with trivial/evasive justification is rejected with pushback."""
+        long_func = "def big_runner():\n" + "".join(f"    val_{i} = {i}\n" for i in range(40)) + "    return val_39\n"
+        py_file = self.test_dir / "runner.py"
+        py_file.write_text(long_func, encoding="utf-8")
+        diff = f"+++ b/runner.py\n@@ -0,0 +1,42 @@\n+{long_func.replace(chr(10), chr(10)+'+')}"
+
+        form_md, passed, pushbacks, _ = post_code_reviewer.evaluate_pr_verification_form(
+            diff, ["runner.py"], [], self.test_dir, justification="lazy"
+        )
+        self.assertFalse(passed)
+        self.assertTrue(any("'lazy' is not an acceptable technical justification" in p for p in pushbacks))
+
+    def test_ai_pushback_with_valid_technical_justification_accepted(self):
+        """Test rule violation with legitimate technical rationale is accepted as justified."""
+        long_func = "def big_runner():\n" + "".join(f"    val_{i} = {i}\n" for i in range(40)) + "    return val_39\n"
+        py_file = self.test_dir / "runner.py"
+        py_file.write_text(long_func, encoding="utf-8")
+        diff = f"+++ b/runner.py\n@@ -0,0 +1,42 @@\n+{long_func.replace(chr(10), chr(10)+'+')}"
+
+        form_md, passed, pushbacks, _ = post_code_reviewer.evaluate_pr_verification_form(
+            diff, ["runner.py"], [], self.test_dir,
+            justification="Third-party AST visitor pattern requiring contiguous traversal structure"
+        )
+        self.assertTrue(passed)
+        self.assertEqual(len(pushbacks), 0)
+        self.assertIn("- [x] **no new code exceeds 35 lines:** [Justified:", form_md)
+
+    def test_ai_pushback_in_diff_comment_justification(self):
+        """Test justification provided directly in diff comments is extracted and accepted."""
+        code_lines = [
+            "# justification: Legacy protocol parser with strictly ordered packet decoding",
+            "def parse_protocol():"
+        ] + [f"    field_{i} = {i}" for i in range(38)] + ["    return field_37"]
+        full_code = "\n".join(code_lines) + "\n"
+
+        py_file = self.test_dir / "protocol.py"
+        py_file.write_text(full_code, encoding="utf-8")
+        diff = f"+++ b/protocol.py\n@@ -0,0 +1,42 @@\n+{full_code.replace(chr(10), chr(10)+'+')}"
+
+        form_md, passed, pushbacks, _ = post_code_reviewer.evaluate_pr_verification_form(
+            diff, ["protocol.py"], [], self.test_dir
+        )
+        self.assertTrue(passed)
+        self.assertEqual(len(pushbacks), 0)
+        self.assertIn("- [x] **no new code exceeds 35 lines:** [Justified:", form_md)
+
+    def test_security_bypass_active_unexpired_returns_info_notice(self):
+        """Test active unexpired 7-day bypass returns info notice and does not block."""
+        import datetime
+        future_retry = (datetime.datetime.now() + datetime.timedelta(days=4)).isoformat()
+        cache = {
+            "bypasses": {
+                "npm:vulnerability in axios": {
+                    "ecosystem": "npm",
+                    "summary": "vulnerability in axios",
+                    "next_retry": future_retry,
+                    "status": "bypassed"
+                }
+            }
+        }
+        res = post_code_reviewer.handle_security_failure(
+            "npm", "vulnerability in axios", cache["bypasses"], self.test_dir, cache
+        )
+        self.assertIn("ℹ️ **Security Bypass Active (Weekly Re-check):**", res)
+        self.assertIn("vulnerability in axios", res)
+        self.assertIn(future_retry, res)
+
+    def test_security_bypass_expired_retry_advances_schedule(self):
+        """Test expired bypass re-try failure advances next_retry by +7 days and warns."""
+        import datetime
+        from unittest.mock import patch
+        past_retry = (datetime.datetime.now() - datetime.timedelta(days=1)).isoformat()
+        cache = {
+            "bypasses": {
+                "npm:vulnerability in lodash": {
+                    "ecosystem": "npm",
+                    "summary": "vulnerability in lodash",
+                    "next_retry": past_retry,
+                    "status": "bypassed"
+                }
+            }
+        }
+        with patch.object(post_code_reviewer, "attempt_remediation", return_value=False):
+            res = post_code_reviewer.handle_security_failure(
+                "npm", "vulnerability in lodash", cache["bypasses"], self.test_dir, cache
+            )
+        entry = cache["bypasses"]["npm:vulnerability in lodash"]
+        self.assertIn("⚠️ **Security Notice (Weekly Re-try):**", res)
+        new_retry = datetime.datetime.fromisoformat(entry["next_retry"])
+        self.assertGreater(new_retry, datetime.datetime.now() + datetime.timedelta(days=5))
+
+    def test_direct_vs_transitive_vulnerability_distinction(self):
+        """Test direct vulnerability emits blocking ❌ while transitive gets ⚠️ bypass."""
+        from unittest.mock import patch
+        mock_audit = {
+            "vulnerabilities": {
+                "direct-vuln-pkg": {"isDirect": True, "severity": "high"},
+                "transitive-vuln-pkg": {"isDirect": False, "severity": "moderate"}
+            }
+        }
+        cache = {"bypasses": {}}
+        bypasses = cache["bypasses"]
+        with patch.object(post_code_reviewer, "attempt_remediation", return_value=False):
+            issues = post_code_reviewer._process_npm_vulnerabilities(
+                mock_audit["vulnerabilities"], bypasses, self.test_dir, cache
+            )
+        self.assertEqual(len(issues), 2)
+        direct_issue = next(i for i in issues if "direct-vuln-pkg" in i)
+        transitive_issue = next(i for i in issues if "transitive-vuln-pkg" in i)
+        self.assertIn("❌ **Direct Security Vulnerability", direct_issue)
+        self.assertIn("⚠️ **Security Notice", transitive_issue)
+        self.assertIn("npm:vulnerability in transitive-vuln-pkg", bypasses)
+
+    def test_security_audit_failure_not_swallowed(self):
+        """Test npm audit exceptions or timeouts emit blocking ❌ Security Audit Failed."""
+        from unittest.mock import patch
+        import subprocess
+        with patch("subprocess.run", side_effect=subprocess.TimeoutExpired(cmd="npm audit", timeout=15)):
+            issues = post_code_reviewer._run_node_audit(["package.json"], self.test_dir, {}, {"bypasses": {}})
+        self.assertEqual(len(issues), 1)
+        self.assertIn("❌ **Security Audit Failed (npm):**", issues[0])
+
+    def test_touched_lines_addition_only_not_context(self):
+        """Test _get_touched_lines only tracks added (+) lines, not context lines."""
+        diff = (
+            "+++ b/calc.py\n"
+            "@@ -10,5 +10,6 @@\n"
+            " def existing():\n"
+            "     x = 1\n"
+            "+    y = 2\n"
+            "     z = 3\n"
+            "     return x + z\n"
+        )
+        touched = post_code_reviewer._get_touched_lines(diff)
+        self.assertEqual(touched.get("calc.py"), {12})
+
+    def test_dry_violation_with_code_graph_symbol_and_justification(self):
+        """Test functions matching existing code graph symbols populate violations and pushback."""
+        symbols = [{"name": "duplicate_helper", "file": "src/utils.py", "line": 42}]
+        diff = "+++ b/feature.py\n@@ -0,0 +1,3 @@\n+def duplicate_helper():\n+    return True\n"
+        passed, viols, _ = post_code_reviewer.audit_dry_principles(diff, ["feature.py"], symbols, self.test_dir)
+        self.assertFalse(passed)
+        self.assertTrue(any("matches existing symbol in `src/utils.py`" in v for v in viols))
+
+        _, form_passed, pushbacks, _ = post_code_reviewer.evaluate_pr_verification_form(
+            diff, ["feature.py"], symbols, self.test_dir, justification=None
+        )
+        self.assertFalse(form_passed)
+        self.assertTrue(any("is it dry" in p for p in pushbacks))
+
+        _, just_passed, just_pushbacks, _ = post_code_reviewer.evaluate_pr_verification_form(
+            diff, ["feature.py"], symbols, self.test_dir,
+            justification="Different domain abstraction with specialized error semantics"
+        )
+        self.assertTrue(just_passed)
+        self.assertEqual(len(just_pushbacks), 0)
+
+    def test_detect_quality_commands_ignores_no_test_specified(self):
+        """Test detect_quality_commands ignores npm default 'no test specified' script."""
+        pkg_json = self.test_dir / "package.json"
+        pkg_json.write_text(json.dumps({
+            "name": "sample",
+            "scripts": {"test": "echo \"Error: no test specified\" && exit 1"}
+        }), encoding="utf-8")
+        cmds = post_code_reviewer.detect_quality_commands(self.test_dir)
+        self.assertNotIn("test", cmds)
+
+    def test_detect_multi_stack_quality_commands(self):
+        """Test multi-stack toolchain detection for Python, Go, Rust, and PHP."""
+        (self.test_dir / "composer.json").write_text("{}", encoding="utf-8")
+        vbin = self.test_dir / "vendor" / "bin"
+        vbin.mkdir(parents=True, exist_ok=True)
+        (vbin / "pest").write_text("#!/bin/sh\n", encoding="utf-8")
+        (vbin / "phpstan").write_text("#!/bin/sh\n", encoding="utf-8")
+        (vbin / "pint").write_text("#!/bin/sh\n", encoding="utf-8")
+
+        (self.test_dir / "go.mod").write_text("module example.com/test\n", encoding="utf-8")
+        (self.test_dir / "Cargo.toml").write_text("[package]\nname = \"test\"\n", encoding="utf-8")
+
+        cmds = post_code_reviewer.detect_quality_commands(self.test_dir)
+        self.assertIn(cmds.get("test"), ["./vendor/bin/pest", "cargo test", "go test ./..."])
+        self.assertIn(cmds.get("typecheck"), ["./vendor/bin/phpstan analyse", "cargo check", "go vet ./..."])
+
+    def test_untracked_files_diff_heuristics(self):
+        """Test newly added untracked files are inspected in diff heuristics."""
+        subprocess.run(["git", "init"], cwd=self.test_dir, capture_output=True)
+        long_func = "def untracked_func():\n" + "".join(f"    x_{i} = {i}\n" for i in range(40)) + "    return x_39\n"
+        (self.test_dir / "untracked.py").write_text(long_func, encoding="utf-8")
+
+        diff = post_code_reviewer.get_git_diff(self.test_dir)
+        self.assertIn("+++ b/untracked.py", diff)
+        self.assertIn("+def untracked_func():", diff)
+
+        _, passed, pushbacks, _ = post_code_reviewer.evaluate_pr_verification_form(
+            diff, ["untracked.py"], [], self.test_dir
+        )
+        self.assertFalse(passed)
+        self.assertTrue(any("exceeds 35 lines" in p for p in pushbacks))
+
 
 if __name__ == "__main__":
     unittest.main()
+
+

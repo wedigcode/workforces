@@ -52,8 +52,8 @@ When Jules completes or progresses on a session:
    ```
 
 2. **Code Review & Quality Check**:
-   - Audit patch against **Clean Coder Rules** (`rules/clean-coder.md`).
-   - Run `python3 skills/code-graph/scripts/graph_indexer.py --scan ./ --query "<method_name>"` to verify Jules did not create duplicate helper functions.
+   - Audit patch against **Clean Coder Standards** ([`clean-coder`](../clean-coder/SKILL.md)).
+   - Run `python3 .agents/skills/code-graph/scripts/graph_indexer.py --scan ./ --query "<method_name>"` (Fallback: `python3 skills/code-graph/scripts/graph_indexer.py ...`) to verify Jules did not create duplicate helper functions.
    - Verify proper error handling (no swallowed exceptions).
 
 3. **Run Test Suites**:

@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
 CLI wrapper for prune_team.py
-Usage: python3 skills/workforce-management/scripts/prune-team.py <team-name> [options]
+Usage: python3 .agents/skills/workforce-management/scripts/prune-team.py <team-name> [options]
+(Fallback: python3 skills/workforce-management/scripts/prune-team.py <team-name> [options])
 """
 import sys
 import os

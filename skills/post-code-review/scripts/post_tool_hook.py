@@ -18,14 +18,19 @@ from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
 
-def find_reviewer_script() -> Optional[Path]:
+def find_reviewer_script(root_dir: Optional[Path] = None) -> Optional[Path]:
     """Locate post_code_reviewer.py in post-code-review/scripts or standard fallback locations."""
     self_dir = Path(__file__).resolve().parent
     candidate = self_dir / "post_code_reviewer.py"
     if candidate.is_file():
         return candidate
 
-    for base in [Path.cwd(), Path.cwd() / ".agents"]:
+    search_bases = []
+    if root_dir:
+        search_bases.extend([root_dir / ".agents", root_dir])
+    search_bases.extend([Path.cwd() / ".agents", Path.cwd()])
+
+    for base in search_bases:
         p = base / "skills" / "post-code-review" / "scripts" / "post_code_reviewer.py"
         if p.is_file():
             return p
@@ -68,7 +73,7 @@ def parse_post_tool_stdin() -> Tuple[Dict[str, Any], Path]:
 
 def run_post_code_review(root_dir: Path) -> None:
     """Invoke post_code_reviewer.py against the target root directory."""
-    reviewer_script = find_reviewer_script()
+    reviewer_script = find_reviewer_script(root_dir)
     if not reviewer_script:
         sys.stderr.write("[post_tool_hook] post_code_reviewer.py script not found.\n")
         return

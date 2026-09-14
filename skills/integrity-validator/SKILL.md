@@ -17,8 +17,9 @@ This skill operates primarily through automated lifecycle execution and determin
 ### 1. Automated Lifecycle Hook (Continuous Enforcement)
 Configured via `plugins/workforce-integrity-plugin/hooks.json` to automatically execute on `PostToolUse` whenever files are created or modified (`write_to_file`, `replace_file_content`, `multi_replace_file_content`):
 ```bash
-python3 skills/workforce-management/scripts/validate-references.py ./ --fix
+python3 .agents/skills/workforce-management/scripts/validate-references.py ./ --fix
 ```
+*(Fallback: `python3 skills/workforce-management/scripts/validate-references.py ./ --fix`)*
 This guarantees zero ghost references and self-healing link lineage in real time without human or agent overhead.
 
 ### 2. Quality Gate & Pre-Commit Execution

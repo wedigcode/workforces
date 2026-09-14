@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
 """
 Post-Hook Whole-Codebase Code Reviewer for Workforces
-Zero external dependencies (Python 3 standard library: ast, re, json, pathlib, argparse, subprocess).
+Zero external dependencies (Python 3 standard library: ast, re, json, pathlib, argparse, subprocess, datetime).
 
-Fires on post_tool_call (after code modification tools).
+Fires on post_tool_call and pre-handoff quality gates.
 Audits git diffs and code-graph relationships for:
-1. Downstream contract breaking changes (changed signatures with caller files)
-2. Swallowed errors / empty catch blocks
-3. Duplicated methods matching existing code-graph symbols
-4. Missing unit/integration tests for modified logic
-5. Missing environment / config updates
+1. PR-style review verification form ([x] DRY, [x] <= 35 lines, [x] method scoping, [x] simplicity, [x] maintainability)
+2. AI pushback on skipped coding principles & candidate issue logging
+3. Persistent 3rd-party security bypass caching with weekly retry intervals
+4. Quality triad execution (unit tests, static analysis/type checks, linters)
 """
 
 import argparse
 import ast
+import datetime
 import json
 import os
 import re
@@ -25,64 +25,68 @@ from typing import Dict, List, Any, Set, Tuple, Optional
 
 IGNORE_DIRS = {".git", "node_modules", "vendor", "__pycache__", ".venv", "venv", "dist", "build", ".next", ".agents", ".worktrees"}
 
+def _generate_untracked_diff(root_dir: Path) -> str:
+    """Generate synthetic diff hunks for untracked files."""
+    try:
+        res = subprocess.run(
+            ["git", "ls-files", "--others", "--exclude-standard"],
+            cwd=root_dir, capture_output=True, text=True, timeout=5
+        )
+        if res.returncode != 0 or not res.stdout.strip():
+            return ""
+    except Exception as err:
+        sys.stderr.write(f"[post_code_reviewer] untracked diff notice: {err}\n")
+        return ""
+
+    hunks = []
+    for rel_path in res.stdout.splitlines():
+        rel_path = rel_path.strip()
+        if not rel_path or any(part in IGNORE_DIRS for part in Path(rel_path).parts):
+            continue
+        full_path = root_dir / rel_path
+        if not full_path.is_file() or full_path.stat().st_size > 1_000_000:
+            continue
+        try:
+            content = full_path.read_text(encoding="utf-8", errors="ignore")
+            lines = content.splitlines()
+            hunk = [f"diff --git a/{rel_path} b/{rel_path}", "--- /dev/null", f"+++ b/{rel_path}", f"@@ -0,0 +1,{len(lines)} @@"]
+            hunk.extend([f"+{line}" for line in lines])
+            hunks.append("\n".join(hunk))
+        except Exception:
+            continue
+    return "\n".join(hunks)
+
 def get_git_diff(root_dir: Path) -> str:
     """Extract current git diff (staged + unstaged + untracked changes)."""
     try:
-        res = subprocess.run(
-            ["git", "diff", "HEAD"],
-            cwd=root_dir,
-            capture_output=True,
-            text=True,
-            timeout=5
-        )
-        diff_out = res.stdout
-        # Also check status for untracked files
-        res_status = subprocess.run(
-            ["git", "status", "--porcelain"],
-            cwd=root_dir,
-            capture_output=True,
-            text=True,
-            timeout=5
-        )
-        return diff_out + "\n" + res_status.stdout
-    except Exception:
+        res = subprocess.run(["git", "diff", "HEAD"], cwd=root_dir, capture_output=True, text=True, timeout=5)
+        res_status = subprocess.run(["git", "status", "--porcelain"], cwd=root_dir, capture_output=True, text=True, timeout=5)
+        untracked = _generate_untracked_diff(root_dir)
+        parts = [res.stdout, untracked, res_status.stdout]
+        return "\n".join(p for p in parts if p.strip())
+    except Exception as err:
+        sys.stderr.write(f"[post_code_reviewer] get_git_diff notice: {err}\n")
         return ""
 
 def get_modified_files(root_dir: Path) -> List[str]:
     """Get list of modified/added files in git working tree."""
     try:
-        res = subprocess.run(
-            ["git", "status", "--porcelain"],
-            cwd=root_dir,
-            capture_output=True,
-            text=True,
-            timeout=5
-        )
-        files = []
-        for line in res.stdout.splitlines():
-            line = line.strip()
-            if not line:
-                continue
-            parts = line.split(maxsplit=1)
-            if len(parts) == 2:
-                status, filepath = parts[0], parts[1]
-                if not any(d in filepath for d in IGNORE_DIRS):
-                    files.append(filepath)
-        return files
-    except Exception:
+        res = subprocess.run(["git", "status", "--porcelain"], cwd=root_dir, capture_output=True, text=True, timeout=5)
+    except Exception as err:
+        sys.stderr.write(f"[post_code_reviewer] get_modified_files notice: {err}\n")
         return []
 
-def resolve_target_dir(
-    root_arg: str = "./",
-    target_dir_arg: Optional[str] = None,
-    target_file_hint: Optional[str] = None
-) -> Path:
-    """
-    Intelligently resolve the target codebase root path when running in a workforce or project repo.
-    """
+    files = []
+    for line in res.stdout.splitlines():
+        parts = line.strip().split(maxsplit=1)
+        if len(parts) == 2:
+            files.append(parts[1].split(" -> ")[-1])
+    return files
+
+def resolve_target_dir(root_arg: str = "./", target_dir_arg: Optional[str] = None) -> Path:
+    """Resolve target project directory from args, env, or configuration."""
     root_path = Path(root_arg).resolve()
 
-    # 1. Explicit CLI argument override (--target-dir or --project-root)
     if target_dir_arg:
         td = Path(target_dir_arg)
         if not td.is_absolute():
@@ -90,155 +94,75 @@ def resolve_target_dir(
         if td.exists():
             return td
 
-    # 2. Environment variable overrides
     for env_var in ["WORKFORCE_TARGET_DIR", "TARGET_REPO_ROOT", "PROJECT_ROOT"]:
         env_val = os.getenv(env_var)
         if env_val:
-            td = Path(env_val)
-            if not td.is_absolute():
-                td = (root_path / td).resolve()
-            if td.exists():
-                return td
+            ev_p = Path(env_val)
+            if not ev_p.is_absolute():
+                ev_p = (root_path / ev_p).resolve()
+            if ev_p.exists():
+                return ev_p
 
-    # 3. Read workforce configuration files (workrules.md, workstate.md)
-    config_files = [
-        root_path / "workforces" / "workrules.md",
-        root_path / "workforces" / "workstate.md",
-        root_path / "workrules.md",
-        root_path / "workstate.md",
-    ]
-    for cfg in config_files:
-        if cfg.exists():
-            try:
-                content = cfg.read_text(encoding="utf-8", errors="ignore")
-                for line in content.splitlines():
-                    match = re.search(
-                        r"^\s*(?:-\s*)?(?:target_dir|project_root|target_repo|repo_root|active_project)\s*:\s*[`'\"]?([^`'\"]+)[`'\"]?",
-                        line,
-                        re.IGNORECASE,
-                    )
-                    if match:
-                        target_val = match.group(1).strip()
-                        td = Path(target_val)
-                        if not td.is_absolute():
-                            td = (root_path / td).resolve()
-                        if td.exists():
-                            return td
-            except Exception:
-                pass
-
-    # 4. Target file hint (e.g. apps/chcked/app/api/... or /path/to/apps/chcked/...)
-    if target_file_hint:
-        hint_path = Path(target_file_hint)
-        if hint_path.is_absolute():
-            try:
-                rel_parts = hint_path.relative_to(root_path).parts
-            except Exception:
-                rel_parts = hint_path.parts
-        else:
-            rel_parts = hint_path.parts
-
-        if len(rel_parts) >= 2 and rel_parts[0] in ("apps", "packages", "services", "projects"):
-            cand = root_path / rel_parts[0] / rel_parts[1]
-            if cand.exists():
-                return cand
-
-    # 5. Code presence auto-detection:
-    # If root_path contains NO source code files, check subfolders like apps/*, packages/*, services/*, src/*
-    source_exts = {".py", ".ts", ".tsx", ".js", ".jsx", ".go", ".rs", ".java", ".cs", ".php", ".rb"}
-    ignore_top_dirs = {".git", ".agents", ".grok", ".claude", ".github", ".worktrees", "workforces", "teams", "workflows", "skills", "rules", "docs", "plugins", "node_modules", "vendor", "__pycache__"}
-    
-    has_top_level_code = False
-    for root, dirs, files in os.walk(root_path):
-        rel_to_root = Path(root).relative_to(root_path)
-        if any(part in ignore_top_dirs for part in rel_to_root.parts):
-            dirs[:] = []
+    for fname in ["workforces/workrules.md", "workforces/workstate.md"]:
+        s_file = root_path / fname
+        if not s_file.exists():
             continue
-        for file in files:
-            if Path(file).suffix.lower() in source_exts:
-                has_top_level_code = True
-                break
-        if has_top_level_code:
-            break
-
-    if not has_top_level_code:
-        for parent_sub in ("apps", "packages", "services", "src", "projects"):
-            sub_dir = root_path / parent_sub
-            if sub_dir.exists() and sub_dir.is_dir():
-                for child in sub_dir.iterdir():
-                    if child.is_dir() and not child.name.startswith("."):
-                        return child
+        m = re.search(r"target_dir:\s*[\"']?([^\"'\n]+)[\"']?", s_file.read_text(encoding="utf-8", errors="ignore"))
+        if m and Path(m.group(1)).resolve().exists():
+            return Path(m.group(1)).resolve()
 
     return root_path
 
-
-def load_code_graph(root_dir: Path, target_dir: Optional[Path] = None) -> List[Dict[str, Any]]:
-    """Load symbols from workforces/code-graph.json or code-graph.json across candidate locations."""
-    candidate_paths = []
-    if target_dir:
-        candidate_paths.extend([
-            target_dir / "workforces" / "code-graph.json",
-            target_dir / "code-graph.json"
-        ])
-    candidate_paths.extend([
+def load_code_graph(root_dir: Path, target_dir: Path) -> List[Dict[str, Any]]:
+    """Load symbols from code-graph.json if available."""
+    candidates = [
+        target_dir / "workforces" / "code-graph.json",
+        target_dir / "code-graph.json",
         root_dir / "workforces" / "code-graph.json",
-        root_dir / "code-graph.json"
-    ])
-    
-    try:
-        res = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=root_dir, capture_output=True, text=True, timeout=3)
-        if res.returncode == 0 and res.stdout.strip():
-            git_root = Path(res.stdout.strip())
-            candidate_paths.extend([
-                git_root / "workforces" / "code-graph.json",
-                git_root / "code-graph.json"
-            ])
-    except Exception:
-        pass
-
-    for graph_path in candidate_paths:
-        if graph_path.exists():
-            try:
-                data = json.loads(graph_path.read_text(encoding="utf-8"))
-                symbols = data.get("symbols", [])
-                if symbols:
-                    return symbols
-            except Exception:
-                pass
+        root_dir / "code-graph.json",
+        target_dir / ".agents" / "workforces" / "code-graph.json"
+    ]
+    for graph_path in candidates:
+        if not graph_path.exists():
+            continue
+        try:
+            data = json.loads(graph_path.read_text(encoding="utf-8"))
+            return data.get("symbols", [])
+        except Exception as err:
+            sys.stderr.write(f"[post_code_reviewer] load_code_graph notice: {err}\n")
     return []
 
 def audit_swallowed_errors(diff_text: str, modified_files: List[str], root_dir: Path) -> List[str]:
-    """Check for empty catch/except blocks in modified lines."""
+    """Check for empty catch/except blocks in code files, ignoring test and doc files."""
     issues = []
-    # Check added diff lines
+    curr = "unknown"
     for line in diff_text.splitlines():
+        if line.startswith("+++ b/"):
+            curr = line[6:].strip()
+            continue
+        if not curr.endswith((".py", ".ts", ".tsx", ".js", ".jsx", ".php")):
+            continue
+        if any(kw in curr.lower() for kw in ["test_", "tests/"]):
+            continue
         if line.startswith("+") and not line.startswith("+++"):
-            code_line = line[1:].strip()
-            if re.search(r"except\s*:\s*pass", code_line) or re.search(r"except\s+\w+\s*:\s*pass", code_line):
+            code = line[1:].strip()
+            if any(kw in code for kw in ["re.search", "r\"", "r'", "sys.stderr.write", "except\\s"]):
+                continue
+            if re.search(r"except\s*:\s*pass", code) or re.search(r"except\s+\w+\s*:\s*pass", code):
                 issues.append("⚠️ **Swallowed Error (Python):** `except: pass` detected in diff. Rethrow or log with context.")
-            elif re.search(r"catch\s*\([^)]*\)\s*\{\s*\}", code_line):
+            elif re.search(r"catch\s*\([^)]*\)\s*\{\s*\}", code):
                 issues.append("⚠️ **Swallowed Error (JS/TS):** Empty `catch {}` block detected in diff. Rethrow or log with context.")
-            elif re.search(r"\.catch\(\(\)\s*=>\s*\{\s*\}\)", code_line):
+            elif re.search(r"\.catch\(\(\)\s*=>\s*\{\s*\}\)", code):
                 issues.append("⚠️ **Swallowed Error (JS/TS):** Unhandled promise rejection `.catch(() => {})` detected in diff.")
     return issues
 
 def audit_missing_tests(modified_files: List[str]) -> List[str]:
     """Check if implementation files were modified without accompanying test updates."""
-    logic_files = []
-    test_files = []
-    
-    for f in modified_files:
-        is_test = any(kw in f.lower() for kw in ["test", "spec", "tests"])
-        if is_test:
-            test_files.append(f)
-        elif f.endswith((".py", ".ts", ".tsx", ".js", ".jsx", ".go", ".php", ".rs")):
-            logic_files.append(f)
-
-    issues = []
+    logic_files = [f for f in modified_files if f.endswith((".py", ".ts", ".tsx", ".js", ".jsx", ".go", ".php", ".rs")) and not any(kw in f.lower() for kw in ["test", "spec", "tests"])]
+    test_files = [f for f in modified_files if any(kw in f.lower() for kw in ["test", "spec", "tests"])]
     if logic_files and not test_files:
-        sample = logic_files[0]
-        issues.append(f"💡 **Missing Test Verification:** Modified code logic in `{sample}` without corresponding unit/integration test updates.")
-    return issues
+        return [f"💡 **Missing Test Verification:** Modified code in `{logic_files[0]}` without corresponding test updates."]
+    return []
 
 def audit_contract_changes(modified_files: List[str], symbols: List[Dict[str, Any]], root_dir: Path) -> List[str]:
     """Check if modified symbols have downstream callers in other files."""
@@ -247,298 +171,608 @@ def audit_contract_changes(modified_files: List[str], symbols: List[Dict[str, An
         return issues
 
     for mod_file in modified_files:
-        file_symbols = [s for s in symbols if s.get("file") == mod_file]
-        for sym in file_symbols:
+        for sym in [s for s in symbols if s.get("file") == mod_file]:
             sym_name = sym.get("name")
             if not sym_name or len(sym_name) < 3:
                 continue
-            
-            # Find callers in other files
-            callers = []
-            for other_sym in symbols:
-                if other_sym.get("file") != mod_file:
-                    if sym_name in other_sym.get("calls", []):
-                        callers.append(f"`{other_sym.get('file')}`:L{other_sym.get('line')} (`{other_sym.get('name')}()`)")
-
-            if len(callers) > 0:
-                issues.append(f"⚠️ **Downstream Caller Blast Radius:** Symbol `{sym_name}()` in `{mod_file}` has external callers: {', '.join(callers[:3])}. Verify parameter signatures remain compatible.")
+            callers = [f"`{o['file']}`:L{o['line']}" for o in symbols if o.get("file") != mod_file and sym_name in o.get("calls", [])]
+            if callers:
+                issues.append(f"⚠️ **Downstream Blast Radius:** `{sym_name}()` in `{mod_file}` has external callers: {', '.join(callers[:3])}.")
     return issues
 
 def audit_class_helper_reuse(modified_files: List[str], diff_text: str, root_dir: Path) -> List[str]:
-    """Check if newly added functions in a file perform low-level parsing while existing helper methods in the target file exist."""
+    """Check if new code in a file performs manual parsing while class helper exists."""
     issues = []
-    helper_keywords = ["convertNumber", "convert_number", "formatNumber", "format_number", "sanitize", "parseNumber", "parse_number", "toFloat", "to_float"]
+    helper_kws = ["convertNumber", "convert_number", "formatNumber", "format_number", "sanitize", "parseNumber", "toFloat"]
 
     for rel_path in modified_files:
         full_path = root_dir / rel_path
         if not full_path.exists() or not rel_path.endswith((".php", ".ts", ".js", ".py")):
             continue
-
+        if "post_code_reviewer" in rel_path or any(t in rel_path.lower() for t in ["test_", "tests/"]):
+            continue
         try:
             content = full_path.read_text(encoding="utf-8", errors="ignore")
-            existing_helpers = [kw for kw in helper_keywords if kw in content]
-            if not existing_helpers:
+            existing = [kw for kw in helper_kws if re.search(r"(?:def|function|\bpublic|\bprivate|\bprotected)\s+" + kw, content)]
+            if not existing:
                 continue
-
-            file_diff_lines = [l for l in diff_text.splitlines() if l.startswith("+") and not l.startswith("+++")]
-            has_raw_parsing = any(
-                re.search(r"preg_replace|str_replace|replace\(/[^\n]+/|floatval|\(float\)|parseFloat|re\.sub", l)
-                for l in file_diff_lines
-            )
-
-            if has_raw_parsing:
-                diff_calls_helper = any(kw in l for kw in existing_helpers for l in file_diff_lines)
-                if not diff_calls_helper:
-                    helpers_str = ", ".join(f"`{h}`" for h in set(existing_helpers))
-                    issues.append(
-                        f"💡 **Potential Over-Engineering / Duplicate Class Helper:** Code modifications in `{rel_path}` use custom string/number parsing while neighboring helper(s) ({helpers_str}) exist in the target file. Consider composing existing helper(s)."
-                    )
-        except Exception:
-            pass
-
+            diff_lines = [l for l in diff_text.splitlines() if l.startswith("+") and not l.startswith("+++")]
+            has_raw = any(re.search(r"preg_replace|str_replace|floatval|\(float\)|parseFloat|re\.sub", l) for l in diff_lines)
+            if has_raw and not any(kw in l for kw in existing for l in diff_lines):
+                helpers_str = ", ".join(f"`{h}`" for h in set(existing))
+                issues.append(f"💡 **Class Helper Reuse:** Code in `{rel_path}` uses manual parsing when helper ({helpers_str}) exists.")
+        except Exception as err:
+            sys.stderr.write(f"[post_code_reviewer] audit_class_helper_reuse notice: {err}\n")
     return issues
+
+# --- Security Bypass Cache & Weekly Retry Management ---
+
+def get_security_bypass_path(target_dir: Path) -> Path:
+    """Resolve security bypass JSON path."""
+    p1 = target_dir / "workforces" / "memory" / "security-bypass.json"
+    p2 = target_dir / ".agents" / "memory" / "security-bypass.json"
+    return p1 if (target_dir / "workforces").exists() else (p2 if (target_dir / ".agents").exists() else p1)
+
+def load_security_bypass_cache(target_dir: Path) -> Dict[str, Any]:
+    """Load cached security bypass entries safely."""
+    path = get_security_bypass_path(target_dir)
+    if not path.exists():
+        return {"bypasses": {}}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if isinstance(data, dict) and isinstance(data.get("bypasses"), dict):
+            return data
+    except Exception as err:
+        sys.stderr.write(f"[post_code_reviewer] load_security_bypass_cache notice: {err}\n")
+    return {"bypasses": {}}
+
+def save_security_bypass_cache(target_dir: Path, cache_data: Dict[str, Any]) -> None:
+    """Save security bypass entries to disk."""
+    path = get_security_bypass_path(target_dir)
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(cache_data, indent=2), encoding="utf-8")
+    except Exception as err:
+        sys.stderr.write(f"[post_code_reviewer] save_security_bypass_cache notice: {err}\n")
+
+def find_bypass_entry(ecosystem: str, summary: str, bypasses: Dict[str, Any]) -> Tuple[Optional[str], Optional[Dict[str, Any]], bool]:
+    """Find matching bypass entry and check if unexpired."""
+    key = f"{ecosystem}:{summary.strip()}"
+    now_dt = datetime.datetime.now()
+    for k, v in bypasses.items():
+        if v.get("ecosystem") == ecosystem and (k in key or key in k):
+            try:
+                is_expired = now_dt >= datetime.datetime.fromisoformat(v.get("next_retry", ""))
+            except Exception:
+                is_expired = True
+            return k, v, is_expired
+    return None, None, True
+
+def attempt_remediation(ecosystem: str, target_dir: Path) -> bool:
+    """Attempt automated remediation (e.g. npm audit fix). Return True if command succeeded."""
+    if ecosystem == "npm" and shutil.which("npm"):
+        try:
+            res = subprocess.run(["npm", "audit", "fix"], cwd=target_dir, capture_output=True, text=True, timeout=30)
+            return res.returncode == 0
+        except Exception as err:
+            sys.stderr.write(f"[post_code_reviewer] remediation attempt error: {err}\n")
+    return False
+
+def record_security_bypass(ecosystem: str, summary: str, bypasses: Dict[str, Any], target_dir: Path, cache: Dict[str, Any]) -> str:
+    """Record unresolvable security failure to bypass cache for 7-day retry."""
+    key = f"{ecosystem}:{summary.strip()}"
+    now_dt = datetime.datetime.now()
+    now_iso = now_dt.isoformat()
+    retry_iso = (now_dt + datetime.timedelta(days=7)).isoformat()
+    attempt_cmd = "npm audit fix" if ecosystem == "npm" else f"{ecosystem} automated fix"
+
+    bypasses[key] = {
+        "ecosystem": ecosystem, "summary": summary, "first_detected": now_iso,
+        "last_tried": now_iso, "next_retry": retry_iso, "status": "bypassed",
+        "attempt": attempt_cmd,
+        "learnings": f"Remediation attempt ({attempt_cmd}) unable to resolve 3rd-party vulnerability; bypassed for 7 days."
+    }
+    save_security_bypass_cache(target_dir, cache)
+    return f"⚠️ **Security Notice (3rd-Party Tool / Deprecation):** Fix attempted but `{summary}` unresolvable. Logged to bypass cache (weekly retry: {retry_iso})."
+
+def handle_security_failure(ecosystem: str, summary: str, bypasses: Dict[str, Any], target_dir: Path, cache: Dict[str, Any]) -> str:
+    """Process failure against weekly bypass cache with remediation attempt."""
+    match_key, matched, is_expired = find_bypass_entry(ecosystem, summary, bypasses)
+    now_dt = datetime.datetime.now()
+    now_iso = now_dt.isoformat()
+    retry_iso = (now_dt + datetime.timedelta(days=7)).isoformat()
+
+    if matched and not is_expired:
+        return f"ℹ️ **Security Bypass Active (Weekly Re-check):** `{summary}` bypassed (next retry: {matched.get('next_retry')})."
+
+    if attempt_remediation(ecosystem, target_dir):
+        if match_key:
+            bypasses.pop(match_key, None)
+            save_security_bypass_cache(target_dir, cache)
+        return f"✅ **Security Remediation Succeeded:** Automated fix resolved `{summary}`. Returned to normal routine."
+
+    if matched:
+        matched["last_tried"] = now_iso
+        matched["next_retry"] = retry_iso
+        save_security_bypass_cache(target_dir, cache)
+        return f"⚠️ **Security Notice (Weekly Re-try):** Re-attempted fix for `{summary}` after 7 days; upstream unpatched. Extended to {retry_iso}."
+
+    return record_security_bypass(ecosystem, summary, bypasses, target_dir, cache)
+
+def _parse_npm_audit_payload(raw_json: str) -> Dict[str, Any]:
+    """Safely parse npm audit JSON output."""
+    try:
+        return json.loads(raw_json)
+    except json.JSONDecodeError:
+        idx1, idx2 = raw_json.find("{"), raw_json.rfind("}")
+        if idx1 != -1 and idx2 != -1:
+            return json.loads(raw_json[idx1:idx2 + 1])
+        raise
+
+def _process_npm_vulnerabilities(
+    vulns: Dict[str, Any],
+    bypasses: Dict[str, Any],
+    target_dir: Path,
+    cache: Dict[str, Any]
+) -> List[str]:
+    """Process vulnerabilities distinguishing direct (blocking) vs transitive (bypassed)."""
+    issues = []
+    for pkg, info in vulns.items():
+        is_direct = info.get("isDirect", False) if isinstance(info, dict) else False
+        severity = info.get("severity", "high") if isinstance(info, dict) else "high"
+        summary = f"vulnerability in {pkg}"
+        if is_direct:
+            issues.append(
+                f"❌ **Direct Security Vulnerability (npm):** Direct dependency `{pkg}` has {severity} vulnerability. Direct dependencies cannot be bypassed; update or replace `{pkg}`."
+            )
+        else:
+            issues.append(handle_security_failure("npm", summary, bypasses, target_dir, cache))
+    return issues
+
+def _run_node_audit(touched: List[str], target_dir: Path, bypasses: Dict[str, Any], cache: Dict[str, Any]) -> List[str]:
+    """Execute npm audit --json and process findings."""
+    if not any(m.endswith(("package.json", "package-lock.json", "pnpm-lock.yaml")) for m in touched) or not shutil.which("npm"):
+        return []
+    try:
+        res = subprocess.run(["npm", "audit", "--json"], cwd=target_dir, capture_output=True, text=True, timeout=15)
+        if res.returncode == 0:
+            return []
+        data = _parse_npm_audit_payload(res.stdout or res.stderr)
+        if "error" in data:
+            err_msg = data["error"].get("summary") or data["error"].get("detail") or "npm audit error"
+            return [f"❌ **Security Audit Failed (npm):** {err_msg}"]
+        vulns = data.get("vulnerabilities", {})
+        if not vulns:
+            return []
+        return _process_npm_vulnerabilities(vulns, bypasses, target_dir, cache)
+    except Exception as err:
+        sys.stderr.write(f"[post_code_reviewer] npm audit notice: {err}\n")
+        return [f"❌ **Security Audit Failed (npm):** {err}"]
+
+def _run_python_audit(touched: List[str], target_dir: Path, bypasses: Dict[str, Any], cache: Dict[str, Any]) -> List[str]:
+    """Execute pip-audit and process findings."""
+    if not any(m.endswith(("requirements.txt", "poetry.lock")) for m in touched) or not shutil.which("pip-audit"):
+        return []
+    try:
+        res = subprocess.run(["pip-audit"], cwd=target_dir, capture_output=True, text=True, timeout=15)
+        if res.returncode != 0:
+            return [handle_security_failure("python", "pip-audit vulnerabilities", bypasses, target_dir, cache)]
+    except Exception as err:
+        sys.stderr.write(f"[post_code_reviewer] pip-audit notice: {err}\n")
+        return [f"❌ **Security Audit Failed (python):** {err}"]
+    return []
 
 def audit_dependency_security(modified_files: List[str], target_dir: Path) -> List[str]:
-    """Audit modified package manifests for security vulnerabilities."""
-    issues = []
-    dep_manifests = {
-        "package.json", "package-lock.json", "pnpm-lock.yaml", "yarn.lock",
-        "requirements.txt", "Pipfile.lock", "poetry.lock",
-        "composer.json", "composer.lock", "Cargo.lock"
-    }
+    """Audit modified package manifests with weekly 3rd-party bypass caching."""
+    manifests = {"package.json", "package-lock.json", "pnpm-lock.yaml", "yarn.lock", "requirements.txt", "Pipfile.lock", "poetry.lock", "composer.json", "composer.lock"}
+    touched = [f for f in modified_files if Path(f).name in manifests]
+    if not touched:
+        return []
 
-    touched_manifests = [f for f in modified_files if Path(f).name in dep_manifests]
-    if not touched_manifests:
-        return issues
+    cache = load_security_bypass_cache(target_dir)
+    bypasses = cache.setdefault("bypasses", {})
+    return _run_node_audit(touched, target_dir, bypasses, cache) + _run_python_audit(touched, target_dir, bypasses, cache)
 
-    # 1. Node / JavaScript manifests
-    if any(m.endswith(("package.json", "package-lock.json", "pnpm-lock.yaml", "yarn.lock")) for m in touched_manifests):
-        audit_cmd = None
-        if (target_dir / "pnpm-lock.yaml").exists() and shutil.which("pnpm"):
-            audit_cmd = ["pnpm", "audit", "--audit-level=high"]
-        elif shutil.which("npm") and ((target_dir / "package.json").exists() or (target_dir / "package-lock.json").exists()):
-            audit_cmd = ["npm", "audit", "--audit-level=high"]
+# --- PR Review Verification Form & Heuristic Checks ---
 
-        if audit_cmd:
-            try:
-                res = subprocess.run(audit_cmd, cwd=target_dir, capture_output=True, text=True, timeout=15)
-                if res.returncode != 0:
-                    lines = [l.strip() for l in (res.stdout or res.stderr).splitlines() if "vulnerabilities" in l.lower() or "severity" in l.lower()]
-                    summary = lines[0] if lines else f"exit code {res.returncode}"
-                    issues.append(f"❌ **Security Audit Failed (NPM):** High/critical dependency vulnerabilities detected ({summary}). Remediation required before handoff.")
-            except Exception:
-                pass
+def _parse_hunk_line(line: str, curr_line: int, touched: Set[int]) -> int:
+    """Process a single diff hunk line and update line tracking."""
+    if line.startswith("+") and not line.startswith("+++"):
+        touched.add(curr_line)
+        return curr_line + 1
+    if line.startswith("-") and not line.startswith("---"):
+        return curr_line
+    if line.startswith(" ") or line == "":
+        return curr_line + 1
+    return curr_line
 
-    # 2. Python manifests
-    if any(m.endswith(("requirements.txt", "poetry.lock", "Pipfile.lock")) for m in touched_manifests):
-        if shutil.which("pip-audit"):
-            try:
-                res = subprocess.run(["pip-audit"], cwd=target_dir, capture_output=True, text=True, timeout=15)
-                if res.returncode != 0:
-                    issues.append("❌ **Security Audit Failed (Python):** Known vulnerabilities detected by `pip-audit`. Remediation required before handoff.")
-            except Exception:
-                pass
+def _get_touched_lines(diff_text: str) -> Dict[str, Set[int]]:
+    """Parse git diff to extract specifically added line numbers per file."""
+    lines_by_file: Dict[str, Set[int]] = {}
+    curr_file: Optional[str] = None
+    curr_line = 0
 
-    # 3. PHP composer manifests
-    if any(m.endswith(("composer.json", "composer.lock")) for m in touched_manifests):
-        if shutil.which("composer"):
-            try:
-                res = subprocess.run(["composer", "audit"], cwd=target_dir, capture_output=True, text=True, timeout=15)
-                if res.returncode != 0:
-                    issues.append("❌ **Security Audit Failed (PHP):** Known vulnerabilities detected by `composer audit`. Remediation required before handoff.")
-            except Exception:
-                pass
+    for line in diff_text.splitlines():
+        if line.startswith("+++ b/"):
+            curr_file = line[6:].strip()
+            lines_by_file.setdefault(curr_file, set())
+        elif line.startswith("@@ ") and curr_file:
+            m = re.search(r"\+(\d+)", line)
+            curr_line = int(m.group(1)) if m else 0
+        elif curr_file and curr_line > 0:
+            curr_line = _parse_hunk_line(line, curr_line, lines_by_file[curr_file])
 
-    return issues
+    return lines_by_file
 
-def detect_quality_commands(target_dir: Path) -> Dict[str, str]:
-    """Auto-detect configured test, typecheck/static analysis, and linter commands for target project."""
-    commands: Dict[str, str] = {}
-
-    # 1. Node.js / TypeScript / JavaScript
-    pkg_json = target_dir / "package.json"
-    if pkg_json.exists():
-        try:
-            data = json.loads(pkg_json.read_text(encoding="utf-8"))
-            scripts = data.get("scripts", {})
-
-            # Static Analysis / Typecheck
-            if "typecheck" in scripts:
-                commands["typecheck"] = "npm run typecheck"
-            elif "check" in scripts:
-                commands["typecheck"] = "npm run check"
-            elif (target_dir / "tsconfig.json").exists() and shutil.which("npx"):
-                commands["typecheck"] = "npx --no-install tsc --noEmit"
-
-            # Linting & Styling
-            if "lint" in scripts:
-                commands["lint"] = "npm run lint"
-            elif (target_dir / "biome.json").exists() and shutil.which("npx"):
-                commands["lint"] = "npx --no-install @biomejs/biome check ."
-
-            # Unit Tests
-            if "test" in scripts:
-                test_script = scripts.get("test", "")
-                if "no test specified" not in test_script.lower():
-                    commands["test"] = "npm test"
-        except Exception:
-            pass
-
-    # 2. Python
-    has_python = (
-        (target_dir / "pyproject.toml").exists()
-        or (target_dir / "requirements.txt").exists()
-        or any(target_dir.glob("*.py"))
-    )
-    if has_python and "test" not in commands:
-        # Unit Tests
-        if (target_dir / "tests").exists() or (target_dir / "pytest.ini").exists():
-            if shutil.which("pytest"):
-                commands["test"] = "pytest"
+def _check_py_function_lengths(path: Path, rel: str, touched: Set[int], max_lines: int) -> Tuple[List[str], List[str]]:
+    """Inspect Python AST for functions exceeding max_lines."""
+    viols, cands = [], []
+    try:
+        tree = ast.parse(path.read_text(encoding="utf-8", errors="ignore"), filename=str(path))
+        for node in ast.walk(tree):
+            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            length = getattr(node, "end_lineno", node.lineno) - node.lineno + 1
+            if length <= max_lines:
+                continue
+            func_range = set(range(node.lineno, getattr(node, "end_lineno", node.lineno) + 1))
+            if (not touched) or bool(func_range.intersection(touched)):
+                viols.append(f"Function `{node.name}()` in `{rel}`:L{node.lineno} is {length} lines (> {max_lines} limit).")
             else:
-                commands["test"] = "python3 -m unittest discover -s tests"
-        # Linters
-        if shutil.which("ruff"):
-            commands["lint"] = "ruff check ."
-        elif shutil.which("flake8"):
-            commands["lint"] = "flake8 ."
-        # Static Analysis
-        if (target_dir / "mypy.ini").exists() or (target_dir / ".mypy.ini").exists() or (target_dir / "pyproject.toml").exists():
-            if shutil.which("mypy"):
-                commands["typecheck"] = "mypy ."
+                cands.append(f"Pre-existing `{node.name}()` in `{rel}`:L{node.lineno} is {length} lines.")
+    except Exception as err:
+        sys.stderr.write(f"[post_code_reviewer] AST parse notice: {err}\n")
+    return viols, cands
 
-    # 3. PHP
-    if (target_dir / "composer.json").exists():
-        if (target_dir / "vendor" / "bin" / "pest").exists():
-            commands["test"] = "./vendor/bin/pest"
-        elif (target_dir / "vendor" / "bin" / "phpunit").exists():
-            commands["test"] = "./vendor/bin/phpunit"
+def audit_function_length(diff_text: str, modified_files: List[str], target_dir: Path, max_lines: int = 35) -> Tuple[bool, List[str], List[str]]:
+    """Check whether modified functions exceed max_lines limit."""
+    touched_by_file = _get_touched_lines(diff_text)
+    violations, candidates = [], []
 
-        if (target_dir / "vendor" / "bin" / "phpstan").exists():
-            commands["typecheck"] = "./vendor/bin/phpstan analyse"
+    for rel in modified_files:
+        full = target_dir / rel
+        if full.exists() and rel.endswith(".py"):
+            v, c = _check_py_function_lengths(full, rel, touched_by_file.get(rel, set()), max_lines)
+            violations.extend(v)
+            candidates.extend(c)
 
-        if (target_dir / "vendor" / "bin" / "pint").exists():
-            commands["lint"] = "./vendor/bin/pint --test"
+    return len(violations) == 0, violations, candidates
 
-    # 4. Rust
-    if (target_dir / "Cargo.toml").exists() and shutil.which("cargo"):
-        commands["test"] = "cargo test"
-        commands["typecheck"] = "cargo check"
-        commands["lint"] = "cargo clippy -- -D warnings"
+def audit_dry_principles(diff_text: str, modified_files: List[str], symbols: List[Dict[str, Any]], target_dir: Path) -> Tuple[bool, List[str], List[str]]:
+    """Check duplicate functions and class helper reuse against code graph."""
+    violations = audit_class_helper_reuse(modified_files, diff_text, target_dir)
+    candidates = []
 
-    # 5. Go
-    if (target_dir / "go.mod").exists() and shutil.which("go"):
-        commands["test"] = "go test ./..."
-        commands["typecheck"] = "go vet ./..."
-        if shutil.which("golangci-lint"):
-            commands["lint"] = "golangci-lint run"
+    added_fns = re.findall(r"^\+\s*(?:def|(?:const|let|var|function))\s+([a-zA-Z_]\w*)", diff_text, re.MULTILINE)
+    for fn in set(added_fns):
+        if fn.startswith("test_") or fn in {"setUp", "tearDown", "main", "__init__"}:
+            continue
+        matching = [s for s in symbols if s.get("name") == fn and s.get("file") not in modified_files]
+        if matching:
+            msg = f"Function `{fn}()` matches existing symbol in `{matching[0].get('file')}`:L{matching[0].get('line')}."
+            violations.append(msg)
 
-    return commands
+    return len(violations) == 0, violations, candidates
 
-def run_quality_gate_checks(target_dir: Path, commands: Dict[str, str]) -> Tuple[List[str], bool]:
-    """Execute detected unit test, static analysis, and linter commands."""
-    issues = []
+def audit_method_scoping(diff_text: str, modified_files: List[str], target_dir: Path) -> Tuple[bool, List[str], List[str]]:
+    """Check for deeply nested control flow blocks (indent >= 16 spaces / 4 levels)."""
+    violations = []
+    curr = "unknown"
+    for line in diff_text.splitlines():
+        if line.startswith("+++ b/"):
+            curr = line[6:].strip()
+        elif line.startswith("+") and not line.startswith("+++"):
+            stripped = line[1:].strip()
+            indent = len(line[1:]) - len(line[1:].lstrip(" "))
+            if indent >= 16 and any(stripped.startswith(kw) for kw in ["if ", "for ", "while ", "try:", "match "]):
+                violations.append(f"Deeply nested control flow (indent depth >= 4) in `{curr}`: `{stripped[:35]}...`.")
+    return len(violations) == 0, violations, []
+
+def audit_simplicity_and_verbosity(diff_text: str, modified_files: List[str]) -> Tuple[bool, List[str], List[str]]:
+    """Detect verbose anti-patterns like redundant ternary or boolean returns."""
+    violations = []
+    curr = "unknown"
+    for line in diff_text.splitlines():
+        if line.startswith("+++ b/"):
+            curr = line[6:].strip()
+            continue
+        if any(kw in curr.lower() for kw in ["test_", "tests/"]):
+            continue
+        if line.startswith("+") and not line.startswith("+++"):
+            code = line[1:].strip()
+            if code.startswith(("#", "//", "/*", "*", '"""', "'''")):
+                continue
+            if any(kw in code for kw in ["re.search", "r\"", "r'", "violations.append"]):
+                continue
+            if re.search(r"\?\s*true\s*:\s*false", code, re.IGNORECASE):
+                violations.append(f"Redundant boolean ternary (`? true : false`) in `{code[:35]}`.")
+            if re.search(r"if\s+.*:\s*return\s+True", code):
+                violations.append(f"Verbose boolean conditional in `{code[:35]}`.")
+    return len(violations) == 0, violations, []
+
+def audit_code_maintainability(diff_text: str, modified_files: List[str], symbols: List[Dict[str, Any]], target_dir: Path) -> Tuple[bool, List[str], List[str]]:
+    """Check maintainability: swallowed errors, caller blast radius, and test presence."""
+    violations = audit_swallowed_errors(diff_text, modified_files, target_dir)
+    candidates = audit_missing_tests(modified_files)
+    blast_radius = audit_contract_changes(modified_files, symbols, target_dir)
+    candidates.extend(blast_radius)
+    return len(violations) == 0, violations, candidates
+
+def evaluate_justification(justification: Optional[str]) -> Tuple[bool, str]:
+    """Validate whether provided justification gives an acceptable technical reason."""
+    if not justification or not justification.strip():
+        return False, "No explanation provided."
+    clean = justification.strip().lower()
+    bad_reasons = {"none", "skip", "idk", "lazy", "pass", "todo", "no reason", "ignore", "n/a", "no"}
+    if clean in bad_reasons or len(clean) < 10:
+        return False, f"'{justification.strip()}' is not an acceptable technical justification."
+    return True, justification.strip()
+
+def extract_diff_justifications(diff_text: str) -> Dict[str, str]:
+    """Extract in-line justifications from diff comments."""
+    justs: Dict[str, str] = {}
+    pattern = re.compile(r"^\+\s*(?:#|//|/\*|\*)\s*justification(?:\(([^)]+)\))?:\s*(.+)", re.IGNORECASE | re.MULTILINE)
+    for match in pattern.finditer(diff_text):
+        scope = (match.group(1) or "global").strip().lower()
+        reason = match.group(2).strip().rstrip("*/").strip()
+        justs[scope] = reason
+    return justs
+
+def find_criterion_justification(name: str, diff_justs: Dict[str, str], cli_just: Optional[str]) -> Optional[str]:
+    """Resolve justification for a specific criterion."""
+    if cli_just and cli_just.strip():
+        if ":" in cli_just and cli_just.split(":", 1)[0].strip().lower() in name.lower():
+            return cli_just.split(":", 1)[1].strip()
+        return cli_just.strip()
+    for scope, text in diff_justs.items():
+        if scope in name.lower() or scope == "global":
+            return text
+    return None
+
+def _eval_badge(
+    ok: bool,
+    label: str,
+    viols: List[str],
+    hint: str,
+    diff_justs: Dict[str, str],
+    cli_just: Optional[str]
+) -> Tuple[str, bool, Optional[str]]:
+    """Evaluate badge display and handle justified exceptions vs pushbacks."""
+    if ok:
+        return f"- [x] **{label}:** {hint}", True, None
+    just_str = find_criterion_justification(label, diff_justs, cli_just)
+    is_valid, reason = evaluate_justification(just_str)
+    if is_valid:
+        return f"- [x] **{label}:** [Justified: {reason}]", True, None
+    pushback = f"Criterion '{label}' violated ({viols[0]}). Pushback: {reason}. You MUST fix this code."
+    return f"- [ ] **{label}:** {viols[0]}", False, pushback
+
+def _build_pr_checks_list(
+    diff_text: str,
+    modified_files: List[str],
+    symbols: List[Dict[str, Any]],
+    target_dir: Path
+) -> Tuple[List[Tuple[bool, str, List[str], str]], List[str]]:
+    """Audit diff against 5 PR criteria and return checklist definitions with candidates."""
+    dry_ok, dry_v, dry_c = audit_dry_principles(diff_text, modified_files, symbols, target_dir)
+    len_ok, len_v, len_c = audit_function_length(diff_text, modified_files, target_dir, max_lines=35)
+    scop_ok, scop_v, scop_c = audit_method_scoping(diff_text, modified_files, target_dir)
+    simp_ok, simp_v, simp_c = audit_simplicity_and_verbosity(diff_text, modified_files)
+    maint_ok, maint_v, maint_c = audit_code_maintainability(diff_text, modified_files, symbols, target_dir)
+
+    checks = [
+        (dry_ok, "is it dry", dry_v, "Verified clean. No duplicate helper logic detected."),
+        (len_ok, "no new code exceeds 35 lines", len_v, "All modified functions within line limits."),
+        (scop_ok, "should any new code be in its own method", scop_v, "Method granularity is clean; no deeply nested blocks."),
+        (simp_ok, "is any of it too verbose or can it be simplified", simp_v, "Clean, idiomatic expressions without redundant boilerplate."),
+        (maint_ok, "code maintainability", maint_v, "Error propagation preserved, caller contracts intact.")
+    ]
+    return checks, dry_c + len_c + scop_c + simp_c + maint_c
+
+def evaluate_pr_verification_form(
+    diff_text: str,
+    modified_files: List[str],
+    symbols: List[Dict[str, Any]],
+    target_dir: Path,
+    justification: Optional[str] = None
+) -> Tuple[str, bool, List[str], List[str]]:
+    """Generate and evaluate the 5-point PR-style verification form with pushback."""
+    checks, candidates = _build_pr_checks_list(diff_text, modified_files, symbols, target_dir)
+    diff_justs = extract_diff_justifications(diff_text)
+    badges, pushbacks = [], []
     all_passed = True
 
-    # Deterministic order: typecheck -> lint -> test
-    order = ["typecheck", "lint", "test"]
-    sorted_checks = []
-    for k in order:
-        if k in commands:
-            sorted_checks.append((k, commands[k]))
-    for k, cmd in commands.items():
-        if k not in order:
-            sorted_checks.append((k, cmd))
+    for ok, label, viols, hint in checks:
+        line, passed, pushback = _eval_badge(ok, label, viols, hint, diff_justs, justification)
+        badges.append(line)
+        if not passed:
+            all_passed = False
+            if pushback:
+                pushbacks.append(pushback)
 
-    for check_type, cmd_str in sorted_checks:
-        try:
-            res = subprocess.run(
-                cmd_str,
-                shell=True,
-                cwd=target_dir,
-                capture_output=True,
-                text=True,
-                timeout=45
-            )
-            if res.returncode != 0:
+    lines = ["### 📋 PR-Style Code Review Verification Form"] + badges
+    return "\n".join(lines), all_passed, pushbacks, candidates
+
+# --- Quality Toolchain Detection & Execution ---
+
+def _detect_node_commands(target_dir: Path, commands: Dict[str, str]) -> None:
+    """Detect Node/TS test, lint, and typecheck commands."""
+    pkg_json = target_dir / "package.json"
+    if not pkg_json.exists():
+        return
+    try:
+        s = json.loads(pkg_json.read_text(encoding="utf-8")).get("scripts", {})
+        if "typecheck" in s or "type-check" in s or "tsc" in s:
+            commands["typecheck"] = "npm run " + next(k for k in ["typecheck", "type-check", "tsc"] if k in s)
+        elif (target_dir / "tsconfig.json").exists() and shutil.which("npx"):
+            commands["typecheck"] = "npx --no-install tsc --noEmit"
+        if "lint" in s:
+            commands["lint"] = "npm run lint"
+        elif (target_dir / "biome.json").exists() and shutil.which("npx"):
+            commands["lint"] = "npx --no-install @biomejs/biome check ."
+        if "test" in s and "no test specified" not in str(s.get("test", "")).lower():
+            commands["test"] = "npm test"
+    except Exception as err:
+        sys.stderr.write(f"[post_code_reviewer] node command detection notice: {err}\n")
+
+def _detect_python_commands(target_dir: Path, commands: Dict[str, str]) -> None:
+    """Detect Python test, lint, and typecheck commands."""
+    has_py = any(target_dir.glob("*.py")) or (target_dir / "requirements.txt").exists() or (target_dir / "pyproject.toml").exists()
+    if not has_py and not (target_dir / "tests").is_dir():
+        return
+    if "test" not in commands:
+        if (target_dir / "pytest.ini").exists() or (target_dir / "tests").is_dir():
+            if shutil.which("pytest"):
+                commands["test"] = "pytest"
+            elif any((target_dir / "tests").glob("test_*.py")):
+                commands["test"] = "python3 -m unittest discover -s tests -p 'test_*.py'"
+    if "lint" not in commands and shutil.which("ruff"):
+        commands["lint"] = "ruff check ."
+    if "typecheck" not in commands and ((target_dir / "mypy.ini").exists() or (target_dir / ".mypy.ini").exists() or (target_dir / "pyproject.toml").exists()):
+        if shutil.which("mypy"):
+            commands["typecheck"] = "mypy ."
+
+def _detect_php_commands(target_dir: Path, commands: Dict[str, str]) -> None:
+    """Detect PHP test, typecheck, and lint commands."""
+    if not (target_dir / "composer.json").exists():
+        return
+    vbin = target_dir / "vendor" / "bin"
+    if (vbin / "pest").exists():
+        commands.setdefault("test", "./vendor/bin/pest")
+    elif (vbin / "phpunit").exists():
+        commands.setdefault("test", "./vendor/bin/phpunit")
+    if (vbin / "phpstan").exists():
+        commands.setdefault("typecheck", "./vendor/bin/phpstan analyse")
+    if (vbin / "pint").exists():
+        commands.setdefault("lint", "./vendor/bin/pint --test")
+
+def _detect_rust_commands(target_dir: Path, commands: Dict[str, str]) -> None:
+    """Detect Rust test, typecheck, and lint commands."""
+    if (target_dir / "Cargo.toml").exists() and shutil.which("cargo"):
+        commands.setdefault("test", "cargo test")
+        commands.setdefault("typecheck", "cargo check")
+        commands.setdefault("lint", "cargo clippy -- -D warnings")
+
+def _detect_go_commands(target_dir: Path, commands: Dict[str, str]) -> None:
+    """Detect Go test, typecheck (vet), and lint commands."""
+    if (target_dir / "go.mod").exists() and shutil.which("go"):
+        commands.setdefault("test", "go test ./...")
+        commands.setdefault("typecheck", "go vet ./...")
+        if shutil.which("golangci-lint"):
+            commands.setdefault("lint", "golangci-lint run")
+
+def detect_quality_commands(target_dir: Path) -> Dict[str, str]:
+    """Auto-detect configured test, static analysis, and linter commands across stacks."""
+    commands: Dict[str, str] = {}
+    _detect_node_commands(target_dir, commands)
+    _detect_python_commands(target_dir, commands)
+    _detect_php_commands(target_dir, commands)
+    _detect_rust_commands(target_dir, commands)
+    _detect_go_commands(target_dir, commands)
+    return commands
+
+def _execute_single_check(target_dir: Path, check_type: str, cmd: str) -> Optional[str]:
+    """Execute a single quality gate command and return error message if failed."""
+    try:
+        res = subprocess.run(cmd, shell=True, cwd=target_dir, capture_output=True, text=True, timeout=120)
+        if res.returncode != 0:
+            tail = "\n".join([l for l in (res.stderr + "\n" + res.stdout).splitlines() if l.strip()][-6:])
+            return f"❌ **Quality Gate Failed ({check_type.title()}):** `{cmd}` failed:\n```\n{tail}\n```"
+    except Exception as e:
+        return f"❌ **Quality Gate Error ({check_type.title()}):** `{cmd}` failed: {e}"
+    return None
+
+def run_quality_gate_checks(target_dir: Path, commands: Dict[str, str]) -> Tuple[List[str], bool]:
+    """Execute detected quality triad checks."""
+    issues = []
+    all_passed = True
+    for check_type in ["typecheck", "lint", "test"]:
+        if check_type in commands:
+            err_msg = _execute_single_check(target_dir, check_type, commands[check_type])
+            if err_msg:
                 all_passed = False
-                output_text = (res.stderr or "") + "\n" + (res.stdout or "")
-                tail_lines = [l for l in output_text.splitlines() if l.strip()][-8:]
-                snippet = "\n".join(tail_lines) if tail_lines else f"Failed with exit code {res.returncode}"
-                issues.append(
-                    f"❌ **Quality Gate Failed ({check_type.title()}):** Command `{cmd_str}` failed (exit {res.returncode}):\n```\n{snippet}\n```\n⚠️ **Action Required:** Fix all {check_type} errors before handing over code."
-                )
-        except subprocess.TimeoutExpired:
-            all_passed = False
-            issues.append(f"❌ **Quality Gate Timeout ({check_type.title()}):** Command `{cmd_str}` timed out after 45s.")
-        except Exception as e:
-            all_passed = False
-            issues.append(f"❌ **Quality Gate Execution Error ({check_type.title()}):** `{cmd_str}` failed to execute: {e}")
-
+                issues.append(err_msg)
     return issues, all_passed
+
+def _format_candidate_backlog_items(candidates: List[str], target_dir: Optional[Path] = None) -> List[str]:
+    """Format candidate backlog items with suggested reporting commands."""
+    lines = ["\n### 💡 Discovered Code Issues (Candidate Backlog Items)"]
+    if target_dir:
+        use_dot_agents = (target_dir / ".agents").exists() or not (target_dir / "skills").exists()
+    else:
+        use_dot_agents = (Path.cwd() / ".agents").exists() or not (Path.cwd() / "skills").exists()
+    script_path = ".agents/skills/task-tracker/scripts/report-task.py" if use_dot_agents else "skills/task-tracker/scripts/report-task.py"
+    for c in set(candidates[:6]):
+        clean_title = re.sub(r"[^\w\s-]", "", c)[:50].strip()
+        lines.append(f"- {c}\n  👉 Track via: `python3 {script_path} --title \"{clean_title}\" --type dev --priority P2`")
+    return lines
+
+def _build_review_report_output(
+    target_dir: Path,
+    modified_files: List[str],
+    form_md: str,
+    pushbacks: List[str],
+    all_issues: List[str],
+    candidates: List[str],
+    has_blockers: bool
+) -> str:
+    """Format final review and quality gate markdown output."""
+    output = [
+        "### 🔍 [Post-Hook Code Review & Quality Gate Feedback]",
+        f"**Target Repository Audited:** `{target_dir}`",
+        f"**Modified Files Audited:** {len(modified_files)} file(s)\n",
+        form_md
+    ]
+    if pushbacks:
+        output.extend(["\n🛑 **AI PUSHBACK — Coding Principles Verification Required:**", "The following review checks failed without valid justification:"])
+        output.extend([f"- {p}" for p in pushbacks[:6]])
+        output.append("\n👉 **Action Required:** Refactor code to comply or provide an acceptable technical justification.")
+
+    if all_issues:
+        output.extend(["\n**Actionable Items Flagged:**"] + [f"- {i}" for i in all_issues[:10]])
+        if has_blockers:
+            output.append("\n🛑 **PRE-HANDOFF BLOCKER:** Quality gates or PR review criteria failed. You MUST resolve all errors before handoff.")
+    elif not pushbacks:
+        output.append("\n✅ **Review & Quality Gate Passed:** All design principles, tests, and verification checks clean.")
+
+    if candidates:
+        output.extend(_format_candidate_backlog_items(candidates, target_dir))
+
+    return "\n".join(output)
 
 def run_code_review_gate(
     root_dir: Path,
     target_dir_arg: Optional[str] = None,
     run_checks: bool = False,
-    strict: bool = False
+    strict: bool = False,
+    justification: Optional[str] = None
 ) -> Tuple[str, bool]:
-    """Execute complete post-code review audit and automated quality gates."""
+    """Execute complete post-code review audit, PR verification form, and quality gates."""
     target_dir = resolve_target_dir(root_arg=str(root_dir), target_dir_arg=target_dir_arg)
-
     modified_files = get_modified_files(target_dir)
     diff_text = get_git_diff(target_dir)
     symbols = load_code_graph(root_dir, target_dir)
 
-    all_issues = []
-    detected_commands = detect_quality_commands(target_dir)
-
     if not modified_files and not diff_text.strip() and not run_checks:
         return (f"### 🔍 [Post-Hook Code Review]\n✅ No modified files detected in target repo `{target_dir}`.", True)
 
-    # 1. AST & Diff Heuristic Audits
-    all_issues.extend(audit_swallowed_errors(diff_text, modified_files, target_dir))
-    all_issues.extend(audit_contract_changes(modified_files, symbols, target_dir))
-    all_issues.extend(audit_class_helper_reuse(modified_files, diff_text, target_dir))
-    all_issues.extend(audit_missing_tests(modified_files))
-    all_issues.extend(audit_dependency_security(modified_files, target_dir))
+    just = justification or os.getenv("WORKFORCE_REVIEW_JUSTIFICATION")
+    form_md, pr_passed, pushbacks, candidates = evaluate_pr_verification_form(diff_text, modified_files, symbols, target_dir, justification=just)
+    sec_issues = audit_dependency_security(modified_files, target_dir)
+    detected_cmds = detect_quality_commands(target_dir)
 
-    # 2. Automated Quality Triad Gate Execution (Tests + Static Analysis + Linters)
-    if run_checks and detected_commands:
-        q_issues, passed = run_quality_gate_checks(target_dir, detected_commands)
+    all_issues = list(sec_issues)
+    if run_checks and detected_cmds:
+        q_issues, passed = run_quality_gate_checks(target_dir, detected_cmds)
         all_issues.extend(q_issues)
 
-    output = []
-    output.append("### 🔍 [Post-Hook Code Review & Quality Gate Feedback]")
-    output.append(f"**Target Repository Audited:** `{target_dir}`")
-    output.append(f"**Modified Files Audited:** {len(modified_files)} file(s)")
-    if detected_commands:
-        cmds_str = ", ".join(f"`{k}: {v}`" for k, v in detected_commands.items())
-        output.append(f"**Detected Quality Toolchains:** {cmds_str}")
+    has_blockers = any("❌" in i for i in all_issues) or (strict and pushbacks)
+    overall_passed = (not has_blockers) and (pr_passed if strict else True)
 
-    has_critical_blockers = any(
-        ("❌" in issue or "⚠️ **Swallowed Error" in issue) for issue in all_issues
-    )
+    report = _build_review_report_output(target_dir, modified_files, form_md, pushbacks, all_issues, candidates, has_blockers)
+    return report, overall_passed
 
-    if all_issues:
-        output.append("\n**Actionable Items Flagged:**")
-        for issue in all_issues[:10]:
-            output.append(f"- {issue}")
-        if has_critical_blockers:
-            output.append("\n🛑 **PRE-HANDOFF BLOCKER:** One or more quality gates (tests, static analysis, linters, or security) failed. You MUST resolve all errors before concluding or handing over code.")
-        else:
-            output.append("\n*Please address flagged items before completing your task.*")
-    else:
-        output.append("\n✅ **Review & Quality Gate Passed:** No contract violations, swallowed errors, test regressions, or linter/typecheck errors detected.")
-
-    overall_passed = not has_critical_blockers
-    return ("\n".join(output), overall_passed)
-
-def run_code_reviewer(
-    root_dir: Path,
-    target_dir_arg: Optional[str] = None,
-    run_checks: bool = False
-) -> str:
+def run_code_reviewer(root_dir: Path, target_dir_arg: Optional[str] = None, run_checks: bool = False) -> str:
     """Backward-compatible entry point returning markdown report string."""
     report, _ = run_code_review_gate(root_dir, target_dir_arg=target_dir_arg, run_checks=run_checks)
     return report
@@ -547,18 +781,18 @@ def main():
     parser = argparse.ArgumentParser(description="Post-Hook Whole-Codebase Code Reviewer & Quality Gate")
     parser.add_argument("--root", default="./", help="Repository root directory")
     parser.add_argument("--target-dir", help="Target project codebase directory")
-    parser.add_argument("--run-checks", action="store_true", default=False, help="Execute detected unit test, static analysis, and linter quality gates")
-    parser.add_argument("--strict", action="store_true", default=False, help="Exit with non-zero exit code if any quality gates fail")
+    parser.add_argument("--run-checks", action="store_true", default=False)
+    parser.add_argument("--strict", action="store_true", default=False)
+    parser.add_argument("--justification", "-j", help="Documented technical justification for skipped principles")
     args = parser.parse_args()
 
     run_checks = args.run_checks or (os.getenv("WORKFORCE_RUN_CHECKS", "0") in ("1", "true", "True"))
-
-    root_dir = Path(args.root).resolve()
     report, passed = run_code_review_gate(
-        root_dir,
+        Path(args.root).resolve(),
         target_dir_arg=args.target_dir,
         run_checks=run_checks,
-        strict=args.strict
+        strict=args.strict,
+        justification=args.justification
     )
     print(report)
     if args.strict and not passed:

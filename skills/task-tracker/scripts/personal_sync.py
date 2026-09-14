@@ -12,9 +12,11 @@ Aggregates:
   7. Async workers (e.g. Google Jules sessions if available)
 
 Usage:
-  python3 skills/task-tracker/scripts/personal_sync.py
-  python3 skills/task-tracker/scripts/personal_sync.py --root ./ --format markdown
-  python3 skills/task-tracker/scripts/personal_sync.py --format json
+  python3 .agents/skills/task-tracker/scripts/personal_sync.py
+  python3 .agents/skills/task-tracker/scripts/personal_sync.py --root ./ --format markdown
+  python3 .agents/skills/task-tracker/scripts/personal_sync.py --format json
+
+  *(Fallback for toolkit development: substitute skills/task-tracker/scripts/personal_sync.py)*
 """
 
 import argparse

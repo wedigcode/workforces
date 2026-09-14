@@ -11,8 +11,10 @@ Features:
 - Signal Handling: Handles SIGINT and SIGTERM gracefully.
 
 Usage:
-  python3 skills/workforce-canvas/scripts/wait_for_message.py --root ./ --once
-  python3 skills/workforce-canvas/scripts/wait_for_message.py --root ./ --timeout 30 --max-batch 10
+  python3 .agents/skills/workforce-canvas/scripts/wait_for_message.py --root ./ --once
+  python3 .agents/skills/workforce-canvas/scripts/wait_for_message.py --root ./ --timeout 30 --max-batch 10
+
+  *(Fallback for toolkit development: substitute skills/workforce-canvas/scripts/wait_for_message.py)*
 """
 
 import argparse

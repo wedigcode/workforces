@@ -8,7 +8,7 @@ and enforces kill/pivot criteria.
 
 Usage:
     # 1. Create a new hypothesis:
-    python3 skills/hypothesis-tracker/scripts/hypothesis.py \
+    python3 .agents/skills/hypothesis-tracker/scripts/hypothesis.py \
         --create \
         --title "Cold Outreach Video Teasers for Tech Founders" \
         --owner sales \
@@ -25,7 +25,7 @@ Usage:
         --sync-session
 
     # 2. Update progress / weekly pacing / telemetry:
-    python3 skills/hypothesis-tracker/scripts/hypothesis.py \
+    python3 .agents/skills/hypothesis-tracker/scripts/hypothesis.py \
         --update "workforces/hypotheses/running/HYP-20260823-01.md" \
         --current-week 2 \
         --metrics-data "Sends=65,Reply Rate=8.2,Demo Bookings=4" \
@@ -33,28 +33,30 @@ Usage:
         --sync-session
 
     # 3. List active hypotheses with pacing:
-    python3 skills/hypothesis-tracker/scripts/hypothesis.py --list --status running
+    python3 .agents/skills/hypothesis-tracker/scripts/hypothesis.py --list --status running
 
     # 4. Generate structured review for /sync --strategy:
-    python3 skills/hypothesis-tracker/scripts/hypothesis.py --review
+    python3 .agents/skills/hypothesis-tracker/scripts/hypothesis.py --review
 
     # 5. Enforce Kill / Sunset:
-    python3 skills/hypothesis-tracker/scripts/hypothesis.py \
+    python3 .agents/skills/hypothesis-tracker/scripts/hypothesis.py \
         --kill "workforces/hypotheses/running/HYP-20260823-01.md" \
         --rationale "Reply rate plateaued at 2.1% after 120 sends. Kill threshold reached." \
         --sync-session
 
     # 6. Enforce Pivot:
-    python3 skills/hypothesis-tracker/scripts/hypothesis.py \
+    python3 .agents/skills/hypothesis-tracker/scripts/hypothesis.py \
         --pivot "workforces/hypotheses/running/HYP-20260823-01.md" \
         --rationale "Pivoted from video audits to interactive ROI calculator widget based on prospect feedback." \
         --sync-session
 
     # 7. Validate & Scale:
-    python3 skills/hypothesis-tracker/scripts/hypothesis.py \
+    python3 .agents/skills/hypothesis-tracker/scripts/hypothesis.py \
         --validate "workforces/hypotheses/running/HYP-20260823-01.md" \
         --rationale "Target exceeded: 14% reply rate and 10 bookings in 3 weeks. Scaling budget." \
         --sync-session
+
+    *(Fallback for toolkit development: substitute skills/hypothesis-tracker/scripts/hypothesis.py)*
 """
 
 import argparse

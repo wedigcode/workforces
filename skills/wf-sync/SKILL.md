@@ -51,7 +51,7 @@ graph TD
 **Primary Goal:** Unblock the team, lock in today's single most critical commitment, and triage incoming issues.
 
 ### Step D1 — Ingest Daily State & Remote PR Reconciliation
-1. **Reconcile & Project Tasks:** Run `python3 skills/task-tracker/scripts/personal_sync.py --root ./` to reconcile tasks against remote GitHub PRs, auto-mark merged PRs as `done`, and synchronize `workforces/workstate.md` from `workforces/tasks/*.md`.
+1. **Reconcile & Project Tasks:** Run `python3 .agents/skills/task-tracker/scripts/personal_sync.py --root ./` (Fallback: `python3 skills/task-tracker/scripts/personal_sync.py --root ./`) to reconcile tasks against remote GitHub PRs, auto-mark merged PRs as `done`, and synchronize `workforces/workstate.md` from `workforces/tasks/*.md`.
 2. Read `workforces/tasks/` and projected `workforces/workstate.md` for active, pending, and completed sprint tasks.
 3. Read `workforces/issues/inbox/` for new bugs, tech debt, or spontaneous ideas logged by agents or user.
 4. Check multi-repo GitHub queue across all `tracked_repos` (`gh pr list --repo <r>`, `gh issue list --repo <r>`) for external PR review requests and assigned issues.
@@ -145,7 +145,7 @@ The team engages in a structured brainstorming loop to extract winning ideas for
   - **Design:** Leverage Google Stitch or Figma MCP for rapid token and component scaffolding (`tool:google-stitch`).
 
 ### Step S5 — Scientific Hypothesis & Experiment Review (Kill / Pivot Enforcer)
-Run `python3 skills/hypothesis-tracker/scripts/hypothesis.py --review`:
+Run `python3 .agents/skills/hypothesis-tracker/scripts/hypothesis.py --review` (Fallback: `python3 skills/hypothesis-tracker/scripts/hypothesis.py --review`):
 - Audit weekly pacing on leading and lagging indicators for all running experiments.
 - **Kill Criteria Enforcement:** If an experiment elapsed time is up and metrics breached the kill threshold:
   > *"🚨 **Kill Criteria Triggered:** Experiment `HYP-20260823-01` achieved 2.1% reply rate vs. 3% kill threshold. Recommending immediate sunset and pivoting resources."*

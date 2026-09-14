@@ -37,7 +37,8 @@ Heavy OKF Markdown catalog file generation is decoupled from pre-hooks. To force
 
 ```bash
 # Via CLI
-python3 skills/code-graph/scripts/graph_indexer.py --scan ./ --build-okf --force
+python3 .agents/skills/code-graph/scripts/graph_indexer.py --scan ./ --build-okf --force
+# (Fallback: python3 skills/code-graph/scripts/graph_indexer.py --scan ./ --build-okf --force)
 
 # Or via slash command / workflow
 /clean
@@ -82,13 +83,15 @@ Human and AI-readable Open Knowledge Format catalog:
 ### 🔍 Symbol Search & Deduplication
 Check if a function or helper already exists before writing new code:
 ```bash
-python3 skills/code-graph/scripts/graph_indexer.py --scan ./ --query "format"
+python3 .agents/skills/code-graph/scripts/graph_indexer.py --scan ./ --query "format"
+# (Fallback: python3 skills/code-graph/scripts/graph_indexer.py --scan ./ --query "format")
 ```
 
 ### 💥 Pre-Hook Impact & Blast Radius Analysis
 Analyze downstream dependents and call sites affected by changes in a target file:
 ```bash
-python3 skills/code-graph/scripts/pre_impact_analyzer.py --file src/services/calculator.ts
+python3 .agents/skills/code-graph/scripts/pre_impact_analyzer.py --file src/services/calculator.ts
+# (Fallback: python3 skills/code-graph/scripts/pre_impact_analyzer.py --file src/services/calculator.ts)
 ```
 
 Output example:

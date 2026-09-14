@@ -21,10 +21,12 @@ Led by the `@social` subagent and executed via python scripts in `skills/social-
 ### Script Commands
 ```bash
 # Evaluate posts, cull cold items, and draft replies:
-python3 skills/social-engagement/scripts/engagement_evaluator.py workforces/social/posts.json
+python3 .agents/skills/social-engagement/scripts/engagement_evaluator.py workforces/social/posts.json
+# (Fallback: python3 skills/social-engagement/scripts/engagement_evaluator.py workforces/social/posts.json)
 
 # Refresh interactive HTML dashboard:
-python3 skills/social-engagement/scripts/render_dashboard.py
+python3 .agents/skills/social-engagement/scripts/render_dashboard.py
+# (Fallback: python3 skills/social-engagement/scripts/render_dashboard.py)
 ```
 
 ---

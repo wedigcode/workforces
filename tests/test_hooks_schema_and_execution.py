@@ -260,6 +260,80 @@ class TestHookScriptsExecution(unittest.TestCase):
                 parsed_out = json.loads(out)
                 self.assertEqual(parsed_out, {})
 
+    def _create_consumer_tree(self, ws_root: Path) -> Tuple[Path, Path, Path]:
+        """Create pure consumer workspace layout without root skills directory."""
+        import shutil
+        cg_scripts = ws_root / ".agents" / "skills" / "code-graph" / "scripts"
+        pcr_scripts = ws_root / ".agents" / "skills" / "post-code-review" / "scripts"
+        cg_scripts.mkdir(parents=True)
+        pcr_scripts.mkdir(parents=True)
+        for s in ["pre_tool_hook.py", "graph_indexer.py", "pre_impact_analyzer.py"]:
+            shutil.copy2(REPO_ROOT / "skills" / "code-graph" / "scripts" / s, cg_scripts / s)
+        for s in ["post_tool_hook.py", "post_code_reviewer.py"]:
+            shutil.copy2(REPO_ROOT / "skills" / "post-code-review" / "scripts" / s, pcr_scripts / s)
+        sample_py = ws_root / "calc.py"
+        sample_py.write_text("def add(a: int, b: int) -> int:\n    return a + b\n", encoding="utf-8")
+        subprocess.run(["git", "init"], cwd=ws_root, capture_output=True, check=True)
+        subprocess.run(["git", "config", "user.name", "Tester"], cwd=ws_root, capture_output=True, check=True)
+        subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=ws_root, capture_output=True, check=True)
+        return cg_scripts, pcr_scripts, sample_py
+
+    def _verify_pre_hook_cmd(self, cmd: str, ws_root: Path, sample_py: Path) -> None:
+        """Verify pre-tool hook execution in consumer directory."""
+        payload = json.dumps({
+            "toolCall": {"name": "write_to_file", "args": {"TargetFile": str(sample_py)}},
+            "workspacePaths": [str(ws_root)],
+        })
+        proc = subprocess.run(cmd, shell=True, input=payload, capture_output=True, text=True, timeout=30, cwd=ws_root)
+        self.assertEqual(proc.returncode, 0, f"PreToolUse failed: {proc.stderr}")
+        self.assertEqual(json.loads(proc.stdout.strip()), {"decision": "allow"})
+
+    def _verify_post_hook_cmd(self, cmd: str, ws_root: Path, sample_py: Path) -> None:
+        """Verify post-tool hook execution in consumer directory."""
+        payload = json.dumps({
+            "toolUse": {"name": "write_to_file", "args": {"TargetFile": str(sample_py)}},
+            "workspacePaths": [str(ws_root)],
+        })
+        proc = subprocess.run(cmd, shell=True, input=payload, capture_output=True, text=True, timeout=30, cwd=ws_root)
+        self.assertEqual(proc.returncode, 0, f"PostToolUse failed: {proc.stderr}")
+        self.assertEqual(json.loads(proc.stdout.strip()), {})
+
+    def _verify_external_cwd_hook(self, pcr_scripts: Path, ws_root: Path, sample_py: Path) -> None:
+        """Verify post-tool hook execution when cwd is outside consumer root."""
+        import tempfile
+        payload = json.dumps({
+            "toolUse": {"name": "write_to_file", "args": {"TargetFile": str(sample_py)}},
+            "workspacePaths": [str(ws_root)],
+        })
+        with tempfile.TemporaryDirectory() as external_cwd:
+            proc = subprocess.run(
+                [sys.executable, str(pcr_scripts / "post_tool_hook.py")],
+                input=payload,
+                capture_output=True,
+                text=True,
+                timeout=30,
+                cwd=external_cwd,
+            )
+            self.assertEqual(proc.returncode, 0, f"post_tool_hook failed: {proc.stderr}")
+            self.assertEqual(json.loads(proc.stdout.strip()), {})
+
+    def test_hook_commands_in_pure_consumer_workspace_topology(self):
+        """Verify hook execution in simulated consumer workspace with only .agents/."""
+        import tempfile
+        hooks_file = PLUGINS_DIR / "workforce-programming-plugin" / "hooks.json"
+        with open(hooks_file, "r", encoding="utf-8") as f:
+            hooks_cfg = json.load(f)["workforce-programming"]
+        pre_cmd = hooks_cfg["PreToolUse"][0]["hooks"][0]["command"]
+        post_cmd = hooks_cfg["PostToolUse"][0]["hooks"][0]["command"]
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            ws_root = Path(tmp_dir)
+            _, pcr_scripts, sample_py = self._create_consumer_tree(ws_root)
+            self.assertFalse((ws_root / "skills").exists())
+            self._verify_pre_hook_cmd(pre_cmd, ws_root, sample_py)
+            self._verify_post_hook_cmd(post_cmd, ws_root, sample_py)
+            self._verify_external_cwd_hook(pcr_scripts, ws_root, sample_py)
+
 
 if __name__ == "__main__":
     unittest.main()
