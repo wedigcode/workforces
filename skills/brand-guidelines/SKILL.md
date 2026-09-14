@@ -2,132 +2,50 @@
 name: brand-guidelines
 description: Defines, audits, and enforces brand voice, typography, color palettes, logo usage, and cross-channel consistency. Reach for this skill when bootstrapping brand standards for a new project (`docs/brand-context.md`), auditing marketing copy or UI designs for voice drift and off-brand visual elements, reviewing design tokens against brand rules, or onboarding designers and copywriters to ensure consistent identity.
 ---
+
 # Brand Guidelines & Brand Context Pipeline
 
-Protect and enforce brand consistency across every touchpoint. A strong brand means every piece of content — from an Instagram caption to a product UI screen — feels like it came from the same person.
+Enforces brand consistency across all touchpoints. Led by `@marketer` and `@designer`.
 
 ---
 
-## Triggering & Execution
+## 1. Voice & Tone Standards
 
-Brand guidelines and context generation are led by `@marketer` and `@designer`, responding to conversational requests or site-setup pipelines:
+- **Voice (Fixed)**: WHO the brand is. Remains identical across all platforms and communications.
+- **Tone (Adaptive)**: HOW the brand speaks given situational context (empathetic in support, celebratory in launches).
 
-### Prompt Triggers
-- *"Generate brand context for [project]"* (conduct discovery interview and write `docs/brand-context.md`)
-- *"Audit brand consistency across copy and UI"*
-- *"Check design tokens against brand guidelines"*
-
-### Automated Pipeline Integration
-- **Site Setup Integration**: Automatically executed in Step 1 (`@marketer`) and Step 2 (`@designer`) of `site-setup`.
-
----
-
-## When to Use
-
-- Reviewing any content or design for brand consistency
-- Creating new assets that must match existing brand identity
-- Defining brand standards for a new project
-- Generating or updating `docs/brand-context.md`
-- Auditing content across channels for drift
+| Dimension | Spectrum | Production Standard |
+| :--- | :--- | :--- |
+| **Formality** | Corporate ↔ Casual | Peer-to-peer; articulate, direct, zero corporate buzzwords. |
+| **Attitude** | Serious ↔ Playful | Helpful, candid, lightly irreverent where appropriate. |
+| **Perspective** | Academic ↔ Practitioner | Practitioner who has built and tested in production. |
 
 ---
 
-## Core Principles
+## 2. Color System Tokens
 
-### 1. Brand Voice
-
-| Dimension | Spectrum | Where We Land |
-|-----------|----------|---------------|
-| **Formal ↔ Casual** | Corporate ↔ Texting a friend | Casual but not sloppy — like a smart friend giving advice |
-| **Serious ↔ Playful** | All business ↔ All jokes | Primarily helpful with occasional humor |
-| **Respectful ↔ Irreverent** | Diplomatic ↔ Provocative | Direct and honest, not rude |
-| **Expert ↔ Peer** | Professor ↔ Study buddy | Peer who's a few steps ahead |
-
-**Voice consistency rules:**
-- Same vocabulary across all channels
-- Same abbreviation style (don't use "DM" in one post and "direct message" in another)
-- Same level of formality in emails as in captions
-- Same emoji usage patterns (if any)
-
-### 2. Tone vs Voice
-
-| Concept | Definition | Example |
-|---------|------------|---------|
-| **Voice** | WHO you are (consistent) | Confident, direct, empathetic |
-| **Tone** | HOW you say it (context-dependent) | Celebratory in a win post, empathetic in a struggle post |
-
-Voice never changes. Tone adapts to the situation.
-
-### 3. Color Palette
-
-Define and enforce a strict color system:
-
-| Role | Purpose | Usage |
-|------|---------|-------|
-| **Primary** | Main brand color | Logo, CTAs, key accents |
-| **Secondary** | Supporting color | Backgrounds, secondary buttons |
-| **Neutral** | Text, borders, backgrounds | Body copy, dividers, cards |
-| **Accent** | Highlights, alerts | Sale badges, notifications |
-| **Feedback** | Success/warning/error states | Form validation, status indicators |
-
-**Rules:**
-- Every color must have a hex code and defined usage
-- No "similar" colors — exact hex match always
-- Document both light and dark mode variants
-- Test all colors for accessibility contrast (WCAG AA) — zero low-contrast text (e.g. yellow on white is strictly prohibited)
-- Always check [`workforces/memory/design-preferences.md`](../../workforces/memory/design-preferences.md) for recorded user negative constraints and style preferences before setting palette tokens.
-
-### 4. Typography
-
-| Element | Standard |
-|---------|----------|
-| **Heading font** | Defined style (e.g., Bold, 600+ weight) |
-| **Body font** | Defined style (e.g., Regular, 400 weight) |
-| **Font pairing** | Max 2 families across all materials |
-| **Sizes** | Define a type scale (e.g., 14, 16, 20, 24, 32, 48) |
-| **Line height** | Body: 1.5×, Headings: 1.2× |
-
-### 5. Logo Usage
-
-| Rule | Guideline |
-|------|-----------|
-| **Clear space** | Minimum padding around logo = logo height |
-| **Minimum size** | Define smallest acceptable rendering size |
-| **Color variants** | Full color, monochrome, reversed (on dark bg) |
-| **Don'ts** | No stretching, rotating, recoloring, or adding effects |
-| **File formats** | SVG for web, PNG for social, PDF for print |
-
-### 6. Cross-Channel Consistency
-
-| Channel | Brand Check |
-|---------|-------------|
-| **Website** | Colors, fonts, imagery style, voice |
-| **Instagram** | Feed aesthetic, caption voice, story templates |
-| **Email** | Header design, button colors, sign-off voice |
-| **Ads** | Creative style matches organic content feel |
-| **Product UI** | Color tokens, component style, copy voice |
+| Role | Token Usage | Rule |
+| :--- | :--- | :--- |
+| **Primary** | Core brand identity, key CTAs | Exact hex match across all assets. |
+| **Secondary** | Structural cards, secondary buttons | Differentiates surfaces from background. |
+| **Neutral** | Background canvas, body text, borders | Minimum **4.5:1** contrast ratio (WCAG AA). |
+| **Accent** | Alerts, high-intent badges (<= 10% area)| Highlight action items; verify against `design-preferences.md`. |
+| **Feedback** | Success (green), warning (amber), error (red) | Accessible semantic status indicators. |
 
 ---
 
-## Brand Audit Checklist
+## 3. Typography & Logo Rules
 
-| Check | Description |
-|-------|-------------|
-| ✅ Voice consistent | Same personality across all content |
-| ✅ Colors exact | Hex codes match, no approximations |
-| ✅ Typography consistent | Same fonts, same sizes, same hierarchy |
-| ✅ Logo correct | Proper variant, clear space, no distortion |
-| ✅ Imagery style | Photo style/filters consistent |
-| ✅ Cross-channel | Website, social, email all feel unified |
+- **Font Families**: Strictly **<= 2 font families** (1 character Display font + 1 clean UI Sans-Serif).
+- **Type Scale**: Defined modular scale (`14px`, `16px`, `20px`, `24px`, `32px`, `48px`); line-height `1.5×` body, `1.2×` headings.
+- **Logo Clearance**: Minimum clear space surrounding logo equals full logo height; SVG for web, PNG for social.
 
 ---
 
-## Anti-Patterns
+## 4. Pre-Flight Brand Audit Checklist
 
-| Pattern | Problem | Instead |
-|---------|---------|---------|
-| Different colors per platform | Brand becomes unrecognizable | Same hex codes everywhere |
-| Voice shifts by channel | "Professional" on web, "lol" on socials | Same voice, adapted tone |
-| No logo guidelines | Logo used inconsistently or distorted | Define clear space, min size, variants |
-| Multiple font families | Cluttered, unprofessional look | Max 2 families, defined hierarchy |
-| Undocumented standards | New content drifts from brand | Write it down in `docs/brand-context.md` |
+- [ ] **Voice Uniformity**: Tone adapts, but voice personality remains consistent across copy.
+- [ ] **Hex Code Accuracy**: Palette uses exact design system tokens (no off-brand hex approximations).
+- [ ] **Contrast Compliance**: Zero low-contrast text (e.g. yellow text over white is strictly banned).
+- [ ] **Font Discipline**: Exactly <= 2 font families across all public surfaces.
+- [ ] **Documentation**: Defined in `docs/brand-context.md` and adhered to by all subagents.
