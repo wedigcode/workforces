@@ -2,106 +2,57 @@
 name: visual-design-fundamentals
 description: Establishes foundational visual design rules covering typography scales, harmonic color theory, whitespace balancing, responsive 8pt layout grids, and visual hierarchy. Reach for this skill before authoring UI components, styling landing pages, selecting typography and color palettes, or evaluating graphic assets to ensure professional polish, legibility, and aesthetic coherence.
 ---
+
 # Visual Design Fundamentals
 
-Master the building blocks that make designs look intentional, polished, and premium. These principles apply across every medium — web, print, social, and ads.
-
-## When to Use
-
-- Starting any design from scratch
-- Reviewing visual consistency across assets
-- Choosing colors, fonts, and layout for a new project
-- Making a product look premium without increasing complexity
+Core mathematical principles and spatial standards that produce clean, professional, and cohesive digital interfaces. For anti-pattern prevention, refer to [`design-anti-patterns`](../design-anti-patterns/SKILL.md).
 
 ---
 
-## Core Principles
+## 1. Visual Hierarchy & The Squint Test
 
-### 1. Visual Hierarchy
-
-Control where the eye goes first, second, and third.
-
-| Technique | How | Effect |
-|-----------|-----|--------|
-| **Size** | Make key elements larger | Draws attention first |
-| **Color/Contrast** | Use brand accent color on CTAs | Highlights action items |
-| **Position** | Top-left reads first (F-pattern) | Natural reading flow |
-| **Whitespace** | Surround important elements with space | Isolates and elevates |
-| **Weight** | Bold headlines, regular body | Clear content layers |
-
-**Test:** Squint at the design. Whatever you notice first should be the most important element.
-
-### 2. Typography
-
-| Rule | Guideline |
-|------|-----------|
-| **Max 2 font families** | 1 for headings, 1 for body |
-| **Size scale** | 16px body → 1.25×–1.5× ratio for each heading level |
-| **Line height** | 1.4–1.6× font size for body text |
-| **Line length** | 45–75 characters per line for readability |
-| **Contrast** | Dark text on light bg, or light text on dark bg — min 4.5:1 ratio |
-| **Weight variation** | Use Bold for emphasis, not ALL CAPS or underlines |
-
-### 3. Color Theory
-
-**Building a Palette:**
-1. **Primary** — Brand identity color (used sparingly for CTAs and accents)
-2. **Neutral** — Backgrounds, text, borders (grays, whites, dark tones)
-3. **Accent** — Secondary highlights, status indicators
-4. **Feedback** — Success (green), warning (amber), error (red)
-
-| Scheme | Formula | Use Case |
-|--------|---------|----------|
-| **Monochromatic** | One hue, vary lightness/saturation | Clean, elegant, easy to execute |
-| **Complementary** | Opposite on color wheel | High contrast, energetic |
-| **Analogous** | Adjacent on color wheel | Harmonious, calming |
-| **Split-complementary** | 1 primary + 2 flanking complements | Dynamic but balanced |
-
-**60-30-10 Rule:** 60% dominant (neutral/bg), 30% secondary, 10% accent (CTAs).
-
-### 4. Layout & Grid Systems
-
-| Concept | Rule |
-|---------|------|
-| **Grid** | Use 4, 8, or 12-column grids for alignment consistency |
-| **Spacing scale** | 4px base unit (4, 8, 12, 16, 24, 32, 48, 64) |
-| **Alignment** | Left-align text (never center long paragraphs) |
-| **Proximity** | Related items grouped together, unrelated items separated |
-| **Repetition** | Reuse the same spacing, colors, and type styles consistently |
-| **Balance** | Visual weight distributed evenly (not necessarily symmetrically) |
-
-### 5. Whitespace
-
-Whitespace is a design tool, not empty space.
-
-- **Macro whitespace** — Margins, padding between sections → creates breathing room
-- **Micro whitespace** — Letter-spacing, line-height, padding within components → creates legibility
-- **More whitespace = more premium feel** — Luxury brands use far more than budget brands
-- **Rule:** When in doubt, add more space, not more content
+Guide user attention through deliberate contrast, sizing, and breathing room:
+- **Primary Anchor**: Highest visual weight reserved strictly for the core action or primary value prop.
+- **Squint Test**: Squint at the screen; the first element noticed MUST be the primary intended action.
+- **Scanning Rhythm**: Align primary anchors along the natural F/Z reading path (top-left to bottom-right).
 
 ---
 
-## Design Checklist
+## 2. Typography Token Scale
 
-| Check | Description |
-|-------|-------------|
-| ✅ Clear hierarchy | Most important element is obviously first |
-| ✅ Max 2 fonts | Heading + body, both from brand guidelines |
-| ✅ Color palette followed | No rogue colors outside the brand system |
-| ✅ Consistent spacing | Using the spacing scale, no magic numbers |
-| ✅ Sufficient contrast | Text is effortlessly readable |
-| ✅ Intentional whitespace | Nothing feels cramped |
-| ✅ Grid alignment | Elements snap to columns, nothing floats randomly |
+| Rule | Technical Parameter | Purpose |
+|------|---------------------|---------|
+| **Font Count** | **Max 2 font families** | 1 character Display font + 1 clean UI Sans-Serif (Inter, Geist). |
+| **Modular Scale** | **1.25× (Major Third)** or **1.333× (Perfect Fourth)** | `12px` (caption), `14px` (sub), `16px` (body), `20px` (h4), `24px` (h3), `32px` (h2), `48px` (h1). |
+| **Line Height** | **1.4×–1.6×** for body; **1.1×–1.2×** for headings | Tight headings prevent line drifting; spacious body enhances legibility. |
+| **Line Length** | **45–75 characters** (`max-w-prose` / ~65ch) | Prevents eye fatigue from over-extended reading lines. |
 
 ---
 
-## Anti-Patterns
+## 3. Color Token System & The 60-30-10 Rule
 
-| Pattern | Problem | Instead |
-|---------|---------|---------|
-| Using 4+ fonts | Visual chaos, unprofessional | Stick to 2 font families max |
-| Colors from nowhere | Breaks brand consistency | Only use palette colors |
-| Centered long text | Hard to read, looks amateur | Left-align body copy |
-| No visual hierarchy | Everything competes for attention | Size and weight create layers |
-| Zero whitespace | Feels cheap and cluttered | Add generous padding and margins |
-| Decorative for decoration's sake | Distracts from the message | Every element must earn its place |
+Build palettes using functional surface layers rather than arbitrary color picking:
+- **60% Dominant Surface**: Neutral background canvas (`bg-background`, `bg-surface`, deep slate `#090d16` or warm off-white).
+- **30% Structural Secondary**: Card surfaces, sidebars, borders (`border-border/40`), and secondary text (`text-muted`).
+- **10% High-Intent Accent**: Reserved strictly for primary interactive CTAs, active status indicators, and key focus rings.
+- **User Preference Adherence**: Always verify selections against [`workforces/memory/design-preferences.md`](../../workforces/memory/design-preferences.md).
+
+---
+
+## 4. 8pt Spatial Grid & Whitespace Hierarchy
+
+All spacing, padding, margins, and component dimensions snap strictly to multiples of **8px** (with **4px** half-step for micro-details):
+- **Micro Spacing (`4px`, `8px`, `12px`)**: Space between an icon and its label, padding within tight input chips.
+- **Component Spacing (`16px`, `24px`, `32px`)**: Card interior padding (`p-6`), gap between form inputs (`gap-4`).
+- **Macro Spacing (`48px`, `64px`, `96px`)**: Padding between page sections, margin between hero and feature grid.
+- **Rule of Restraint**: When an interface feels cluttered, increase whitespace before reducing font sizes.
+
+---
+
+## Pre-Handoff Visual Polish Checklist
+
+- [ ] **Dual-Font Discipline**: Strictly <= 2 font families loaded and utilized.
+- [ ] **Modular Line Heights**: Headings have tight line-heights (1.1–1.2x); body copy is relaxed (1.4–1.6x).
+- [ ] **Color Budget**: Accent color covers <= 10% of total visual surface.
+- [ ] **8pt Grid Compliance**: All padding, margins, and gaps snap to the 8pt scale (no magic numbers like 13px or 27px).
+- [ ] **Layered Depth**: Surfaces show clear hierarchy through background tonal shifts or 1px micro-borders.
