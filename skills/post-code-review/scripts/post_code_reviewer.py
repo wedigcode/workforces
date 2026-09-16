@@ -29,23 +29,18 @@ def is_test_file(path_str: str) -> bool:
     """Determine if a file path belongs to a test suite or test specification."""
     if not path_str or path_str == "unknown":
         return False
-    norm = path_str.replace("\\", "/").lower()
-    parts = [p for p in norm.split("/") if p]
+    normalized = path_str.replace("\\", "/")
+    parts = [p for p in normalized.split("/") if p]
     test_dirs = {"tests", "test", "__tests__", "spec", "specs"}
-    if any(p in test_dirs for p in parts[:-1]):
+    if any(p.lower() in test_dirs for p in parts[:-1]):
         return True
-    fname = parts[-1] if parts else norm
-    if fname.startswith("test_") or fname.startswith("spec_"):
+    orig_fname = parts[-1] if parts else normalized
+    fname_lower = orig_fname.lower()
+    if fname_lower.startswith(("test_", "spec_")):
         return True
-    if fname.endswith(("_test.py", "_test.go", "_test.rs", "_spec.rb", "test.php")):
+    if orig_fname.endswith(("Test.php", "Tests.php", "TestCase.php", "Spec.php")):
         return True
-    if any(fname.endswith(sfx) for sfx in [
-        ".test.ts", ".test.js", ".test.tsx", ".test.jsx",
-        ".spec.ts", ".spec.js", ".spec.tsx", ".spec.jsx",
-        ".test.mjs", ".spec.mjs", ".test.cjs", ".spec.cjs"
-    ]):
-        return True
-    if re.search(r"test\.[a-z0-9]+$", fname) or re.search(r"spec\.[a-z0-9]+$", fname):
+    if re.search(r"[-._](?:test|spec)\.[a-zA-Z0-9]+$", orig_fname, re.IGNORECASE):
         return True
     return False
 
@@ -204,10 +199,23 @@ def audit_contract_changes(modified_files: List[str], symbols: List[Dict[str, An
                 issues.append(f"⚠️ **Downstream Blast Radius:** `{sym_name}()` in `{mod_file}` has external callers: {', '.join(callers[:3])}.")
     return issues
 
+def _get_added_lines_by_file(diff_text: str) -> Dict[str, List[str]]:
+    """Parse git diff into a mapping of filename to added (+) lines."""
+    lines_by_file: Dict[str, List[str]] = {}
+    curr_file: Optional[str] = None
+    for line in diff_text.splitlines():
+        if line.startswith("+++ b/"):
+            curr_file = line[6:].strip()
+            lines_by_file.setdefault(curr_file, [])
+        elif line.startswith("+") and not line.startswith("+++") and curr_file:
+            lines_by_file[curr_file].append(line)
+    return lines_by_file
+
 def audit_class_helper_reuse(modified_files: List[str], diff_text: str, root_dir: Path) -> List[str]:
     """Check if new code in a file performs manual parsing while class helper exists."""
     issues = []
     helper_kws = ["convertNumber", "convert_number", "formatNumber", "format_number", "sanitize", "parseNumber", "toFloat"]
+    added_by_file = _get_added_lines_by_file(diff_text)
 
     for rel_path in modified_files:
         full_path = root_dir / rel_path
@@ -220,7 +228,9 @@ def audit_class_helper_reuse(modified_files: List[str], diff_text: str, root_dir
             existing = [kw for kw in helper_kws if re.search(r"(?:def|function|\bpublic|\bprivate|\bprotected)\s+" + kw, content)]
             if not existing:
                 continue
-            diff_lines = [l for l in diff_text.splitlines() if l.startswith("+") and not l.startswith("+++")]
+            diff_lines = added_by_file.get(rel_path, [])
+            if not diff_lines:
+                continue
             has_raw = any(re.search(r"preg_replace|str_replace|floatval|\(float\)|parseFloat|re\.sub", l) for l in diff_lines)
             if has_raw and not any(kw in l for kw in existing for l in diff_lines):
                 helpers_str = ", ".join(f"`{h}`" for h in set(existing))
