@@ -171,7 +171,7 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
         self.assertIn("- [ ] **no new code exceeds 35 lines:**", form_md)
 
     def test_audit_method_scoping_nested_control_flow(self):
-        """Test deeply nested control flow blocks (indent >= 4) are flagged."""
+        """Test deeply nested control flow blocks (indent >= 4) are flagged in production code."""
         nested_diff = (
             "+++ b/service.py\n"
             "@@ -10,10 +10,12 @@\n"
@@ -186,6 +186,35 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
         )
         self.assertFalse(passed)
         self.assertTrue(any("Deeply nested" in v for v in violations))
+
+    def test_is_test_file_detection(self):
+        """Test is_test_file identifies test suites and specifications across ecosystems."""
+        self.assertTrue(post_code_reviewer.is_test_file("tests/Service/Multisite/ReportDataParsers/MulticrimEnhancedPlusParserTest.php"))
+        self.assertTrue(post_code_reviewer.is_test_file("test_service.py"))
+        self.assertTrue(post_code_reviewer.is_test_file("tests/test_foo.py"))
+        self.assertTrue(post_code_reviewer.is_test_file("components/Button.test.tsx"))
+        self.assertTrue(post_code_reviewer.is_test_file("services/api.spec.ts"))
+        self.assertTrue(post_code_reviewer.is_test_file("pkg/worker_test.go"))
+        self.assertFalse(post_code_reviewer.is_test_file("src/Service/Multisite/ReportDataParsers/MulticrimEnhancedPlusParser.php"))
+        self.assertFalse(post_code_reviewer.is_test_file("service.py"))
+        self.assertFalse(post_code_reviewer.is_test_file("ui.ts"))
+
+    def test_audit_method_scoping_ignores_test_files(self):
+        """Test that deeply nested control flow in test files is excluded from pushback."""
+        test_diff = (
+            "+++ b/tests/Service/Multisite/ReportDataParsers/MulticrimEnhancedPlusParserTest.php\n"
+            "@@ -415,10 +415,15 @@\n"
+            "+                if ($id === 10) {\n"
+            "+                    $this->assertEquals(10, $id);\n"
+            "+                }\n"
+        )
+        passed, violations, _ = post_code_reviewer.audit_method_scoping(
+            test_diff,
+            ["tests/Service/Multisite/ReportDataParsers/MulticrimEnhancedPlusParserTest.php"],
+            self.test_dir
+        )
+        self.assertTrue(passed)
+        self.assertEqual(len(violations), 0)
 
     def test_audit_simplicity_redundant_boolean(self):
         """Test redundant boolean ternary (? true : false) is flagged."""
