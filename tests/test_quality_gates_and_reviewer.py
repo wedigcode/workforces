@@ -171,7 +171,7 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
         self.assertIn("- [ ] **no new code exceeds 35 lines:**", form_md)
 
     def test_audit_method_scoping_nested_control_flow(self):
-        """Test deeply nested control flow blocks (indent >= 4) are flagged."""
+        """Test deeply nested control flow blocks (indent >= 4) are flagged in production code."""
         nested_diff = (
             "+++ b/service.py\n"
             "@@ -10,10 +10,12 @@\n"
@@ -186,6 +186,100 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
         )
         self.assertFalse(passed)
         self.assertTrue(any("Deeply nested" in v for v in violations))
+
+    def test_is_test_file_detection(self):
+        """Test is_test_file identifies test suites and specifications across ecosystems."""
+        self.assertTrue(post_code_reviewer.is_test_file("tests/Service/Multisite/ReportDataParsers/MulticrimEnhancedPlusParserTest.php"))
+        self.assertTrue(post_code_reviewer.is_test_file("test_service.py"))
+        self.assertTrue(post_code_reviewer.is_test_file("tests/test_foo.py"))
+        self.assertTrue(post_code_reviewer.is_test_file("components/Button.test.tsx"))
+        self.assertTrue(post_code_reviewer.is_test_file("services/api.spec.ts"))
+        self.assertTrue(post_code_reviewer.is_test_file("pkg/worker_test.go"))
+        self.assertFalse(post_code_reviewer.is_test_file("src/Service/Multisite/ReportDataParsers/MulticrimEnhancedPlusParser.php"))
+        self.assertFalse(post_code_reviewer.is_test_file("service.py"))
+        self.assertFalse(post_code_reviewer.is_test_file("ui.ts"))
+
+    def test_audit_method_scoping_ignores_test_files(self):
+        """Test that deeply nested control flow in test files is excluded from pushback."""
+        test_diff = (
+            "+++ b/tests/Service/Multisite/ReportDataParsers/MulticrimEnhancedPlusParserTest.php\n"
+            "@@ -415,10 +415,15 @@\n"
+            "+                if ($id === 10) {\n"
+            "+                    $this->assertEquals(10, $id);\n"
+            "+                }\n"
+        )
+        passed, violations, _ = post_code_reviewer.audit_method_scoping(
+            test_diff,
+            ["tests/Service/Multisite/ReportDataParsers/MulticrimEnhancedPlusParserTest.php"],
+            self.test_dir
+        )
+        self.assertTrue(passed)
+        self.assertEqual(len(violations), 0)
+
+    def test_is_test_file_avoids_contest_and_latest_false_positives(self):
+        """Ensure production files ending in 'test.php' (e.g. contest.php, latest.php) are not flagged as tests."""
+        self.assertFalse(post_code_reviewer.is_test_file("contest.php"))
+        self.assertFalse(post_code_reviewer.is_test_file("latest.php"))
+        self.assertFalse(post_code_reviewer.is_test_file("src/contest.php"))
+        self.assertFalse(post_code_reviewer.is_test_file("src/latest.php"))
+        self.assertFalse(post_code_reviewer.is_test_file("Contest.php"))
+        self.assertTrue(post_code_reviewer.is_test_file("UserTest.php"))
+        self.assertTrue(post_code_reviewer.is_test_file("user_test.php"))
+        self.assertTrue(post_code_reviewer.is_test_file("user-test.php"))
+
+    def test_audit_function_length_ignores_test_files(self):
+        """Test that function length check skips functions in test files."""
+        test_py = self.test_dir / "tests" / "test_long.py"
+        test_py.parent.mkdir(parents=True, exist_ok=True)
+        # Create a 40-line test function
+        body = "\n".join(f"    x_{i} = {i}" for i in range(40))
+        test_py.write_text(f"def test_massive():\n{body}\n", encoding="utf-8")
+
+        diff = (
+            "+++ b/tests/test_long.py\n"
+            "@@ -1,45 +1,45 @@\n"
+            "+def test_massive():\n"
+        )
+        passed, violations, _ = post_code_reviewer.audit_function_length(
+            diff, ["tests/test_long.py"], self.test_dir, max_lines=35
+        )
+        self.assertTrue(passed)
+        self.assertEqual(len(violations), 0)
+
+    def test_audit_dry_principles_ignores_test_files(self):
+        """Test that added functions in test files do not trigger DRY duplication violations."""
+        diff = (
+            "+++ b/tests/test_helper.py\n"
+            "@@ -1,5 +1,5 @@\n"
+            "+def parse_data(x):\n"
+            "+    return x\n"
+        )
+        symbols = [{"name": "parse_data", "file": "service.py", "line": 10}]
+        passed, violations, _ = post_code_reviewer.audit_dry_principles(
+            diff, ["tests/test_helper.py"], symbols, self.test_dir
+        )
+        self.assertTrue(passed)
+        self.assertEqual(len(violations), 0)
+
+    def test_audit_class_helper_reuse_scoped_to_file(self):
+        """Ensure manual parsing in a test file does not trigger helper warning on modified production file."""
+        prod_file = self.test_dir / "service.php"
+        prod_file.write_text(
+            "<?php\nclass Service {\n    public function formatNumber($v) { return (float)$v; }\n}\n",
+            encoding="utf-8"
+        )
+        diff = (
+            "+++ b/service.php\n"
+            "@@ -1,5 +1,6 @@\n"
+            "+// clean comment in service\n"
+            "+++ b/tests/ServiceTest.php\n"
+            "@@ -10,5 +10,6 @@\n"
+            "+$val = floatval('123.45');\n"
+        )
+        issues = post_code_reviewer.audit_class_helper_reuse(
+            ["service.php", "tests/ServiceTest.php"], diff, self.test_dir
+        )
+        self.assertEqual(len(issues), 0)
 
     def test_audit_simplicity_redundant_boolean(self):
         """Test redundant boolean ternary (? true : false) is flagged."""

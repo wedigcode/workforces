@@ -25,6 +25,25 @@ from typing import Dict, List, Any, Set, Tuple, Optional
 
 IGNORE_DIRS = {".git", "node_modules", "vendor", "__pycache__", ".venv", "venv", "dist", "build", ".next", ".agents", ".worktrees"}
 
+def is_test_file(path_str: str) -> bool:
+    """Determine if a file path belongs to a test suite or test specification."""
+    if not path_str or path_str == "unknown":
+        return False
+    normalized = path_str.replace("\\", "/")
+    parts = [p for p in normalized.split("/") if p]
+    test_dirs = {"tests", "test", "__tests__", "spec", "specs"}
+    if any(p.lower() in test_dirs for p in parts[:-1]):
+        return True
+    orig_fname = parts[-1] if parts else normalized
+    fname_lower = orig_fname.lower()
+    if fname_lower.startswith(("test_", "spec_")):
+        return True
+    if orig_fname.endswith(("Test.php", "Tests.php", "TestCase.php", "Spec.php")):
+        return True
+    if re.search(r"[-._](?:test|spec)\.[a-zA-Z0-9]+$", orig_fname, re.IGNORECASE):
+        return True
+    return False
+
 def _generate_untracked_diff(root_dir: Path) -> str:
     """Generate synthetic diff hunks for untracked files."""
     try:
@@ -142,7 +161,7 @@ def audit_swallowed_errors(diff_text: str, modified_files: List[str], root_dir: 
             continue
         if not curr.endswith((".py", ".ts", ".tsx", ".js", ".jsx", ".php")):
             continue
-        if any(kw in curr.lower() for kw in ["test_", "tests/"]):
+        if is_test_file(curr):
             continue
         if line.startswith("+") and not line.startswith("+++"):
             code = line[1:].strip()
@@ -158,8 +177,8 @@ def audit_swallowed_errors(diff_text: str, modified_files: List[str], root_dir: 
 
 def audit_missing_tests(modified_files: List[str]) -> List[str]:
     """Check if implementation files were modified without accompanying test updates."""
-    logic_files = [f for f in modified_files if f.endswith((".py", ".ts", ".tsx", ".js", ".jsx", ".go", ".php", ".rs")) and not any(kw in f.lower() for kw in ["test", "spec", "tests"])]
-    test_files = [f for f in modified_files if any(kw in f.lower() for kw in ["test", "spec", "tests"])]
+    logic_files = [f for f in modified_files if f.endswith((".py", ".ts", ".tsx", ".js", ".jsx", ".go", ".php", ".rs")) and not is_test_file(f)]
+    test_files = [f for f in modified_files if is_test_file(f)]
     if logic_files and not test_files:
         return [f"💡 **Missing Test Verification:** Modified code in `{logic_files[0]}` without corresponding test updates."]
     return []
@@ -180,23 +199,38 @@ def audit_contract_changes(modified_files: List[str], symbols: List[Dict[str, An
                 issues.append(f"⚠️ **Downstream Blast Radius:** `{sym_name}()` in `{mod_file}` has external callers: {', '.join(callers[:3])}.")
     return issues
 
+def _get_added_lines_by_file(diff_text: str) -> Dict[str, List[str]]:
+    """Parse git diff into a mapping of filename to added (+) lines."""
+    lines_by_file: Dict[str, List[str]] = {}
+    curr_file: Optional[str] = None
+    for line in diff_text.splitlines():
+        if line.startswith("+++ b/"):
+            curr_file = line[6:].strip()
+            lines_by_file.setdefault(curr_file, [])
+        elif line.startswith("+") and not line.startswith("+++") and curr_file:
+            lines_by_file[curr_file].append(line)
+    return lines_by_file
+
 def audit_class_helper_reuse(modified_files: List[str], diff_text: str, root_dir: Path) -> List[str]:
     """Check if new code in a file performs manual parsing while class helper exists."""
     issues = []
     helper_kws = ["convertNumber", "convert_number", "formatNumber", "format_number", "sanitize", "parseNumber", "toFloat"]
+    added_by_file = _get_added_lines_by_file(diff_text)
 
     for rel_path in modified_files:
         full_path = root_dir / rel_path
         if not full_path.exists() or not rel_path.endswith((".php", ".ts", ".js", ".py")):
             continue
-        if "post_code_reviewer" in rel_path or any(t in rel_path.lower() for t in ["test_", "tests/"]):
+        if "post_code_reviewer" in rel_path or is_test_file(rel_path):
             continue
         try:
             content = full_path.read_text(encoding="utf-8", errors="ignore")
             existing = [kw for kw in helper_kws if re.search(r"(?:def|function|\bpublic|\bprivate|\bprotected)\s+" + kw, content)]
             if not existing:
                 continue
-            diff_lines = [l for l in diff_text.splitlines() if l.startswith("+") and not l.startswith("+++")]
+            diff_lines = added_by_file.get(rel_path, [])
+            if not diff_lines:
+                continue
             has_raw = any(re.search(r"preg_replace|str_replace|floatval|\(float\)|parseFloat|re\.sub", l) for l in diff_lines)
             if has_raw and not any(kw in l for kw in existing for l in diff_lines):
                 helpers_str = ", ".join(f"`{h}`" for h in set(existing))
@@ -430,6 +464,8 @@ def audit_function_length(diff_text: str, modified_files: List[str], target_dir:
     violations, candidates = [], []
 
     for rel in modified_files:
+        if is_test_file(rel):
+            continue
         full = target_dir / rel
         if full.exists() and rel.endswith(".py"):
             v, c = _check_py_function_lengths(full, rel, touched_by_file.get(rel, set()), max_lines)
@@ -438,19 +474,27 @@ def audit_function_length(diff_text: str, modified_files: List[str], target_dir:
 
     return len(violations) == 0, violations, candidates
 
+def _extract_added_functions(diff_text: str) -> List[str]:
+    """Extract newly added function names from non-test file diff hunks."""
+    curr, fns = "unknown", []
+    for line in diff_text.splitlines():
+        if line.startswith("+++ b/"):
+            curr = line[6:].strip()
+        elif line.startswith("+") and not line.startswith("+++") and not is_test_file(curr):
+            m = re.search(r"^\+\s*(?:def|(?:const|let|var|function))\s+([a-zA-Z_]\w*)", line)
+            if m and not m.group(1).startswith("test_") and m.group(1) not in {"setUp", "tearDown", "main", "__init__"}:
+                fns.append(m.group(1))
+    return fns
+
 def audit_dry_principles(diff_text: str, modified_files: List[str], symbols: List[Dict[str, Any]], target_dir: Path) -> Tuple[bool, List[str], List[str]]:
     """Check duplicate functions and class helper reuse against code graph."""
     violations = audit_class_helper_reuse(modified_files, diff_text, target_dir)
     candidates = []
 
-    added_fns = re.findall(r"^\+\s*(?:def|(?:const|let|var|function))\s+([a-zA-Z_]\w*)", diff_text, re.MULTILINE)
-    for fn in set(added_fns):
-        if fn.startswith("test_") or fn in {"setUp", "tearDown", "main", "__init__"}:
-            continue
-        matching = [s for s in symbols if s.get("name") == fn and s.get("file") not in modified_files]
+    for fn in set(_extract_added_functions(diff_text)):
+        matching = [s for s in symbols if s.get("name") == fn and s.get("file") not in modified_files and not is_test_file(s.get("file", ""))]
         if matching:
-            msg = f"Function `{fn}()` matches existing symbol in `{matching[0].get('file')}`:L{matching[0].get('line')}."
-            violations.append(msg)
+            violations.append(f"Function `{fn}()` matches existing symbol in `{matching[0].get('file')}`:L{matching[0].get('line')}.")
 
     return len(violations) == 0, violations, candidates
 
@@ -462,6 +506,8 @@ def audit_method_scoping(diff_text: str, modified_files: List[str], target_dir: 
         if line.startswith("+++ b/"):
             curr = line[6:].strip()
         elif line.startswith("+") and not line.startswith("+++"):
+            if is_test_file(curr):
+                continue
             stripped = line[1:].strip()
             indent = len(line[1:]) - len(line[1:].lstrip(" "))
             if indent >= 16 and any(stripped.startswith(kw) for kw in ["if ", "for ", "while ", "try:", "match "]):
@@ -476,7 +522,7 @@ def audit_simplicity_and_verbosity(diff_text: str, modified_files: List[str]) ->
         if line.startswith("+++ b/"):
             curr = line[6:].strip()
             continue
-        if any(kw in curr.lower() for kw in ["test_", "tests/"]):
+        if is_test_file(curr):
             continue
         if line.startswith("+") and not line.startswith("+++"):
             code = line[1:].strip()
