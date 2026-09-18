@@ -606,6 +606,39 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
         self.assertIn("no new code exceeds 35 lines", report)
         self.assertNotIn("PRE-HANDOFF BLOCKER", report)
 
+    def test_run_code_review_gate_uses_branch_diff_when_working_tree_is_clean(self):
+        """Test committed feature-branch diffs are reviewed even with a clean working tree."""
+        subprocess.run(["git", "init", "-b", "main"], cwd=self.test_dir, capture_output=True)
+        subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=self.test_dir, capture_output=True)
+        subprocess.run(["git", "config", "user.name", "Test"], cwd=self.test_dir, capture_output=True)
+
+        (self.test_dir / "service.py").write_text("def base():\n    return 1\n", encoding="utf-8")
+        subprocess.run(["git", "add", "service.py"], cwd=self.test_dir, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "base"], cwd=self.test_dir, capture_output=True)
+        origin_main = subprocess.run(["git", "rev-parse", "HEAD"], cwd=self.test_dir, capture_output=True, text=True).stdout.strip()
+        subprocess.run(["git", "update-ref", "refs/remotes/origin/main", origin_main], cwd=self.test_dir, capture_output=True)
+        subprocess.run(["git", "checkout", "-b", "feature"], cwd=self.test_dir, capture_output=True)
+
+        long_func = "def long_function():\n" + "".join(f"    v_{i} = {i}\n" for i in range(40)) + "    return v_39\n"
+        (self.test_dir / "service.py").write_text(long_func, encoding="utf-8")
+        subprocess.run(["git", "add", "service.py"], cwd=self.test_dir, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "feature"], cwd=self.test_dir, capture_output=True)
+
+        diff = post_code_reviewer.get_git_diff(self.test_dir)
+        modified_files = post_code_reviewer.get_modified_files(self.test_dir)
+        report, passed = post_code_reviewer.run_code_review_gate(
+            self.test_dir,
+            target_dir_arg=str(self.test_dir),
+            run_checks=False,
+            strict=True
+        )
+
+        self.assertIn("+++ b/service.py", diff)
+        self.assertEqual(modified_files, ["service.py"])
+        self.assertIn("**Modified Files Audited:** 1 file(s)", report)
+        self.assertIn("ADVISORY REVIEW FEEDBACK", report)
+        self.assertTrue(passed, "Advisory heuristics on committed branch diffs should stay non-blocking")
+
     def test_validate_references_pack_json_resolves_against_repo_root(self):
         """Test validate-references.py resolves pack.json against repository root rather than teams/<team>/."""
         val_script = REPO_ROOT / "skills" / "workforce-management" / "scripts" / "validate-references.py"
@@ -712,8 +745,31 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
         res = subprocess.run([sys.executable, str(val_script), str(self.test_dir)], capture_output=True, text=True)
         self.assertEqual(res.returncode, 0, f"Expected clean pass for .claude base: {res.stdout}")
 
+    def test_validate_references_fix_stays_within_installed_editor_base(self):
+        """Test validate-references.py --fix creates missing pack.json dependencies in the same installed base."""
+        val_script = REPO_ROOT / "skills" / "workforce-management" / "scripts" / "validate-references.py"
+        claude_teams_dir = self.test_dir / ".claude" / "teams" / "dev"
+        claude_teams_dir.mkdir(parents=True, exist_ok=True)
+        (claude_teams_dir / "pack.json").write_text(json.dumps({
+            "rules": ["missing-rule.md"],
+            "skills": ["missing-skill"]
+        }), encoding="utf-8")
+
+        grok_teams_dir = self.test_dir / ".grok" / "teams" / "ops"
+        grok_teams_dir.mkdir(parents=True, exist_ok=True)
+        (grok_teams_dir / "pack.json").write_text(json.dumps({
+            "workflows": ["missing-workflow"]
+        }), encoding="utf-8")
+
+        res_fix = subprocess.run([sys.executable, str(val_script), str(self.test_dir), "--fix"], capture_output=True, text=True)
+        self.assertEqual(res_fix.returncode, 0, f"--fix should resolve installed-base pack refs: {res_fix.stdout}")
+        self.assertTrue((self.test_dir / ".claude" / "rules" / "missing-rule.md").exists())
+        self.assertTrue((self.test_dir / ".claude" / "skills" / "missing-skill" / "SKILL.md").exists())
+        self.assertTrue((self.test_dir / ".grok" / "commands" / "missing-workflow.md").exists())
+        self.assertFalse((self.test_dir / "rules" / "missing-rule.md").exists())
+        self.assertFalse((self.test_dir / "skills" / "missing-skill").exists())
+        self.assertFalse((self.test_dir / "workflows" / "missing-workflow.md").exists())
+
 
 if __name__ == "__main__":
     unittest.main()
-
-

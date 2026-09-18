@@ -75,6 +75,48 @@ def _generate_untracked_diff(root_dir: Path) -> str:
             continue
     return "\n".join(hunks)
 
+def _git_stdout(root_dir: Path, *args: str) -> str:
+    """Run a git command and return stripped stdout on success."""
+    res = subprocess.run(["git", *args], cwd=root_dir, capture_output=True, text=True, timeout=5)
+    if res.returncode != 0:
+        return ""
+    return res.stdout.strip()
+
+def _find_branch_diff_base(root_dir: Path) -> str:
+    """Find a reasonable base ref for committed branch diff review."""
+    env_base = os.getenv("GITHUB_BASE_REF") or os.getenv("COPILOT_BASE_REF") or os.getenv("BASE_REF")
+    ref_candidates = []
+    if env_base:
+        ref_candidates.extend([f"origin/{env_base}", env_base])
+    ref_candidates.extend(["origin/main", "origin/master", "origin/trunk", "origin/develop"])
+
+    remote_head = _git_stdout(root_dir, "symbolic-ref", "--quiet", "refs/remotes/origin/HEAD")
+    if remote_head:
+        ref_candidates.insert(0, remote_head)
+
+    for ref in ref_candidates:
+        if ref and _git_stdout(root_dir, "rev-parse", "--verify", ref):
+            merge_base = _git_stdout(root_dir, "merge-base", "HEAD", ref)
+            if merge_base:
+                return merge_base
+
+    return _git_stdout(root_dir, "rev-parse", "--verify", "HEAD~1")
+
+def _get_branch_diff(root_dir: Path) -> str:
+    """Extract committed branch diff against merge-base when working tree is clean."""
+    base = _find_branch_diff_base(root_dir)
+    if not base:
+        return ""
+    return _git_stdout(root_dir, "diff", base, "HEAD")
+
+def _get_branch_modified_files(root_dir: Path) -> List[str]:
+    """List committed files changed on the current branch when working tree is clean."""
+    base = _find_branch_diff_base(root_dir)
+    if not base:
+        return []
+    output = _git_stdout(root_dir, "diff", "--name-only", base, "HEAD")
+    return [line for line in output.splitlines() if line]
+
 def get_git_diff(root_dir: Path) -> str:
     """Extract current git diff (staged + unstaged + untracked changes)."""
     try:
@@ -82,7 +124,10 @@ def get_git_diff(root_dir: Path) -> str:
         res_status = subprocess.run(["git", "status", "--porcelain"], cwd=root_dir, capture_output=True, text=True, timeout=5)
         untracked = _generate_untracked_diff(root_dir)
         parts = [res.stdout, untracked, res_status.stdout]
-        return "\n".join(p for p in parts if p.strip())
+        working_tree_diff = "\n".join(p for p in parts if p.strip())
+        if working_tree_diff.strip():
+            return working_tree_diff
+        return _get_branch_diff(root_dir)
     except Exception as err:
         sys.stderr.write(f"[post_code_reviewer] get_git_diff notice: {err}\n")
         return ""
@@ -100,7 +145,9 @@ def get_modified_files(root_dir: Path) -> List[str]:
         parts = line.strip().split(maxsplit=1)
         if len(parts) == 2:
             files.append(parts[1].split(" -> ")[-1])
-    return files
+    if files:
+        return files
+    return _get_branch_modified_files(root_dir)
 
 def resolve_target_dir(root_arg: str = "./", target_dir_arg: Optional[str] = None) -> Path:
     """Resolve target project directory from args, env, or configuration."""

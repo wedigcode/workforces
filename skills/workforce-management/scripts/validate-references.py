@@ -11,6 +11,28 @@ import os
 import re
 import sys
 
+EDITOR_BASES = ("", ".agents", ".github/copilot", ".claude", ".grok")
+
+
+def detect_editor_base(path, target_dir):
+    """Return the installed editor base prefix for a path, if any."""
+    rel_path = os.path.relpath(path, target_dir).replace("\\", "/")
+    for base in sorted((b for b in EDITOR_BASES if b), key=len, reverse=True):
+        if rel_path == base or rel_path.startswith(base + "/"):
+            return base
+    return ""
+
+
+def build_pack_fix_target(target_dir, editor_base, key, rel_ref):
+    """Build the auto-fix target path for a missing pack.json reference."""
+    base_dir = os.path.join(target_dir, editor_base) if editor_base else target_dir
+    if key == "skills":
+        return os.path.normpath(os.path.join(base_dir, "skills", rel_ref, "SKILL.md"))
+
+    fallback_name = rel_ref if rel_ref.endswith(".md") else f"{rel_ref}.md"
+    subdir = "commands" if key == "workflows" and editor_base == ".grok" else key
+    return os.path.normpath(os.path.join(base_dir, subdir, fallback_name))
+
 
 def parse_frontmatter(content):
     """Extract YAML-style frontmatter and body from markdown content."""
@@ -221,14 +243,14 @@ def audit_references(target_dir=".", fix=False):
                             for rel_ref in data.get(key, []):
                                 if is_pack_json:
                                     # pack.json paths resolve against repository root or installed editor base, not teams/<team>/
-                                    editor_bases = ["", ".agents", ".github/copilot", ".claude", ".grok"]
+                                    pack_editor_base = detect_editor_base(root, target_dir)
                                     candidates = []
                                     if key == "skills":
-                                        for eb in editor_bases:
+                                        for eb in EDITOR_BASES:
                                             b = os.path.join(target_dir, eb) if eb else target_dir
                                             candidates.append(os.path.normpath(os.path.join(b, "skills", rel_ref, "SKILL.md")))
                                     else:
-                                        for eb in editor_bases:
+                                        for eb in EDITOR_BASES:
                                             b = os.path.join(target_dir, eb) if eb else target_dir
                                             candidates.extend([
                                                 os.path.normpath(os.path.join(b, key, rel_ref)),
@@ -250,11 +272,7 @@ def audit_references(target_dir=".", fix=False):
                                             target_path = c
                                             break
                                     if not target_path:
-                                        if key == "skills":
-                                            target_path = os.path.normpath(os.path.join(target_dir, "skills", rel_ref, "SKILL.md"))
-                                        else:
-                                            fallback_name = rel_ref if rel_ref.endswith(".md") else f"{rel_ref}.md"
-                                            target_path = os.path.normpath(os.path.join(target_dir, key, fallback_name))
+                                        target_path = build_pack_fix_target(target_dir, pack_editor_base, key, rel_ref)
                                         broken_refs.append({
                                             "source": rel_source,
                                             "type": f"JSON {key}",
