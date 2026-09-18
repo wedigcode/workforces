@@ -942,9 +942,11 @@ def _diagnostic_path_touches_modified(path: str, modified_paths: Set[str], targe
             return True
     return False
 
-def _is_unambiguous_diagnostic_path(path: str) -> bool:
+def _is_unambiguous_diagnostic_path(path: str, target_dir: Path) -> bool:
     """Return True when a diagnostic path is specific enough for debt classification."""
-    normalized = path.replace("\\", "/")
+    normalized = _normalize_repo_relative_path(path, target_dir)
+    if not normalized or normalized.startswith(("./", "../")) or os.path.isabs(normalized):
+        return False
     return "/" in normalized
 
 def _execute_single_check(
@@ -971,7 +973,7 @@ def _execute_single_check(
                     for path in diagnostic_paths
                 )
                 all_paths_unambiguous = bool(diagnostic_paths) and all(
-                    _is_unambiguous_diagnostic_path(path) for path in diagnostic_paths
+                    _is_unambiguous_diagnostic_path(path, target_dir) for path in diagnostic_paths
                 )
                 if all_paths_unambiguous and not touches_modified:
                     if candidates is not None:
