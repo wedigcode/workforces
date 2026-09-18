@@ -185,10 +185,18 @@ def audit_references(target_dir=".", fix=False):
     broken_refs = []
     pending_todos = []
 
-    ignored_dirs = {".git", "node_modules", ".tmp", "scratch", ".worktrees", "session-context"}
+    ignored_dirs = {".git", "node_modules", ".tmp", "scratch", ".worktrees"}
 
     for root, dirs, files in os.walk(target_dir):
-        dirs[:] = [d for d in dirs if d not in ignored_dirs and "teamwork_preview_" not in d and not d.startswith("teamwork_preview_")]
+        dirs[:] = [
+            d for d in dirs
+            if d not in ignored_dirs
+            and "teamwork_preview_" not in d
+            and not d.startswith("teamwork_preview_")
+            and not os.path.relpath(os.path.join(root, d), target_dir).replace("\\", "/").startswith(
+                ("workforces/session-context", "workforces/sessions", ".agents/workforces/session-context", ".agents/workforces/sessions", ".agents/session-context")
+            )
+        ]
 
         for file in files:
             if not file.endswith((".md", ".json")):
@@ -239,8 +247,11 @@ def audit_references(target_dir=".", fix=False):
                                             target_path = c
                                             break
                                     if not target_path:
-                                        fallback_name = rel_ref if (rel_ref.endswith(".md") or key == "skills") else f"{rel_ref}.md"
-                                        target_path = os.path.normpath(os.path.join(target_dir, key, fallback_name))
+                                        if key == "skills":
+                                            target_path = os.path.normpath(os.path.join(target_dir, "skills", rel_ref, "SKILL.md"))
+                                        else:
+                                            fallback_name = rel_ref if rel_ref.endswith(".md") else f"{rel_ref}.md"
+                                            target_path = os.path.normpath(os.path.join(target_dir, key, fallback_name))
                                         broken_refs.append({
                                             "source": rel_source,
                                             "type": f"JSON {key}",
@@ -383,6 +394,10 @@ def audit_references(target_dir=".", fix=False):
                     header_type = "Rule"
                 elif "workflows" in item['target']:
                     header_type = "Workflow"
+                elif "skills" in item['target']:
+                    header_type = "Skill"
+                elif "agents" in item['target']:
+                    header_type = "Agent"
 
                 stub_content = f"# {header_type}: {title}\n\nGenerated dependency for `{item['source']}`.\n\n## Overview\nAuto-created by integrity audit to fulfill reference dependency.\n"
                 with open(item['target'], "w", encoding="utf-8") as f:

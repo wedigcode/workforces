@@ -635,6 +635,26 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
         self.assertIn("Zero dangling file references found", res.stdout)
         self.assertFalse((teams_dir / "design-standards.md").exists(), "Should not create dummy stub in teams/growth/")
 
+    def test_validate_references_audits_skills_session_context_while_ignoring_session_notes(self):
+        """Test validate-references.py audits skills/session-context while excluding workforces/session-context notes."""
+        val_script = REPO_ROOT / "skills" / "workforce-management" / "scripts" / "validate-references.py"
+        sc_skill_dir = self.test_dir / "skills" / "session-context"
+        sc_skill_dir.mkdir(parents=True, exist_ok=True)
+        (sc_skill_dir / "SKILL.md").write_text("# Skill\n[Broken Link](nonexistent.md)\n", encoding="utf-8")
+
+        wf_sc_dir = self.test_dir / "workforces" / "session-context"
+        wf_sc_dir.mkdir(parents=True, exist_ok=True)
+        (wf_sc_dir / "001_note.md").write_text("---\ntitle: note\n---\n# Note\n[Historical Broken Link](history.md)\n", encoding="utf-8")
+
+        res = subprocess.run(
+            [sys.executable, str(val_script), str(self.test_dir)],
+            capture_output=True,
+            text=True
+        )
+        self.assertEqual(res.returncode, 1)
+        self.assertIn("skills/session-context/SKILL.md", res.stdout)
+        self.assertNotIn("001_note.md", res.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()
