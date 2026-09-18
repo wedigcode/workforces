@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Zero-Token Turn & Session Summary Printer for Workforces
-Runs as a post_tool_call hook. Parses the active conversation transcript log and prints
+Parses the active conversation transcript log and prints
 a compact summary of tool selection, workflows, and estimated tokens to stdout.
 """
 

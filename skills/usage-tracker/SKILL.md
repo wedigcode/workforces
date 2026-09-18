@@ -4,7 +4,7 @@ description: Monitors, logs, and analyzes token consumption, thinking steps, and
 ---
 # Usage Tracker Skill
 
-The `usage-tracker` skill enables real-time and historical token and content usage tracking across Antigravity agent sessions and subagents.
+The `usage-tracker` skill enables on-demand and historical token and content usage tracking across Antigravity agent sessions and subagents.
 
 ## Capabilities
 

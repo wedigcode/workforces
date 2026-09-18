@@ -465,8 +465,13 @@ def save_installed_manifest(target_dir, version, installed_teams, installed_file
     return manifest_path
 
 def get_known_legacy_obsolete_files(base_dir):
-    """Returns list of relative paths under base_dir of known historical Workforces files that were relocated or deleted."""
-    return [os.path.normpath(os.path.join(base_dir, p)) for p in LEGACY_OBSOLETE_SUBPATHS]
+    """Returns list of relative paths of known historical Workforces files that were relocated or deleted."""
+    candidates = []
+    for p in LEGACY_OBSOLETE_SUBPATHS:
+        if p.startswith("docs/"):
+            candidates.append(os.path.normpath(p))
+        candidates.append(os.path.normpath(os.path.join(base_dir, p)))
+    return candidates
 
 def find_obsolete_files(target_dir, base_dir, current_files, toolkit_root=None):
     """

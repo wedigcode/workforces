@@ -644,6 +644,19 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
         self.assertIn("no new code exceeds 35 lines", report)
         self.assertNotIn("PRE-HANDOFF BLOCKER", report)
 
+    def test_cli_strict_exit_zero_on_advisory_heuristics(self):
+        """Test CLI command post_code_reviewer.py --strict exits with code 0 on advisory findings."""
+        subprocess.run(["git", "init"], cwd=self.test_dir, capture_output=True)
+        subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=self.test_dir, capture_output=True)
+        subprocess.run(["git", "config", "user.name", "Test"], cwd=self.test_dir, capture_output=True)
+
+        long_func = "def long_function():\n" + "".join(f"    v_{i} = {i}\n" for i in range(40)) + "    return v_39\n"
+        (self.test_dir / "service.py").write_text(long_func, encoding="utf-8")
+
+        script_path = Path(__file__).parent.parent / "skills" / "post-code-review" / "scripts" / "post_code_reviewer.py"
+        res = subprocess.run([sys.executable, str(script_path), "--root", str(self.test_dir), "--strict"], capture_output=True, text=True)
+        self.assertEqual(res.returncode, 0, f"Expected 0 exit code, got {res.returncode}. Output: {res.stdout}\nStderr: {res.stderr}")
+
     def test_run_code_review_gate_uses_branch_diff_when_working_tree_is_clean(self):
         """Test committed feature-branch diffs are reviewed even with a clean working tree."""
         subprocess.run(["git", "init", "-b", "main"], cwd=self.test_dir, capture_output=True)

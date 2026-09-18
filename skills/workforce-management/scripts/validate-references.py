@@ -242,15 +242,15 @@ def audit_references(target_dir=".", fix=False):
                         for key in ["personas", "rules", "workflows", "agents", "skills"]:
                             for rel_ref in data.get(key, []):
                                 if is_pack_json:
-                                    # pack.json paths resolve against repository root or installed editor base, not teams/<team>/
                                     pack_editor_base = detect_editor_base(root, target_dir)
+                                    bases_to_check = [pack_editor_base] if pack_editor_base else EDITOR_BASES
                                     candidates = []
                                     if key == "skills":
-                                        for eb in EDITOR_BASES:
+                                        for eb in bases_to_check:
                                             b = os.path.join(target_dir, eb) if eb else target_dir
                                             candidates.append(os.path.normpath(os.path.join(b, "skills", rel_ref, "SKILL.md")))
                                     else:
-                                        for eb in EDITOR_BASES:
+                                        for eb in bases_to_check:
                                             b = os.path.join(target_dir, eb) if eb else target_dir
                                             candidates.extend([
                                                 os.path.normpath(os.path.join(b, key, rel_ref)),
