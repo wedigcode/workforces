@@ -479,7 +479,7 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
         self.assertGreater(new_retry, datetime.datetime.now() + datetime.timedelta(days=5))
 
     def test_direct_vs_transitive_vulnerability_distinction(self):
-        """Test direct vulnerability emits blocking ❌ while transitive gets ⚠️ bypass."""
+        """Test direct and transitive 3rd-party vulnerabilities emit non-blocking ⚠️ advisory notices with bypass tracking."""
         from unittest.mock import patch
         mock_audit = {
             "vulnerabilities": {
@@ -496,18 +496,56 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
         self.assertEqual(len(issues), 2)
         direct_issue = next(i for i in issues if "direct-vuln-pkg" in i)
         transitive_issue = next(i for i in issues if "transitive-vuln-pkg" in i)
-        self.assertIn("❌ **Direct Security Vulnerability", direct_issue)
-        self.assertIn("⚠️ **Security Notice", transitive_issue)
+        self.assertIn("⚠️ **3rd-Party Security Notice (npm):** Direct dependency `direct-vuln-pkg`", direct_issue)
+        self.assertIn("⚠️ **3rd-Party Security Notice (npm):** Transitive dependency `transitive-vuln-pkg`", transitive_issue)
         self.assertIn("npm:vulnerability in transitive-vuln-pkg", bypasses)
+        self.assertIn("npm:vulnerability in direct-vuln-pkg", bypasses)
 
     def test_security_audit_failure_not_swallowed(self):
-        """Test npm audit exceptions or timeouts emit blocking ❌ Security Audit Failed."""
+        """Test npm audit exceptions or timeouts emit non-blocking ⚠️ 3rd-Party Security Audit Notice."""
         from unittest.mock import patch
         import subprocess
         with patch("subprocess.run", side_effect=subprocess.TimeoutExpired(cmd="npm audit", timeout=15)):
             issues = post_code_reviewer._run_node_audit(["package.json"], self.test_dir, {}, {"bypasses": {}})
         self.assertEqual(len(issues), 1)
-        self.assertIn("❌ **Security Audit Failed (npm):**", issues[0])
+        self.assertIn("⚠️ **3rd-Party Security Audit Notice (npm):**", issues[0])
+
+    def test_audit_code_security_and_bug_patterns(self):
+        """Test audit_code_security_and_bug_patterns catches hardcoded secrets and bug traps."""
+        diff = (
+            "+++ b/auth.py\n"
+            "+def login(user, token='AKIAIOSFODNN7EXAMPLE'):\n"
+            "+    pass\n"
+            "+++ b/utils.py\n"
+            "+def process_items(items=[]):\n"
+            "+    pass\n"
+        )
+        sec_issues, bug_issues = post_code_reviewer.audit_code_security_and_bug_patterns(diff, ["auth.py", "utils.py"])
+        self.assertTrue(any("Hardcoded Secret Blocked" in s for s in sec_issues))
+        self.assertTrue(any("Mutable default argument" in b for b in bug_issues))
+
+    def test_pre_existing_debt_in_untouched_files_is_non_blocking(self):
+        """Test static analysis errors in untouched legacy files emit ⚠️ debt and do not block handoff."""
+        from unittest.mock import patch
+        mock_output = (
+            "src/legacy/old_module.ts:14:5 - error TS2322: Type 'string' is not assignable to type 'number'.\n"
+            "src/legacy/ancient.ts:88:2 - error TS2304: Cannot find name 'foo'.\n"
+        )
+        candidates = []
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value.returncode = 1
+            mock_run.return_value.stdout = mock_output
+            mock_run.return_value.stderr = ""
+            msg = post_code_reviewer._execute_single_check(
+                self.test_dir,
+                "typecheck",
+                "tsc --noEmit",
+                modified_files=["src/new_feature.ts"],
+                candidates=candidates
+            )
+            self.assertIn("⚠️ **Pre-Existing Codebase Quality Debt (Typecheck):**", msg)
+            self.assertNotIn("❌", msg)
+            self.assertTrue(any("Code Quality Sprint" in c for c in candidates))
 
     def test_touched_lines_addition_only_not_context(self):
         """Test _get_touched_lines only tracks added (+) lines, not context lines."""

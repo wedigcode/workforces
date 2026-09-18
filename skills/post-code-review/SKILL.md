@@ -1,6 +1,6 @@
 ---
 name: post-code-review
-description: Performs pre-handoff code review and quality verification on git diffs. Evaluates against a PR-style verification form (DRY, advisory line limits, method decomposition, simplicity, and maintainability), surfaces advisory feedback on design heuristics, executes the automated quality triad (unit tests, static analysis/type checks, linters), and manages weekly-retried 3rd-party security bypass caching. Reach for this skill immediately after modifying code.
+description: Performs pre-handoff code review and quality verification on git diffs. Analyzes git diff after editing code to detect broken function contract signatures, duplicate utilities, and missing tests. Evaluates against a PR-style verification form (DRY, advisory line limits, method decomposition, simplicity, and maintainability), surfaces advisory feedback on design heuristics, executes the automated quality triad (unit tests, static analysis/type checks, linters), and manages weekly-retried 3rd-party security bypass caching. Reach for this skill immediately after modifying code.
 ---
 # Skill: Pre-Handoff Code Reviewer & Quality Gate
 
@@ -20,7 +20,7 @@ Automated whole-codebase code reviewer and quality gate that audits code modific
 3. **Candidate Issue Discovery**: Discovered maintainability problems or technical debt outside immediate scope are surfaced with copy-paste `report-task.py` commands.
 4. **Resilient 3rd-Party Security Bypass & Remediation**: Dependency security audits (`npm audit`, `pip-audit`, `composer audit`) catch vulnerabilities. The reviewer first executes an automated remediation attempt (`npm audit fix`). If the issue cannot be resolved automatically, learnings are cached in `workforces/memory/security-bypass.json` with a 7-day retry schedule, informing the user with non-blocking notices rather than blocking every session. If later fixed upstream, the system automatically returns to its normal routine.
 5. **Quality Triad Execution**: Runs configured unit tests, static analysis/strict type checks (`tsc`, `mypy`, `phpstan`), and linters (`biome`, `eslint`, `ruff`).
-6. **Strict Quality Gate**: Blocks handoff if unbypassed critical errors, test regressions, linter errors, typecheck failures, or unresolved security audit vulnerabilities exist (`--run-checks`), while checklist heuristics remain advisory.
+6. **Strict Quality Gate & Blast Radius Scoping**: Blocks handoff if genuine quality gate failures occur on modified code (test regressions, linter errors, typecheck failures, or hardcoded secrets). Third-party dependency CVEs emit non-blocking advisory notices with 7-day retry caching, and pre-existing static analysis debt in untouched legacy files is routed to candidate tasks for a Code Quality Sprint rather than blocking the active task.
 
 ---
 

@@ -55,7 +55,8 @@ python3 .agents/skills/post-code-review/scripts/post_code_reviewer.py --root ./ 
 *(Fallback: `python3 skills/post-code-review/scripts/post_code_reviewer.py --root ./ --run-checks --strict`)*
 
 - **Advisory Heuristics & Pushback**: Checklist heuristics (line length, scoping, verbosity) provide advisory feedback and suggestions rather than blocking execution with non-zero exit codes.
-- **Quality Triad Enforcement**: Unit tests, typechecks, and linters executed via `--run-checks` remain strictly blocking quality gates.
-- **Security Bypass**: Third-party or deprecation issues that cannot be resolved automatically are recorded to `workforces/memory/security-bypass.json` for weekly re-check without blocking every session.
+- **Quality Triad Enforcement**: Unit tests, typechecks, and linters executed via `--run-checks` remain strictly blocking quality gates on modified code. Pre-existing errors in untouched legacy files are reported as non-blocking technical debt.
+- **Legacy Codebases & Static Analysis Tuning**: When working on older repositories where static analysis is set too aggressively, the agent exercises judgement to adjust settings or scope checks. Quick localized fixes should be addressed immediately; widespread debt is raised to the user and tracked for a **Code Quality Sprint** via `report-task.py`.
+- **Security & Bug Pattern Review**: The review gate audits modified diffs for genuine code security (hardcoded credentials, injection vulnerabilities, common bug traps). Third-party upstream library CVEs (`npm audit`, `pip-audit`) are recorded to `workforces/memory/security-bypass.json` as non-blocking advisory notices with 7-day retry intervals.
 - **Discovered Issues**: Non-blocking issues or candidate tech debt surfaced by the reviewer can be recorded via `.agents/skills/task-tracker/scripts/report-task.py` (Fallback: `python3 skills/task-tracker/scripts/report-task.py`).
 - **Autonomous Git Workflow & PR Discipline**: Follow [`git-workflow`](../../rules/git-workflow.md) and [`agent-parallelization`](../agent-parallelization/SKILL.md) for worktree isolation (`Workspace: 'share'`) and stacked PRs via `gh-stack`.

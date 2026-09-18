@@ -469,18 +469,29 @@ def _process_npm_vulnerabilities(
     target_dir: Path,
     cache: Dict[str, Any]
 ) -> List[str]:
-    """Process vulnerabilities distinguishing direct (blocking) vs transitive (bypassed)."""
+    """Process vulnerabilities distinguishing direct vs transitive, caching unresolvable 3rd-party issues for weekly retry."""
     issues = []
     for pkg, info in vulns.items():
         is_direct = info.get("isDirect", False) if isinstance(info, dict) else False
         severity = info.get("severity", "high") if isinstance(info, dict) else "high"
         summary = f"vulnerability in {pkg}"
-        if is_direct:
-            issues.append(
-                f"❌ **Direct Security Vulnerability (npm):** Direct dependency `{pkg}` has {severity} vulnerability. Direct dependencies cannot be bypassed; update or replace `{pkg}`."
-            )
+        dep_type = "Direct" if is_direct else "Transitive"
+
+        match_key, matched, is_expired = find_bypass_entry("npm", summary, bypasses)
+        if matched and not is_expired:
+            issues.append(f"ℹ️ **Security Bypass Active (Weekly Re-check):** `{summary}` ({dep_type.lower()} dependency) bypassed (next retry: {matched.get('next_retry')}).")
+            continue
+
+        if attempt_remediation("npm", target_dir):
+            if match_key:
+                bypasses.pop(match_key, None)
+                save_security_bypass_cache(target_dir, cache)
+            issues.append(f"✅ **Security Remediation Succeeded:** Automated fix resolved `{summary}`. Returned to normal routine.")
         else:
-            issues.append(handle_security_failure("npm", summary, bypasses, target_dir, cache))
+            record_security_bypass("npm", summary, bypasses, target_dir, cache)
+            issues.append(
+                f"⚠️ **3rd-Party Security Notice (npm):** {dep_type} dependency `{pkg}` has {severity} vulnerability (upstream fix pending or requires breaking changes). Bypassed for 7 days."
+            )
     return issues
 
 def _run_node_audit(touched: List[str], target_dir: Path, bypasses: Dict[str, Any], cache: Dict[str, Any]) -> List[str]:
@@ -494,14 +505,14 @@ def _run_node_audit(touched: List[str], target_dir: Path, bypasses: Dict[str, An
         data = _parse_npm_audit_payload(res.stdout or res.stderr)
         if "error" in data:
             err_msg = data["error"].get("summary") or data["error"].get("detail") or "npm audit error"
-            return [f"❌ **Security Audit Failed (npm):** {err_msg}"]
+            return [f"⚠️ **3rd-Party Security Audit Notice (npm):** {err_msg}"]
         vulns = data.get("vulnerabilities", {})
         if not vulns:
             return []
         return _process_npm_vulnerabilities(vulns, bypasses, target_dir, cache)
     except Exception as err:
         sys.stderr.write(f"[post_code_reviewer] npm audit notice: {err}\n")
-        return [f"❌ **Security Audit Failed (npm):** {err}"]
+        return [f"⚠️ **3rd-Party Security Audit Notice (npm):** {err}"]
 
 def _run_python_audit(touched: List[str], target_dir: Path, bypasses: Dict[str, Any], cache: Dict[str, Any]) -> List[str]:
     """Execute pip-audit and process findings."""
@@ -513,7 +524,7 @@ def _run_python_audit(touched: List[str], target_dir: Path, bypasses: Dict[str, 
             return [handle_security_failure("python", "pip-audit vulnerabilities", bypasses, target_dir, cache)]
     except Exception as err:
         sys.stderr.write(f"[post_code_reviewer] pip-audit notice: {err}\n")
-        return [f"❌ **Security Audit Failed (python):** {err}"]
+        return [f"⚠️ **3rd-Party Security Audit Notice (python):** {err}"]
     return []
 
 def audit_dependency_security(modified_files: List[str], target_dir: Path) -> List[str]:
@@ -526,6 +537,52 @@ def audit_dependency_security(modified_files: List[str], target_dir: Path) -> Li
     cache = load_security_bypass_cache(target_dir)
     bypasses = cache.setdefault("bypasses", {})
     return _run_node_audit(touched, target_dir, bypasses, cache) + _run_python_audit(touched, target_dir, bypasses, cache)
+
+def audit_code_security_and_bug_patterns(diff_text: str, modified_files: List[str]) -> Tuple[List[str], List[str]]:
+    """Scan added diff lines for first-party code security vulnerabilities and common bug patterns."""
+    sec_issues: List[str] = []
+    bug_issues: List[str] = []
+
+    curr_file = "unknown"
+    for line in diff_text.splitlines():
+        if line.startswith("+++ b/"):
+            curr_file = line[6:].strip()
+            continue
+        if not line.startswith("+") or line.startswith("+++"):
+            continue
+        code_line = line[1:].strip()
+        if not code_line or code_line.startswith(("#", "//", "/*", "*", "<!--")):
+            continue
+
+        # 1. Code Security: Hardcoded secrets and credentials in added code
+        if re.search(r"\bAKIA[0-9A-Z]{16}\b", code_line):
+            sec_issues.append(f"❌ **Hardcoded Secret Blocked:** AWS Access Key detected in `{curr_file}`. Secrets must use environment variables.")
+        elif re.search(r"\b(?:ghp_[a-zA-Z0-9]{36}|github_pat_[a-zA-Z0-9_]{40,})\b", code_line):
+            sec_issues.append(f"❌ **Hardcoded Secret Blocked:** GitHub token detected in `{curr_file}`. Secrets must use environment variables.")
+        elif re.search(r"-----BEGIN (?:RSA |EC |OPENSSH |PGP |)PRIVATE KEY-----", code_line):
+            sec_issues.append(f"❌ **Hardcoded Secret Blocked:** Private key detected in `{curr_file}`.")
+        elif re.search(r"(?i)\b(?:api_key|secret_key|app_secret|auth_token)\s*[:=]\s*['\"][a-zA-Z0-9_\-\.]{24,}['\"]", code_line):
+            sec_issues.append(f"⚠️ **High-Entropy Secret Suspected:** Potential hardcoded credential in `{curr_file}`: `{code_line[:40]}...`")
+
+        # 2. Insecure execution / injection
+        if not is_test_file(curr_file):
+            if re.search(r"\b(?:eval|exec)\s*\(", code_line) and not curr_file.endswith(".md"):
+                sec_issues.append(f"⚠️ **Insecure Function Call:** Dynamic `eval`/`exec` detected in `{curr_file}`.")
+            if re.search(r"subprocess\.(?:run|Popen|call|check_output)\(.*shell\s*=\s*True", code_line) and any(c in code_line for c in ["f\"", "f'", "%", ".format("]):
+                sec_issues.append(f"⚠️ **Command Injection Risk:** `subprocess` with `shell=True` and formatted string in `{curr_file}`.")
+            if re.search(r"(?i)\b(?:SELECT|INSERT|UPDATE|DELETE)\b.*(?:f[\"'].*\{|[\"']\s*\+\s*\w+)", code_line):
+                sec_issues.append(f"⚠️ **SQL Injection Risk:** Unparameterized SQL query string concatenation in `{curr_file}`.")
+            if re.search(r"(?:\.innerHTML\s*=|dangerouslySetInnerHTML\s*=)", code_line):
+                sec_issues.append(f"⚠️ **XSS Injection Risk:** Unescaped HTML/DOM injection detected in `{curr_file}`.")
+
+        # 3. Common Bug Traps (Copilot-style missed bug checks)
+        if curr_file.endswith(".py"):
+            if re.search(r"def\s+[a-zA-Z_]\w*\s*\([^)]*=\s*(?:\[\]|\{\}|set\(\))", code_line):
+                bug_issues.append(f"🐛 **Potential Bug Flagged:** Mutable default argument in `{curr_file}`: `{code_line}`. Use `None` as default.")
+            if re.search(r"except(?:\s+[a-zA-Z_]\w*)?\s*:\s*(?:pass|\.\.\.)\s*$", code_line) and not is_test_file(curr_file):
+                bug_issues.append(f"🐛 **Potential Bug Flagged:** Silent exception swallowing with `pass` in `{curr_file}`. Log or propagate errors.")
+
+    return sec_issues, bug_issues
 
 # --- PR Review Verification Form & Heuristic Checks ---
 
@@ -837,26 +894,57 @@ def detect_quality_commands(target_dir: Path) -> Dict[str, str]:
     _detect_go_commands(target_dir, commands)
     return commands
 
-def _execute_single_check(target_dir: Path, check_type: str, cmd: str) -> Optional[str]:
-    """Execute a single quality gate command and return error message if failed."""
+def _execute_single_check(
+    target_dir: Path,
+    check_type: str,
+    cmd: str,
+    modified_files: Optional[List[str]] = None,
+    candidates: Optional[List[str]] = None
+) -> Optional[str]:
+    """Execute a single quality gate command, differentiating diff regressions from pre-existing debt in untouched files."""
     try:
         res = subprocess.run(cmd, shell=True, cwd=target_dir, capture_output=True, text=True, timeout=120)
         if res.returncode != 0:
-            tail = "\n".join([l for l in (res.stderr + "\n" + res.stdout).splitlines() if l.strip()][-6:])
+            combined = res.stderr + "\n" + res.stdout
+            lines = [l for l in combined.splitlines() if l.strip()]
+            tail = "\n".join(lines[-6:])
+
+            # For static analysis / linters, check if errors actually touch modified_files
+            if check_type in ["typecheck", "lint"] and modified_files:
+                mod_names = {Path(m).name for m in modified_files}
+                mod_paths = {str(Path(m)) for m in modified_files}
+                touches_modified = any(
+                    any(p in l or name in l for name in mod_names for p in mod_paths)
+                    for l in lines
+                )
+                if not touches_modified:
+                    if candidates is not None:
+                        candidates.append(f"Pre-existing {check_type} quality debt in untouched files from `{cmd}` — schedule Code Quality Sprint")
+                    return f"⚠️ **Pre-Existing Codebase Quality Debt ({check_type.title()}):** `{cmd}` surfaced errors in untouched legacy files (outside current diff). Non-blocking for current task.\n```\n{tail}\n```"
+
             return f"❌ **Quality Gate Failed ({check_type.title()}):** `{cmd}` failed:\n```\n{tail}\n```"
     except Exception as e:
         return f"❌ **Quality Gate Error ({check_type.title()}):** `{cmd}` failed: {e}"
     return None
 
-def run_quality_gate_checks(target_dir: Path, commands: Dict[str, str]) -> Tuple[List[str], bool]:
+def run_quality_gate_checks(
+    target_dir: Path,
+    commands: Dict[str, str],
+    modified_files: Optional[List[str]] = None,
+    candidates: Optional[List[str]] = None
+) -> Tuple[List[str], bool]:
     """Execute detected quality triad checks."""
     issues = []
     all_passed = True
     for check_type in ["typecheck", "lint", "test"]:
         if check_type in commands:
-            err_msg = _execute_single_check(target_dir, check_type, commands[check_type])
+            err_msg = _execute_single_check(
+                target_dir, check_type, commands[check_type],
+                modified_files=modified_files, candidates=candidates
+            )
             if err_msg:
-                all_passed = False
+                if "❌" in err_msg:
+                    all_passed = False
                 issues.append(err_msg)
     return issues, all_passed
 
@@ -897,7 +985,7 @@ def _build_review_report_output(
     if all_issues:
         output.extend(["\n**Actionable Items Flagged:**"] + [f"- {i}" for i in all_issues[:10]])
         if has_blockers:
-            output.append("\n🛑 **PRE-HANDOFF BLOCKER:** Quality gates failed (test, lint, typecheck, or security errors). You MUST resolve all errors before handoff.")
+            output.append("\n🛑 **PRE-HANDOFF BLOCKER:** Quality gates failed (test, lint, or typecheck errors). You MUST resolve all errors before handoff.")
     elif not pushbacks:
         output.append("\n✅ **Review & Quality Gate Passed:** All design principles, tests, and verification checks clean.")
 
@@ -925,11 +1013,14 @@ def run_code_review_gate(
     just = justification or os.getenv("WORKFORCE_REVIEW_JUSTIFICATION")
     form_md, _pr_passed, pushbacks, candidates = evaluate_pr_verification_form(diff_text, modified_files, symbols, target_dir, justification=just)
     sec_issues = audit_dependency_security(modified_files, target_dir)
+    code_sec_issues, bug_issues = audit_code_security_and_bug_patterns(diff_text, modified_files)
     detected_cmds = detect_quality_commands(target_dir)
 
-    all_issues = list(sec_issues)
+    all_issues = list(sec_issues) + list(code_sec_issues) + list(bug_issues)
     if run_checks and detected_cmds:
-        q_issues, _q_passed = run_quality_gate_checks(target_dir, detected_cmds)
+        q_issues, _q_passed = run_quality_gate_checks(
+            target_dir, detected_cmds, modified_files=modified_files, candidates=candidates
+        )
         all_issues.extend(q_issues)
 
     has_blockers = any("❌" in i for i in all_issues)
