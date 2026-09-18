@@ -602,6 +602,24 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
             self.assertIn("❌ **Quality Gate Failed (Typecheck):**", msg)
             self.assertNotIn("Pre-Existing Codebase Quality Debt", msg)
 
+    def test_pre_existing_debt_does_not_match_by_suffix_path_overlap(self):
+        """Test suffix-overlapping paths in different directories are not treated as modified."""
+        from unittest.mock import patch
+        mock_output = "packages/a/src/foo.ts:14:5 - error TS2322: Type 'string' is not assignable to type 'number'.\n"
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value.returncode = 1
+            mock_run.return_value.stdout = mock_output
+            mock_run.return_value.stderr = ""
+            msg = post_code_reviewer._execute_single_check(
+                self.test_dir,
+                "typecheck",
+                "tsc --noEmit",
+                modified_files=["src/foo.ts"],
+                candidates=[]
+            )
+            self.assertIn("⚠️ **Pre-Existing Codebase Quality Debt (Typecheck):**", msg)
+            self.assertNotIn("❌", msg)
+
     def test_touched_lines_addition_only_not_context(self):
         """Test _get_touched_lines only tracks added (+) lines, not context lines."""
         diff = (

@@ -913,12 +913,29 @@ def _extract_diagnostic_paths(lines: List[str]) -> Set[str]:
                 paths.add(candidate.replace("\\", "/"))
     return paths
 
-def _diagnostic_path_touches_modified(path: str, modified_paths: Set[str]) -> bool:
+def _normalize_repo_relative_path(path: str, target_dir: Path) -> str:
+    """Normalize diagnostic/modified paths to repo-relative form when possible."""
+    try:
+        raw = Path(path.strip())
+    except Exception:
+        return path.replace("\\", "/").lstrip("./")
+
+    if not raw.is_absolute():
+        raw = (target_dir / raw)
+
+    resolved_target = target_dir.resolve()
+    resolved_path = raw.resolve()
+    try:
+        return resolved_path.relative_to(resolved_target).as_posix()
+    except ValueError:
+        return resolved_path.as_posix()
+
+def _diagnostic_path_touches_modified(path: str, modified_paths: Set[str], target_dir: Path) -> bool:
     """Return whether a diagnostic path maps to one of the modified files."""
-    norm_path = str(Path(path).as_posix()).lstrip("./")
+    norm_path = _normalize_repo_relative_path(path, target_dir)
     for modified in modified_paths:
-        norm_modified = str(Path(modified).as_posix()).lstrip("./")
-        if norm_path == norm_modified or norm_path.endswith(f"/{norm_modified}"):
+        norm_modified = _normalize_repo_relative_path(modified, target_dir)
+        if norm_path == norm_modified:
             return True
     return False
 
@@ -947,7 +964,7 @@ def _execute_single_check(
                 mod_paths = {str(Path(m).as_posix()) for m in modified_files}
                 diagnostic_paths = _extract_diagnostic_paths(lines)
                 touches_modified = any(
-                    _diagnostic_path_touches_modified(path, mod_paths)
+                    _diagnostic_path_touches_modified(path, mod_paths, target_dir)
                     for path in diagnostic_paths
                 )
                 all_paths_unambiguous = bool(diagnostic_paths) and all(
