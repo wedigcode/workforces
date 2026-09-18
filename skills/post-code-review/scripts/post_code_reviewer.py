@@ -159,7 +159,7 @@ def _find_branch_diff_base(root_dir: Path) -> str:
 
     remote_head = _git_stdout(root_dir, "symbolic-ref", "--quiet", "refs/remotes/origin/HEAD")
     if remote_head:
-        ref_candidates.insert(0, remote_head)
+        ref_candidates = [*_normalize_base_ref(remote_head), *ref_candidates]
 
     known_refs = _list_branch_refs(root_dir)
     for ref in ref_candidates:

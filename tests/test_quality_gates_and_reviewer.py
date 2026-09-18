@@ -716,6 +716,27 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
         self.assertIn("+++ b/first.py", diff)
         self.assertIn("+++ b/second.py", diff)
 
+    def test_run_code_review_gate_uses_origin_head_for_nonstandard_default_branch(self):
+        """Test clean-branch fallback can resolve base via origin/HEAD on nonstandard default branches."""
+        subprocess.run(["git", "init", "-b", "stable"], cwd=self.test_dir, capture_output=True)
+        subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=self.test_dir, capture_output=True)
+        subprocess.run(["git", "config", "user.name", "Test"], cwd=self.test_dir, capture_output=True)
+
+        (self.test_dir / "service.py").write_text("def base():\n    return 1\n", encoding="utf-8")
+        subprocess.run(["git", "add", "service.py"], cwd=self.test_dir, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "base"], cwd=self.test_dir, capture_output=True)
+        origin_stable = subprocess.run(["git", "rev-parse", "HEAD"], cwd=self.test_dir, capture_output=True, text=True).stdout.strip()
+        subprocess.run(["git", "update-ref", "refs/remotes/origin/stable", origin_stable], cwd=self.test_dir, capture_output=True)
+        subprocess.run(["git", "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/stable"], cwd=self.test_dir, capture_output=True)
+        subprocess.run(["git", "checkout", "-b", "feature"], cwd=self.test_dir, capture_output=True)
+
+        (self.test_dir / "service.py").write_text("def changed():\n    return 2\n", encoding="utf-8")
+        subprocess.run(["git", "add", "service.py"], cwd=self.test_dir, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "feature"], cwd=self.test_dir, capture_output=True)
+
+        self.assertEqual(post_code_reviewer.get_modified_files(self.test_dir), ["service.py"])
+        self.assertIn("+++ b/service.py", post_code_reviewer.get_git_diff(self.test_dir))
+
     def test_validate_references_pack_json_resolves_against_repo_root(self):
         """Test validate-references.py resolves pack.json against repository root rather than teams/<team>/."""
         val_script = REPO_ROOT / "skills" / "workforce-management" / "scripts" / "validate-references.py"
