@@ -122,8 +122,8 @@ def _find_isolated_branch_base(root_dir: Path) -> str:
         return ""
     return _git_stdout(root_dir, "rev-parse", "--verify", f"{first_commit}^") or EMPTY_TREE_HASH
 
-def _find_best_known_branch_base(root_dir: Path, refs: List[str]) -> str:
-    """Choose the closest available merge-base from known branch refs."""
+def _find_best_branch_base(root_dir: Path, refs: List[str]) -> Tuple[str, Optional[int]]:
+    """Choose the closest available merge-base from candidate branch refs."""
     current_branch = _git_stdout(root_dir, "branch", "--show-current")
     current_head = _git_stdout(root_dir, "rev-parse", "HEAD")
     best_base = ""
@@ -131,8 +131,10 @@ def _find_best_known_branch_base(root_dir: Path, refs: List[str]) -> str:
     for ref in refs:
         if ref in {current_branch, f"origin/{current_branch}", current_head}:
             continue
+        if not _git_stdout(root_dir, "rev-parse", "--verify", ref):
+            continue
         merge_base = _git_stdout(root_dir, "merge-base", "HEAD", ref)
-        if not merge_base or merge_base == current_head:
+        if not merge_base or merge_base in {current_head, EMPTY_TREE_HASH}:
             continue
         distance_raw = _git_stdout(root_dir, "rev-list", "--count", f"{merge_base}..HEAD")
         try:
@@ -144,7 +146,7 @@ def _find_best_known_branch_base(root_dir: Path, refs: List[str]) -> str:
         if best_distance is None or distance < best_distance:
             best_base = merge_base
             best_distance = distance
-    return best_base
+    return best_base, best_distance
 
 def _find_branch_diff_base(root_dir: Path) -> str:
     """Find a reasonable base ref for committed branch diff review."""
@@ -162,15 +164,12 @@ def _find_branch_diff_base(root_dir: Path) -> str:
         ref_candidates = [*_normalize_base_ref(remote_head), *ref_candidates]
 
     known_refs = _list_branch_refs(root_dir)
-    for ref in ref_candidates:
-        if ref and _git_stdout(root_dir, "rev-parse", "--verify", ref):
-            merge_base = _git_stdout(root_dir, "merge-base", "HEAD", ref)
-            if merge_base:
-                return merge_base
-
-    best_known_base = _find_best_known_branch_base(root_dir, known_refs)
-    if best_known_base:
-        return best_known_base
+    explicit_base, explicit_distance = _find_best_branch_base(root_dir, ref_candidates)
+    known_base, known_distance = _find_best_branch_base(root_dir, known_refs)
+    if explicit_base and (known_distance is None or (explicit_distance is not None and explicit_distance <= known_distance)):
+        return explicit_base
+    if known_base:
+        return known_base
 
     if len(known_refs) <= 1:
         return _find_isolated_branch_base(root_dir)
