@@ -584,8 +584,8 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
             self.assertIn("❌ **Quality Gate Failed (Typecheck):**", msg)
             self.assertNotIn("Pre-Existing Codebase Quality Debt", msg)
 
-    def test_pre_existing_debt_with_ambiguous_short_path_remains_blocking(self):
-        """Test short/ambiguous diagnostic paths are treated as blocking failures."""
+    def test_pre_existing_debt_with_root_relative_path_is_non_blocking(self):
+        """Test repo-root diagnostic paths can be downgraded when untouched."""
         from unittest.mock import patch
         mock_output = "foo.ts:14:5 - error TS2322: Type 'string' is not assignable to type 'number'.\n"
         with patch("subprocess.run") as mock_run:
@@ -599,8 +599,8 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
                 modified_files=["src/foo.ts"],
                 candidates=[]
             )
-            self.assertIn("❌ **Quality Gate Failed (Typecheck):**", msg)
-            self.assertNotIn("Pre-Existing Codebase Quality Debt", msg)
+            self.assertIn("⚠️ **Pre-Existing Codebase Quality Debt (Typecheck):**", msg)
+            self.assertNotIn("❌", msg)
 
     def test_pre_existing_debt_with_dot_prefixed_path_remains_blocking(self):
         """Test dot-prefixed diagnostic paths are treated as ambiguous and remain blocking."""
