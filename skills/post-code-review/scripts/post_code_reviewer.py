@@ -82,12 +82,27 @@ def _git_stdout(root_dir: Path, *args: str) -> str:
         return ""
     return res.stdout.strip()
 
+def _normalize_base_ref(ref: str) -> List[str]:
+    """Expand a base-ref hint into likely git references without duplication."""
+    if not ref:
+        return []
+    normalized = ref.strip()
+    if not normalized:
+        return []
+    if normalized.startswith("refs/remotes/"):
+        normalized = normalized[len("refs/remotes/"):]
+    elif normalized.startswith("refs/heads/"):
+        normalized = normalized[len("refs/heads/"):]
+    if normalized.startswith("origin/"):
+        return [normalized]
+    return [f"origin/{normalized}", normalized]
+
 def _find_branch_diff_base(root_dir: Path) -> str:
     """Find a reasonable base ref for committed branch diff review."""
     env_base = os.getenv("GITHUB_BASE_REF") or os.getenv("COPILOT_BASE_REF") or os.getenv("BASE_REF")
     ref_candidates = []
     if env_base:
-        ref_candidates.extend([f"origin/{env_base}", env_base])
+        ref_candidates.extend(_normalize_base_ref(env_base))
     ref_candidates.extend(["origin/main", "origin/master", "origin/trunk", "origin/develop"])
 
     remote_head = _git_stdout(root_dir, "symbolic-ref", "--quiet", "refs/remotes/origin/HEAD")

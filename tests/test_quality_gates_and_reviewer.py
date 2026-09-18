@@ -639,6 +639,34 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
         self.assertIn("ADVISORY REVIEW FEEDBACK", report)
         self.assertTrue(passed, "Advisory heuristics on committed branch diffs should stay non-blocking")
 
+    def test_run_code_review_gate_accepts_fully_qualified_base_ref(self):
+        """Test clean-branch fallback accepts env base refs like origin/main."""
+        subprocess.run(["git", "init", "-b", "main"], cwd=self.test_dir, capture_output=True)
+        subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=self.test_dir, capture_output=True)
+        subprocess.run(["git", "config", "user.name", "Test"], cwd=self.test_dir, capture_output=True)
+
+        (self.test_dir / "service.py").write_text("def base():\n    return 1\n", encoding="utf-8")
+        subprocess.run(["git", "add", "service.py"], cwd=self.test_dir, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "base"], cwd=self.test_dir, capture_output=True)
+        origin_main = subprocess.run(["git", "rev-parse", "HEAD"], cwd=self.test_dir, capture_output=True, text=True).stdout.strip()
+        subprocess.run(["git", "update-ref", "refs/remotes/origin/main", origin_main], cwd=self.test_dir, capture_output=True)
+        subprocess.run(["git", "checkout", "-b", "feature"], cwd=self.test_dir, capture_output=True)
+
+        (self.test_dir / "service.py").write_text("def changed():\n    return 2\n", encoding="utf-8")
+        subprocess.run(["git", "add", "service.py"], cwd=self.test_dir, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "feature"], cwd=self.test_dir, capture_output=True)
+
+        old_base_ref = os.environ.get("GITHUB_BASE_REF")
+        os.environ["GITHUB_BASE_REF"] = "origin/main"
+        try:
+            self.assertEqual(post_code_reviewer.get_modified_files(self.test_dir), ["service.py"])
+            self.assertIn("+++ b/service.py", post_code_reviewer.get_git_diff(self.test_dir))
+        finally:
+            if old_base_ref is None:
+                os.environ.pop("GITHUB_BASE_REF", None)
+            else:
+                os.environ["GITHUB_BASE_REF"] = old_base_ref
+
     def test_validate_references_pack_json_resolves_against_repo_root(self):
         """Test validate-references.py resolves pack.json against repository root rather than teams/<team>/."""
         val_script = REPO_ROOT / "skills" / "workforce-management" / "scripts" / "validate-references.py"
