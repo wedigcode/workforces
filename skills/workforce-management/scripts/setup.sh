@@ -267,7 +267,9 @@ copy_file() {
   if [[ -f "$dest" ]] && cmp -s "$src" "$dest"; then
     SKIPPED=$((SKIPPED + 1))
   else
-    cp "$src" "$dest"
+    local tmp_dest="${dest}.tmp.$$"
+    cp "$src" "$tmp_dest"
+    mv -f "$tmp_dest" "$dest"
     echo -e "  ${GREEN}COPIED:${NC} $label"
     COPIED=$((COPIED + 1))
   fi
