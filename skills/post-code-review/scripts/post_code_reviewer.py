@@ -918,9 +918,14 @@ def _diagnostic_path_touches_modified(path: str, modified_paths: Set[str]) -> bo
     norm_path = str(Path(path).as_posix()).lstrip("./")
     for modified in modified_paths:
         norm_modified = str(Path(modified).as_posix()).lstrip("./")
-        if norm_path == norm_modified or norm_path.endswith(f"/{norm_modified}") or norm_modified.endswith(f"/{norm_path}"):
+        if norm_path == norm_modified or norm_path.endswith(f"/{norm_modified}"):
             return True
     return False
+
+def _is_unambiguous_diagnostic_path(path: str) -> bool:
+    """Return True when a diagnostic path is specific enough for debt classification."""
+    normalized = path.replace("\\", "/")
+    return "/" in normalized
 
 def _execute_single_check(
     target_dir: Path,
@@ -945,7 +950,10 @@ def _execute_single_check(
                     _diagnostic_path_touches_modified(path, mod_paths)
                     for path in diagnostic_paths
                 )
-                if diagnostic_paths and not touches_modified:
+                all_paths_unambiguous = bool(diagnostic_paths) and all(
+                    _is_unambiguous_diagnostic_path(path) for path in diagnostic_paths
+                )
+                if all_paths_unambiguous and not touches_modified:
                     if candidates is not None:
                         candidates.append(f"Pre-existing {check_type} quality debt in untouched files from `{cmd}` — schedule Code Quality Sprint")
                     return f"⚠️ **Pre-Existing Codebase Quality Debt ({check_type.title()}):** `{cmd}` surfaced errors in untouched legacy files (outside current diff). Non-blocking for current task.\n```\n{tail}\n```"

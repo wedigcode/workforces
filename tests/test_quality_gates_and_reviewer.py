@@ -584,6 +584,24 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
             self.assertIn("❌ **Quality Gate Failed (Typecheck):**", msg)
             self.assertNotIn("Pre-Existing Codebase Quality Debt", msg)
 
+    def test_pre_existing_debt_with_ambiguous_short_path_remains_blocking(self):
+        """Test short/ambiguous diagnostic paths are treated as blocking failures."""
+        from unittest.mock import patch
+        mock_output = "foo.ts:14:5 - error TS2322: Type 'string' is not assignable to type 'number'.\n"
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value.returncode = 1
+            mock_run.return_value.stdout = mock_output
+            mock_run.return_value.stderr = ""
+            msg = post_code_reviewer._execute_single_check(
+                self.test_dir,
+                "typecheck",
+                "tsc --noEmit",
+                modified_files=["src/foo.ts"],
+                candidates=[]
+            )
+            self.assertIn("❌ **Quality Gate Failed (Typecheck):**", msg)
+            self.assertNotIn("Pre-Existing Codebase Quality Debt", msg)
+
     def test_touched_lines_addition_only_not_context(self):
         """Test _get_touched_lines only tracks added (+) lines, not context lines."""
         diff = (
