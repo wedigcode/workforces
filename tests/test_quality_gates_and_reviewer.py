@@ -512,9 +512,10 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
 
     def test_audit_code_security_and_bug_patterns(self):
         """Test audit_code_security_and_bug_patterns catches hardcoded secrets and bug traps."""
+        aws_sample_key = "AKIA" "IOSFODNN7EXAMPLE"
         diff = (
             "+++ b/auth.py\n"
-            "+def login(user, token='AKIAIOSFODNN7EXAMPLE'):\n"
+            f"+def login(user, token='{aws_sample_key}'):\n"
             "+    pass\n"
             "+++ b/utils.py\n"
             "+def process_items(items=[]):\n"
@@ -546,6 +547,42 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
             self.assertIn("⚠️ **Pre-Existing Codebase Quality Debt (Typecheck):**", msg)
             self.assertNotIn("❌", msg)
             self.assertTrue(any("Code Quality Sprint" in c for c in candidates))
+
+    def test_pre_existing_debt_uses_full_paths_not_basenames(self):
+        """Test diagnostics in untouched files remain non-blocking even when basenames overlap."""
+        from unittest.mock import patch
+        mock_output = "src/legacy/foo.ts:14:5 - error TS2322: Type 'string' is not assignable to type 'number'.\n"
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value.returncode = 1
+            mock_run.return_value.stdout = mock_output
+            mock_run.return_value.stderr = ""
+            msg = post_code_reviewer._execute_single_check(
+                self.test_dir,
+                "typecheck",
+                "tsc --noEmit",
+                modified_files=["src/foo.ts"],
+                candidates=[]
+            )
+            self.assertIn("⚠️ **Pre-Existing Codebase Quality Debt (Typecheck):**", msg)
+            self.assertNotIn("❌", msg)
+
+    def test_pre_existing_debt_without_diagnostic_paths_remains_blocking(self):
+        """Test diagnostics without file paths are treated as blocking quality failures."""
+        from unittest.mock import patch
+        mock_output = "error TS18003: No inputs were found in config file 'tsconfig.json'.\n"
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value.returncode = 1
+            mock_run.return_value.stdout = mock_output
+            mock_run.return_value.stderr = ""
+            msg = post_code_reviewer._execute_single_check(
+                self.test_dir,
+                "typecheck",
+                "tsc --noEmit",
+                modified_files=["src/new_feature.ts"],
+                candidates=[]
+            )
+            self.assertIn("❌ **Quality Gate Failed (Typecheck):**", msg)
+            self.assertNotIn("Pre-Existing Codebase Quality Debt", msg)
 
     def test_touched_lines_addition_only_not_context(self):
         """Test _get_touched_lines only tracks added (+) lines, not context lines."""

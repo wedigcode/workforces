@@ -468,8 +468,6 @@ def get_known_legacy_obsolete_files(base_dir):
     """Returns list of relative paths of known historical Workforces files that were relocated or deleted."""
     candidates = []
     for p in LEGACY_OBSOLETE_SUBPATHS:
-        if p.startswith("docs/"):
-            candidates.append(os.path.normpath(p))
         candidates.append(os.path.normpath(os.path.join(base_dir, p)))
     return candidates
 

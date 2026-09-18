@@ -894,6 +894,34 @@ def detect_quality_commands(target_dir: Path) -> Dict[str, str]:
     _detect_go_commands(target_dir, commands)
     return commands
 
+def _extract_diagnostic_paths(lines: List[str]) -> Set[str]:
+    """Extract file paths from diagnostic lines in common compiler/linter formats."""
+    paths: Set[str] = set()
+    colon_path_patterns = (
+        r'([A-Za-z]:[\\/][^:\n]+?\.[A-Za-z0-9]+):\d+(?::\d+)?',  # Windows absolute paths
+        r'((?:\.{1,2}[\\/])?[^:\n]+?\.[A-Za-z0-9]+):\d+(?::\d+)?',  # relative/posix paths
+    )
+    for line in lines:
+        for pattern in colon_path_patterns:
+            for match in re.finditer(pattern, line):
+                candidate = match.group(1).strip().strip("'\"")
+                if candidate:
+                    paths.add(candidate.replace("\\", "/"))
+        for match in re.finditer(r'File "([^"]+)"', line):
+            candidate = match.group(1).strip()
+            if candidate:
+                paths.add(candidate.replace("\\", "/"))
+    return paths
+
+def _diagnostic_path_touches_modified(path: str, modified_paths: Set[str]) -> bool:
+    """Return whether a diagnostic path maps to one of the modified files."""
+    norm_path = str(Path(path).as_posix()).lstrip("./")
+    for modified in modified_paths:
+        norm_modified = str(Path(modified).as_posix()).lstrip("./")
+        if norm_path == norm_modified or norm_path.endswith(f"/{norm_modified}") or norm_modified.endswith(f"/{norm_path}"):
+            return True
+    return False
+
 def _execute_single_check(
     target_dir: Path,
     check_type: str,
@@ -911,13 +939,13 @@ def _execute_single_check(
 
             # For static analysis / linters, check if errors actually touch modified_files
             if check_type in ["typecheck", "lint"] and modified_files:
-                mod_names = {Path(m).name for m in modified_files}
-                mod_paths = {str(Path(m)) for m in modified_files}
+                mod_paths = {str(Path(m).as_posix()) for m in modified_files}
+                diagnostic_paths = _extract_diagnostic_paths(lines)
                 touches_modified = any(
-                    any(p in l or name in l for name in mod_names for p in mod_paths)
-                    for l in lines
+                    _diagnostic_path_touches_modified(path, mod_paths)
+                    for path in diagnostic_paths
                 )
-                if not touches_modified:
+                if diagnostic_paths and not touches_modified:
                     if candidates is not None:
                         candidates.append(f"Pre-existing {check_type} quality debt in untouched files from `{cmd}` — schedule Code Quality Sprint")
                     return f"⚠️ **Pre-Existing Codebase Quality Debt ({check_type.title()}):** `{cmd}` surfaced errors in untouched legacy files (outside current diff). Non-blocking for current task.\n```\n{tail}\n```"

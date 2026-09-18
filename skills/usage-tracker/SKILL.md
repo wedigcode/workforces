@@ -1,6 +1,6 @@
 ---
 name: usage-tracker
-description: Monitors, logs, and analyzes token consumption, thinking steps, and subagent invocations across Antigravity agent sessions (`workforces/tmp/usage-log.json`). Reach for this skill when auditing LLM resource utilization, evaluating the token cost of complex workflows, diagnosing prompt bloat and heavy tool outputs, or generating real-time turn summaries during execution.
+description: Monitors, logs, and analyzes token consumption, thinking steps, and subagent invocations across Antigravity agent sessions (`workforces/tmp/usage-log.json`). Reach for this skill when auditing LLM resource utilization, evaluating the token cost of complex workflows, diagnosing prompt bloat and heavy tool outputs, or generating on-demand usage summaries.
 ---
 # Usage Tracker Skill
 
