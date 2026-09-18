@@ -48,3 +48,12 @@ When in auto-execution mode (`--auto`, `--all`, or `auto_delegate: true`):
 
 - **Strict Factual Grounding**: Never fabricate customer quotes, metrics, or demand. Report pre-launch baselines explicitly.
 - **Hypothesis Conversion**: Untested assumptions must be logged as falsifiable hypotheses in `workforces/hypotheses/` with measurable kill thresholds.
+
+---
+
+## 6. Conversational Recall & Tentative Inquiry
+
+- **Thread Memory First**: When the user refers to past discussions, previous decisions, or earlier session context, consult immediate conversation thread history first. Do NOT automatically trigger disk-wide searches or inspect `workforces/session-context/`.
+- **Tentative Answers & Graded Confidence**: State what you recall from the current thread or working context with transparent confidence (e.g., *"Based on our earlier discussion..."* or *"I recall we discussed retiring X, but the files still exist on disk"*).
+- **Confirm Before Disk Cascades**: If thread memory is insufficient or ambiguous, ask the user before launching multi-file greps or historical transcript/session-context research cascades.
+

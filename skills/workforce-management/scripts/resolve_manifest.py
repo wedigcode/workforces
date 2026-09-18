@@ -24,7 +24,7 @@ CORE_SKILLS = {
     'wf-question-formulation', 'wf-update', 'wf-dashboard'
 }
 CORE_WORKFLOWS = set()
-CORE_PLUGINS = {'workforce-usage-plugin', 'workforce-integrity-plugin'}
+CORE_PLUGINS = {'workforce-integrity-plugin'}
 
 MANIFEST_REL_PATH = os.path.join("workforces", ".manifest.json")
 
@@ -42,6 +42,8 @@ LEGACY_OBSOLETE_SUBPATHS = [
     "plugins/workforce-integrity-plugin/skills/integrity-validator/SKILL.md",
     "plugins/workforce-programming-plugin/rules/clean-coder.md",
     "plugins/workforce-social-plugin/rules/social-engagement.md",
+    "plugins/workforce-usage-plugin/plugin.json",
+    "plugins/workforce-usage-plugin/hooks.json",
     "teams/skills/brand-guidelines/SKILL.md",
     "teams/skills/design-anti-patterns/SKILL.md",
     "teams/skills/ui-ux-design/SKILL.md",

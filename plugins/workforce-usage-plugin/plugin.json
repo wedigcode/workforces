@@ -1,6 +1,0 @@
-{
-  "name": "workforce-usage-plugin",
-  "version": "1.0.0",
-  "description": "Token and character usage tracking plugin for Antigravity workforces, model thoughts, and subagents.",
-  "skills": ["skills/usage-tracker"]
-}

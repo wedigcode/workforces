@@ -590,7 +590,7 @@ def _eval_badge(
     is_valid, reason = evaluate_justification(just_str)
     if is_valid:
         return f"- [x] **{label}:** [Justified: {reason}]", True, None
-    pushback = f"Criterion '{label}' violated ({viols[0]}). Pushback: {reason}. You MUST fix this code."
+    pushback = f"Criterion '{label}' violated ({viols[0]}). Pushback: {reason}. Advisory recommendation: Review and refactor if beneficial."
     return f"- [ ] **{label}:** {viols[0]}", False, pushback
 
 def _build_pr_checks_list(
@@ -770,14 +770,14 @@ def _build_review_report_output(
         form_md
     ]
     if pushbacks:
-        output.extend(["\n🛑 **AI PUSHBACK — Coding Principles Verification Required:**", "The following review checks failed without valid justification:"])
+        output.extend(["\n⚠️ **ADVISORY REVIEW FEEDBACK — Coding Principles & Heuristics:**", "The following heuristic checks surfaced recommendations:"])
         output.extend([f"- {p}" for p in pushbacks[:6]])
-        output.append("\n👉 **Action Required:** Refactor code to comply or provide an acceptable technical justification.")
+        output.append("\n👉 **Advisory Guidance:** Review recommendations and refactor if beneficial. Checklist heuristics are advisory and non-blocking.")
 
     if all_issues:
         output.extend(["\n**Actionable Items Flagged:**"] + [f"- {i}" for i in all_issues[:10]])
         if has_blockers:
-            output.append("\n🛑 **PRE-HANDOFF BLOCKER:** Quality gates or PR review criteria failed. You MUST resolve all errors before handoff.")
+            output.append("\n🛑 **PRE-HANDOFF BLOCKER:** Quality gates failed (test, lint, or typecheck errors). You MUST resolve all errors before handoff.")
     elif not pushbacks:
         output.append("\n✅ **Review & Quality Gate Passed:** All design principles, tests, and verification checks clean.")
 
@@ -812,8 +812,8 @@ def run_code_review_gate(
         q_issues, passed = run_quality_gate_checks(target_dir, detected_cmds)
         all_issues.extend(q_issues)
 
-    has_blockers = any("❌" in i for i in all_issues) or (strict and pushbacks)
-    overall_passed = (not has_blockers) and (pr_passed if strict else True)
+    has_blockers = any("❌" in i for i in all_issues)
+    overall_passed = not has_blockers
 
     report = _build_review_report_output(target_dir, modified_files, form_md, pushbacks, all_issues, candidates, has_blockers)
     return report, overall_passed

@@ -586,6 +586,55 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
         self.assertFalse(passed)
         self.assertTrue(any("exceeds 35 lines" in p for p in pushbacks))
 
+    def test_heuristics_advisory_non_blocking_in_gate(self):
+        """Test line length and checklist heuristics surface advisory feedback but do not block gate with strict=True."""
+        subprocess.run(["git", "init"], cwd=self.test_dir, capture_output=True)
+        subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=self.test_dir, capture_output=True)
+        subprocess.run(["git", "config", "user.name", "Test"], cwd=self.test_dir, capture_output=True)
+
+        long_func = "def long_function():\n" + "".join(f"    v_{i} = {i}\n" for i in range(40)) + "    return v_39\n"
+        (self.test_dir / "service.py").write_text(long_func, encoding="utf-8")
+
+        report, passed = post_code_reviewer.run_code_review_gate(
+            self.test_dir,
+            target_dir_arg=str(self.test_dir),
+            run_checks=False,
+            strict=True
+        )
+        self.assertTrue(passed, "Advisory checklist heuristics should not block execution even when strict=True")
+        self.assertIn("ADVISORY REVIEW FEEDBACK", report)
+        self.assertIn("no new code exceeds 35 lines", report)
+        self.assertNotIn("PRE-HANDOFF BLOCKER", report)
+
+    def test_validate_references_pack_json_resolves_against_repo_root(self):
+        """Test validate-references.py resolves pack.json against repository root rather than teams/<team>/."""
+        val_script = REPO_ROOT / "skills" / "workforce-management" / "scripts" / "validate-references.py"
+        teams_dir = self.test_dir / "teams" / "growth"
+        teams_dir.mkdir(parents=True, exist_ok=True)
+        rules_dir = self.test_dir / "rules"
+        rules_dir.mkdir(parents=True, exist_ok=True)
+        skills_dir = self.test_dir / "skills" / "sample-skill"
+        skills_dir.mkdir(parents=True, exist_ok=True)
+        (skills_dir / "SKILL.md").write_text("# Sample Skill\n", encoding="utf-8")
+        (rules_dir / "design-standards.md").write_text("# Design Standards\n", encoding="utf-8")
+
+        (teams_dir / "pack.json").write_text(json.dumps({
+            "name": "growth",
+            "rules": ["design-standards.md"],
+            "skills": ["sample-skill"],
+            "agents": [],
+            "workflows": []
+        }), encoding="utf-8")
+
+        res = subprocess.run(
+            [sys.executable, str(val_script), str(self.test_dir)],
+            capture_output=True,
+            text=True
+        )
+        self.assertEqual(res.returncode, 0, f"validate-references should exit 0 with pack.json resolving against root: {res.stdout}")
+        self.assertIn("Zero dangling file references found", res.stdout)
+        self.assertFalse((teams_dir / "design-standards.md").exists(), "Should not create dummy stub in teams/growth/")
+
 
 if __name__ == "__main__":
     unittest.main()

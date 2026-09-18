@@ -11,7 +11,7 @@ The `usage-tracker` skill enables real-time and historical token and content usa
 1. **Transcript Log Parsing**: Reads JSONL logs from `~/.gemini/antigravity/brain/` for main agents and subagents.
 2. **Thought & Reasoning Extraction**: Tracks model thoughts (`thinking` fields) separately from user inputs and final text responses.
 3. **Subagent Monitoring**: Detects subagent invocations (`invoke_subagent`) and tracks parent/child usage.
-4. **Automatic Real-time Logging**: Triggered automatically after tool calls via `post_tool_call` hooks in `workforce-usage-plugin`.
+4. **On-Demand & Event Logging**: Invoked via manual execution or workflow commands to update token and character consumption records.
 
 ## Output Files
 

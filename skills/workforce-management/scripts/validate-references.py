@@ -185,7 +185,7 @@ def audit_references(target_dir=".", fix=False):
     broken_refs = []
     pending_todos = []
 
-    ignored_dirs = {".git", "node_modules", ".tmp", "scratch", ".worktrees"}
+    ignored_dirs = {".git", "node_modules", ".tmp", "scratch", ".worktrees", "session-context"}
 
     for root, dirs, files in os.walk(target_dir):
         dirs[:] = [d for d in dirs if d not in ignored_dirs and "teamwork_preview_" not in d and not d.startswith("teamwork_preview_")]
@@ -208,31 +208,73 @@ def audit_references(target_dir=".", fix=False):
                 try:
                     data = json.loads(content)
                     if isinstance(data, dict):
+                        is_pack_json = (file == "pack.json")
                         for key in ["personas", "rules", "workflows", "agents", "skills"]:
                             for rel_ref in data.get(key, []):
-                                target_path = os.path.normpath(os.path.join(root, rel_ref))
-                                if not os.path.exists(target_path):
-                                    # Fallback: check standard directory in target_dir (e.g. rules/, workflows/, agents/, skills/)
+                                if is_pack_json:
+                                    # pack.json paths resolve against repository root (target_dir), not teams/<team>/
                                     candidates = [
                                         os.path.normpath(os.path.join(target_dir, key, rel_ref)),
                                         os.path.normpath(os.path.join(target_dir, key, rel_ref + ".md")),
                                         os.path.normpath(os.path.join(target_dir, rel_ref)),
                                         os.path.normpath(os.path.join(target_dir, rel_ref + ".md")),
-                                        os.path.normpath(os.path.join(root, rel_ref + ".md"))
+                                        os.path.normpath(os.path.join(target_dir, ".agents", key, rel_ref)),
+                                        os.path.normpath(os.path.join(target_dir, ".agents", key, rel_ref + ".md")),
+                                        os.path.normpath(os.path.join(target_dir, ".agents", rel_ref)),
+                                        os.path.normpath(os.path.join(target_dir, ".agents", rel_ref + ".md")),
                                     ]
+                                    if key == "skills":
+                                        candidates.extend([
+                                            os.path.normpath(os.path.join(target_dir, "skills", rel_ref, "SKILL.md")),
+                                            os.path.normpath(os.path.join(target_dir, ".agents", "skills", rel_ref, "SKILL.md")),
+                                        ])
                                     if rel_ref.endswith(".md"):
-                                        candidates.append(os.path.normpath(os.path.join(target_dir, key, rel_ref[:-3])))
+                                        candidates.extend([
+                                            os.path.normpath(os.path.join(target_dir, key, rel_ref[:-3])),
+                                            os.path.normpath(os.path.join(target_dir, ".agents", key, rel_ref[:-3])),
+                                        ])
+                                    target_path = None
                                     for c in candidates:
                                         if os.path.exists(c):
                                             target_path = c
                                             break
-                                if not os.path.exists(target_path):
-                                    broken_refs.append({
-                                        "source": rel_source,
-                                        "type": f"JSON {key}",
-                                        "ref": rel_ref,
-                                        "target": target_path
-                                    })
+                                    if not target_path:
+                                        fallback_name = rel_ref if (rel_ref.endswith(".md") or key == "skills") else f"{rel_ref}.md"
+                                        target_path = os.path.normpath(os.path.join(target_dir, key, fallback_name))
+                                        broken_refs.append({
+                                            "source": rel_source,
+                                            "type": f"JSON {key}",
+                                            "ref": rel_ref,
+                                            "target": target_path
+                                        })
+                                else:
+                                    target_path = os.path.normpath(os.path.join(root, rel_ref))
+                                    if not os.path.exists(target_path):
+                                        # Fallback: check standard directory in target_dir (e.g. rules/, workflows/, agents/, skills/)
+                                        candidates = [
+                                            os.path.normpath(os.path.join(target_dir, key, rel_ref)),
+                                            os.path.normpath(os.path.join(target_dir, key, rel_ref + ".md")),
+                                            os.path.normpath(os.path.join(target_dir, rel_ref)),
+                                            os.path.normpath(os.path.join(target_dir, rel_ref + ".md")),
+                                            os.path.normpath(os.path.join(root, rel_ref + ".md")),
+                                            os.path.normpath(os.path.join(target_dir, ".agents", key, rel_ref)),
+                                            os.path.normpath(os.path.join(target_dir, ".agents", key, rel_ref + ".md")),
+                                        ]
+                                        if key == "skills":
+                                            candidates.append(os.path.normpath(os.path.join(target_dir, "skills", rel_ref, "SKILL.md")))
+                                        if rel_ref.endswith(".md"):
+                                            candidates.append(os.path.normpath(os.path.join(target_dir, key, rel_ref[:-3])))
+                                        for c in candidates:
+                                            if os.path.exists(c):
+                                                target_path = c
+                                                break
+                                    if not os.path.exists(target_path):
+                                        broken_refs.append({
+                                            "source": rel_source,
+                                            "type": f"JSON {key}",
+                                            "ref": rel_ref,
+                                            "target": target_path
+                                        })
                 except Exception:
                     pass
 

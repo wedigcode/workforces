@@ -1,6 +1,0 @@
-# File: Brand Context
-
-Generated dependency for `teams/design/pack.json`.
-
-## Overview
-Auto-created by integrity audit to fulfill reference dependency.

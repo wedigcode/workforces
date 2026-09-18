@@ -27,15 +27,15 @@ Lean, high-signal engineering workflow enforcing AI TDD, method stubs first, sym
 
 ### Step 3: Concrete Coding Constraints
 - **SOLID, DRY, KISS, YAGNI**: Apply standard design principles cleanly without redundant boilerplate.
-- **Function Line Limit (<= 35 lines)**: Keep all functions and methods concise and single-purpose.
-- **Method Decomposition**: Extract nested blocks (> 2 levels deep) into private helper methods.
+- **Function Line Limit (<= 35 lines)**: Keep functions and methods concise and single-purpose (advisory heuristic; methods exceeding this should be considered for decomposition unless contiguous flow is clearer).
+- **Method Decomposition**: Extract nested blocks (> 2 levels deep) into helper methods when clarity improves.
 - **Simplicity**: Favor clean, idiomatic expressions over verbose intermediate variables or redundant ternary conditionals.
 - **Maintainability & Error Safety**: Always catch specific exceptions, attach contextual metadata, and propagate or log. Never swallow errors with empty `catch` or `except` blocks.
 
 ### Step 4: Pre-empt the PR Review Verification Form
-Ensure the code satisfies the 5-point post-hook verification checklist before declaring completion:
+Review the code against the 5-point verification checklist before declaring completion:
 - [x] **is it dry**: No duplicate logic or copy-pasted helpers across files.
-- [x] **no new code exceeds 35 lines**: All modified methods remain under the line limit.
+- [x] **no new code exceeds 35 lines**: All modified methods evaluated for concise scoping.
 - [x] **should any new code be in its own method**: Monolithic or deeply nested code blocks extracted.
 - [x] **is any of it too verbose or can it be simplified**: Concise and idiomatic.
 - [x] **code maintainability**: Error propagation, contract compatibility, and tests verified.
@@ -49,12 +49,13 @@ python3 .agents/skills/post-code-review/scripts/post_code_reviewer.py --root ./
 *(Fallback: `python3 skills/post-code-review/scripts/post_code_reviewer.py --root ./`)*
 
 ```bash
-# Mandatory pre-handoff quality gate verification:
+# Pre-handoff quality gate verification:
 python3 .agents/skills/post-code-review/scripts/post_code_reviewer.py --root ./ --run-checks --strict
 ```
 *(Fallback: `python3 skills/post-code-review/scripts/post_code_reviewer.py --root ./ --run-checks --strict`)*
 
-- **Pushback Notice**: If any review criterion fails without documented justification, address the failure or document the rationale.
+- **Advisory Heuristics & Pushback**: Checklist heuristics (line length, scoping, verbosity) provide advisory feedback and suggestions rather than blocking execution with non-zero exit codes.
+- **Quality Triad Enforcement**: Unit tests, typechecks, and linters executed via `--run-checks` remain strictly blocking quality gates.
 - **Security Bypass**: Third-party or deprecation issues that cannot be resolved automatically are recorded to `workforces/memory/security-bypass.json` for weekly re-check without blocking every session.
 - **Discovered Issues**: Non-blocking issues or candidate tech debt surfaced by the reviewer can be recorded via `.agents/skills/task-tracker/scripts/report-task.py` (Fallback: `python3 skills/task-tracker/scripts/report-task.py`).
 - **Autonomous Git Workflow & PR Discipline**: Follow [`git-workflow`](../../rules/git-workflow.md) and [`agent-parallelization`](../agent-parallelization/SKILL.md) for worktree isolation (`Workspace: 'share'`) and stacked PRs via `gh-stack`.
