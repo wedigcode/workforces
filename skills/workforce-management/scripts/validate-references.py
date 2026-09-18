@@ -12,6 +12,13 @@ import re
 import sys
 
 EDITOR_BASES = ("", ".agents", ".github/copilot", ".claude", ".grok")
+RUNTIME_SESSION_DIRS = (
+    "workforces/session-context",
+    "workforces/sessions",
+    ".agents/workforces/session-context",
+    ".agents/workforces/sessions",
+    ".agents/session-context",
+)
 
 
 def detect_editor_base(path, target_dir):
@@ -32,6 +39,12 @@ def build_pack_fix_target(target_dir, editor_base, key, rel_ref):
     fallback_name = rel_ref if rel_ref.endswith(".md") else f"{rel_ref}.md"
     subdir = "commands" if key == "workflows" and editor_base == ".grok" else key
     return os.path.normpath(os.path.join(base_dir, subdir, fallback_name))
+
+
+def is_excluded_runtime_dir(path, target_dir):
+    """Return True when a directory is one of the runtime-only session trees."""
+    rel_path = os.path.relpath(path, target_dir).replace("\\", "/")
+    return any(rel_path == excluded or rel_path.startswith(excluded + "/") for excluded in RUNTIME_SESSION_DIRS)
 
 
 def parse_frontmatter(content):
@@ -208,21 +221,13 @@ def audit_references(target_dir=".", fix=False):
     pending_todos = []
 
     ignored_dirs = {".git", "node_modules", ".tmp", "scratch", ".worktrees"}
-    session_excludes = (
-        "workforces/session-context",
-        "workforces/sessions",
-        ".agents/workforces/session-context",
-        ".agents/workforces/sessions",
-        ".agents/session-context",
-    )
 
     for root, dirs, files in os.walk(target_dir):
         filtered_dirs = []
         for d in dirs:
             if d in ignored_dirs or "teamwork_preview_" in d or d.startswith("teamwork_preview_"):
                 continue
-            rel_d = os.path.relpath(os.path.join(root, d), target_dir).replace("\\", "/")
-            if rel_d in session_excludes or any(rel_d.startswith(p + "/") for p in session_excludes):
+            if is_excluded_runtime_dir(os.path.join(root, d), target_dir):
                 continue
             filtered_dirs.append(d)
         dirs[:] = filtered_dirs
@@ -250,7 +255,7 @@ def audit_references(target_dir=".", fix=False):
                             for rel_ref in data.get(key, []):
                                 if is_pack_json:
                                     pack_editor_base = detect_editor_base(root, target_dir)
-                                    bases_to_check = [pack_editor_base] if pack_editor_base else EDITOR_BASES
+                                    bases_to_check = [pack_editor_base] if pack_editor_base else [""]
                                     candidates = []
                                     if key == "skills":
                                         for eb in bases_to_check:

@@ -896,6 +896,21 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
         self.assertIn("skills/session-context/SKILL.md", res.stdout)
         self.assertNotIn("001_note.md", res.stdout)
 
+    def test_validate_references_only_excludes_exact_runtime_session_paths(self):
+        """Test similarly named directories like session-context-backup are still audited."""
+        val_script = REPO_ROOT / "skills" / "workforce-management" / "scripts" / "validate-references.py"
+        backup_dir = self.test_dir / "workforces" / "session-context-backup"
+        backup_dir.mkdir(parents=True, exist_ok=True)
+        (backup_dir / "note.md").write_text("# Backup\n[Broken](missing.md)\n", encoding="utf-8")
+
+        res = subprocess.run(
+            [sys.executable, str(val_script), str(self.test_dir)],
+            capture_output=True,
+            text=True
+        )
+        self.assertEqual(res.returncode, 1)
+        self.assertIn("workforces/session-context-backup/note.md", res.stdout)
+
     def test_validate_references_enforces_skill_md_for_pack_skills(self):
         """Test validate-references.py requires SKILL.md for skill candidates and creates SKILL.md on fix."""
         val_script = REPO_ROOT / "skills" / "workforce-management" / "scripts" / "validate-references.py"
@@ -925,6 +940,25 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
 
         res = subprocess.run([sys.executable, str(val_script), str(self.test_dir)], capture_output=True, text=True)
         self.assertEqual(res.returncode, 0, f"Expected clean pass for .claude base: {res.stdout}")
+
+    def test_validate_references_root_pack_does_not_use_editor_local_rule(self):
+        """Test repo-root pack.json requires repo-root dependencies, not editor-local copies."""
+        val_script = REPO_ROOT / "skills" / "workforce-management" / "scripts" / "validate-references.py"
+        teams_dir = self.test_dir / "teams" / "dev"
+        teams_dir.mkdir(parents=True, exist_ok=True)
+        (teams_dir / "pack.json").write_text(json.dumps({"rules": ["only-claude.md"]}), encoding="utf-8")
+        claude_rules = self.test_dir / ".claude" / "rules"
+        claude_rules.mkdir(parents=True, exist_ok=True)
+        (claude_rules / "only-claude.md").write_text("# Claude Only\n", encoding="utf-8")
+
+        res = subprocess.run([sys.executable, str(val_script), str(self.test_dir)], capture_output=True, text=True)
+        self.assertEqual(res.returncode, 1)
+        self.assertIn("JSON rules: only-claude.md", res.stdout)
+
+        res_fix = subprocess.run([sys.executable, str(val_script), str(self.test_dir), "--fix"], capture_output=True, text=True)
+        self.assertEqual(res_fix.returncode, 0)
+        self.assertTrue((self.test_dir / "rules" / "only-claude.md").exists())
+        self.assertEqual((claude_rules / "only-claude.md").read_text(encoding="utf-8"), "# Claude Only\n")
 
     def test_validate_references_fix_stays_within_installed_editor_base(self):
         """Test validate-references.py --fix creates missing pack.json dependencies in the same installed base."""
