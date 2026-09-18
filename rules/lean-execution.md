@@ -12,9 +12,11 @@ This protocol enforces high-velocity execution, bounded investigation, and stric
 - **Satisficing Trigger**: The instant you possess sufficient evidence, context, or code references to answer the user's inquiry or execute the targeted fix, **STOP searching immediately**.
 - **No Speculative Over-Searching**: Do NOT execute additional "just-in-case" searches, secondary verifications, or exploratory queries once the core solution or answer is identified. If confidence in the solution exceeds 90%, proceed directly to resolution or response.
 
-## 2. Zero Unprompted Transcript Hunting
-- **Strict Prohibition**: NEVER read, grep, or search past conversation transcripts (`transcript.jsonl` or `transcript_full.jsonl`) unless the user explicitly requests historical retrieval (e.g., *"recall what we discussed yesterday"*, *"find the message from our last session"*).
-- **Context Primacy**: Rely strictly on active files, direct code references, and provided prompt context for real-time task execution.
+## 2. Zero Unprompted Transcript Hunting & Conversational Recall
+- **Strict Prohibition**: NEVER read, grep, or search past conversation transcripts (`transcript.jsonl` or `transcript_full.jsonl`) unless the user explicitly requests historical retrieval.
+- **Context Primacy & Thread Memory First**: When the user asks about prior discussions or decisions (e.g., *"didn't we remove X?"*, *"what did we decide on Y?"*), rely on in-context thread memory first. Do NOT initiate heavy disk searches across `workforces/session-context/` or historical logs automatically.
+- **Tentative Inquiry & Graded Confidence**: Provide a direct, tentative answer based on conversation memory and current workspace state with explicit confidence. If unsure or if disk retrieval is needed, confirm with the user before triggering search cascades.
+- **Hypothesis-Driven Lookups**: If file verification is required, verify targeted local files directly rather than broadly searching session histories.
 
 ## 3. Strict Scope & Blast Radius Confinement
 - **Localized Focus**: When assigned to debug, inspect, or modify a specific component (e.g., a helper function, a single template, a localized utility):

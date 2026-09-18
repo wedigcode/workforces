@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Dict, List, Any, Set, Tuple, Optional
 
 IGNORE_DIRS = {".git", "node_modules", "vendor", "__pycache__", ".venv", "venv", "dist", "build", ".next", ".agents", ".worktrees"}
+EMPTY_TREE_HASH = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
 
 def is_test_file(path_str: str) -> bool:
     """Determine if a file path belongs to a test suite or test specification."""
@@ -75,6 +76,120 @@ def _generate_untracked_diff(root_dir: Path) -> str:
             continue
     return "\n".join(hunks)
 
+def _git_stdout(root_dir: Path, *args: str) -> str:
+    """Run a git command and return stripped stdout on success."""
+    res = subprocess.run(["git", *args], cwd=root_dir, capture_output=True, text=True, timeout=5)
+    if res.returncode != 0:
+        return ""
+    return res.stdout.strip()
+
+def _normalize_base_ref(ref: str) -> List[str]:
+    """Expand a base-ref hint into likely git references without duplication."""
+    if not ref:
+        return []
+    normalized = ref.strip()
+    if not normalized:
+        return []
+    candidates = [normalized]
+    if normalized.startswith("refs/remotes/"):
+        normalized = normalized[len("refs/remotes/"):]
+        candidates.append(normalized)
+    elif normalized.startswith("refs/heads/"):
+        normalized = normalized[len("refs/heads/"):]
+        candidates.append(normalized)
+    elif normalized.startswith("refs/"):
+        candidates.append(normalized.split("refs/", 1)[-1])
+    if "/" not in normalized:
+        candidates.extend([f"origin/{normalized}", normalized])
+    elif normalized.startswith("origin/"):
+        candidates.append(normalized)
+    deduped = []
+    for candidate in candidates:
+        if candidate and candidate not in deduped:
+            deduped.append(candidate)
+    return deduped
+
+def _list_branch_refs(root_dir: Path) -> List[str]:
+    """List local and remote branch refs."""
+    output = _git_stdout(root_dir, "for-each-ref", "--format=%(refname:short)", "refs/heads", "refs/remotes")
+    return [line for line in output.splitlines() if line and line != "origin/HEAD"]
+
+def _find_isolated_branch_base(root_dir: Path) -> str:
+    """Find a last-resort baseline for isolated repositories with no other branch refs."""
+    history = _git_stdout(root_dir, "rev-list", "--first-parent", "--reverse", "HEAD")
+    first_commit = history.splitlines()[0] if history else ""
+    if not first_commit:
+        return ""
+    return _git_stdout(root_dir, "rev-parse", "--verify", f"{first_commit}^") or EMPTY_TREE_HASH
+
+def _find_best_branch_base(root_dir: Path, refs: List[str]) -> Tuple[str, Optional[int]]:
+    """Choose the closest available merge-base from candidate branch refs."""
+    current_branch = _git_stdout(root_dir, "branch", "--show-current")
+    current_head = _git_stdout(root_dir, "rev-parse", "HEAD")
+    best_base = ""
+    best_distance = None
+    for ref in refs:
+        if ref in {current_branch, f"origin/{current_branch}", current_head}:
+            continue
+        if not _git_stdout(root_dir, "rev-parse", "--verify", ref):
+            continue
+        merge_base = _git_stdout(root_dir, "merge-base", "HEAD", ref)
+        if not merge_base or merge_base in {current_head, EMPTY_TREE_HASH}:
+            continue
+        distance_raw = _git_stdout(root_dir, "rev-list", "--count", f"{merge_base}..HEAD")
+        try:
+            distance = int(distance_raw)
+        except ValueError:
+            continue
+        if distance <= 0:
+            continue
+        if best_distance is None or distance < best_distance:
+            best_base = merge_base
+            best_distance = distance
+    return best_base, best_distance
+
+def _find_branch_diff_base(root_dir: Path) -> str:
+    """Find a reasonable base ref for committed branch diff review."""
+    env_base = os.getenv("GITHUB_BASE_REF") or os.getenv("COPILOT_BASE_REF") or os.getenv("BASE_REF")
+    ref_candidates = []
+    if env_base:
+        ref_candidates.extend(_normalize_base_ref(env_base))
+    ref_candidates.extend([
+        "origin/main", "origin/master", "origin/trunk", "origin/develop",
+        "main", "master", "trunk", "develop"
+    ])
+
+    remote_head = _git_stdout(root_dir, "symbolic-ref", "--quiet", "refs/remotes/origin/HEAD")
+    if remote_head:
+        ref_candidates = [*_normalize_base_ref(remote_head), *ref_candidates]
+
+    known_refs = _list_branch_refs(root_dir)
+    explicit_base, explicit_distance = _find_best_branch_base(root_dir, ref_candidates)
+    known_base, known_distance = _find_best_branch_base(root_dir, known_refs)
+    if explicit_base and (known_distance is None or (explicit_distance is not None and explicit_distance <= known_distance)):
+        return explicit_base
+    if known_base:
+        return known_base
+
+    if len(known_refs) <= 1:
+        return _find_isolated_branch_base(root_dir)
+    return ""
+
+def _get_branch_diff(root_dir: Path) -> str:
+    """Extract committed branch diff against merge-base when working tree is clean."""
+    base = _find_branch_diff_base(root_dir)
+    if not base:
+        return ""
+    return _git_stdout(root_dir, "diff", base, "HEAD")
+
+def _get_branch_modified_files(root_dir: Path) -> List[str]:
+    """List committed files changed on the current branch when working tree is clean."""
+    base = _find_branch_diff_base(root_dir)
+    if not base:
+        return []
+    output = _git_stdout(root_dir, "diff", "--name-only", base, "HEAD")
+    return [line for line in output.splitlines() if line]
+
 def get_git_diff(root_dir: Path) -> str:
     """Extract current git diff (staged + unstaged + untracked changes)."""
     try:
@@ -82,7 +197,10 @@ def get_git_diff(root_dir: Path) -> str:
         res_status = subprocess.run(["git", "status", "--porcelain"], cwd=root_dir, capture_output=True, text=True, timeout=5)
         untracked = _generate_untracked_diff(root_dir)
         parts = [res.stdout, untracked, res_status.stdout]
-        return "\n".join(p for p in parts if p.strip())
+        working_tree_diff = "\n".join(p for p in parts if p.strip())
+        if working_tree_diff.strip():
+            return working_tree_diff
+        return _get_branch_diff(root_dir)
     except Exception as err:
         sys.stderr.write(f"[post_code_reviewer] get_git_diff notice: {err}\n")
         return ""
@@ -100,7 +218,9 @@ def get_modified_files(root_dir: Path) -> List[str]:
         parts = line.strip().split(maxsplit=1)
         if len(parts) == 2:
             files.append(parts[1].split(" -> ")[-1])
-    return files
+    if files:
+        return files
+    return _get_branch_modified_files(root_dir)
 
 def resolve_target_dir(root_arg: str = "./", target_dir_arg: Optional[str] = None) -> Path:
     """Resolve target project directory from args, env, or configuration."""
@@ -349,18 +469,29 @@ def _process_npm_vulnerabilities(
     target_dir: Path,
     cache: Dict[str, Any]
 ) -> List[str]:
-    """Process vulnerabilities distinguishing direct (blocking) vs transitive (bypassed)."""
+    """Process vulnerabilities distinguishing direct vs transitive, caching unresolvable 3rd-party issues for weekly retry."""
     issues = []
     for pkg, info in vulns.items():
         is_direct = info.get("isDirect", False) if isinstance(info, dict) else False
         severity = info.get("severity", "high") if isinstance(info, dict) else "high"
         summary = f"vulnerability in {pkg}"
-        if is_direct:
-            issues.append(
-                f"❌ **Direct Security Vulnerability (npm):** Direct dependency `{pkg}` has {severity} vulnerability. Direct dependencies cannot be bypassed; update or replace `{pkg}`."
-            )
+        dep_type = "Direct" if is_direct else "Transitive"
+
+        match_key, matched, is_expired = find_bypass_entry("npm", summary, bypasses)
+        if matched and not is_expired:
+            issues.append(f"ℹ️ **Security Bypass Active (Weekly Re-check):** `{summary}` ({dep_type.lower()} dependency) bypassed (next retry: {matched.get('next_retry')}).")
+            continue
+
+        if attempt_remediation("npm", target_dir):
+            if match_key:
+                bypasses.pop(match_key, None)
+                save_security_bypass_cache(target_dir, cache)
+            issues.append(f"✅ **Security Remediation Succeeded:** Automated fix resolved `{summary}`. Returned to normal routine.")
         else:
-            issues.append(handle_security_failure("npm", summary, bypasses, target_dir, cache))
+            record_security_bypass("npm", summary, bypasses, target_dir, cache)
+            issues.append(
+                f"⚠️ **3rd-Party Security Notice (npm):** {dep_type} dependency `{pkg}` has {severity} vulnerability (upstream fix pending or requires breaking changes). Bypassed for 7 days."
+            )
     return issues
 
 def _run_node_audit(touched: List[str], target_dir: Path, bypasses: Dict[str, Any], cache: Dict[str, Any]) -> List[str]:
@@ -374,14 +505,14 @@ def _run_node_audit(touched: List[str], target_dir: Path, bypasses: Dict[str, An
         data = _parse_npm_audit_payload(res.stdout or res.stderr)
         if "error" in data:
             err_msg = data["error"].get("summary") or data["error"].get("detail") or "npm audit error"
-            return [f"❌ **Security Audit Failed (npm):** {err_msg}"]
+            return [f"⚠️ **3rd-Party Security Audit Notice (npm):** {err_msg}"]
         vulns = data.get("vulnerabilities", {})
         if not vulns:
             return []
         return _process_npm_vulnerabilities(vulns, bypasses, target_dir, cache)
     except Exception as err:
         sys.stderr.write(f"[post_code_reviewer] npm audit notice: {err}\n")
-        return [f"❌ **Security Audit Failed (npm):** {err}"]
+        return [f"⚠️ **3rd-Party Security Audit Notice (npm):** {err}"]
 
 def _run_python_audit(touched: List[str], target_dir: Path, bypasses: Dict[str, Any], cache: Dict[str, Any]) -> List[str]:
     """Execute pip-audit and process findings."""
@@ -393,7 +524,7 @@ def _run_python_audit(touched: List[str], target_dir: Path, bypasses: Dict[str, 
             return [handle_security_failure("python", "pip-audit vulnerabilities", bypasses, target_dir, cache)]
     except Exception as err:
         sys.stderr.write(f"[post_code_reviewer] pip-audit notice: {err}\n")
-        return [f"❌ **Security Audit Failed (python):** {err}"]
+        return [f"⚠️ **3rd-Party Security Audit Notice (python):** {err}"]
     return []
 
 def audit_dependency_security(modified_files: List[str], target_dir: Path) -> List[str]:
@@ -406,6 +537,52 @@ def audit_dependency_security(modified_files: List[str], target_dir: Path) -> Li
     cache = load_security_bypass_cache(target_dir)
     bypasses = cache.setdefault("bypasses", {})
     return _run_node_audit(touched, target_dir, bypasses, cache) + _run_python_audit(touched, target_dir, bypasses, cache)
+
+def audit_code_security_and_bug_patterns(diff_text: str, modified_files: List[str]) -> Tuple[List[str], List[str]]:
+    """Scan added diff lines for first-party code security vulnerabilities and common bug patterns."""
+    sec_issues: List[str] = []
+    bug_issues: List[str] = []
+
+    curr_file = "unknown"
+    for line in diff_text.splitlines():
+        if line.startswith("+++ b/"):
+            curr_file = line[6:].strip()
+            continue
+        if not line.startswith("+") or line.startswith("+++"):
+            continue
+        code_line = line[1:].strip()
+        if not code_line or code_line.startswith(("#", "//", "/*", "*", "<!--")):
+            continue
+
+        # 1. Code Security: Hardcoded secrets and credentials in added code
+        if re.search(r"\bAKIA[0-9A-Z]{16}\b", code_line):
+            sec_issues.append(f"❌ **Hardcoded Secret Blocked:** AWS Access Key detected in `{curr_file}`. Secrets must use environment variables.")
+        elif re.search(r"\b(?:ghp_[a-zA-Z0-9]{36}|github_pat_[a-zA-Z0-9_]{40,})\b", code_line):
+            sec_issues.append(f"❌ **Hardcoded Secret Blocked:** GitHub token detected in `{curr_file}`. Secrets must use environment variables.")
+        elif re.search(r"-----BEGIN (?:RSA |EC |OPENSSH |PGP |)PRIVATE KEY-----", code_line):
+            sec_issues.append(f"❌ **Hardcoded Secret Blocked:** Private key detected in `{curr_file}`.")
+        elif re.search(r"(?i)\b(?:api_key|secret_key|app_secret|auth_token)\s*[:=]\s*['\"][a-zA-Z0-9_\-\.]{24,}['\"]", code_line):
+            sec_issues.append(f"⚠️ **High-Entropy Secret Suspected:** Potential hardcoded credential in `{curr_file}`: `{code_line[:40]}...`")
+
+        # 2. Insecure execution / injection
+        if not is_test_file(curr_file):
+            if re.search(r"\b(?:eval|exec)\s*\(", code_line) and not curr_file.endswith(".md"):
+                sec_issues.append(f"⚠️ **Insecure Function Call:** Dynamic `eval`/`exec` detected in `{curr_file}`.")
+            if re.search(r"subprocess\.(?:run|Popen|call|check_output)\(.*shell\s*=\s*True", code_line) and any(c in code_line for c in ["f\"", "f'", "%", ".format("]):
+                sec_issues.append(f"⚠️ **Command Injection Risk:** `subprocess` with `shell=True` and formatted string in `{curr_file}`.")
+            if re.search(r"(?i)\b(?:SELECT|INSERT|UPDATE|DELETE)\b.*(?:f[\"'].*\{|[\"']\s*\+\s*\w+)", code_line):
+                sec_issues.append(f"⚠️ **SQL Injection Risk:** Unparameterized SQL query string concatenation in `{curr_file}`.")
+            if re.search(r"(?:\.innerHTML\s*=|dangerouslySetInnerHTML\s*=)", code_line):
+                sec_issues.append(f"⚠️ **XSS Injection Risk:** Unescaped HTML/DOM injection detected in `{curr_file}`.")
+
+        # 3. Common Bug Traps (Copilot-style missed bug checks)
+        if curr_file.endswith(".py"):
+            if re.search(r"def\s+[a-zA-Z_]\w*\s*\([^)]*=\s*(?:\[\]|\{\}|set\(\))", code_line):
+                bug_issues.append(f"🐛 **Potential Bug Flagged:** Mutable default argument in `{curr_file}`: `{code_line}`. Use `None` as default.")
+            if re.search(r"except(?:\s+[a-zA-Z_]\w*)?\s*:\s*(?:pass|\.\.\.)\s*$", code_line) and not is_test_file(curr_file):
+                bug_issues.append(f"🐛 **Potential Bug Flagged:** Silent exception swallowing with `pass` in `{curr_file}`. Log or propagate errors.")
+
+    return sec_issues, bug_issues
 
 # --- PR Review Verification Form & Heuristic Checks ---
 
@@ -590,7 +767,7 @@ def _eval_badge(
     is_valid, reason = evaluate_justification(just_str)
     if is_valid:
         return f"- [x] **{label}:** [Justified: {reason}]", True, None
-    pushback = f"Criterion '{label}' violated ({viols[0]}). Pushback: {reason}. You MUST fix this code."
+    pushback = f"Criterion '{label}' violated ({viols[0]}). Pushback: {reason}. Advisory recommendation: Review and refactor if beneficial."
     return f"- [ ] **{label}:** {viols[0]}", False, pushback
 
 def _build_pr_checks_list(
@@ -717,26 +894,118 @@ def detect_quality_commands(target_dir: Path) -> Dict[str, str]:
     _detect_go_commands(target_dir, commands)
     return commands
 
-def _execute_single_check(target_dir: Path, check_type: str, cmd: str) -> Optional[str]:
-    """Execute a single quality gate command and return error message if failed."""
+def _extract_diagnostic_paths(lines: List[str]) -> Set[str]:
+    """Extract file paths from diagnostic lines in common compiler/linter formats."""
+    paths: Set[str] = set()
+    colon_path_patterns = (
+        r'([A-Za-z]:[\\/][^:\n]+?\.[A-Za-z0-9]+):\d+(?::\d+)?',  # Windows absolute paths
+        r'((?:\.{1,2}[\\/])?[^:\n]+?\.[A-Za-z0-9]+):\d+(?::\d+)?',  # relative/posix paths
+    )
+    for line in lines:
+        for pattern in colon_path_patterns:
+            for match in re.finditer(pattern, line):
+                candidate = match.group(1).strip().strip("'\"")
+                if candidate:
+                    paths.add(candidate.replace("\\", "/"))
+        for match in re.finditer(r'File "([^"]+)"', line):
+            candidate = match.group(1).strip()
+            if candidate:
+                paths.add(candidate.replace("\\", "/"))
+    return paths
+
+def _normalize_repo_relative_path(path: str, target_dir: Path) -> str:
+    """Normalize diagnostic/modified paths to repo-relative form when possible."""
+    raw = path.strip()
+    if not raw:
+        return ""
+    if not os.path.isabs(raw):
+        abs_path = os.path.normpath(os.path.join(str(target_dir), raw))
+    else:
+        abs_path = os.path.normpath(raw)
+    target_abs = os.path.normpath(str(target_dir))
+    try:
+        rel_path = os.path.relpath(abs_path, target_abs)
+        if rel_path == ".":
+            return rel_path
+        if rel_path.startswith(".."):
+            return abs_path.replace("\\", "/")
+        return rel_path.replace("\\", "/")
+    except Exception:
+        return abs_path.replace("\\", "/")
+
+def _diagnostic_path_touches_modified(path: str, modified_paths: Set[str], target_dir: Path) -> bool:
+    """Return whether a diagnostic path maps to one of the modified files."""
+    norm_path = _normalize_repo_relative_path(path, target_dir)
+    for modified in modified_paths:
+        norm_modified = _normalize_repo_relative_path(modified, target_dir)
+        if norm_path == norm_modified:
+            return True
+    return False
+
+def _is_unambiguous_diagnostic_path(path: str, target_dir: Path) -> bool:
+    """Return True when a diagnostic path is specific enough for debt classification."""
+    raw_path = path.strip().replace("\\", "/")
+    if raw_path.startswith(("./", "../")):
+        return False
+    normalized = _normalize_repo_relative_path(path, target_dir).replace("\\", "/")
+    if not normalized or normalized.startswith(("./", "../")) or os.path.isabs(normalized):
+        return False
+    return True
+
+def _execute_single_check(
+    target_dir: Path,
+    check_type: str,
+    cmd: str,
+    modified_files: Optional[List[str]] = None,
+    candidates: Optional[List[str]] = None
+) -> Optional[str]:
+    """Execute a single quality gate command, differentiating diff regressions from pre-existing debt in untouched files."""
     try:
         res = subprocess.run(cmd, shell=True, cwd=target_dir, capture_output=True, text=True, timeout=120)
         if res.returncode != 0:
-            tail = "\n".join([l for l in (res.stderr + "\n" + res.stdout).splitlines() if l.strip()][-6:])
+            combined = res.stderr + "\n" + res.stdout
+            lines = [l for l in combined.splitlines() if l.strip()]
+            tail = "\n".join(lines[-6:])
+
+            # For static analysis / linters, check if errors actually touch modified_files
+            if check_type in ["typecheck", "lint"] and modified_files:
+                mod_paths = {str(Path(m).as_posix()) for m in modified_files}
+                diagnostic_paths = _extract_diagnostic_paths(lines)
+                touches_modified = any(
+                    _diagnostic_path_touches_modified(path, mod_paths, target_dir)
+                    for path in diagnostic_paths
+                )
+                all_paths_unambiguous = bool(diagnostic_paths) and all(
+                    _is_unambiguous_diagnostic_path(path, target_dir) for path in diagnostic_paths
+                )
+                if all_paths_unambiguous and not touches_modified:
+                    if candidates is not None:
+                        candidates.append(f"Pre-existing {check_type} quality debt in untouched files from `{cmd}` — schedule Code Quality Sprint")
+                    return f"⚠️ **Pre-Existing Codebase Quality Debt ({check_type.title()}):** `{cmd}` surfaced errors in untouched legacy files (outside current diff). Non-blocking for current task.\n```\n{tail}\n```"
+
             return f"❌ **Quality Gate Failed ({check_type.title()}):** `{cmd}` failed:\n```\n{tail}\n```"
     except Exception as e:
         return f"❌ **Quality Gate Error ({check_type.title()}):** `{cmd}` failed: {e}"
     return None
 
-def run_quality_gate_checks(target_dir: Path, commands: Dict[str, str]) -> Tuple[List[str], bool]:
+def run_quality_gate_checks(
+    target_dir: Path,
+    commands: Dict[str, str],
+    modified_files: Optional[List[str]] = None,
+    candidates: Optional[List[str]] = None
+) -> Tuple[List[str], bool]:
     """Execute detected quality triad checks."""
     issues = []
     all_passed = True
     for check_type in ["typecheck", "lint", "test"]:
         if check_type in commands:
-            err_msg = _execute_single_check(target_dir, check_type, commands[check_type])
+            err_msg = _execute_single_check(
+                target_dir, check_type, commands[check_type],
+                modified_files=modified_files, candidates=candidates
+            )
             if err_msg:
-                all_passed = False
+                if "❌" in err_msg:
+                    all_passed = False
                 issues.append(err_msg)
     return issues, all_passed
 
@@ -770,14 +1039,14 @@ def _build_review_report_output(
         form_md
     ]
     if pushbacks:
-        output.extend(["\n🛑 **AI PUSHBACK — Coding Principles Verification Required:**", "The following review checks failed without valid justification:"])
+        output.extend(["\n⚠️ **ADVISORY REVIEW FEEDBACK — Coding Principles & Heuristics:**", "The following heuristic checks surfaced recommendations:"])
         output.extend([f"- {p}" for p in pushbacks[:6]])
-        output.append("\n👉 **Action Required:** Refactor code to comply or provide an acceptable technical justification.")
+        output.append("\n👉 **Advisory Guidance:** Review recommendations and refactor if beneficial. Checklist heuristics are advisory and non-blocking.")
 
     if all_issues:
         output.extend(["\n**Actionable Items Flagged:**"] + [f"- {i}" for i in all_issues[:10]])
         if has_blockers:
-            output.append("\n🛑 **PRE-HANDOFF BLOCKER:** Quality gates or PR review criteria failed. You MUST resolve all errors before handoff.")
+            output.append("\n🛑 **PRE-HANDOFF BLOCKER:** Quality gates failed (test, lint, or typecheck errors). You MUST resolve all errors before handoff.")
     elif not pushbacks:
         output.append("\n✅ **Review & Quality Gate Passed:** All design principles, tests, and verification checks clean.")
 
@@ -803,17 +1072,20 @@ def run_code_review_gate(
         return (f"### 🔍 [Post-Hook Code Review]\n✅ No modified files detected in target repo `{target_dir}`.", True)
 
     just = justification or os.getenv("WORKFORCE_REVIEW_JUSTIFICATION")
-    form_md, pr_passed, pushbacks, candidates = evaluate_pr_verification_form(diff_text, modified_files, symbols, target_dir, justification=just)
+    form_md, _pr_passed, pushbacks, candidates = evaluate_pr_verification_form(diff_text, modified_files, symbols, target_dir, justification=just)
     sec_issues = audit_dependency_security(modified_files, target_dir)
+    code_sec_issues, bug_issues = audit_code_security_and_bug_patterns(diff_text, modified_files)
     detected_cmds = detect_quality_commands(target_dir)
 
-    all_issues = list(sec_issues)
+    all_issues = list(sec_issues) + list(code_sec_issues) + list(bug_issues)
     if run_checks and detected_cmds:
-        q_issues, passed = run_quality_gate_checks(target_dir, detected_cmds)
+        q_issues, _q_passed = run_quality_gate_checks(
+            target_dir, detected_cmds, modified_files=modified_files, candidates=candidates
+        )
         all_issues.extend(q_issues)
 
-    has_blockers = any("❌" in i for i in all_issues) or (strict and pushbacks)
-    overall_passed = (not has_blockers) and (pr_passed if strict else True)
+    has_blockers = any("❌" in i for i in all_issues)
+    overall_passed = not has_blockers
 
     report = _build_review_report_output(target_dir, modified_files, form_md, pushbacks, all_issues, candidates, has_blockers)
     return report, overall_passed

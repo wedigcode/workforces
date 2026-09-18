@@ -236,6 +236,23 @@ class TestManifestAndUpdater(unittest.TestCase):
             self.assertFalse(os.path.exists(os.path.join(self.test_dir, lf)))
         self.assertTrue(os.path.exists(user_file))
 
+    def test_legacy_pruning_does_not_delete_repo_root_docs(self):
+        """Verify legacy pruning does not remove user-owned repo-root docs outside editor base."""
+        root_doc_rel = os.path.join("docs", "claude-scribe-prd.md")
+        root_doc_full = os.path.join(self.test_dir, root_doc_rel)
+        os.makedirs(os.path.dirname(root_doc_full), exist_ok=True)
+        with open(root_doc_full, "w", encoding="utf-8") as f:
+            f.write("# User-Owned PRD\n")
+
+        obsolete = find_obsolete_files(
+            target_dir=self.test_dir,
+            base_dir=".agents",
+            current_files=[],
+            toolkit_root=REPO_ROOT
+        )
+
+        self.assertNotIn(root_doc_rel, obsolete)
+
     def test_empty_directories_are_cleaned_up(self):
         """Verify empty parent directories are deleted after file pruning, while non-empty dirs remain."""
         nested_empty_dir = os.path.join(self.base_dir, "plugins", "old-empty-plugin", "subfolder")

@@ -24,7 +24,7 @@ CORE_SKILLS = {
     'wf-question-formulation', 'wf-update', 'wf-dashboard'
 }
 CORE_WORKFLOWS = set()
-CORE_PLUGINS = {'workforce-usage-plugin', 'workforce-integrity-plugin'}
+CORE_PLUGINS = {'workforce-integrity-plugin'}
 
 MANIFEST_REL_PATH = os.path.join("workforces", ".manifest.json")
 
@@ -38,10 +38,35 @@ LEGACY_OBSOLETE_SUBPATHS = [
     "agents/feature-researcher.md",
     "agents/integrity-auditor.md",
     "agents/social-engager.md",
+    "docs/claude-scribe-prd.md",
     "plugins/workforce-integrity-plugin/rules/file-integrity.md",
     "plugins/workforce-integrity-plugin/skills/integrity-validator/SKILL.md",
     "plugins/workforce-programming-plugin/rules/clean-coder.md",
     "plugins/workforce-social-plugin/rules/social-engagement.md",
+    "plugins/workforce-usage-plugin/plugin.json",
+    "plugins/workforce-usage-plugin/hooks.json",
+    "teams/compliance/file-integrity.md",
+    "teams/compliance/mcp-protection.md",
+    "teams/compliance/task.md",
+    "teams/compliance/verify-integrity.md",
+    "teams/design/brand-context.md",
+    "teams/design/design-standards.md",
+    "teams/design/site-setup.md",
+    "teams/dev/clean-coder.md",
+    "teams/dev/clean.md",
+    "teams/dev/improve.md",
+    "teams/dev/investigate.md",
+    "teams/growth/design-standards.md",
+    "teams/growth/feature.md",
+    "teams/marketing/brand-context.md",
+    "teams/marketing/design-standards.md",
+    "teams/operations/base.md",
+    "teams/operations/context.md",
+    "teams/operations/session-context.md",
+    "teams/operations/sync.md",
+    "teams/operations/task.md",
+    "teams/social/social-engagement.md",
+    "teams/social/social.md",
     "teams/skills/brand-guidelines/SKILL.md",
     "teams/skills/design-anti-patterns/SKILL.md",
     "teams/skills/ui-ux-design/SKILL.md",
@@ -440,8 +465,11 @@ def save_installed_manifest(target_dir, version, installed_teams, installed_file
     return manifest_path
 
 def get_known_legacy_obsolete_files(base_dir):
-    """Returns list of relative paths under base_dir of known historical Workforces files that were relocated or deleted."""
-    return [os.path.normpath(os.path.join(base_dir, p)) for p in LEGACY_OBSOLETE_SUBPATHS]
+    """Returns list of relative paths of known historical Workforces files that were relocated or deleted."""
+    candidates = []
+    for p in LEGACY_OBSOLETE_SUBPATHS:
+        candidates.append(os.path.normpath(os.path.join(base_dir, p)))
+    return candidates
 
 def find_obsolete_files(target_dir, base_dir, current_files, toolkit_root=None):
     """

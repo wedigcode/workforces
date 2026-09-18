@@ -1,17 +1,17 @@
 ---
 name: usage-tracker
-description: Monitors, logs, and analyzes token consumption, thinking steps, and subagent invocations across Antigravity agent sessions (`workforces/tmp/usage-log.json`). Reach for this skill when auditing LLM resource utilization, evaluating the token cost of complex workflows, diagnosing prompt bloat and heavy tool outputs, or generating real-time turn summaries during execution.
+description: Monitors, logs, and analyzes token consumption, thinking steps, and subagent invocations across Antigravity agent sessions (`workforces/tmp/usage-log.json`). Reach for this skill when auditing LLM resource utilization, evaluating the token cost of complex workflows, diagnosing prompt bloat and heavy tool outputs, or generating on-demand usage summaries.
 ---
 # Usage Tracker Skill
 
-The `usage-tracker` skill enables real-time and historical token and content usage tracking across Antigravity agent sessions and subagents.
+The `usage-tracker` skill enables on-demand and historical token and content usage tracking across Antigravity agent sessions and subagents.
 
 ## Capabilities
 
 1. **Transcript Log Parsing**: Reads JSONL logs from `~/.gemini/antigravity/brain/` for main agents and subagents.
 2. **Thought & Reasoning Extraction**: Tracks model thoughts (`thinking` fields) separately from user inputs and final text responses.
 3. **Subagent Monitoring**: Detects subagent invocations (`invoke_subagent`) and tracks parent/child usage.
-4. **Automatic Real-time Logging**: Triggered automatically after tool calls via `post_tool_call` hooks in `workforce-usage-plugin`.
+4. **On-Demand & Event Logging**: Invoked via manual execution or workflow commands to update token and character consumption records.
 
 ## Output Files
 

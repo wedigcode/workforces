@@ -11,6 +11,41 @@ import os
 import re
 import sys
 
+EDITOR_BASES = ("", ".agents", ".github/copilot", ".claude", ".grok")
+RUNTIME_SESSION_DIRS = (
+    "workforces/session-context",
+    "workforces/sessions",
+    ".agents/workforces/session-context",
+    ".agents/workforces/sessions",
+    ".agents/session-context",
+)
+
+
+def detect_editor_base(path, target_dir):
+    """Return the installed editor base prefix for a path, if any."""
+    rel_path = os.path.relpath(path, target_dir).replace("\\", "/")
+    for base in sorted((b for b in EDITOR_BASES if b), key=len, reverse=True):
+        if rel_path == base or rel_path.startswith(base + "/"):
+            return base
+    return ""
+
+
+def build_pack_fix_target(target_dir, editor_base, key, rel_ref):
+    """Build the auto-fix target path for a missing pack.json reference."""
+    base_dir = os.path.join(target_dir, editor_base) if editor_base else target_dir
+    if key == "skills":
+        return os.path.normpath(os.path.join(base_dir, "skills", rel_ref, "SKILL.md"))
+
+    fallback_name = rel_ref if rel_ref.endswith(".md") else f"{rel_ref}.md"
+    subdir = "commands" if key == "workflows" and editor_base == ".grok" else key
+    return os.path.normpath(os.path.join(base_dir, subdir, fallback_name))
+
+
+def is_excluded_runtime_dir(path, target_dir):
+    """Return True when a directory is one of the runtime-only session trees."""
+    rel_path = os.path.relpath(path, target_dir).replace("\\", "/")
+    return any(rel_path == excluded or rel_path.startswith(excluded + "/") for excluded in RUNTIME_SESSION_DIRS)
+
 
 def parse_frontmatter(content):
     """Extract YAML-style frontmatter and body from markdown content."""
@@ -188,7 +223,14 @@ def audit_references(target_dir=".", fix=False):
     ignored_dirs = {".git", "node_modules", ".tmp", "scratch", ".worktrees"}
 
     for root, dirs, files in os.walk(target_dir):
-        dirs[:] = [d for d in dirs if d not in ignored_dirs and "teamwork_preview_" not in d and not d.startswith("teamwork_preview_")]
+        filtered_dirs = []
+        for d in dirs:
+            if d in ignored_dirs or "teamwork_preview_" in d or d.startswith("teamwork_preview_"):
+                continue
+            if is_excluded_runtime_dir(os.path.join(root, d), target_dir):
+                continue
+            filtered_dirs.append(d)
+        dirs[:] = filtered_dirs
 
         for file in files:
             if not file.endswith((".md", ".json")):
@@ -208,31 +250,75 @@ def audit_references(target_dir=".", fix=False):
                 try:
                     data = json.loads(content)
                     if isinstance(data, dict):
+                        is_pack_json = (file == "pack.json")
                         for key in ["personas", "rules", "workflows", "agents", "skills"]:
                             for rel_ref in data.get(key, []):
-                                target_path = os.path.normpath(os.path.join(root, rel_ref))
-                                if not os.path.exists(target_path):
-                                    # Fallback: check standard directory in target_dir (e.g. rules/, workflows/, agents/, skills/)
-                                    candidates = [
-                                        os.path.normpath(os.path.join(target_dir, key, rel_ref)),
-                                        os.path.normpath(os.path.join(target_dir, key, rel_ref + ".md")),
-                                        os.path.normpath(os.path.join(target_dir, rel_ref)),
-                                        os.path.normpath(os.path.join(target_dir, rel_ref + ".md")),
-                                        os.path.normpath(os.path.join(root, rel_ref + ".md"))
-                                    ]
-                                    if rel_ref.endswith(".md"):
-                                        candidates.append(os.path.normpath(os.path.join(target_dir, key, rel_ref[:-3])))
+                                if is_pack_json:
+                                    pack_editor_base = detect_editor_base(root, target_dir)
+                                    bases_to_check = [pack_editor_base] if pack_editor_base else [""]
+                                    candidates = []
+                                    if key == "skills":
+                                        for eb in bases_to_check:
+                                            b = os.path.join(target_dir, eb) if eb else target_dir
+                                            candidates.append(os.path.normpath(os.path.join(b, "skills", rel_ref, "SKILL.md")))
+                                    else:
+                                        for eb in bases_to_check:
+                                            b = os.path.join(target_dir, eb) if eb else target_dir
+                                            candidates.extend([
+                                                os.path.normpath(os.path.join(b, key, rel_ref)),
+                                                os.path.normpath(os.path.join(b, key, rel_ref + ".md")),
+                                                os.path.normpath(os.path.join(b, rel_ref)),
+                                                os.path.normpath(os.path.join(b, rel_ref + ".md")),
+                                            ])
+                                            if key == "workflows" and eb == ".grok":
+                                                candidates.extend([
+                                                    os.path.normpath(os.path.join(b, "commands", rel_ref)),
+                                                    os.path.normpath(os.path.join(b, "commands", rel_ref + ".md")),
+                                                ])
+                                            if rel_ref.endswith(".md"):
+                                                candidates.append(os.path.normpath(os.path.join(b, key, rel_ref[:-3])))
+
+                                    target_path = None
                                     for c in candidates:
                                         if os.path.exists(c):
                                             target_path = c
                                             break
-                                if not os.path.exists(target_path):
-                                    broken_refs.append({
-                                        "source": rel_source,
-                                        "type": f"JSON {key}",
-                                        "ref": rel_ref,
-                                        "target": target_path
-                                    })
+                                    if not target_path:
+                                        target_path = build_pack_fix_target(target_dir, pack_editor_base, key, rel_ref)
+                                        broken_refs.append({
+                                            "source": rel_source,
+                                            "type": f"JSON {key}",
+                                            "ref": rel_ref,
+                                            "target": target_path
+                                        })
+                                else:
+                                    target_path = os.path.normpath(os.path.join(root, rel_ref))
+                                    if not os.path.exists(target_path):
+                                        # Fallback: check standard directory in target_dir (e.g. rules/, workflows/, agents/, skills/)
+                                        candidates = [
+                                            os.path.normpath(os.path.join(target_dir, key, rel_ref)),
+                                            os.path.normpath(os.path.join(target_dir, key, rel_ref + ".md")),
+                                            os.path.normpath(os.path.join(target_dir, rel_ref)),
+                                            os.path.normpath(os.path.join(target_dir, rel_ref + ".md")),
+                                            os.path.normpath(os.path.join(root, rel_ref + ".md")),
+                                            os.path.normpath(os.path.join(target_dir, ".agents", key, rel_ref)),
+                                            os.path.normpath(os.path.join(target_dir, ".agents", key, rel_ref + ".md")),
+                                        ]
+                                        if key == "skills":
+                                            candidates.append(os.path.normpath(os.path.join(target_dir, "skills", rel_ref, "SKILL.md")))
+                                        if rel_ref.endswith(".md"):
+                                            candidates.append(os.path.normpath(os.path.join(target_dir, key, rel_ref[:-3])))
+                                        for c in candidates:
+                                            if os.path.exists(c):
+                                                target_path = c
+                                                break
+                                    if not os.path.exists(target_path):
+                                        broken_refs.append({
+                                            "source": rel_source,
+                                            "type": f"JSON {key}",
+                                            "ref": rel_ref,
+                                            "target": target_path
+                                        })
                 except Exception:
                     pass
 
@@ -341,6 +427,10 @@ def audit_references(target_dir=".", fix=False):
                     header_type = "Rule"
                 elif "workflows" in item['target']:
                     header_type = "Workflow"
+                elif "skills" in item['target']:
+                    header_type = "Skill"
+                elif "agents" in item['target']:
+                    header_type = "Agent"
 
                 stub_content = f"# {header_type}: {title}\n\nGenerated dependency for `{item['source']}`.\n\n## Overview\nAuto-created by integrity audit to fulfill reference dependency.\n"
                 with open(item['target'], "w", encoding="utf-8") as f:

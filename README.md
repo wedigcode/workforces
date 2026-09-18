@@ -79,7 +79,7 @@ For more setup options and environment configuration, see the [Setup Guide](docs
 | [`workforce-management`](skills/workforce-management/SKILL.md) | Update, patch, and align settings for the Workforces toolkit |
 | [`business-frameworks`](skills/business-frameworks/SKILL.md) | Contemporary MBA strategy frameworks, Value Stick, JTBD, Growth Loops, and SaaS unit economics |
 | [`feature-research`](skills/feature-research/SKILL.md) | Research-first pipeline: gap analysis, PRD, and work breakdown across projects |
-| [`usage-tracker`](skills/usage-tracker/SKILL.md) | Real-time token, character, thought, and subagent usage tracking across agent sessions |
+| [`usage-tracker`](skills/usage-tracker/SKILL.md) | On-demand and historical token, character, thought, and subagent usage tracking across agent sessions |
 
 ### Agents & Team Roster
 Full roster documentation available in [`docs/teams-and-agents.md`](docs/teams-and-agents.md).
