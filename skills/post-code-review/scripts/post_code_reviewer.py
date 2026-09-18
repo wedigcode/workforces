@@ -90,21 +90,61 @@ def _normalize_base_ref(ref: str) -> List[str]:
     normalized = ref.strip()
     if not normalized:
         return []
+    candidates = [normalized]
     if normalized.startswith("refs/remotes/"):
         normalized = normalized[len("refs/remotes/"):]
+        candidates.append(normalized)
     elif normalized.startswith("refs/heads/"):
         normalized = normalized[len("refs/heads/"):]
-    if normalized.startswith("origin/"):
-        return [normalized]
-    return [f"origin/{normalized}", normalized]
+        candidates.append(normalized)
+    elif normalized.startswith("refs/"):
+        candidates.append(normalized.split("refs/", 1)[-1])
+    if "/" not in normalized:
+        candidates.extend([f"origin/{normalized}", normalized])
+    elif normalized.startswith("origin/"):
+        candidates.append(normalized)
+    deduped = []
+    for candidate in candidates:
+        if candidate and candidate not in deduped:
+            deduped.append(candidate)
+    return deduped
 
-def _find_first_parent_branch_root_base(root_dir: Path) -> str:
-    """Find the oldest locally available first-parent ancestor baseline."""
+def _list_branch_refs(root_dir: Path) -> List[str]:
+    """List local and remote branch refs."""
+    output = _git_stdout(root_dir, "for-each-ref", "--format=%(refname:short)", "refs/heads", "refs/remotes")
+    return [line for line in output.splitlines() if line and line != "origin/HEAD"]
+
+def _find_isolated_branch_base(root_dir: Path) -> str:
+    """Find a last-resort baseline for isolated repositories with no other branch refs."""
     history = _git_stdout(root_dir, "rev-list", "--first-parent", "--reverse", "HEAD")
     first_commit = history.splitlines()[0] if history else ""
     if not first_commit:
         return ""
     return _git_stdout(root_dir, "rev-parse", "--verify", f"{first_commit}^") or EMPTY_TREE_HASH
+
+def _find_best_known_branch_base(root_dir: Path, refs: List[str]) -> str:
+    """Choose the closest available merge-base from known branch refs."""
+    current_branch = _git_stdout(root_dir, "branch", "--show-current")
+    current_head = _git_stdout(root_dir, "rev-parse", "HEAD")
+    best_base = ""
+    best_distance = None
+    for ref in refs:
+        if ref in {current_branch, f"origin/{current_branch}", current_head}:
+            continue
+        merge_base = _git_stdout(root_dir, "merge-base", "HEAD", ref)
+        if not merge_base or merge_base == current_head:
+            continue
+        distance_raw = _git_stdout(root_dir, "rev-list", "--count", f"{merge_base}..HEAD")
+        try:
+            distance = int(distance_raw)
+        except ValueError:
+            continue
+        if distance <= 0:
+            continue
+        if best_distance is None or distance < best_distance:
+            best_base = merge_base
+            best_distance = distance
+    return best_base
 
 def _find_branch_diff_base(root_dir: Path) -> str:
     """Find a reasonable base ref for committed branch diff review."""
@@ -121,13 +161,20 @@ def _find_branch_diff_base(root_dir: Path) -> str:
     if remote_head:
         ref_candidates.insert(0, remote_head)
 
+    known_refs = _list_branch_refs(root_dir)
     for ref in ref_candidates:
         if ref and _git_stdout(root_dir, "rev-parse", "--verify", ref):
             merge_base = _git_stdout(root_dir, "merge-base", "HEAD", ref)
             if merge_base:
                 return merge_base
 
-    return _find_first_parent_branch_root_base(root_dir)
+    best_known_base = _find_best_known_branch_base(root_dir, known_refs)
+    if best_known_base:
+        return best_known_base
+
+    if len(known_refs) <= 1:
+        return _find_isolated_branch_base(root_dir)
+    return ""
 
 def _get_branch_diff(root_dir: Path) -> str:
     """Extract committed branch diff against merge-base when working tree is clean."""

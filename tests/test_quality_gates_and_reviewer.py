@@ -667,6 +667,34 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
             else:
                 os.environ["GITHUB_BASE_REF"] = old_base_ref
 
+    def test_run_code_review_gate_accepts_non_origin_remote_base_ref(self):
+        """Test clean-branch fallback accepts fully qualified non-origin remote refs."""
+        subprocess.run(["git", "init", "-b", "main"], cwd=self.test_dir, capture_output=True)
+        subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=self.test_dir, capture_output=True)
+        subprocess.run(["git", "config", "user.name", "Test"], cwd=self.test_dir, capture_output=True)
+
+        (self.test_dir / "service.py").write_text("def base():\n    return 1\n", encoding="utf-8")
+        subprocess.run(["git", "add", "service.py"], cwd=self.test_dir, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "base"], cwd=self.test_dir, capture_output=True)
+        upstream_main = subprocess.run(["git", "rev-parse", "HEAD"], cwd=self.test_dir, capture_output=True, text=True).stdout.strip()
+        subprocess.run(["git", "update-ref", "refs/remotes/upstream/main", upstream_main], cwd=self.test_dir, capture_output=True)
+        subprocess.run(["git", "checkout", "-b", "feature"], cwd=self.test_dir, capture_output=True)
+
+        (self.test_dir / "service.py").write_text("def changed():\n    return 2\n", encoding="utf-8")
+        subprocess.run(["git", "add", "service.py"], cwd=self.test_dir, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "feature"], cwd=self.test_dir, capture_output=True)
+
+        old_base_ref = os.environ.get("GITHUB_BASE_REF")
+        os.environ["GITHUB_BASE_REF"] = "refs/remotes/upstream/main"
+        try:
+            self.assertEqual(post_code_reviewer.get_modified_files(self.test_dir), ["service.py"])
+            self.assertIn("+++ b/service.py", post_code_reviewer.get_git_diff(self.test_dir))
+        finally:
+            if old_base_ref is None:
+                os.environ.pop("GITHUB_BASE_REF", None)
+            else:
+                os.environ["GITHUB_BASE_REF"] = old_base_ref
+
     def test_run_code_review_gate_falls_back_to_full_local_branch_lineage(self):
         """Test clean-branch fallback reviews all locally available commits, not just HEAD~1."""
         subprocess.run(["git", "init", "-b", "feature"], cwd=self.test_dir, capture_output=True)
