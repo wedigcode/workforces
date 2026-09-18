@@ -915,20 +915,23 @@ def _extract_diagnostic_paths(lines: List[str]) -> Set[str]:
 
 def _normalize_repo_relative_path(path: str, target_dir: Path) -> str:
     """Normalize diagnostic/modified paths to repo-relative form when possible."""
+    raw = path.strip()
+    if not raw:
+        return ""
+    if not os.path.isabs(raw):
+        abs_path = os.path.normpath(os.path.join(str(target_dir), raw))
+    else:
+        abs_path = os.path.normpath(raw)
+    target_abs = os.path.normpath(str(target_dir))
     try:
-        raw = Path(path.strip())
+        rel_path = os.path.relpath(abs_path, target_abs)
+        if rel_path == ".":
+            return rel_path
+        if rel_path.startswith(".."):
+            return abs_path.replace("\\", "/")
+        return rel_path.replace("\\", "/")
     except Exception:
-        return path.replace("\\", "/").lstrip("./")
-
-    if not raw.is_absolute():
-        raw = (target_dir / raw)
-
-    resolved_target = target_dir.resolve()
-    resolved_path = raw.resolve()
-    try:
-        return resolved_path.relative_to(resolved_target).as_posix()
-    except ValueError:
-        return resolved_path.as_posix()
+        return abs_path.replace("\\", "/")
 
 def _diagnostic_path_touches_modified(path: str, modified_paths: Set[str], target_dir: Path) -> bool:
     """Return whether a diagnostic path maps to one of the modified files."""
