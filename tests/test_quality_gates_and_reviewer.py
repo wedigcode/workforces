@@ -655,6 +655,36 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
         self.assertIn("skills/session-context/SKILL.md", res.stdout)
         self.assertNotIn("001_note.md", res.stdout)
 
+    def test_validate_references_enforces_skill_md_for_pack_skills(self):
+        """Test validate-references.py requires SKILL.md for skill candidates and creates SKILL.md on fix."""
+        val_script = REPO_ROOT / "skills" / "workforce-management" / "scripts" / "validate-references.py"
+        teams_dir = self.test_dir / "teams" / "dev"
+        teams_dir.mkdir(parents=True, exist_ok=True)
+        (teams_dir / "pack.json").write_text(json.dumps({"skills": ["my-skill"]}), encoding="utf-8")
+        (self.test_dir / "skills" / "my-skill").mkdir(parents=True, exist_ok=True)
+
+        res = subprocess.run([sys.executable, str(val_script), str(self.test_dir)], capture_output=True, text=True)
+        self.assertEqual(res.returncode, 1)
+        self.assertIn("JSON skills: my-skill", res.stdout)
+
+        res_fix = subprocess.run([sys.executable, str(val_script), str(self.test_dir), "--fix"], capture_output=True, text=True)
+        self.assertEqual(res_fix.returncode, 0)
+        self.assertTrue((self.test_dir / "skills" / "my-skill" / "SKILL.md").exists())
+
+    def test_validate_references_supports_non_agents_editor_bases(self):
+        """Test validate-references.py resolves pack.json against .claude and other editor bases."""
+        val_script = REPO_ROOT / "skills" / "workforce-management" / "scripts" / "validate-references.py"
+        teams_dir = self.test_dir / ".claude" / "teams" / "dev"
+        teams_dir.mkdir(parents=True, exist_ok=True)
+        (teams_dir / "pack.json").write_text(json.dumps({"rules": ["clean-coder.md"], "skills": ["my-skill"]}), encoding="utf-8")
+        (self.test_dir / ".claude" / "rules").mkdir(parents=True, exist_ok=True)
+        (self.test_dir / ".claude" / "rules" / "clean-coder.md").write_text("# Rule\n", encoding="utf-8")
+        (self.test_dir / ".claude" / "skills" / "my-skill").mkdir(parents=True, exist_ok=True)
+        (self.test_dir / ".claude" / "skills" / "my-skill" / "SKILL.md").write_text("# Skill\n", encoding="utf-8")
+
+        res = subprocess.run([sys.executable, str(val_script), str(self.test_dir)], capture_output=True, text=True)
+        self.assertEqual(res.returncode, 0, f"Expected clean pass for .claude base: {res.stdout}")
+
 
 if __name__ == "__main__":
     unittest.main()

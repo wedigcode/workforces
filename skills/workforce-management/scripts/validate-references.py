@@ -220,27 +220,30 @@ def audit_references(target_dir=".", fix=False):
                         for key in ["personas", "rules", "workflows", "agents", "skills"]:
                             for rel_ref in data.get(key, []):
                                 if is_pack_json:
-                                    # pack.json paths resolve against repository root (target_dir), not teams/<team>/
-                                    candidates = [
-                                        os.path.normpath(os.path.join(target_dir, key, rel_ref)),
-                                        os.path.normpath(os.path.join(target_dir, key, rel_ref + ".md")),
-                                        os.path.normpath(os.path.join(target_dir, rel_ref)),
-                                        os.path.normpath(os.path.join(target_dir, rel_ref + ".md")),
-                                        os.path.normpath(os.path.join(target_dir, ".agents", key, rel_ref)),
-                                        os.path.normpath(os.path.join(target_dir, ".agents", key, rel_ref + ".md")),
-                                        os.path.normpath(os.path.join(target_dir, ".agents", rel_ref)),
-                                        os.path.normpath(os.path.join(target_dir, ".agents", rel_ref + ".md")),
-                                    ]
+                                    # pack.json paths resolve against repository root or installed editor base, not teams/<team>/
+                                    editor_bases = ["", ".agents", ".github/copilot", ".claude", ".grok"]
+                                    candidates = []
                                     if key == "skills":
-                                        candidates.extend([
-                                            os.path.normpath(os.path.join(target_dir, "skills", rel_ref, "SKILL.md")),
-                                            os.path.normpath(os.path.join(target_dir, ".agents", "skills", rel_ref, "SKILL.md")),
-                                        ])
-                                    if rel_ref.endswith(".md"):
-                                        candidates.extend([
-                                            os.path.normpath(os.path.join(target_dir, key, rel_ref[:-3])),
-                                            os.path.normpath(os.path.join(target_dir, ".agents", key, rel_ref[:-3])),
-                                        ])
+                                        for eb in editor_bases:
+                                            b = os.path.join(target_dir, eb) if eb else target_dir
+                                            candidates.append(os.path.normpath(os.path.join(b, "skills", rel_ref, "SKILL.md")))
+                                    else:
+                                        for eb in editor_bases:
+                                            b = os.path.join(target_dir, eb) if eb else target_dir
+                                            candidates.extend([
+                                                os.path.normpath(os.path.join(b, key, rel_ref)),
+                                                os.path.normpath(os.path.join(b, key, rel_ref + ".md")),
+                                                os.path.normpath(os.path.join(b, rel_ref)),
+                                                os.path.normpath(os.path.join(b, rel_ref + ".md")),
+                                            ])
+                                            if key == "workflows" and eb == ".grok":
+                                                candidates.extend([
+                                                    os.path.normpath(os.path.join(b, "commands", rel_ref)),
+                                                    os.path.normpath(os.path.join(b, "commands", rel_ref + ".md")),
+                                                ])
+                                            if rel_ref.endswith(".md"):
+                                                candidates.append(os.path.normpath(os.path.join(b, key, rel_ref[:-3])))
+
                                     target_path = None
                                     for c in candidates:
                                         if os.path.exists(c):

@@ -777,7 +777,7 @@ def _build_review_report_output(
     if all_issues:
         output.extend(["\n**Actionable Items Flagged:**"] + [f"- {i}" for i in all_issues[:10]])
         if has_blockers:
-            output.append("\n🛑 **PRE-HANDOFF BLOCKER:** Quality gates failed (test, lint, or typecheck errors). You MUST resolve all errors before handoff.")
+            output.append("\n🛑 **PRE-HANDOFF BLOCKER:** Quality gates failed (test, lint, typecheck, or security errors). You MUST resolve all errors before handoff.")
     elif not pushbacks:
         output.append("\n✅ **Review & Quality Gate Passed:** All design principles, tests, and verification checks clean.")
 
@@ -803,13 +803,13 @@ def run_code_review_gate(
         return (f"### 🔍 [Post-Hook Code Review]\n✅ No modified files detected in target repo `{target_dir}`.", True)
 
     just = justification or os.getenv("WORKFORCE_REVIEW_JUSTIFICATION")
-    form_md, pr_passed, pushbacks, candidates = evaluate_pr_verification_form(diff_text, modified_files, symbols, target_dir, justification=just)
+    form_md, _pr_passed, pushbacks, candidates = evaluate_pr_verification_form(diff_text, modified_files, symbols, target_dir, justification=just)
     sec_issues = audit_dependency_security(modified_files, target_dir)
     detected_cmds = detect_quality_commands(target_dir)
 
     all_issues = list(sec_issues)
     if run_checks and detected_cmds:
-        q_issues, passed = run_quality_gate_checks(target_dir, detected_cmds)
+        q_issues, _q_passed = run_quality_gate_checks(target_dir, detected_cmds)
         all_issues.extend(q_issues)
 
     has_blockers = any("❌" in i for i in all_issues)

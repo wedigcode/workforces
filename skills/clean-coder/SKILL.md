@@ -1,6 +1,6 @@
 ---
 name: clean-coder
-description: MANDATORY for any programming, coding, refactoring, bug fixing, or code modification task. Enforces software craftsmanship, Test-Driven Development (TDD) red-green-refactor, method stubs first, symbol deduplication via code-graph, single responsibility and SOLID architecture, <= 35 lines per function, method decomposition, zero error swallowing, PR-style code review verification checklist, AI pushback on skipped rules, weekly-retried 3rd-party security bypass, and pre-handoff quality gates. Reach for this skill whenever writing, editing, or refactoring code, adding new functions or classes, implementing APIs, fixing bugs, or modifying tests before and after code changes.
+description: MANDATORY for any programming, coding, refactoring, bug fixing, or code modification task. Enforces software craftsmanship, Test-Driven Development (TDD) red-green-refactor, method stubs first, symbol deduplication via code-graph, single responsibility and SOLID architecture, advisory function line limits (<= 35 lines), method decomposition, zero error swallowing, PR-style code review verification checklist with advisory feedback, weekly-retried 3rd-party security bypass, and pre-handoff quality gates. Reach for this skill whenever writing, editing, or refactoring code, adding new functions or classes, implementing APIs, fixing bugs, or modifying tests before and after code changes.
 ---
 # Skill: Clean Coder
 
