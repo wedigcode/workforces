@@ -155,6 +155,17 @@ tracked_issues:
         broken = validate_mod.audit_references(self.test_dir)
         self.assertEqual(broken, 0)
 
+    def test_similar_named_directory_not_excluded_from_markdown_audit(self):
+        """Test directory sharing prefix with session-context is not skipped."""
+        backup_dir = os.path.join(self.test_dir, "workforces", "session-context-backup")
+        os.makedirs(backup_dir, exist_ok=True)
+        doc = os.path.join(backup_dir, "backup.md")
+        with open(doc, "w", encoding="utf-8") as f:
+            f.write("# Backup\nLink to [Missing](missing_target.md)\n")
+
+        broken = validate_mod.audit_references(self.test_dir)
+        self.assertEqual(broken, 1)
+
 
 if __name__ == "__main__":
     unittest.main()

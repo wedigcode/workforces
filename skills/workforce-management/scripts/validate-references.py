@@ -208,17 +208,24 @@ def audit_references(target_dir=".", fix=False):
     pending_todos = []
 
     ignored_dirs = {".git", "node_modules", ".tmp", "scratch", ".worktrees"}
+    session_excludes = (
+        "workforces/session-context",
+        "workforces/sessions",
+        ".agents/workforces/session-context",
+        ".agents/workforces/sessions",
+        ".agents/session-context",
+    )
 
     for root, dirs, files in os.walk(target_dir):
-        dirs[:] = [
-            d for d in dirs
-            if d not in ignored_dirs
-            and "teamwork_preview_" not in d
-            and not d.startswith("teamwork_preview_")
-            and not os.path.relpath(os.path.join(root, d), target_dir).replace("\\", "/").startswith(
-                ("workforces/session-context", "workforces/sessions", ".agents/workforces/session-context", ".agents/workforces/sessions", ".agents/session-context")
-            )
-        ]
+        filtered_dirs = []
+        for d in dirs:
+            if d in ignored_dirs or "teamwork_preview_" in d or d.startswith("teamwork_preview_"):
+                continue
+            rel_d = os.path.relpath(os.path.join(root, d), target_dir).replace("\\", "/")
+            if rel_d in session_excludes or any(rel_d.startswith(p + "/") for p in session_excludes):
+                continue
+            filtered_dirs.append(d)
+        dirs[:] = filtered_dirs
 
         for file in files:
             if not file.endswith((".md", ".json")):
