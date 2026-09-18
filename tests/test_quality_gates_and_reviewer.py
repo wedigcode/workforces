@@ -635,6 +635,33 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
         self.assertIn("Zero dangling file references found", res.stdout)
         self.assertFalse((teams_dir / "design-standards.md").exists(), "Should not create dummy stub in teams/growth/")
 
+        # Guard against team-local fallback: A rule that exists ONLY in teams/growth/ must NOT satisfy pack.json
+        (teams_dir / "team-only.md").write_text("# Team Only Rule\n", encoding="utf-8")
+        (teams_dir / "pack.json").write_text(json.dumps({
+            "name": "growth",
+            "rules": ["design-standards.md", "team-only.md"],
+            "skills": ["sample-skill"],
+            "agents": [],
+            "workflows": []
+        }), encoding="utf-8")
+
+        res_team_only = subprocess.run(
+            [sys.executable, str(val_script), str(self.test_dir)],
+            capture_output=True,
+            text=True
+        )
+        self.assertNotEqual(res_team_only.returncode, 0, "Team-local only file must not satisfy pack.json reference")
+        self.assertIn("team-only.md", res_team_only.stdout)
+
+        # Assert --fix creates the stub in root rules/, not teams/growth/
+        res_fix = subprocess.run(
+            [sys.executable, str(val_script), str(self.test_dir), "--fix"],
+            capture_output=True,
+            text=True
+        )
+        self.assertEqual(res_fix.returncode, 0, f"--fix should resolve missing pack rule: {res_fix.stdout}")
+        self.assertTrue((rules_dir / "team-only.md").exists(), "Auto-fix must create stub in root rules/")
+
     def test_validate_references_audits_skills_session_context_while_ignoring_session_notes(self):
         """Test validate-references.py audits skills/session-context while excluding workforces/session-context notes."""
         val_script = REPO_ROOT / "skills" / "workforce-management" / "scripts" / "validate-references.py"
