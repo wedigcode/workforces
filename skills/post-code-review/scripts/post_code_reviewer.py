@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Dict, List, Any, Set, Tuple, Optional
 
 IGNORE_DIRS = {".git", "node_modules", "vendor", "__pycache__", ".venv", "venv", "dist", "build", ".next", ".agents", ".worktrees"}
+EMPTY_TREE_HASH = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
 
 def is_test_file(path_str: str) -> bool:
     """Determine if a file path belongs to a test suite or test specification."""
@@ -97,13 +98,24 @@ def _normalize_base_ref(ref: str) -> List[str]:
         return [normalized]
     return [f"origin/{normalized}", normalized]
 
+def _find_first_parent_branch_root_base(root_dir: Path) -> str:
+    """Find the oldest locally available first-parent ancestor baseline."""
+    history = _git_stdout(root_dir, "rev-list", "--first-parent", "--reverse", "HEAD")
+    first_commit = history.splitlines()[0] if history else ""
+    if not first_commit:
+        return ""
+    return _git_stdout(root_dir, "rev-parse", "--verify", f"{first_commit}^") or EMPTY_TREE_HASH
+
 def _find_branch_diff_base(root_dir: Path) -> str:
     """Find a reasonable base ref for committed branch diff review."""
     env_base = os.getenv("GITHUB_BASE_REF") or os.getenv("COPILOT_BASE_REF") or os.getenv("BASE_REF")
     ref_candidates = []
     if env_base:
         ref_candidates.extend(_normalize_base_ref(env_base))
-    ref_candidates.extend(["origin/main", "origin/master", "origin/trunk", "origin/develop"])
+    ref_candidates.extend([
+        "origin/main", "origin/master", "origin/trunk", "origin/develop",
+        "main", "master", "trunk", "develop"
+    ])
 
     remote_head = _git_stdout(root_dir, "symbolic-ref", "--quiet", "refs/remotes/origin/HEAD")
     if remote_head:
@@ -115,7 +127,7 @@ def _find_branch_diff_base(root_dir: Path) -> str:
             if merge_base:
                 return merge_base
 
-    return _git_stdout(root_dir, "rev-parse", "--verify", "HEAD~1")
+    return _find_first_parent_branch_root_base(root_dir)
 
 def _get_branch_diff(root_dir: Path) -> str:
     """Extract committed branch diff against merge-base when working tree is clean."""

@@ -667,6 +667,27 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
             else:
                 os.environ["GITHUB_BASE_REF"] = old_base_ref
 
+    def test_run_code_review_gate_falls_back_to_full_local_branch_lineage(self):
+        """Test clean-branch fallback reviews all locally available commits, not just HEAD~1."""
+        subprocess.run(["git", "init", "-b", "feature"], cwd=self.test_dir, capture_output=True)
+        subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=self.test_dir, capture_output=True)
+        subprocess.run(["git", "config", "user.name", "Test"], cwd=self.test_dir, capture_output=True)
+
+        (self.test_dir / "first.py").write_text("def first():\n    return 1\n", encoding="utf-8")
+        subprocess.run(["git", "add", "first.py"], cwd=self.test_dir, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "first"], cwd=self.test_dir, capture_output=True)
+
+        (self.test_dir / "second.py").write_text("def second():\n    return 2\n", encoding="utf-8")
+        subprocess.run(["git", "add", "second.py"], cwd=self.test_dir, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "second"], cwd=self.test_dir, capture_output=True)
+
+        modified_files = post_code_reviewer.get_modified_files(self.test_dir)
+        diff = post_code_reviewer.get_git_diff(self.test_dir)
+
+        self.assertEqual(modified_files, ["first.py", "second.py"])
+        self.assertIn("+++ b/first.py", diff)
+        self.assertIn("+++ b/second.py", diff)
+
     def test_validate_references_pack_json_resolves_against_repo_root(self):
         """Test validate-references.py resolves pack.json against repository root rather than teams/<team>/."""
         val_script = REPO_ROOT / "skills" / "workforce-management" / "scripts" / "validate-references.py"
