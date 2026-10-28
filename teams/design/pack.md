@@ -3,7 +3,7 @@
 ## Domain Purpose
 Creates, reviews, and maintains human-crafted visual design systems, brand identity, UI/UX standards, and design assets across all products and marketing surfaces. Ensures no AI-default design patterns ship — every interface should look like a real designer made it.
 
-> **Design vs Engineering Boundary:** This team owns the *what* and *why* of design — visual decisions, brand consistency, anti-pattern avoidance, UX flows. The `dev` team (with `@programmer`) owns the *how* — implementing those decisions in code.
+> **Design vs Engineering Boundary:** This team owns the *what* and *why* of design — visual decisions, brand consistency, anti-pattern avoidance, UX flows. The `dev` team (with `@wf-programmer`) owns the *how* — implementing those decisions in code.
 
 ---
 
@@ -11,7 +11,7 @@ Creates, reviews, and maintains human-crafted visual design systems, brand ident
 
 1. **Human-First Visual Design:**
    - Reject all AI design defaults — gradients on every heading, pill buttons everywhere, three identical columns, centered everything. Every design decision must feel intentional and differentiated.
-   - Apply the `design-anti-patterns` skill as a first pass on every design output. If it looks like AI made it, revise before shipping.
+   - Apply the `wf-design-anti-patterns` skill as a first pass on every design output. If it looks like AI made it, revise before shipping.
 
 2. **Brand Identity as Foundation:**
    - All design begins with `docs/brand-context.md`. No color, font, or tone decisions without first consulting documented brand context.
@@ -23,7 +23,7 @@ Creates, reviews, and maintains human-crafted visual design systems, brand ident
    - The squint test: whatever you notice first should be the most important element.
 
 4. **Cross-Team Design Integration:**
-   - The `@designer` agent is automatically pulled into dev team UI/UX tasks, functioning as the design gatekeeper alongside `@programmer`.
+   - The `@wf-designer` agent is automatically pulled into dev team UI/UX tasks, functioning as the design gatekeeper alongside `@wf-programmer`.
    - Design specs and brand context flow to the marketing team for copy and campaign consistency.
    - Design systems, tokens, and component specs are documented and shared with the dev team.
 
@@ -44,7 +44,7 @@ Creates, reviews, and maintains human-crafted visual design systems, brand ident
 
 ## Team Roles & Personas
 
-- **Designer Agent (`@designer`):** Visionary design strategist, UI/UX architect, and automated design gatekeeper. Specializes in collaborative website concept creation, Awwwards/SiteInspire benchmarking, layout specifications, design tokens, structured design briefs, and rigorous design QA reviews. See [`designer.md`](../../agents/designer.md).
+- **Designer Agent (`@wf-designer`):** Visionary design strategist, UI/UX architect, and automated design gatekeeper. Specializes in collaborative website concept creation, Awwwards/SiteInspire benchmarking, layout specifications, design tokens, structured design briefs, and rigorous design QA reviews. See [`wf-designer.md`](../../agents/wf-designer.md).
 - **Creative Director:** Owns overall visual identity, brand positioning, and design direction. Enforces anti-pattern avoidance and human-crafted design standards across all outputs.
 - **UI/UX Specialist:** Creates wireframes, user flows, high-fidelity mockups, and interaction specs. Partners with the dev team on implementation feasibility.
 - **Brand Strategist:** Develops and maintains brand voice, color systems, typography standards, and cross-channel brand coherence. Produces and maintains `docs/brand-context.md`.
@@ -57,23 +57,23 @@ This team uses the following skills and rules:
 
 | Resource | Purpose |
 |----------|---------|
-| [`design-standards`](../../rules/design-standards.md) | Mandatory UI rules — zero emojis in UI, vector icon packs required |
-| [`design-anti-patterns`](../../skills/design-anti-patterns/SKILL.md) | 25 AI clichés to avoid — MANDATORY first pass on all design work |
-| [`visual-design-fundamentals`](../../skills/visual-design-fundamentals/SKILL.md) | Color theory, typography, whitespace, hierarchy |
-| [`ui-ux-design`](../../skills/ui-ux-design/SKILL.md) | UX flows, wireframing, responsive design, accessibility |
-| [`brand-guidelines`](../../skills/brand-guidelines/SKILL.md) | Voice, color palette enforcement, cross-channel consistency |
-| [`image-workflow`](../../skills/image-workflow/SKILL.md) | Image planning in `workforces/images.json` and optimization |
-| [`site-setup`](../../skills/site-setup/SKILL.md) | Greenfield site setup & Product Brief framework |
+| [`wf-design-standards`](../../rules/wf-design-standards.md) | Mandatory UI rules — zero emojis in UI, vector icon packs required |
+| [`wf-design-anti-patterns`](../../skills/wf-design-anti-patterns/SKILL.md) | 25 AI clichés to avoid — MANDATORY first pass on all design work |
+| [`wf-visual-design-fundamentals`](../../skills/wf-visual-design-fundamentals/SKILL.md) | Color theory, typography, whitespace, hierarchy |
+| [`wf-ui-ux-design`](../../skills/wf-ui-ux-design/SKILL.md) | UX flows, wireframing, responsive design, accessibility |
+| [`wf-brand-guidelines`](../../skills/wf-brand-guidelines/SKILL.md) | Voice, color palette enforcement, cross-channel consistency |
+| [`wf-image-workflow`](../../skills/wf-image-workflow/SKILL.md) | Image planning in `workforces/images.json` and optimization |
+| [`wf-site-setup`](../../skills/wf-site-setup/SKILL.md) | Greenfield site setup & Product Brief framework |
 
 ---
 
 ## SOP / Workflow Patterns
 
-When generating a design team for a project, consider which workflows apply:
+When generating a design team for a project, consider which skills and review patterns apply:
 
-- `site-setup` — **Run on empty/greenfield repos.** Interactive site initialization with `@designer`, tech stack scaffolding, and multi-team handoffs.
-- `brand-context` — **Run first.** Establishes `docs/brand-context.md` with brand voice, palette, typography, and target audience. Required before any design or marketing work.
-- `design-review` — Pull the `@designer` agent into dev team UI PRs to gate design quality. Runs alongside `@programmer` for frontend changes.
+- `/wf-site-setup` — **Run on empty/greenfield repos.** Interactive site initialization with `@wf-designer`, tech stack scaffolding, and multi-team handoffs.
+- `/wf-brand-guidelines` — **Run first.** Establishes `docs/brand-context.md` with brand voice, palette, typography, and target audience. Required before any design or marketing work.
+- `design-review` — Pull the `@wf-designer` agent into dev team UI PRs to gate design quality. Runs alongside `@wf-programmer` for frontend changes.
 - `visual-audit` — Full visual audit of an existing site or product UI against brand guidelines and design anti-patterns. Produces a prioritized fix list.
 
 ---

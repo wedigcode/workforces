@@ -24,7 +24,7 @@ Launches the interactive visual studio and standup cockpit for the workforce (`s
 
 ## When to Use
 
-Run `/wf-dashboard` (or `/wf-canvas`, `/dashboard`) when:
+Run `/wf-dashboard` (or `/wf-canvas`) when:
 - You want a visual command center for today's sprint commitments and priorities.
 - You want to inspect task details, cycle task statuses with 1 click, or resolve roadblocks.
 - You want to trace AST code dependencies and blast radius impact before refactoring.
@@ -67,16 +67,16 @@ Ensure tasks, workstate, and symbol index are aligned before launching:
 
 1. **Reconcile Workstate**:
    ```bash
-   python3 .agents/skills/task-tracker/scripts/personal_sync.py --root ./
+   python3 .agents/skills/wf-task-tracker/scripts/personal_sync.py --root ./
    ```
-   *(Fallback: `python3 skills/task-tracker/scripts/personal_sync.py --root ./`)*
+   *(Fallback: `python3 skills/wf-task-tracker/scripts/personal_sync.py --root ./`)*
 
 2. **Verify Code Graph**:
    Check if `workforces/code-graph.json` exists. If missing or stale, generate it:
    ```bash
-   python3 .agents/skills/code-graph/scripts/graph_indexer.py --target-dir ./
+   python3 .agents/skills/wf-code-graph/scripts/graph_indexer.py --target-dir ./
    ```
-   *(Fallback: `python3 skills/code-graph/scripts/graph_indexer.py --target-dir ./`)*
+   *(Fallback: `python3 skills/wf-code-graph/scripts/graph_indexer.py --target-dir ./`)*
 
 ### Step 3 — Autonomous Server & Event Watcher Launch
 
@@ -84,15 +84,15 @@ Ensure tasks, workstate, and symbol index are aligned before launching:
 
 1. **Launch Studio & API Server** (`run_command` with `IsDaemon=True`):
    ```bash
-   python3 .agents/skills/workforce-canvas/scripts/server.py --port 8765 --open
+   python3 .agents/skills/wf-canvas/scripts/server.py --port 8765 --open
    ```
-   *(Fallback: `python3 skills/workforce-canvas/scripts/server.py --port 8765 --open`)*
+   *(Fallback: `python3 skills/wf-canvas/scripts/server.py --port 8765 --open`)*
 
 2. **Launch Event Watcher & Dispatcher** (`run_command` with `WaitMsBeforeAsync=1000`):
    ```bash
-   python3 .agents/skills/workforce-canvas/scripts/wait_for_message.py --root ./
+   python3 .agents/skills/wf-canvas/scripts/wait_for_message.py --root ./
    ```
-   *(Fallback: `python3 skills/workforce-canvas/scripts/wait_for_message.py --root ./`)*
+   *(Fallback: `python3 skills/wf-canvas/scripts/wait_for_message.py --root ./`)*
 
    *Note: `wait_for_message.py` monitors `workforces/.events/pending/`. When a user submits a comment, pins a note, or updates a task on the canvas, `wait_for_message.py` processes the event, advances the cursor, and exits with code 0. This triggers Antigravity's reactive wakeup to notify the agent immediately.*
 
@@ -113,10 +113,10 @@ Ensure tasks, workstate, and symbol index are aligned before launching:
 
 When Antigravity wakes up from `wait_for_message.py` with an event:
 `⚡ WORKFORCE CANVAS EVENT DISPATCH (X event(s) processed)`:
-1. **Handle the Event**: Inspect the event type and payload. If it's a task update, evolution note, or comment inquiry, execute the requested action or delegate to the appropriate agent (`@programmer`, `@designer`, etc.).
+1. **Handle the Event**: Inspect the event type and payload. If it's a task update, evolution note, or comment inquiry, execute the requested action or delegate to the appropriate agent (`@wf-programmer`, `@wf-designer`, etc.).
 2. **Re-arm the Watcher**: Immediately re-launch `wait_for_message.py` in the background so the canvas listener remains active:
    ```bash
-   python3 .agents/skills/workforce-canvas/scripts/wait_for_message.py --root ./
+   python3 .agents/skills/wf-canvas/scripts/wait_for_message.py --root ./
    ```
 
 ---
@@ -128,7 +128,7 @@ Instead of running `wait_for_message.py` continuously, schedule a recurring cron
 ```python
 schedule(
     CronExpression="* * * * *",
-    Prompt="Check for new workforce canvas events and process them: python3 .agents/skills/workforce-canvas/scripts/wait_for_message.py --root ./ --once",
+    Prompt="Check for new workforce canvas events and process them: python3 .agents/skills/wf-canvas/scripts/wait_for_message.py --root ./ --once",
     IsDaemon=True
 )
 ```

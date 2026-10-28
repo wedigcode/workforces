@@ -30,21 +30,21 @@ Drives foundational strategy, consultative problem discovery, atomic micro-SaaS 
 ## Team Roles & Personas
 
 - **Strategic Advisor (`wf-advisor`):** Executive product consultancy and discovery methodology. Leads 5-Dimension problem discovery, dilemma resolution, and lineage mapping. Available to all agents as a universal skill. See [`wf-advisor`](../../skills/wf-advisor/SKILL.md).
-- **Atomic SaaS Extractor (`@unbundler`):** Incumbent software deconstructor and micro-SaaS architect. Extracts laser-focused tools, evaluates spreadsheet moats, and generates build-ready PRDs. See [`unbundler.md`](../../agents/unbundler.md).
-- **Market Disruption Scout (`@disruptor`):** Macro trend analyst and venture opportunity scout. Evaluates industry catalysts, billion-dollar market sizing, and lean validation tests. See [`disruptor.md`](../../agents/disruptor.md).
+- **Atomic SaaS Extractor (`@wf-unbundler`):** Incumbent software deconstructor and micro-SaaS architect. Extracts laser-focused tools, evaluates spreadsheet moats, and generates build-ready PRDs. See [`wf-unbundler.md`](../../agents/wf-unbundler.md).
+- **Market Disruption Scout (`@wf-disruptor`):** Macro trend analyst and venture opportunity scout. Evaluates industry catalysts, billion-dollar market sizing, and lean validation tests. See [`wf-disruptor.md`](../../agents/wf-disruptor.md).
 
 ---
 
 ## Workflows & SOP Patterns
 
-- `/ideate` — **Dual-Engine Idea Generation:** Dispatches `@unbundler` and `@disruptor` in parallel to scout atomic unbundled concepts and macro market disruptions, synthesized with `wf-advisor`.
-- `/advisor` — **Consultative Discovery:** Deep 5-dimension problem extraction, pain point tiering, and strategic dilemma resolution via `wf-advisor`.
-- `/site-setup` — **Greenfield Onboarding:** Feeds validated PRDs directly into brand context, design tokens with `@designer`, and scaffolding with `@programmer`.
+- `/wf-ideate` — **Dual-Engine Idea Generation:** Dispatches `@wf-unbundler` and `@wf-disruptor` in parallel to scout atomic unbundled concepts and macro market disruptions, synthesized with `wf-advisor`.
+- `/wf-advisor` — **Consultative Discovery:** Deep 5-dimension problem extraction, pain point tiering, and strategic dilemma resolution via `wf-advisor`.
+- `/wf-site-setup` — **Greenfield Onboarding:** Feeds validated PRDs directly into brand context, design tokens with `@wf-designer`, and scaffolding with `@wf-programmer`.
 
 ---
 
 ## Cross-Team Handoffs
 
-- **Design Team (`@designer`):** Consumes the PRD and Problem-to-Solution Matrix to draft layout specifications and design tokens matching user psychology.
-- **Dev Team (`@programmer`):** Consumes the PRD non-goals, schema requirements, and recommended tech stack for clean scaffolding.
-- **Marketing Team (`@marketer`):** Consumes the "What-How-Who" framework and raw customer voice verbatims for high-converting landing page copy.
+- **Design Team (`@wf-designer`):** Consumes the PRD and Problem-to-Solution Matrix to draft layout specifications and design tokens matching user psychology.
+- **Dev Team (`@wf-programmer`):** Consumes the PRD non-goals, schema requirements, and recommended tech stack for clean scaffolding.
+- **Marketing Team (`@wf-marketer`):** Consumes the "What-How-Who" framework and raw customer voice verbatims for high-converting landing page copy.

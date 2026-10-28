@@ -3,20 +3,20 @@
   "title": "Strategy, Advisory & Ideation",
   "description": "Strategic problem discovery, atomic micro-SaaS unbundling, macro market disruption scouting, and high-leverage business model validation.",
   "agents": [
-    "unbundler",
-    "disruptor"
+    "wf-unbundler",
+    "wf-disruptor"
   ],
   "rules": [
-    "design-standards.md"
+    "wf-design-standards.md"
   ],
   "skills": [
-    "site-setup",
-    "feature-research",
-    "brand-guidelines",
-    "memory-management",
-    "issue-tracker",
-    "hypothesis-tracker",
-    "market-validation",
+    "wf-site-setup",
+    "wf-feature-research",
+    "wf-brand-guidelines",
+    "wf-memory-management",
+    "wf-issue-tracker",
+    "wf-hypothesis-tracker",
+    "wf-market-validation",
     "wf-advisor",
     "wf-ideate"
   ],

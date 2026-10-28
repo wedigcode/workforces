@@ -1,10 +1,10 @@
 ---
 name: wf-update
-description: Updates the installed Workforces toolkit in the current project using the workforce-management skill. Reach for this skill or trigger it when updating .agents/ files, executing dry-run or live updates, checking version hashes, pruning obsolete assets, and interactively discovering or upgrading workspace Team Packs.
+description: Updates the installed Workforces toolkit in the current project using the wf-management toolkit management skill. Reach for this skill or trigger it when updating .agents/ files, executing dry-run or live updates, checking version hashes, pruning obsolete assets, and interactively discovering or upgrading workspace Team Packs.
 ---
 # Skill: /wf-update — Workforces Updater
 
-Updates the installed Workforces toolkit in the current project using the `workforce-management` skill. It automatically patches all toolkit files under `.agents/` (safe to overwrite), updates version info, and interactively prompts the user to discover, add, or update workspace Team Packs.
+Updates the installed Workforces toolkit in the current project using the `wf-management` skill. It automatically patches all toolkit files under `.agents/` (safe to overwrite), updates version info, and interactively prompts the user to discover, add, or update workspace Team Packs.
 
 ---
 
@@ -21,7 +21,7 @@ Updates the installed Workforces toolkit in the current project using the `workf
 
 ## When to Use
 
-Run `/wf-update` (or `/update-workforces`) when:
+Run `/wf-update` when:
 - You want the latest agents, rules, plugins, or skills.
 - The upstream workforces repo has released updates, bug fixes, or new Team Packs.
 - You want to check if your project installation is current and review team upgrades.
@@ -45,12 +45,18 @@ If the file does not exist, treat the installed version as "unknown" and proceed
 
 ### Step 2 — Fetch & Dry Run
 
-Run the updater script in dry-run mode to inspect proposed changes before modifying any files:
+Run the updater script from the active editor toolkit directory (`.agents`, `.claude`, `.grok`, `.github/copilot`, or `skills/`) in dry-run mode to inspect proposed changes before modifying any files:
 
 ```bash
-bash .agents/skills/workforce-management/scripts/update.sh ./ --dry --non-interactive
+bash .agents/skills/wf-management/scripts/update.sh ./ --dry --non-interactive
 ```
-*(Fallback: `bash skills/workforce-management/scripts/update.sh ./ --dry --non-interactive`)*
+*(Multi-editor / repo fallbacks: `.claude/skills/wf-management/scripts/update.sh`, `.grok/skills/wf-management/scripts/update.sh`, `.github/copilot/skills/wf-management/scripts/update.sh`, or `skills/wf-management/scripts/update.sh`.)*
+
+**Self-Healing Pre-`wf-` Bootstrap:** If `wf-management/scripts/update.sh` does not exist yet in the active editor directory (for example, after an older `workforce-management` updater copied `wf-update` before `wf-management` existed), bootstrap directly from a temporary upstream clone with `--force`:
+
+```bash
+tmp_wf="$(mktemp -d)" && git clone --depth=1 https://github.com/wedigcode/workforces.git "$tmp_wf" && bash "$tmp_wf/skills/wf-management/scripts/update.sh" ./ --force --non-interactive && rm -rf "$tmp_wf"
+```
 
 Review the dry-run output to determine:
 - Files to be updated (new or modified in toolkit)
@@ -62,13 +68,13 @@ Review the dry-run output to determine:
 Execute the actual update script to apply changes, prune obsolete assets, and update manifests:
 
 ```bash
-bash .agents/skills/workforce-management/scripts/update.sh ./ --non-interactive
+bash .agents/skills/wf-management/scripts/update.sh ./ --non-interactive
 ```
-*(Fallback: `bash skills/workforce-management/scripts/update.sh ./ --non-interactive`)*
+*(Or the corresponding `.claude/`, `.grok/`, `.github/copilot/`, or `skills/` path detected in Step 2.)*
 
 This safely:
 1. Overwrites core toolkit files in `.agents/` (or target editor directory).
-2. Removes obsolete files previously recorded in `workforces/.manifest.json`.
+2. Removes obsolete files previously recorded in `workforces/.manifest.json` (plus known pre-`wf-` legacy paths).
 3. Strictly protects user-created custom files in `.agents/` and workspace state in `workforces/`.
 4. Updates `workforces/.version` and `workforces/.manifest.json`.
 
@@ -104,6 +110,6 @@ After updating the core toolkit layer, check team status:
 3. **Register Selected Teams:**
    - For newly selected teams, run:
      ```bash
-     bash .agents/skills/workforce-management/scripts/setup.sh ./ --teams <team-name>
+     bash .agents/skills/wf-management/scripts/setup.sh ./ --teams <team-name>
      ```
    - Register newly instantiated teams in `workforces/workstate.md` under `## Active Teams`.

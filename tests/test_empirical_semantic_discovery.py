@@ -200,8 +200,8 @@ class TestEmpiricalSemanticDiscovery(unittest.TestCase):
         self.assertIn("SUCCESS", proc.stdout)
 
     def test_remediated_skills_block_scalar_hygiene(self):
-        """Verify codebase-improvement specifically uses block scalars cleanly."""
-        target_skills = ["codebase-improvement"]
+        """Verify wf-codebase-improvement specifically uses block scalars cleanly."""
+        target_skills = ["wf-codebase-improvement"]
         for name in target_skills:
             raw_fm = self.raw_frontmatters.get(name, "")
             self.assertRegex(
@@ -256,119 +256,119 @@ class TestEmpiricalSemanticDiscovery(unittest.TestCase):
         test_scenarios = [
             {
                 "query": "Multiple subagents are editing the repository concurrently causing git index lock collisions and branch conflicts",
-                "expected": "agent-parallelization",
+                "expected": "wf-agent-parallelization",
             },
             {
                 "query": "Configure robots.txt and llms.txt protocol files so Perplexity and ChatGPT Search index and cite our docs",
-                "expected": "ai-search-optimization",
+                "expected": "wf-ai-search-optimization",
             },
             {
                 "query": "Define official brand voice typography scales hex color palettes and audit marketing copy for voice drift",
-                "expected": "brand-guidelines",
+                "expected": "wf-brand-guidelines",
             },
             {
                 "query": "Calculate customer acquisition cost LTV to CAC payback period and analyze Value Stick willingness to pay",
-                "expected": "business-frameworks",
+                "expected": "wf-business-frameworks",
             },
             {
                 "query": "Follow Test-Driven Development red-green-refactor enforce SOLID architecture and ensure zero error swallowing",
-                "expected": "clean-coder",
+                "expected": "wf-clean-coder",
             },
             {
                 "query": "Construct an AST call graph to map function dependencies and evaluate blast radius before refactoring",
-                "expected": "code-graph",
+                "expected": "wf-code-graph",
             },
             {
                 "query": "Conduct proactive codebase cleanup across the 5 pillars removing dead code unused dependencies and query bottlenecks",
-                "expected": "codebase-improvement",
+                "expected": "wf-codebase-improvement",
             },
             {
                 "query": "Landing page has generic purple gradients floating glow cards and fake metrics that look like amateur AI templates",
-                "expected": "design-anti-patterns",
+                "expected": "wf-design-anti-patterns",
             },
             {
                 "query": "Generate API reference documentation for TypeScript and Python packages into an Open Knowledge Format catalog",
-                "expected": "doc-generator",
+                "expected": "wf-doc-generator",
             },
             {
                 "query": "Conduct competitive gap analysis and write a Product Requirement Document with phased P0 P1 milestones",
-                "expected": "feature-research",
+                "expected": "wf-feature-research",
             },
             {
                 "query": "Link tasks to GitHub Issues and manage project board backlog items scored by RICE priority using gh CLI",
-                "expected": "github-project-planning",
+                "expected": "wf-github-project-planning",
             },
             {
                 "query": "Formulate a falsifiable experiment hypothesis with leading indicators lagging KPIs and explicit kill thresholds",
-                "expected": "hypothesis-tracker",
+                "expected": "wf-hypothesis-tracker",
             },
             {
                 "query": "Generate visual assets using Antigravity AI convert reference images into JSON prompts and compress WebP",
-                "expected": "image-workflow",
+                "expected": "wf-image-workflow",
             },
             {
                 "query": "Audit documentation for broken markdown relative links dangling file paths and ghost references to missing files",
-                "expected": "integrity-validator",
+                "expected": "wf-integrity-validator",
             },
             {
                 "query": "Log an emergent bug and technical debt discovered during active coding to backlog inbox without interrupting flow",
-                "expected": "issue-tracker",
+                "expected": "wf-issue-tracker",
             },
             {
                 "query": "Sync with Google Jules asynchronous coding agent audit remote changes and review proposed PR diffs",
-                "expected": "jules-integration",
+                "expected": "wf-jules-integration",
             },
             {
                 "query": "Pre-revenue product launch optimizing Time to First Dollar with 7-day Stripe pre-sale offers and concierge MVP",
-                "expected": "launch-playbook",
+                "expected": "wf-launch-playbook",
             },
             {
                 "query": "Validate customer willingness to pay before coding using smoke tests fake door pretotyping and Mom Test interviews",
-                "expected": "market-validation",
+                "expected": "wf-market-validation",
             },
             {
                 "query": "Maintain persistent skill memory state timestamps and navigate modular markdown knowledge catalog",
-                "expected": "memory-management",
+                "expected": "wf-memory-management",
             },
             {
                 "query": "Switch between Author Voice persona and Target Audience customer profile to adapt email tone of voice",
-                "expected": "persona-management",
+                "expected": "wf-persona-management",
             },
             {
                 "query": "Analyze git diff after editing code to detect broken function contract signatures duplicate utilities and missing tests",
-                "expected": "post-code-review",
+                "expected": "wf-post-code-review",
             },
             {
                 "query": "Review open GitHub pull request inspect diff for security vulnerabilities and post line comments with gh CLI",
-                "expected": "pr-review",
+                "expected": "wf-pr-review",
             },
             {
                 "query": "Save conversation milestones architectural rationale and decisions before context truncation so we can resume later",
-                "expected": "session-context",
+                "expected": "wf-session-context",
             },
             {
                 "query": "Bootstrap greenfield web application repository create Product Brief set up tech stack and CI/CD pipeline",
-                "expected": "site-setup",
+                "expected": "wf-site-setup",
             },
             {
                 "query": "Engage organically in technical Twitter and LinkedIn discussions with brand persona commentary without sounding like a bot",
-                "expected": "social-engagement",
+                "expected": "wf-social-engagement",
             },
             {
                 "query": "Update task lifecycle status in workforces/tasks/ answer what do we have to work on and manage priority P0 queues",
-                "expected": "task-tracker",
+                "expected": "wf-task-tracker",
             },
             {
                 "query": "Design responsive interaction wireframes map user onboarding journey and fix WCAG accessibility contrast drop-off",
-                "expected": "ui-ux-design",
+                "expected": "wf-ui-ux-design",
             },
             {
                 "query": "Monitor token consumption audit LLM prompt bloat and log thinking step tool overhead across agent sessions",
-                "expected": "usage-tracker",
+                "expected": "wf-usage-tracker",
             },
             {
                 "query": "Apply 8pt grid system harmonic typography scale and visual hierarchy rules before styling UI components",
-                "expected": "visual-design-fundamentals",
+                "expected": "wf-visual-design-fundamentals",
             },
             {
                 "query": "Unpack root business bottlenecks evaluate build-vs-buy decisions and validate Jobs-to-be-Done before building",
@@ -396,11 +396,11 @@ class TestEmpiricalSemanticDiscovery(unittest.TestCase):
             },
             {
                 "query": "Render browser interactive visual command canvas showing task status dependencies and AST call graphs",
-                "expected": "workforce-canvas",
+                "expected": "wf-canvas",
             },
             {
                 "query": "Install dev or marketing team packs update core toolkit scripts and prune unused configurations safely",
-                "expected": "workforce-management",
+                "expected": "wf-management",
             },
         ]
 
@@ -451,53 +451,53 @@ class TestEmpiricalSemanticDiscovery(unittest.TestCase):
         disambiguation_pairs = [
             (
                 "Find duplicate utility functions and broken signatures in git diff right after editing code",
-                "post-code-review",
-                "pr-review",
+                "wf-post-code-review",
+                "wf-pr-review",
             ),
             (
                 "Submit GitHub PR review comments and approve pull request diffs via gh CLI",
-                "pr-review",
-                "post-code-review",
+                "wf-pr-review",
+                "wf-post-code-review",
             ),
             (
                 "Find all callers and reference paths of function auth_token in the AST before modifying it",
-                "code-graph",
-                "clean-coder",
+                "wf-code-graph",
+                "wf-clean-coder",
             ),
             (
                 "Refactor class to adhere to Single Responsibility Principle and write failing test first",
-                "clean-coder",
-                "code-graph",
+                "wf-clean-coder",
+                "wf-code-graph",
             ),
             (
                 "Log deferred bug discovered while coding to inbox without interrupting current task",
-                "issue-tracker",
-                "task-tracker",
+                "wf-issue-tracker",
+                "wf-task-tracker",
             ),
             (
                 "Surface active and blocked tasks during daily standup and update task priority to P0",
-                "task-tracker",
-                "issue-tracker",
+                "wf-task-tracker",
+                "wf-issue-tracker",
             ),
             (
                 "Audit markdown links and check for dangling file references and missing image files",
-                "integrity-validator",
-                "codebase-improvement",
+                "wf-integrity-validator",
+                "wf-codebase-improvement",
             ),
             (
                 "Sweep codebase for dead functions unused packages and SQL query performance bottlenecks",
-                "codebase-improvement",
-                "integrity-validator",
+                "wf-codebase-improvement",
+                "wf-integrity-validator",
             ),
             (
                 "Eliminate purple glow cards and generic gradient buttons from dashboard styling",
-                "design-anti-patterns",
-                "visual-design-fundamentals",
+                "wf-design-anti-patterns",
+                "wf-visual-design-fundamentals",
             ),
             (
                 "Establish 8pt grid baseline typography scale and WCAG color contrast tokens",
-                "visual-design-fundamentals",
-                "design-anti-patterns",
+                "wf-visual-design-fundamentals",
+                "wf-design-anti-patterns",
             ),
         ]
 

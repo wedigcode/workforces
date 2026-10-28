@@ -4,7 +4,7 @@ Workforces can install into [Grok Build](https://x.ai/cli) the same way it insta
 
 ```bash
 git clone https://github.com/wedigcode/workforces.git /tmp/workforces
-bash /tmp/workforces/skills/workforce-management/scripts/setup.sh ./ --editor grok --type project --non-interactive
+bash /tmp/workforces/skills/wf-management/scripts/setup.sh ./ --editor grok --type project --non-interactive
 rm -rf /tmp/workforces
 ```
 
@@ -71,8 +71,8 @@ Toolkit files are still written in Claude / Antigravity language. On a Grok host
 ## Updates
 
 ```bash
-bash .grok/skills/workforce-management/scripts/update.sh ./ --dry
-bash .grok/skills/workforce-management/scripts/update.sh ./
+bash .grok/skills/wf-management/scripts/update.sh ./ --dry
+bash .grok/skills/wf-management/scripts/update.sh ./
 ```
 
 Or ask your AI assistant *"Update workforces"* after install.

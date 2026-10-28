@@ -24,31 +24,31 @@ SKILLS_DIR = REPO_ROOT / "skills"
 AGENTS_DIR = REPO_ROOT / "agents"
 TEAMS_DIR = REPO_ROOT / "teams"
 PLUGINS_DIR = REPO_ROOT / "plugins"
-SCRIPTS_DIR = SKILLS_DIR / "workforce-management" / "scripts"
+SCRIPTS_DIR = SKILLS_DIR / "wf-management" / "scripts"
 
 SETUP_SCRIPT = SCRIPTS_DIR / "setup.sh"
 UPDATE_SCRIPT = SCRIPTS_DIR / "update.sh"
 RESOLVE_MANIFEST_SCRIPT = SCRIPTS_DIR / "resolve_manifest.py"
 PRUNE_TEAM_SCRIPT = SCRIPTS_DIR / "prune_team.py"
 VALIDATE_REFERENCES_SCRIPT = SCRIPTS_DIR / "validate-references.py"
-PERSONAL_SYNC_SCRIPT = SKILLS_DIR / "task-tracker" / "scripts" / "personal_sync.py"
+PERSONAL_SYNC_SCRIPT = SKILLS_DIR / "wf-task-tracker" / "scripts" / "personal_sync.py"
 
 # Authoritative Constants derived from PROJECT.md and ORIGINAL_REQUEST.md
 EXPECTED_SKILL_COUNT = 39
 EXPECTED_EXECUTION_AGENTS = {
-    "programmer.md",
-    "designer.md",
-    "marketer.md",
-    "researcher.md",
-    "social.md",
-    "sales.md",
-    "growth.md",
-    "operations.md",
-    "launcher.md",
-    "scribe.md",
-    "project-manager.md",
-    "unbundler.md",
-    "disruptor.md",
+    "wf-programmer.md",
+    "wf-designer.md",
+    "wf-marketer.md",
+    "wf-researcher.md",
+    "wf-social.md",
+    "wf-sales.md",
+    "wf-growth.md",
+    "wf-operations.md",
+    "wf-launcher.md",
+    "wf-scribe.md",
+    "wf-project-manager.md",
+    "wf-unbundler.md",
+    "wf-disruptor.md",
 }
 EXPECTED_AGENT_COUNT = 13
 
@@ -218,8 +218,8 @@ class TestPhase2Tier1FeatureCoverage(unittest.TestCase):
             f"Pseudo-agent {compliance_agent} must be deleted per Requirement R2.",
         )
 
-        # Capability must be preserved in integrity-validator skill
-        integrity_skill = SKILLS_DIR / "integrity-validator" / "SKILL.md"
+        # Capability must be preserved in wf-integrity-validator skill
+        integrity_skill = SKILLS_DIR / "wf-integrity-validator" / "SKILL.md"
         self.assertTrue(
             integrity_skill.is_file(),
             f"File integrity capability must be retained under {integrity_skill}",
@@ -287,7 +287,7 @@ class TestPhase2Tier1FeatureCoverage(unittest.TestCase):
         )
 
     def test_task_query_consolidation_in_wf_sync_and_task_tracker(self):
-        """Verify task queries, standups, and backlog triage are handled by wf-sync and task-tracker."""
+        """Verify task queries, standups, and backlog triage are handled by wf-sync and wf-task-tracker."""
         wf_sync_skill = SKILLS_DIR / "wf-sync" / "SKILL.md"
         self.assertTrue(wf_sync_skill.is_file(), "skills/wf-sync/SKILL.md must exist")
         sync_fm = parse_yaml_frontmatter(wf_sync_skill.read_text(encoding="utf-8"))
@@ -302,9 +302,9 @@ class TestPhase2Tier1FeatureCoverage(unittest.TestCase):
             f"wf-sync description must address standup/sync/triage/backlog workflows. Got: {sync_desc}",
         )
 
-        # task-tracker must exist with script
-        task_tracker_skill = SKILLS_DIR / "task-tracker" / "SKILL.md"
-        self.assertTrue(task_tracker_skill.is_file(), "skills/task-tracker/SKILL.md must exist")
+        # wf-task-tracker must exist with script
+        task_tracker_skill = SKILLS_DIR / "wf-task-tracker" / "SKILL.md"
+        self.assertTrue(task_tracker_skill.is_file(), "skills/wf-task-tracker/SKILL.md must exist")
         self.assertTrue(
             PERSONAL_SYNC_SCRIPT.is_file(),
             f"Expected personal_sync.py at {PERSONAL_SYNC_SCRIPT}",
@@ -617,9 +617,9 @@ class TestPhase2Tier3CrossFeatureInteractions(unittest.TestCase):
             f"teams/compliance/pack.json must have 'agents': [], got: {agents}",
         )
         self.assertIn(
-            "integrity-validator",
+            "wf-integrity-validator",
             data.get("skills", []),
-            "teams/compliance/pack.json must include 'integrity-validator' skill",
+            "teams/compliance/pack.json must include 'wf-integrity-validator' skill",
         )
 
     def test_advisor_team_pack_has_no_advisor_agent(self):
@@ -688,15 +688,15 @@ class TestPhase2Tier3CrossFeatureInteractions(unittest.TestCase):
         )
 
     def test_plugin_hooks_schema_and_integrity_hook_execution(self):
-        """Verify workforce-integrity-plugin hooks.json triggers validate-references.py on PostToolUse."""
-        integrity_hooks = PLUGINS_DIR / "workforce-integrity-plugin" / "hooks.json"
+        """Verify wf-integrity-plugin hooks.json triggers validate-references.py on PostToolUse."""
+        integrity_hooks = PLUGINS_DIR / "wf-integrity-plugin" / "hooks.json"
         self.assertTrue(
             integrity_hooks.is_file(),
             f"Expected hooks.json at {integrity_hooks}",
         )
         data = json.loads(integrity_hooks.read_text(encoding="utf-8"))
-        self.assertIn("workforce-integrity", data)
-        post_tool_list = data["workforce-integrity"].get("PostToolUse", [])
+        self.assertIn("wf-integrity", data)
+        post_tool_list = data["wf-integrity"].get("PostToolUse", [])
         self.assertGreaterEqual(len(post_tool_list), 1)
 
         all_commands = []
@@ -708,7 +708,7 @@ class TestPhase2Tier3CrossFeatureInteractions(unittest.TestCase):
         self.assertIn(
             "validate-references.py",
             hook_commands,
-            "workforce-integrity-plugin hook command must invoke validate-references.py",
+            "wf-integrity-plugin hook command must invoke validate-references.py",
         )
 
 
@@ -795,10 +795,10 @@ class TestPhase2Tier4RealWorldScenarios(unittest.TestCase):
             f"Expected core skill wf-sync to be installed at {wf_sync_skill}",
         )
 
-        project_manager_agent = self.target_path / ".agents" / "agents" / "project-manager.md"
+        project_manager_agent = self.target_path / ".agents" / "agents" / "wf-project-manager.md"
         self.assertTrue(
             project_manager_agent.is_file(),
-            f"Expected core agent project-manager to be installed at {project_manager_agent}",
+            f"Expected core agent wf-project-manager to be installed at {project_manager_agent}",
         )
 
     def test_multi_editor_distribution_targets(self):

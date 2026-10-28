@@ -180,7 +180,7 @@ class TestAgentsSubagentSchema(unittest.TestCase):
                     )
 
     def test_main_agent_policy(self):
-        """Assert mainAgent is False for scribe.md and True for all other agents."""
+        """Assert mainAgent is False for wf-scribe.md and True for all other agents."""
         for agent_file in self.agent_files:
             with self.subTest(agent=agent_file.name):
                 content = agent_file.read_text(encoding="utf-8")
@@ -188,10 +188,10 @@ class TestAgentsSubagentSchema(unittest.TestCase):
                 self.assertIsNotNone(fm)
                 main_agent = fm.get("mainAgent")
                 self.assertIsInstance(main_agent, bool)
-                if agent_file.name == "scribe.md":
+                if agent_file.name == "wf-scribe.md":
                     self.assertFalse(
                         main_agent,
-                        "scribe.md must have mainAgent: false (background precision note-taker only)",
+                        "wf-scribe.md must have mainAgent: false (background precision note-taker only)",
                     )
                 else:
                     self.assertTrue(

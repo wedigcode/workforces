@@ -21,7 +21,7 @@ import json
 import subprocess
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-SCRIPTS_DIR = os.path.join(REPO_ROOT, "skills", "workforce-management", "scripts")
+SCRIPTS_DIR = os.path.join(REPO_ROOT, "skills", "wf-management", "scripts")
 sys.path.insert(0, SCRIPTS_DIR)
 
 from resolve_manifest import (
@@ -71,16 +71,16 @@ class TestManifestAndUpdater(unittest.TestCase):
         self.assertIsInstance(files, list)
         self.assertTrue(len(files) > 0)
         # Check core files present
-        self.assertIn(".agents/agents/project-manager.md", files)
-        self.assertIn(".agents/agents/scribe.md", files)
-        self.assertIn(".agents/rules/base.md", files)
+        self.assertIn(".agents/agents/wf-project-manager.md", files)
+        self.assertIn(".agents/agents/wf-scribe.md", files)
+        self.assertIn(".agents/rules/wf-base.md", files)
         self.assertIn(".agents/skills/wf-sync/SKILL.md", files)
-        self.assertIn(".agents/skills/clean-coder/SKILL.md", files)
-        self.assertIn(".agents/plugins/workforce-programming-plugin/plugin.json", files)
+        self.assertIn(".agents/skills/wf-clean-coder/SKILL.md", files)
+        self.assertIn(".agents/plugins/wf-programming-plugin/plugin.json", files)
 
     def test_save_and_load_manifest(self):
         """Verify saving and reading workforces/.manifest.json."""
-        sample_files = [".agents/agents/project-manager.md", ".agents/rules/base.md"]
+        sample_files = [".agents/agents/wf-project-manager.md", ".agents/rules/wf-base.md"]
         save_installed_manifest(
             target_dir=self.test_dir,
             version="test-commit-123",
@@ -99,7 +99,7 @@ class TestManifestAndUpdater(unittest.TestCase):
         """Verify obsolete files recorded in previous manifest are detected and pruned."""
         # 1. Create a stale agent file and a current agent file
         stale_file_rel = ".agents/agents/old-obsolete-agent.md"
-        current_file_rel = ".agents/agents/project-manager.md"
+        current_file_rel = ".agents/agents/wf-project-manager.md"
         
         stale_full = os.path.join(self.test_dir, stale_file_rel)
         current_full = os.path.join(self.test_dir, current_file_rel)
@@ -167,7 +167,7 @@ class TestManifestAndUpdater(unittest.TestCase):
             installed_files=[stale_file_rel]
         )
 
-        new_files = [".agents/agents/project-manager.md"]
+        new_files = [".agents/agents/wf-project-manager.md"]
 
         obsolete = find_obsolete_files(
             target_dir=self.test_dir,
@@ -214,9 +214,9 @@ class TestManifestAndUpdater(unittest.TestCase):
             f.write("# User Agent\n")
 
         new_files = [
-            ".agents/agents/programmer.md",
-            ".agents/agents/designer.md",
-            ".agents/rules/file-integrity.md"
+            ".agents/agents/wf-programmer.md",
+            ".agents/agents/wf-designer.md",
+            ".agents/rules/wf-file-integrity.md"
         ]
 
         obsolete = find_obsolete_files(

@@ -35,7 +35,7 @@ Ensures regulatory compliance, data privacy, ad platform adherence, and governan
 - **Platform & Terms Compliance Specialist:** Ensures ad creative and landing page claims satisfy ad network policies (Google, Meta, etc.), drafts Terms of Service, and reviews consumer disclosure rules.
 - **Security & SOC2 Governance Specialist:** Defines infrastructure security controls, manages SOC2 Type II readiness, performs vendor risk assessments, and enforces RBAC/IAM auditing.
 
-> ℹ️ *Automated reference lineage, link integrity, and subtask tracking are executed via the `integrity-validator` skill and automated lifecycle hooks (`workforce-integrity-plugin`), rather than an autonomous agent persona.*
+> ℹ️ *Automated reference lineage, link integrity, and subtask tracking are executed via the `wf-integrity-validator` skill and automated lifecycle hooks (`wf-integrity-plugin`), rather than an autonomous agent persona.*
 
 
 ---

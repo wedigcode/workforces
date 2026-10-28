@@ -14,7 +14,7 @@ import tempfile
 import unittest
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-VALIDATE_SCRIPT_DIR = os.path.join(REPO_ROOT, "skills", "workforce-management", "scripts")
+VALIDATE_SCRIPT_DIR = os.path.join(REPO_ROOT, "skills", "wf-management", "scripts")
 sys.path.insert(0, VALIDATE_SCRIPT_DIR)
 
 import importlib

@@ -142,7 +142,7 @@ Compile the findings and postmortem report.
 **⏸ PAUSE** — Ask user if they want to push P0/P1 recommendations into `/wf-plan` or active execution state:
 
 - Run `/wf-plan --from-incident workforces/incidents/YYYY-MM-DD-[service].md` to turn fixes into an execution plan
-- Or run `/wf-investigate --push-to-work` (appends P0/P1 tasks to `workforces/workstate.md` and triggers GitHub issue creation via `skills/github-project-planning/SKILL.md`).
+- Or run `/wf-investigate --push-to-work` (appends P0/P1 tasks to `workforces/workstate.md` and triggers GitHub issue creation via `skills/wf-github-project-planning/SKILL.md`).
 
 ---
 

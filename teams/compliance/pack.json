@@ -4,18 +4,18 @@
   "description": "Enforces zero ghost references, reference lineage, policy compliance, subtask tracking, and decision escalation.",
   "agents": [],
   "rules": [
-    "file-integrity.md",
-    "mcp-protection.md"
+    "wf-file-integrity.md",
+    "wf-mcp-protection.md"
   ],
   "skills": [
-    "integrity-validator",
-    "issue-tracker",
-    "session-context",
-    "usage-tracker",
-    "task-tracker"
+    "wf-integrity-validator",
+    "wf-issue-tracker",
+    "wf-session-context",
+    "wf-usage-tracker",
+    "wf-task-tracker"
   ],
   "workflows": [],
   "plugins": [
-    "workforce-integrity-plugin"
+    "wf-integrity-plugin"
   ]
 }

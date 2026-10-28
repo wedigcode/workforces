@@ -34,20 +34,20 @@ Specialized strike team designed for **empty projects**, **pre-revenue apps**, o
 
 ## Team Roles & Cross-Functional Alignment
 
-- **Launch Specialist (`@launcher`):** Strike team quarterback and fast validation orchestrator. Directs the sprint, audits funnel friction, and enforces monetization-first discipline. See [`launcher.md`](../../agents/launcher.md).
-- **Marketing Lead (`@marketer`):** Crafts outcome-driven hero copy (`Achieve [Outcome] without [Pain] in [Timeframe]`), thank-you page upsells, and 30-day risk reversal guarantees.
-- **Growth Lead (`@growth`):** Manages $50–$100 micro ad tests, directory launch submissions (Product Hunt, Betalist), and 20% referral loops.
-- **Programmer (`@programmer`):** Configures lightweight Stripe Payment Links, SetupIntent pre-auth, or painted door modals with zero premature backend bloat.
-- **Sales Specialist (`@sales`):** Executes 1-on-1 problem-first community outreach and schedules 15-minute onboarding feedback calls.
+- **Launch Specialist (`@wf-launcher`):** Strike team quarterback and fast validation orchestrator. Directs the sprint, audits funnel friction, and enforces monetization-first discipline. See [`wf-launcher.md`](../../agents/wf-launcher.md).
+- **Marketing Lead (`@wf-marketer`):** Crafts outcome-driven hero copy (`Achieve [Outcome] without [Pain] in [Timeframe]`), thank-you page upsells, and 30-day risk reversal guarantees.
+- **Growth Lead (`@wf-growth`):** Manages $50–$100 micro ad tests, directory launch submissions (Product Hunt, Betalist), and 20% referral loops.
+- **Programmer (`@wf-programmer`):** Configures lightweight Stripe Payment Links, SetupIntent pre-auth, or painted door modals with zero premature backend bloat.
+- **Sales Specialist (`@wf-sales`):** Executes 1-on-1 problem-first community outreach and schedules 15-minute onboarding feedback calls.
 
 ---
 
 ## SOP / Workflow Patterns
 
-When activating the launch team on a project, select the appropriate execution pattern:
-- **`wf-launch --audit`:** Audit funnel friction, lead decay, and pricing complexity in empty or pre-revenue projects.
-- **`wf-launch --ttfd`:** Execute the prescriptive 7-Day Sprint to First Dollar.
-- **`wf-launch --presale`:** Configure Pre-Sale Painted Door rails (Stripe Payment Links or SetupIntent holds).
-- **`wf-launch --concierge`:** Blueprint and deliver a Concierge MVP (manual fulfillment).
-- **`wf-launch --copy`:** Generate high-converting hero copy, confirmation upsells, and DM scripts.
-- **`wf-launch --ttou`:** Execute the 4-channel distribution engine to reach 100 active users.
+When activating the launch team on a project (`@wf-launcher` with `/wf-launch-playbook`), select the appropriate operational mode:
+- **Launch Audit (`/wf-launch-playbook` — Mode 1):** Audit funnel friction, lead decay, and pricing complexity in empty or pre-revenue projects.
+- **7-Day Sprint to First Dollar (`/wf-launch-playbook` — Mode 2):** Execute the prescriptive 7-day sprint to collect initial customer revenue.
+- **Pre-Sale Painted Door (`/wf-launch-playbook` — Mode 3):** Configure live payment rails (Stripe Payment Links or SetupIntent holds).
+- **Concierge MVP (`/wf-launch-playbook` — Mode 4):** Blueprint and deliver high-touch manual fulfillment before automating.
+- **Launch Copy & DM Scripts (`/wf-launch-playbook` — Mode 5):** Generate high-converting hero copy, confirmation upsells, and DM scripts.
+- **Time to 100 Users (`/wf-launch-playbook` — Mode 6):** Execute the 4-channel distribution engine to reach 100 active users.

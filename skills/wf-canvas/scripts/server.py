@@ -1,0 +1,2620 @@
+#!/usr/bin/env python3
+"""
+Workforce Command Canvas - Local Backend Server
+Zero external dependencies (Standard Library: http.server, json, pathlib, urllib, subprocess).
+
+Exposes:
+- GET  /api/state               -> Aggregates tasks, workstate, hypotheses, goals, and dependency edges
+- GET  /api/impact              -> Traces code symbol / file blast radius (callers, callees)
+- POST /api/task/update         -> Updates task frontmatter (status, priority, note) & resyncs workstate
+- POST /api/task/connect        -> Connects dependency (blocked_by) between tasks
+- POST /api/task/order          -> Persists human-arranged canvas node order
+- GET  /                        -> Serves the dark dot-grid interactive canvas UI
+"""
+
+import argparse
+import base64
+import datetime
+import http.server
+import json
+import os
+import re
+import socketserver
+import subprocess
+import sys
+import threading
+import time
+import urllib.parse
+from pathlib import Path
+from typing import Dict, List, Any, Optional
+
+try:
+    import fcntl
+except ImportError:
+    fcntl = None
+
+# Add skills/wf-task-tracker and skills/wf-code-graph to sys.path for direct utility composition
+CURRENT_DIR = Path(__file__).resolve().parent
+SKILLS_DIR = CURRENT_DIR.parent.parent
+sys.path.insert(0, str(SKILLS_DIR / "wf-task-tracker" / "scripts"))
+sys.path.insert(0, str(SKILLS_DIR / "wf-code-graph" / "scripts"))
+
+try:
+    from personal_sync import (
+        get_workstate_summary,
+        get_tasks_summary,
+        get_running_hypotheses,
+        get_session_context_summary,
+        sync_workstate_from_tasks,
+    )
+except ImportError:
+    # Safe fallbacks if running in standalone test environment
+    get_workstate_summary = None
+    get_tasks_summary = None
+    get_running_hypotheses = None
+    get_session_context_summary = None
+    sync_workstate_from_tasks = None
+
+try:
+    from pre_impact_analyzer import load_code_graph, resolve_target_dir
+except ImportError:
+    load_code_graph = None
+    resolve_target_dir = None
+
+try:
+    from session_registry import (
+        detect_current_chat_session,
+        get_chat_sessions,
+        register_chat_session,
+        heartbeat_chat_session,
+        unregister_chat_session,
+        emit_session_directive,
+    )
+except ImportError:
+    # Safe fallbacks if running in standalone test environment
+    def detect_current_chat_session(fallback=None):
+        return os.environ.get("ANTIGRAVITY_CONVERSATION_ID") or fallback or "session-default"
+    def get_chat_sessions(root_dir, prune_stale_seconds=120):
+        return {}
+    def register_chat_session(root_dir, session_id, **kwargs):
+        return {"session_id": session_id}
+    def heartbeat_chat_session(root_dir, session_id, **kwargs):
+        return True
+    def unregister_chat_session(root_dir, session_id, **kwargs):
+        return True
+    def emit_session_directive(root_dir, target_session_id, message, **kwargs):
+        return {"event_type": "session_directive", "target_chat_session_id": target_session_id}
+
+
+def parse_yaml_frontmatter(file_path: Path) -> Dict[str, Any]:
+    """Extract YAML frontmatter and body from a markdown file with zero pyyaml dependency."""
+    metadata: Dict[str, Any] = {}
+    if not file_path.exists():
+        return metadata
+
+    try:
+        content = file_path.read_text(encoding="utf-8", errors="ignore")
+    except Exception as err:
+        sys.stderr.write(f"Error reading {file_path}: {err}\n")
+        return metadata
+
+    match = re.match(r"^---\s*\n(.*?)\n---\s*\n(.*)$", content, re.DOTALL)
+    if not match:
+        return metadata
+
+    raw_yaml, body = match.group(1), match.group(2)
+    metadata["_body"] = body.strip()
+
+    current_list_key = None
+    for line in raw_yaml.splitlines():
+        line = line.rstrip()
+        if not line or line.startswith("#"):
+            continue
+
+        # List item continuation
+        if re.match(r"^\s+-\s+(.*)$", line) and current_list_key:
+            item_val = re.match(r"^\s+-\s+(.*)$", line).group(1).strip().strip('"\'')
+            if isinstance(metadata.get(current_list_key), list):
+                metadata[current_list_key].append(item_val)
+            continue
+
+        # Key-value pair
+        kv_match = re.match(r"^([A-Za-z0-9_-]+):\s*(.*)$", line)
+        if kv_match:
+            key, val = kv_match.group(1).strip(), kv_match.group(2).strip()
+            if val.startswith("[") and val.endswith("]"):
+                # Inline list
+                raw_items = val[1:-1].split(",")
+                metadata[key] = [i.strip().strip('"\'') for i in raw_items if i.strip()]
+                current_list_key = None
+            elif not val:
+                metadata[key] = []
+                current_list_key = key
+            else:
+                clean_val = val.strip('"\'')
+                metadata[key] = clean_val
+                current_list_key = None
+
+    return metadata
+
+
+def extract_task_sections(body: str) -> Dict[str, Any]:
+    """Extract structured sections like suggested action, open questions, checklists, and evolution notes from markdown body."""
+    res = {
+        "suggested_action": "",
+        "open_questions": [],
+        "checklist": [],
+        "evolution_notes": []
+    }
+    if not body:
+        return res
+
+    # Suggested action
+    sug_m = re.search(r'##\s+Suggested Action\s*\n+([^#]+)', body, re.IGNORECASE)
+    if sug_m:
+        res["suggested_action"] = sug_m.group(1).strip()
+
+    # Open questions section
+    oq_m = re.search(r'##\s+Open Questions?\s*\n+([^#]+)', body, re.IGNORECASE)
+    if oq_m:
+        lines = [line.strip().lstrip("-* \t") for line in oq_m.group(1).strip().splitlines() if line.strip()]
+        res["open_questions"].extend(lines)
+
+    # Inline questions ending with ? or checklist items
+    for line in body.splitlines():
+        line_s = line.strip()
+        if line_s.startswith(("- ", "* ", "- [ ]")) and line_s.endswith("?"):
+            clean_q = re.sub(r"^[-*]\s*(\[[ x]\])?\s*", "", line_s)
+            if clean_q not in res["open_questions"]:
+                res["open_questions"].append(clean_q)
+        elif line_s.startswith("- [ ] "):
+            item = line_s[6:].strip()
+            if item:
+                res["checklist"].append(item)
+
+    # Evolution notes / Session lineage
+    lin_m = re.search(r'##\s+.*Session Lineage.*?\n+([^#]+)', body, re.IGNORECASE)
+    if lin_m:
+        for l in lin_m.group(1).strip().splitlines():
+            cl = l.strip().lstrip("-* \t")
+            if cl:
+                res["evolution_notes"].append(cl)
+    return res
+
+
+LEGACY_AGENT_ALIASES = {
+    "designer": "@wf-designer",
+    "design": "@wf-designer",
+    "disruptor": "@wf-disruptor",
+    "growth": "@wf-growth",
+    "launcher": "@wf-launcher",
+    "launch": "@wf-launcher",
+    "marketer": "@wf-marketer",
+    "marketing": "@wf-marketer",
+    "operations": "@wf-operations",
+    "ops": "@wf-operations",
+    "programmer": "@wf-programmer",
+    "developer": "@wf-programmer",
+    "dev": "@wf-programmer",
+    "clean": "@wf-programmer",
+    "project-manager": "@wf-project-manager",
+    "researcher": "@wf-researcher",
+    "sales": "@wf-sales",
+    "scribe": "@wf-scribe",
+    "social": "@wf-social",
+    "unbundler": "@wf-unbundler",
+    "advisor": "@wf-project-manager",
+    "wf-advisor": "@wf-project-manager",
+    "compliance": "@wf-operations",
+    "wf-compliance": "@wf-operations",
+}
+NON_AGENT_HANDLES = {"", "~", "null", "none", "unassigned", "human", "@human", "me", "@me", "user", "@user"}
+EMPTY_HANDLE_TOKENS = {"", "~", "null", "none", "unassigned"}
+HUMAN_HANDLE_TOKENS = {"human", "@human", "me", "@me", "user", "@user"}
+
+
+def normalize_agent_handle(raw_handle: Any) -> Optional[str]:
+    """Normalize legacy unprefixed specialist names to @wf-* while ignoring human handles."""
+    val = str(raw_handle or "").strip()
+    if val.lower() in NON_AGENT_HANDLES:
+        return None
+    mapped = LEGACY_AGENT_ALIASES.get(val.lstrip("@").lower())
+    if mapped:
+        return mapped
+    return val if val.startswith("@") else f"@{val}"
+
+
+def format_display_handle(raw_handle: Any, default: str = "") -> str:
+    """Format any task/hypothesis handle for /api/state, preserving human tags and upgrading legacy agents."""
+    val = str(raw_handle or "").strip()
+    low = val.lower()
+    if low in EMPTY_HANDLE_TOKENS:
+        return default
+    if low in HUMAN_HANDLE_TOKENS:
+        return f"@{low.lstrip('@')}"
+    return normalize_agent_handle(val) or default
+
+
+def get_all_tasks(root_dir: Path) -> List[Dict[str, Any]]:
+    """Scan workforces/tasks/*.md and extract all task nodes with full metadata."""
+    tasks = []
+    tasks_dir = root_dir / "workforces" / "tasks"
+    if not tasks_dir.exists():
+        return tasks
+
+    for task_file in sorted(tasks_dir.glob("*.md")):
+        if task_file.name == ".gitkeep":
+            continue
+        meta = parse_yaml_frontmatter(task_file)
+        if not meta:
+            continue
+
+        task_id = meta.get("id") or task_file.stem
+        task_type = (meta.get("type") or "other").lower()
+
+        # Categorize team based on explicit meta.team or inferred from type/tags
+        explicit_team = str(meta.get("team") or "").lower().strip()
+        if explicit_team:
+            team = "operations" if explicit_team in ("ops", "operations") else explicit_team
+        elif task_type in ("marketing", "copy", "positioning"):
+            team = "marketing"
+        elif task_type in ("growth", "seo", "geo", "aiso", "acquisition"):
+            team = "growth"
+        elif task_type in ("social", "community", "reply", "triage"):
+            team = "social"
+        elif task_type in ("design", "ui", "ux", "visual", "brand"):
+            team = "design"
+        elif task_type in ("product", "strategy", "advisor", "jtbd", "goal"):
+            team = "advisor"
+        elif task_type in ("compliance", "security", "legal"):
+            team = "compliance"
+        elif task_type in ("ops", "operations", "infra", "deploy"):
+            team = "operations"
+        elif task_type in ("sales", "outreach", "prospect"):
+            team = "sales"
+        elif task_type in ("launch", "presale", "mvp"):
+            team = "launch"
+        elif task_type in ("dev", "engineering", "bug", "feature", "refactor", "code", "architecture"):
+            team = "dev"
+        else:
+            team = "dev"
+
+        body = meta.get("_body") or ""
+        extracted = extract_task_sections(body)
+
+        # Merge open questions from frontmatter if present
+        meta_oq = meta.get("open_questions")
+        if isinstance(meta_oq, list):
+            for q in meta_oq:
+                if q not in extracted["open_questions"]:
+                    extracted["open_questions"].append(q)
+
+        task_status = (meta.get("status") or "todo").lower()
+        reviewer = format_display_handle(
+            meta.get("reviewer"),
+            default="@human" if task_status == "review" else "",
+        )
+
+        task_node = {
+            "id": task_id,
+            "file": str(task_file.relative_to(root_dir)),
+            "title": meta.get("title") or task_file.stem,
+            "type": task_type,
+            "team": team,
+            "priority": (meta.get("priority") or "P2").upper(),
+            "status": task_status,
+            "reporter": format_display_handle(meta.get("reporter"), default="@human"),
+            "assignee": format_display_handle(meta.get("assignee"), default=""),
+            "reviewer": reviewer,
+            "session_id": meta.get("session_id") or "",
+            "chat_session_id": meta.get("chat_session_id") or meta.get("chat_session") or "",
+            "session_file": meta.get("session_file") or meta.get("origin_session") or "",
+            "github_issue": meta.get("github_issue") or "",
+            "github_pr": meta.get("github_pr") or "",
+            "blocked_by": meta.get("blocked_by") or [],
+            "delegated_to": format_display_handle(meta.get("delegated_to"), default=""),
+            "deciding_factors": meta.get("deciding_factors") or [],
+            "suggested_action": extracted["suggested_action"],
+            "open_questions": extracted["open_questions"],
+            "checklist": extracted["checklist"],
+            "evolution_notes": extracted["evolution_notes"],
+            "body": body,
+            "updated_at": meta.get("updated_at") or meta.get("created_at") or "",
+            "archived": bool(meta.get("archived") is True or str(meta.get("archived", "")).lower() == "true" or meta.get("status") == "archived"),
+            "linked_commits": [],
+            "linked_docs": [],
+            "linked_symbols": [],
+        }
+        tasks.append(task_node)
+    return tasks
+
+
+def get_recent_commits(root_dir: Path, limit: int = 60) -> List[Dict[str, Any]]:
+    """Extract recent git commits for task correlation."""
+    try:
+        output = subprocess.check_output(
+            ["git", "log", f"-n", str(limit), "--format=%h|%an|%ad|%s", "--date=short"],
+            cwd=str(root_dir),
+            text=True,
+            stderr=subprocess.DEVNULL
+        )
+        commits = []
+        for line in output.strip().split("\n"):
+            parts = line.split("|", 3)
+            if len(parts) == 4:
+                commits.append({
+                    "hash": parts[0],
+                    "author": parts[1],
+                    "date": parts[2],
+                    "message": parts[3]
+                })
+        return commits
+    except Exception:
+        return []
+
+
+def link_task_relationships(tasks: List[Dict[str, Any]], available_symbols: List[Dict[str, Any]], commits: List[Dict[str, Any]]) -> None:
+    """Detect and attach linked commits, documents, and code symbols to each task."""
+    stop_words = {'and', 'the', 'for', 'with', 'task', 'model', 'into', 'from', 'that', 'this', 'workflow', 'engine'}
+    for t in tasks:
+        title = t.get("title", "")
+        body = t.get("body", "")
+        combined_text = f"{title} {body}".lower()
+
+        # 1. Correlate Commits
+        matched_commits = []
+        words = [w.lower() for w in re.findall(r'[a-zA-Z0-9_-]{4,}', title) if w.lower() not in stop_words]
+        for c in commits:
+            msg_lower = c["message"].lower()
+            matches = [w for w in words if w in msg_lower]
+            if len(matches) >= 2 or (len(words) <= 2 and len(matches) >= 1):
+                matched_commits.append(c)
+        t["linked_commits"] = matched_commits[:4]
+
+        # 2. Extract Document & File References
+        doc_matches = re.findall(r'\[([^\]]+)\]\(([^)]+)\)', body)
+        linked_docs = []
+        for text, url in doc_matches:
+            if "session-context" in url:
+                continue
+            linked_docs.append({"title": text.strip(), "url": url.strip()})
+        t["linked_docs"] = linked_docs[:6]
+
+        # 3. Detect AST Code Symbols (excluding test files and fixtures)
+        matched_symbols = []
+        for s in available_symbols:
+            name = s.get("name", "")
+            file_path = s.get("file", "")
+            if name in ("setUp", "tearDown") or name.startswith("test_"):
+                continue
+            if "tests/" in file_path or "/test_" in file_path:
+                continue
+            if len(name) >= 4 and name.lower() in combined_text:
+                matched_symbols.append(s)
+            elif file_path:
+                base_name = Path(file_path).stem.lower()
+                if len(base_name) >= 4 and base_name in combined_text:
+                    matched_symbols.append(s)
+        seen_syms = set()
+        deduped_syms = []
+        for s in matched_symbols:
+            if s["name"] not in seen_syms:
+                seen_syms.add(s["name"])
+                deduped_syms.append(s)
+        t["linked_symbols"] = deduped_syms[:6]
+
+
+def get_all_hypotheses(root_dir: Path) -> List[Dict[str, Any]]:
+    """Scan workforces/hypotheses/**/*.md and extract all hypothesis nodes with normalized @wf-* owners."""
+    hypotheses = []
+    hyp_dir = root_dir / "workforces" / "hypotheses"
+    if not hyp_dir.exists():
+        return hypotheses
+
+    for hyp_file in sorted(hyp_dir.rglob("*.md")):
+        if hyp_file.name == ".gitkeep" or hyp_file.name.startswith("."):
+            continue
+        meta = parse_yaml_frontmatter(hyp_file)
+        if not meta:
+            continue
+        fallback_status = hyp_file.parent.name if hyp_file.parent != hyp_dir else "testing"
+        hyp_node = {
+            "id": meta.get("id") or hyp_file.stem,
+            "file": str(hyp_file.relative_to(root_dir)),
+            "title": meta.get("title") or hyp_file.stem,
+            "status": str(meta.get("status") or fallback_status).lower(),
+            "owner": format_display_handle(meta.get("owner"), default="@wf-growth"),
+            "leading_kpi": meta.get("leading_kpi") or "",
+            "kill_threshold": meta.get("kill_threshold") or "",
+            "body": meta.get("_body") or "",
+        }
+        hypotheses.append(hyp_node)
+    return hypotheses
+
+
+def get_all_sessions(root_dir: Path) -> List[Dict[str, Any]]:
+    """Scan workforces/session-context/*.md and extract session notes."""
+    sessions = []
+    sess_dir = root_dir / "workforces" / "session-context"
+    if not sess_dir.exists():
+        sess_dir = root_dir / "session-context"
+    if not sess_dir.exists():
+        return sessions
+
+    for sess_file in sorted(sess_dir.glob("*.md")):
+        if sess_file.name == ".gitkeep" or sess_file.name.startswith("."):
+            continue
+        meta = parse_yaml_frontmatter(sess_file)
+        if not meta:
+            continue
+
+        session_id = str(meta.get("session_id") or meta.get("sequence") or sess_file.stem.split("_")[0])
+        topic = meta.get("topic") or sess_file.stem
+        parent = meta.get("parent_session_id")
+        active_files = meta.get("active_files") or []
+        tracked_tasks = meta.get("tracked_tasks") or []
+        tags = meta.get("tags") or []
+        created_at = meta.get("created_at") or ""
+
+        sessions.append({
+            "id": session_id,
+            "file": str(sess_file.relative_to(root_dir)),
+            "title": topic,
+            "topic": topic,
+            "parent_session_id": str(parent) if parent else None,
+            "active_files": active_files,
+            "tracked_tasks": tracked_tasks,
+            "tags": tags,
+            "created_at": created_at,
+            "body": meta.get("_body") or "",
+        })
+    return sessions
+
+
+def get_installed_teams_list(root_dir: Path) -> List[str]:
+    """Parses workforces/workrules.md or workspace team folders to discover installed teams."""
+    installed_teams = []
+    workrules_file = root_dir / "workforces" / "workrules.md"
+    if workrules_file.exists():
+        try:
+            content = workrules_file.read_text(encoding="utf-8", errors="ignore")
+            # 1. Frontmatter check if present
+            w_meta = parse_yaml_frontmatter(workrules_file)
+            if w_meta.get("installed_teams"):
+                raw = w_meta["installed_teams"]
+                if isinstance(raw, list):
+                    installed_teams = [str(x).strip() for x in raw if str(x).strip()]
+                elif isinstance(raw, str):
+                    installed_teams = [x.strip() for x in raw.split(",") if x.strip()]
+
+            # 2. Markdown bulleted list under ## Installed Teams
+            if not installed_teams:
+                m_block = re.search(r'## Installed Teams\s*\n((?:\s*-\s*[^\n]+\n?)+)', content)
+                if m_block:
+                    for line in m_block.group(1).splitlines():
+                        line = line.strip()
+                        if line.startswith('-'):
+                            val = line.lstrip('- ').strip().strip('\'\"')
+                            if val.startswith('installed_teams:'):
+                                val = val.replace('installed_teams:', '').strip().strip('[]\'\"')
+                                if val:
+                                    for t in val.split(','):
+                                        t = t.strip().strip('\'\"')
+                                        if t:
+                                            installed_teams.append(t)
+                            elif val and val != '[]':
+                                installed_teams.append(val)
+
+            # 3. Fallback inline installed_teams: [...]
+            if not installed_teams:
+                m = re.search(r'installed_teams:\s*\[?(.*?)\]?(\n|$)', content)
+                if m and m.group(1).strip():
+                    for t in m.group(1).split(','):
+                        t = t.strip().strip('\'\"- ')
+                        if t:
+                            installed_teams.append(t)
+        except Exception:
+            pass
+
+    # 4. Fallback to workforces/teams directory
+    if not installed_teams:
+        teams_dir = root_dir / "workforces" / "teams"
+        if teams_dir.is_dir():
+            installed_teams = [
+                d.name for d in teams_dir.iterdir()
+                if d.is_dir() and not d.name.startswith(".")
+            ]
+
+    # 5. Default fallback
+    if not installed_teams:
+        installed_teams = ["dev", "design", "marketing", "growth", "operations"]
+
+    seen = set()
+    result = []
+    for t in installed_teams:
+        if t not in seen:
+            seen.add(t)
+            result.append(t)
+    return result
+
+
+def get_standup_data(root_dir: Path, tasks: List[Dict[str, Any]], inbox_items: List[Dict[str, Any]], sessions: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Compile multi-source standup and executive productivity intelligence."""
+    priority_order = {"p0": 0, "p1": 1, "p2": 2, "p3": 3}
+    
+    active_tasks = [t for t in tasks if not t.get("archived") and t.get("status") != "archived"]
+    in_progress = [t for t in active_tasks if t.get("status") == "in_progress"]
+    in_progress.sort(key=lambda t: priority_order.get(str(t.get("priority", "p2")).lower(), 2))
+    
+    review = [t for t in active_tasks if t.get("status") == "review"]
+    review.sort(key=lambda t: priority_order.get(str(t.get("priority", "p2")).lower(), 2))
+
+    todo = [t for t in active_tasks if t.get("status") == "todo"]
+    todo.sort(key=lambda t: priority_order.get(str(t.get("priority", "p2")).lower(), 2))
+    
+    blocked = [t for t in active_tasks if t.get("status") == "blocked" or t.get("blocked_by")]
+    done = [t for t in active_tasks if t.get("status") == "done"]
+    done.sort(key=lambda t: str(t.get("updated_at") or ""), reverse=True)
+
+    # 1. "The One Thing" (Today's top P0/P1 focus commitment)
+    one_thing = None
+    if in_progress:
+        one_thing = in_progress[0]
+    elif review:
+        one_thing = review[0]
+    elif todo:
+        one_thing = todo[0]
+    elif done:
+        one_thing = done[0]
+
+    # 2. Needs Attention List
+    needs_attention = []
+    for r in review:
+        rev = r.get("reviewer") or "@human"
+        needs_attention.append({
+            "type": "task_review",
+            "id": r["id"],
+            "title": r["title"],
+            "priority": r.get("priority", "P1"),
+            "reason": f"Awaiting review from {rev}",
+            "task": r,
+        })
+
+    for b in blocked:
+        blocker_names = b.get("blocked_by", [])
+        needs_attention.append({
+            "type": "blocker",
+            "id": b["id"],
+            "title": b["title"],
+            "priority": b.get("priority", "P1"),
+            "reason": f"Blocked by: {', '.join(blocker_names)}" if blocker_names else "Task marked as blocked",
+            "task": b,
+        })
+
+    for it in inbox_items:
+        if it.get("_folder") == "human_review" or it.get("requires_human"):
+            needs_attention.append({
+                "type": "inbox_review",
+                "id": it.get("id"),
+                "title": it.get("title", "Captured Item"),
+                "priority": "P1",
+                "reason": "Extension capture awaiting human decision or approval",
+                "item": it,
+            })
+
+    # Read pending issues from workforces/issues/inbox/
+    issues_dir = root_dir / "workforces" / "issues" / "inbox"
+    issues = []
+    if issues_dir.exists():
+        for f in sorted(issues_dir.glob("*.md"), reverse=True):
+            meta = parse_yaml_frontmatter(f)
+            iss_title = meta.get("title") or f.stem.replace("-", " ").title()
+            iss_id = meta.get("id") or f.stem
+            iss_priority = meta.get("priority") or "P2"
+            issues.append({
+                "id": iss_id,
+                "title": iss_title,
+                "priority": iss_priority,
+                "file": str(f.relative_to(root_dir)),
+                "date": meta.get("reported_at") or meta.get("created_at") or "",
+            })
+            if len(needs_attention) < 8:
+                needs_attention.append({
+                    "type": "issue",
+                    "id": iss_id,
+                    "title": iss_title,
+                    "priority": iss_priority,
+                    "reason": "Unresolved backlog bug / tech debt in inbox",
+                    "file": str(f.relative_to(root_dir)),
+                })
+
+    # 3. 24h Wins
+    wins = []
+    for d in done[:8]:
+        wins.append({
+            "id": d["id"],
+            "title": d["title"],
+            "priority": d.get("priority", "P1"),
+            "completed_at": str(d.get("updated_at") or "")[:10],
+            "file": d.get("file", ""),
+            "linked_commits": d.get("linked_commits", []),
+        })
+
+    # 4. Installed Teams
+    installed_teams = get_installed_teams_list(root_dir)
+
+    # 5. Git Status
+    git_info = {"branch": "main", "clean": True, "modified_count": 0, "recent_commits": []}
+    try:
+        branch = subprocess.check_output(["git", "branch", "--show-current"], cwd=str(root_dir), text=True, stderr=subprocess.DEVNULL).strip()
+        status_s = subprocess.check_output(["git", "status", "-s"], cwd=str(root_dir), text=True, stderr=subprocess.DEVNULL).strip()
+        modified_count = len(status_s.splitlines()) if status_s else 0
+        git_info["branch"] = branch or "main"
+        git_info["clean"] = modified_count == 0
+        git_info["modified_count"] = modified_count
+    except Exception:
+        pass
+
+    # 6. Latest Session Context
+    latest_session = {}
+    if sessions:
+        sorted_sessions = sorted(sessions, key=lambda s: str(s.get("id", "")), reverse=True)
+        latest_session = sorted_sessions[0]
+        sess_path = root_dir / latest_session.get("file", "")
+        if sess_path.exists():
+            sess_meta = parse_yaml_frontmatter(sess_path)
+            latest_session["decisions"] = sess_meta.get("decisions") or []
+            latest_session["participants"] = sess_meta.get("participants") or []
+            latest_session["updated_at"] = sess_meta.get("updated_at") or ""
+
+    # 7. Workstate markdown content & Recommended Actions
+    workstate_md = ""
+    recommended_actions = []
+    ws_path = root_dir / "workforces" / "workstate.md"
+    if ws_path.exists():
+        try:
+            workstate_md = ws_path.read_text(encoding="utf-8")
+            # Look for ## Recommended Actions or ## Next Actions
+            in_rec_section = False
+            for line in workstate_md.splitlines():
+                if line.startswith("## ") and any(k in line.lower() for k in ("recommended action", "next action", "suggested action")):
+                    in_rec_section = True
+                    continue
+                elif line.startswith("## ") and in_rec_section:
+                    in_rec_section = False
+                    break
+                if in_rec_section and line.strip().startswith(("- [ ]", "- ", "* ", "1. ", "2. ", "3. ")):
+                    clean_act = re.sub(r"^[-*0-9.]+\s*(\[[ x]\])?\s*", "", line).strip()
+                    if clean_act:
+                        recommended_actions.append(clean_act)
+        except Exception:
+            pass
+
+    # If no explicit section in workstate.md, synthesize from active priority items
+    if not recommended_actions:
+        if in_progress:
+            recommended_actions.append(f"Advance active sprint task: {in_progress[0].get('title', '')}")
+        elif todo:
+            recommended_actions.append(f"Start highest-priority task: {todo[0].get('title', '')}")
+        if needs_attention:
+            recommended_actions.append(f"Resolve blocker: {needs_attention[0].get('title', '')}")
+        if len(recommended_actions) < 3 and done:
+            recommended_actions.append(f"Run standup sync and review completed milestone: {done[0].get('title', '')}")
+
+    return {
+        "one_thing": one_thing,
+        "needs_attention": needs_attention,
+        "wins_24h": wins,
+        "in_progress": in_progress,
+        "review": review,
+        "todo": todo,
+        "blocked": blocked,
+        "done": done,
+        "issues": issues,
+        "installed_teams": installed_teams,
+        "git": git_info,
+        "latest_session": latest_session,
+        "workstate_markdown": workstate_md,
+        "recommended_actions": recommended_actions,
+    }
+
+
+def create_task_file(root_dir: Path, data: Dict[str, Any]) -> Dict[str, Any]:
+    """Create a new task in workforces/tasks/ and synchronize workstate."""
+    now = datetime.datetime.now()
+    now_ts = now.strftime("%Y%m%d-%H%M%S")
+    title = data.get("title", "").strip() or "Untitled Task"
+    clean_slug = re.sub(r'[^a-zA-Z0-9_-]', '-', title.lower()).strip('-')[:40] or "task"
+    filename = f"{now_ts}-{clean_slug}.md"
+    task_path = root_dir / "workforces" / "tasks" / filename
+    task_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    task_type = data.get("type", "feature").strip()
+    team = data.get("team", "").strip() or task_type
+    priority = data.get("priority", "P1").strip().upper()
+    raw_reporter = data.get("reporter", "@human").strip()
+    reporter = normalize_agent_handle(raw_reporter) or (raw_reporter if raw_reporter.startswith("@") else "@human")
+    assignee = normalize_agent_handle(data.get("assignee", ""))
+    delegated = resolve_task_agent({"type": task_type, "team": team, "reporter": reporter})
+    suggested_action = data.get("suggested_action", "").strip()
+    description = data.get("description", "").strip() or data.get("body", "").strip()
+    chat_session_id = data.get("chat_session_id") or data.get("chat_session") or detect_current_chat_session()
+    
+    body_text = f"""# {title}
+
+**Team:** `{team}` | **Type:** `{task_type}` | **Priority:** `{priority}` | **Status:** `todo` | **Reporter:** `{reporter}`  
+**Reported:** {now.strftime("%Y-%m-%d %H:%M")} | **Updated:** {now.strftime("%Y-%m-%d %H:%M")}
+
+## Description
+
+{description or "No description provided."}
+
+## Suggested Action
+
+{suggested_action or "Review requirements and begin implementation."}
+
+## 🧠 Session Lineage & Deciding Factors
+
+- **{now.strftime("%Y-%m-%d %H:%M")}:** Created task from Workforce Studio Cockpit
+"""
+    frontmatter = f"""---
+title: "{title}"
+type: "{task_type}"
+team: "{team}"
+priority: "{priority}"
+status: "todo"
+reporter: "{reporter}"
+assignee: {f'"{assignee}"' if assignee else '~'}
+reported_at: "{now.isoformat()}"
+updated_at: "{now.isoformat()}"
+file: "{str(task_path.relative_to(root_dir))}"
+session_id: ""
+chat_session_id: "{chat_session_id}"
+session_file: ""
+recommended_tools: []
+delegated_to: "{delegated}"
+github_labels: []
+github_issue: ~
+github_pr: ~
+---
+
+{body_text}
+"""
+    task_path.write_text(frontmatter, encoding="utf-8")
+    
+    if sync_workstate_from_tasks:
+        try:
+            sync_workstate_from_tasks(str(root_dir))
+        except Exception:
+            pass
+            
+    return {
+        "id": task_path.stem,
+        "file": str(task_path.relative_to(root_dir)),
+        "title": title,
+        "type": task_type,
+        "team": team,
+        "priority": priority,
+        "status": "todo",
+        "reporter": reporter,
+        "assignee": assignee or delegated,
+        "delegated_to": delegated,
+        "chat_session_id": chat_session_id,
+        "body": body_text
+    }
+
+
+def resolve_inbox_item(root_dir: Path, item_id: str, action: str, priority: str = "P1", task_type: str = "feature") -> Dict[str, Any]:
+    """Approve or dismiss an inbox item."""
+    inbox_base = root_dir / "workforces" / "inbox"
+    target_file = None
+    for folder in ("human_review", "pending", "processed"):
+        d = inbox_base / folder
+        if d.exists():
+            for f in list(d.glob(f"{item_id}.*")) + list(d.glob(f"*{item_id}*")):
+                target_file = f
+                break
+        if target_file:
+            break
+
+    if not target_file or not target_file.exists():
+        raise FileNotFoundError(f"Inbox item {item_id} not found")
+
+    processed_dir = inbox_base / "processed"
+    processed_dir.mkdir(parents=True, exist_ok=True)
+
+    if action == "approve":
+        if target_file.suffix == ".json":
+            raw_data = json.loads(target_file.read_text(encoding="utf-8"))
+            title = raw_data.get("title", "Inbox Task")
+            content = raw_data.get("content") or raw_data.get("selection") or ""
+            source_url = raw_data.get("source_url", "")
+            raw_data["status"] = "approved"
+        else:
+            meta = parse_yaml_frontmatter(target_file)
+            title = meta.get("title") or target_file.stem.replace("-", " ").title()
+            content = meta.get("_body") or ""
+            source_url = meta.get("source_url", "")
+            raw_data = {"id": item_id, "title": title, "content": content, "status": "approved"}
+
+        task_res = create_task_file(root_dir, {
+            "title": title,
+            "priority": priority,
+            "type": task_type,
+            "description": content,
+            "suggested_action": f"Review research/capture from {source_url}" if source_url else "Follow up on approved inbox item.",
+            "reporter": "@inbox"
+        })
+
+        raw_data["task_id"] = task_res["id"]
+        raw_data["task_file"] = task_res["file"]
+        raw_data["resolved_at"] = datetime.datetime.now().isoformat()
+        dest = processed_dir / f"{target_file.stem}.json"
+        dest.write_text(json.dumps(raw_data, indent=2), encoding="utf-8")
+        if target_file != dest:
+            target_file.unlink(missing_ok=True)
+        return {"action": "approved", "task": task_res}
+    else:
+        if target_file.suffix == ".json":
+            raw_data = json.loads(target_file.read_text(encoding="utf-8"))
+            raw_data["status"] = "dismissed"
+            raw_data["dismissed_at"] = datetime.datetime.now().isoformat()
+            dest = processed_dir / f"{target_file.stem}.json"
+            dest.write_text(json.dumps(raw_data, indent=2), encoding="utf-8")
+        else:
+            dest = processed_dir / target_file.name
+            shutil.move(str(target_file), str(dest))
+        if target_file != dest:
+            target_file.unlink(missing_ok=True)
+        return {"action": "dismissed", "item_id": item_id}
+
+
+def get_commit_details(root_dir: Path, commit_hash: Optional[str]) -> Dict[str, Any]:
+    """Inspect a git commit, touched files, and AST symbols."""
+    if not commit_hash:
+        return {"error": "Missing commit hash"}
+    try:
+        out = subprocess.check_output(
+            ["git", "show", "--name-only", "--format=%h|%an|%ad|%s", commit_hash],
+            cwd=str(root_dir),
+            text=True,
+            stderr=subprocess.DEVNULL
+        )
+        lines = out.strip().split("\n")
+        header = lines[0].split("|", 3)
+        files = [l.strip() for l in lines[1:] if l.strip()]
+
+        commit_info = {
+            "hash": header[0] if len(header) > 0 else commit_hash,
+            "author": header[1] if len(header) > 1 else "Unknown",
+            "date": header[2] if len(header) > 2 else "",
+            "message": header[3] if len(header) > 3 else "",
+            "files": files,
+            "symbols": [],
+        }
+
+        # Find symbols in touched files from code-graph.json
+        code_graph_file = root_dir / "workforces" / "code-graph.json"
+        if not code_graph_file.exists():
+            code_graph_file = root_dir / "code-graph.json"
+        if code_graph_file.exists():
+            try:
+                cg_data = json.loads(code_graph_file.read_text(encoding="utf-8"))
+                touched_set = set(files)
+                for s in cg_data.get("symbols", []):
+                    s_file = s.get("file", "")
+                    if s_file in touched_set or any(f.endswith(s_file) or s_file.endswith(f) for f in files):
+                        commit_info["symbols"].append({
+                            "name": s["name"],
+                            "file": s_file,
+                            "line": s.get("line", 0),
+                            "kind": s.get("kind", "function")
+                        })
+            except Exception:
+                pass
+
+        return commit_info
+    except Exception as e:
+        return {"error": str(e), "hash": commit_hash}
+
+
+def get_all_goals(root_dir: Path) -> List[Dict[str, Any]]:
+    """Scan workforces/goals/*.md and extract macro business goals."""
+    goals = []
+    goals_dir = root_dir / "workforces" / "goals"
+    if not goals_dir.exists():
+        return goals
+
+    for goal_file in sorted(goals_dir.glob("*.md")):
+        if goal_file.name == ".gitkeep":
+            continue
+        meta = parse_yaml_frontmatter(goal_file)
+        goals.append({
+            "id": meta.get("id") or goal_file.stem,
+            "file": str(goal_file.relative_to(root_dir)),
+            "title": meta.get("title") or goal_file.stem,
+            "horizon": meta.get("horizon") or "current",
+            "status": meta.get("status") or "active",
+            "body": meta.get("_body") or "",
+        })
+    return goals
+
+
+def load_multi_repo_symbols(root_dir: Path) -> List[Dict[str, Any]]:
+    """
+    Load AST symbols from primary repository, internal projects, and internal sibling repos.
+    Enables cross-repository blast radius analysis for organizations controlling multiple repos.
+    """
+    symbols = []
+    seen = set()
+
+    def add_from_file(cg_file: Path, repo_name: str, prefix_path: bool = False):
+        if not cg_file.exists():
+            return
+        try:
+            data = json.loads(cg_file.read_text(encoding="utf-8"))
+            for s in data.get("symbols", []):
+                s_copy = dict(s)
+                s_copy["repo"] = repo_name
+                if prefix_path:
+                    s_copy["file"] = f"{repo_name}/{s.get('file', '')}"
+                key = (repo_name, s_copy.get("name"), s_copy.get("file"))
+                if key not in seen:
+                    seen.add(key)
+                    symbols.append(s_copy)
+        except Exception:
+            pass
+
+    # 1. Primary repository
+    for p in [root_dir / "workforces" / "code-graph.json", root_dir / "code-graph.json"]:
+        if p.exists():
+            add_from_file(p, root_dir.name, prefix_path=False)
+            break
+
+    # 2. Projects subfolder if present
+    proj_dir = root_dir / "projects"
+    if proj_dir.exists():
+        for p_sub in proj_dir.iterdir():
+            if p_sub.is_dir() and not p_sub.name.startswith("."):
+                for p in [p_sub / "workforces" / "code-graph.json", p_sub / "code-graph.json"]:
+                    if p.exists():
+                        add_from_file(p, p_sub.name, prefix_path=True)
+                        break
+
+    # 3. Sibling repositories under parent directory
+    if root_dir.parent.exists():
+        for sib in root_dir.parent.iterdir():
+            if sib.is_dir() and sib.name != root_dir.name and not sib.name.startswith("."):
+                for p in [sib / "workforces" / "code-graph.json", sib / "code-graph.json"]:
+                    if p.exists():
+                        add_from_file(p, sib.name, prefix_path=True)
+                        break
+
+    return symbols
+
+
+def get_code_blast_radius(root_dir: Path, symbol_name: Optional[str] = None, file_path: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Extract upstream internal callees and downstream blast radius callers for a given symbol.
+    Excludes external standard library built-ins to maintain focused internal dependency maps.
+    Aware of internal multi-repo symbols across repositories we control.
+    """
+    symbols = load_multi_repo_symbols(root_dir)
+
+    # Build symbol map prioritizing local repo in case of identical names
+    symbol_map: Dict[str, Dict[str, Any]] = {}
+    for s in symbols:
+        name = s.get("name")
+        if name and (name not in symbol_map or s.get("repo") == root_dir.name):
+            symbol_map[name] = s
+
+    target_symbol = None
+    if symbol_name and symbol_name in symbol_map:
+        target_symbol = symbol_map[symbol_name]
+    elif file_path:
+        for s in symbols:
+            if s.get("file") == file_path or file_path.endswith(s.get("file", "---")):
+                target_symbol = s
+                break
+
+    if not target_symbol:
+        return {
+            "found": False,
+            "target": None,
+            "upstream_callees": [],
+            "downstream_callers": [],
+            "affected_files": [],
+        }
+
+    target_name = target_symbol.get("name")
+    target_file = target_symbol.get("file")
+    target_repo = target_symbol.get("repo", root_dir.name)
+
+    # Upstream: ONLY internal methods called BY target_symbol (filtering out external/stdlib noise)
+    upstream_callees = []
+    seen_callees = set()
+    calls = target_symbol.get("calls", [])
+    for call_name in calls:
+        if call_name in symbol_map:
+            callee = symbol_map[call_name]
+            callee_key = (callee.get("name"), callee.get("file"))
+            if callee_key not in seen_callees:
+                seen_callees.add(callee_key)
+                upstream_callees.append(callee)
+        # Note: External standard library and built-ins (abspath, append, get, etc.)
+        # are intentionally omitted to focus strictly on internal architectural dependencies.
+
+    # Downstream: other internal functions that CALL target_name (Blast Radius)
+    downstream_callers = []
+    seen_callers = set()
+    affected_files = set()
+    for s in symbols:
+        if s.get("name") == target_name and s.get("file") == target_file and s.get("repo") == target_repo:
+            continue
+        if target_name in s.get("calls", []):
+            caller_key = (s.get("name"), s.get("file"))
+            if caller_key not in seen_callers:
+                seen_callers.add(caller_key)
+                downstream_callers.append(s)
+                if s.get("file"):
+                    affected_files.add(s.get("file"))
+
+    return {
+        "found": True,
+        "target": target_symbol,
+        "upstream_callees": upstream_callees,
+        "downstream_callers": downstream_callers,
+        "affected_files": sorted(list(affected_files)),
+    }
+
+
+def resolve_task_agent(task_meta: Dict[str, Any]) -> str:
+    """Determine the specialist subagent based on task metadata."""
+    for key in ("delegated_to", "assignee"):
+        normalized = normalize_agent_handle(task_meta.get(key))
+        if normalized:
+            return normalized
+
+    t_type = str(task_meta.get("type", "")).lower()
+    t_team = str(task_meta.get("team", "")).lower()
+    t_reporter = str(task_meta.get("reporter", "")).lower()
+
+    if t_team == "design" or t_type in ("design", "ui", "ux", "visual", "brand") or "design" in t_reporter:
+        return "@wf-designer"
+    elif t_team == "marketing" or t_type in ("marketing", "copy", "positioning") or "market" in t_reporter:
+        return "@wf-marketer"
+    elif t_team == "growth" or t_type in ("growth", "seo", "geo", "aiso", "acquisition") or "growth" in t_reporter:
+        return "@wf-growth"
+    elif t_team == "social" or t_type in ("social", "community", "reply", "triage") or "social" in t_reporter:
+        return "@wf-social"
+    elif t_team in ("advisor", "strategy") or t_type in ("strategy", "advisor", "jtbd", "goal", "roadmap", "sync") or "manager" in t_reporter or "advisor" in t_reporter:
+        return "@wf-project-manager"
+    elif t_team == "sales" or t_type in ("sales", "outreach", "prospect") or "sales" in t_reporter:
+        return "@wf-sales"
+    elif t_team == "launch" or t_type in ("launch", "presale", "mvp") or "launch" in t_reporter:
+        return "@wf-launcher"
+    elif t_team in ("operations", "ops", "compliance") or t_type in ("ops", "operations", "infra", "deploy", "velocity", "telemetry", "compliance", "security", "legal") or "operation" in t_reporter or "compliance" in t_reporter:
+        return "@wf-operations"
+    elif t_type in ("research", "spec", "prd", "breakdown"):
+        return "@wf-researcher"
+    return "@wf-programmer"
+
+
+def queue_task_execution(root_dir: Path, task_path: Path, task_meta: Dict[str, Any], agent: str, action: Optional[str] = None) -> Dict[str, Any]:
+    """Record an in_progress task or human inquiry to the dispatch queue and print the execution trigger."""
+    queue_file = root_dir / "workforces" / "tasks" / ".dispatch_queue.json"
+    queue_file.parent.mkdir(parents=True, exist_ok=True)
+
+    items = []
+    if queue_file.exists():
+        try:
+            items = json.loads(queue_file.read_text(encoding="utf-8"))
+        except Exception:
+            items = []
+
+    task_id = task_meta.get("id") or task_path.stem
+    title = task_meta.get("title") or task_path.stem
+    rel_file = str(task_path.relative_to(root_dir)) if root_dir in task_path.parents else str(task_path)
+
+    entry = {
+        "task_id": task_id,
+        "title": title,
+        "file": rel_file,
+        "agent": agent,
+        "action": action or task_meta.get("suggested_action") or f"Execute task {title}",
+        "timestamp": datetime.datetime.now().isoformat(),
+        "status": "pending_execution",
+        "notified": False
+    }
+
+    # Deduplicate / update
+    existing_idx = next((i for i, it in enumerate(items) if it.get("task_id") == task_id or it.get("file") == rel_file), None)
+    if existing_idx is not None:
+        items[existing_idx] = entry
+    else:
+        items.append(entry)
+
+    queue_file.write_text(json.dumps(items, indent=2), encoding="utf-8")
+
+    # Structured Antigravity task dispatch trigger banner
+    print(f"\n⚡ [TASK_DISPATCH_TRIGGER] Task '{title}' ({task_id}) moved to IN_PROGRESS. Delegated to {agent}.")
+    print(f"👉 File: {rel_file}")
+    sys.stdout.flush()
+
+    # Emit task_started event so wait_for_message.py picks it up and alerts Antigravity
+    try:
+        event_payload = {
+            "id": task_id,
+            "title": title,
+            "file": rel_file,
+            "team": task_meta.get("team") or "dev",
+            "type": task_meta.get("type") or "dev",
+            "priority": task_meta.get("priority") or "P1",
+            "status": "in_progress",
+            "agent": agent,
+            "delegated_to": agent,
+            "action": action or task_meta.get("suggested_action") or f"Execute task {title}",
+            "description": task_meta.get("description") or task_meta.get("_body", "")
+        }
+        emit_event(root_dir, "task_started", event_payload)
+    except Exception as ev_err:
+        sys.stderr.write(f"Failed to emit task_started event: {ev_err}\n")
+
+    return entry
+
+
+def update_task_file(root_dir: Path, relative_file: str, updates: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Safely update a task's frontmatter fields (status, priority, blocked_by, evolution notes).
+    Automatically resynchronizes workforces/workstate.md.
+    """
+    task_path = root_dir / relative_file.lstrip("/")
+    if not task_path.exists():
+        if (root_dir / "workforces" / relative_file.lstrip("/")).exists():
+            task_path = root_dir / "workforces" / relative_file.lstrip("/")
+        elif (root_dir / "workforces" / "tasks" / relative_file.lstrip("/")).exists():
+            task_path = root_dir / "workforces" / "tasks" / relative_file.lstrip("/")
+        else:
+            # Look up task in tasks directory by filename or stem
+            tasks_dir = root_dir / "workforces" / "tasks"
+            found_path = None
+            if tasks_dir.exists():
+                for tf in tasks_dir.glob("*.md"):
+                    if tf.name == relative_file or tf.stem == relative_file or tf.name == f"{relative_file}.md":
+                        found_path = tf
+                        break
+            if found_path:
+                task_path = found_path
+            else:
+                raise FileNotFoundError(f"Task file not found: {relative_file}")
+
+    content = task_path.read_text(encoding="utf-8", errors="ignore")
+    match = re.match(r"^---\s*\n(.*?)\n---\s*\n(.*)$", content, re.DOTALL)
+    if not match:
+        raise ValueError(f"Task file does not have valid YAML frontmatter: {relative_file}")
+
+    raw_yaml, body = match.group(1), match.group(2)
+    current_meta = parse_yaml_frontmatter(task_path)
+    extracted = extract_task_sections(body)
+    for k, v in extracted.items():
+        if k not in current_meta:
+            current_meta[k] = v
+
+    now_iso = datetime.datetime.now().isoformat()
+
+    for handle_key in ("assignee", "delegated_to", "reviewer", "reporter"):
+        if handle_key in updates and isinstance(updates[handle_key], str):
+            raw_h = updates[handle_key].strip()
+            norm_h = normalize_agent_handle(raw_h)
+            updates[handle_key] = norm_h or (raw_h if raw_h.startswith("@") and raw_h.lstrip("@").lower() in HUMAN_HANDLE_TOKENS else "")
+
+    # If transitioning to in_progress, ensure an agent is assigned and dispatched
+    dispatched_agent = None
+    if updates.get("status") == "in_progress":
+        dispatched_agent = resolve_task_agent({**current_meta, **updates})
+        cand_del = normalize_agent_handle(updates.get("delegated_to") or current_meta.get("delegated_to", ""))
+        if not cand_del or cand_del.lstrip("@").lower() in HUMAN_HANDLE_TOKENS:
+            updates["delegated_to"] = dispatched_agent
+        else:
+            updates["delegated_to"] = cand_del
+            dispatched_agent = cand_del
+        cand_ass = normalize_agent_handle(updates.get("assignee") or current_meta.get("assignee", ""))
+        if not cand_ass or cand_ass.lstrip("@").lower() in HUMAN_HANDLE_TOKENS:
+            updates["assignee"] = dispatched_agent
+        elif "assignee" in updates:
+            updates["assignee"] = cand_ass
+
+    # If transitioning to review, ensure reviewer is set (default to @human)
+    transitioned_to_review = False
+    if updates.get("status") == "review":
+        transitioned_to_review = (current_meta.get("status") != "review")
+        cand_rev = str(updates.get("reviewer") or current_meta.get("reviewer") or "").strip()
+        if not cand_rev or cand_rev in ("~", "null", "none"):
+            updates["reviewer"] = "@human"
+
+    yaml_lines = raw_yaml.splitlines()
+
+    # Track if updated_at was modified
+    has_updated_at = False
+
+    new_yaml_lines = []
+    for line in yaml_lines:
+        kv = re.match(r"^([A-Za-z0-9_-]+):\s*(.*)$", line)
+        if kv:
+            key = kv.group(1).strip()
+            if key in updates:
+                new_val = updates[key]
+                if isinstance(new_val, list):
+                    clean_items = ", ".join(f'"{i}"' for i in new_val)
+                    new_yaml_lines.append(f"{key}: [{clean_items}]")
+                elif isinstance(new_val, bool):
+                    new_yaml_lines.append(f"{key}: {str(new_val).lower()}")
+                else:
+                    new_yaml_lines.append(f'{key}: "{new_val}"')
+                del updates[key]
+                continue
+            elif key == "updated_at":
+                new_yaml_lines.append(f'updated_at: "{now_iso}"')
+                has_updated_at = True
+                continue
+        new_yaml_lines.append(line)
+
+    # Append any remaining new keys
+    for key, val in updates.items():
+        if key == "evolution_note":
+            continue
+        if isinstance(val, list):
+            clean_items = ", ".join(f'"{i}"' for i in val)
+            new_yaml_lines.append(f"{key}: [{clean_items}]")
+        elif isinstance(val, bool):
+            new_yaml_lines.append(f"{key}: {str(val).lower()}")
+        else:
+            new_yaml_lines.append(f'{key}: "{val}"')
+
+    if not has_updated_at:
+        new_yaml_lines.append(f'updated_at: "{now_iso}"')
+
+    # Handle evolution note append
+    evolution_note = updates.get("evolution_note")
+    if evolution_note:
+        evolution_block = f"\n\n### 📝 Evolution Note ({now_iso[:16]})\n- {evolution_note.strip()}"
+        body = body.rstrip() + evolution_block + "\n"
+
+    # Handle question answer append
+    answer_data = updates.get("answer_question")
+    if answer_data:
+        if isinstance(answer_data, dict):
+            q_text = answer_data.get("question", "").strip()
+            a_text = answer_data.get("answer", "").strip()
+            answer_block = f"\n\n### 💡 Decision & Answer ({now_iso[:16]})\n- **Question:** {q_text}\n- **Answer:** {a_text}"
+        else:
+            answer_block = f"\n\n### 💡 Decision & Answer ({now_iso[:16]})\n- {str(answer_data).strip()}"
+        body = body.rstrip() + answer_block + "\n"
+
+    new_content = "---\n" + "\n".join(new_yaml_lines) + "\n---\n" + body
+    task_path.write_text(new_content, encoding="utf-8")
+
+    # Queue task for execution if it transitioned to in_progress
+    if dispatched_agent:
+        updated_meta = parse_yaml_frontmatter(task_path)
+        queue_task_execution(root_dir, task_path, updated_meta, dispatched_agent)
+
+    # Emit task_review event if transitioned to review
+    if transitioned_to_review:
+        try:
+            updated_meta = parse_yaml_frontmatter(task_path)
+            rev_event_payload = {
+                "id": updated_meta.get("id") or task_path.stem,
+                "title": updated_meta.get("title") or task_path.stem,
+                "file": str(task_path.relative_to(root_dir)) if root_dir in task_path.parents else str(task_path),
+                "team": updated_meta.get("team") or "dev",
+                "type": updated_meta.get("type") or "dev",
+                "priority": updated_meta.get("priority") or "P1",
+                "status": "review",
+                "reviewer": updated_meta.get("reviewer") or "@human",
+                "agent": resolve_task_agent(updated_meta),
+                "action": updated_meta.get("suggested_action") or f"Review task {updated_meta.get('title')}",
+                "description": updated_meta.get("description", "")
+            }
+            emit_event(root_dir, "task_review", rev_event_payload)
+        except Exception as ev_err:
+            sys.stderr.write(f"Failed to emit task_review event: {ev_err}\n")
+
+    # Resync workstate.md if personal_sync is available
+    if sync_workstate_from_tasks:
+        try:
+            sync_workstate_from_tasks(str(root_dir))
+        except Exception as sync_err:
+            sys.stderr.write(f"Workstate sync error: {sync_err}\n")
+
+    result_meta = parse_yaml_frontmatter(task_path)
+    for hk in ("assignee", "delegated_to", "reporter"):
+        if hk in result_meta and isinstance(result_meta[hk], str):
+            norm_v = normalize_agent_handle(result_meta[hk])
+            if norm_v:
+                result_meta[hk] = norm_v
+            elif result_meta[hk].strip() in ("~", "null", "none"):
+                result_meta[hk] = ""
+    return result_meta
+
+
+def write_session_state(root_dir: Path, status: str, port: int, pid: int, extra: Optional[Dict[str, Any]] = None):
+    """Write or update workforces/.canvas-session.json and .canvas-servers.json with runtime telemetry."""
+    try:
+        session_file = root_dir / "workforces" / ".canvas-session.json"
+        session_file.parent.mkdir(parents=True, exist_ok=True)
+        data = {
+            "status": status,
+            "pid": pid,
+            "port": port,
+            "url": f"http://127.0.0.1:{port}",
+            "updated_at": datetime.datetime.now().isoformat(),
+        }
+        if extra:
+            data.update(extra)
+        session_file.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+        # Multi-server tracking across ports
+        servers_file = root_dir / "workforces" / ".canvas-servers.json"
+        servers_data = {}
+        if servers_file.exists():
+            try:
+                servers_data = json.loads(servers_file.read_text(encoding="utf-8"))
+            except Exception:
+                servers_data = {}
+        if not isinstance(servers_data, dict):
+            servers_data = {}
+
+        port_str = str(port)
+        if status == "stopped":
+            if port_str in servers_data:
+                servers_data[port_str]["status"] = "stopped"
+                servers_data[port_str]["stopped_at"] = datetime.datetime.now().isoformat()
+        else:
+            servers_data[port_str] = {
+                "port": port,
+                "pid": pid,
+                "status": status,
+                "url": f"http://127.0.0.1:{port}",
+                "chat_session_id": (extra or {}).get("chat_session_id", ""),
+                "updated_at": datetime.datetime.now().isoformat(),
+            }
+        servers_file.write_text(json.dumps(servers_data, indent=2), encoding="utf-8")
+
+        # Session registry update
+        chat_sess = (extra or {}).get("chat_session_id") or detect_current_chat_session()
+        if status == "running":
+            register_chat_session(
+                root_dir=root_dir,
+                session_id=chat_sess,
+                role="webserver",
+                port=port,
+                pid=pid,
+                status="active"
+            )
+        elif status == "stopped":
+            unregister_chat_session(root_dir=root_dir, session_id=chat_sess, status="stopped")
+    except Exception as e:
+        sys.stderr.write(f"Error writing session state: {e}\n")
+
+
+def get_comments(root_dir: Path, target_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Retrieve visual pins and comments from workforces/.canvas-comments.json."""
+    comments_file = root_dir / "workforces" / ".canvas-comments.json"
+    if not comments_file.exists():
+        return []
+    try:
+        data = json.loads(comments_file.read_text(encoding="utf-8"))
+        if target_id:
+            tid_clean = str(target_id).rstrip("/").split("/")[-1]
+            tid_stem = tid_clean[:-3] if tid_clean.endswith(".md") else tid_clean
+            matched = []
+            for c in data:
+                c_tid = str(c.get("target_id") or "")
+                c_file = str(c.get("file") or "")
+                c_file_clean = c_file.rstrip("/").split("/")[-1]
+                c_file_stem = c_file_clean[:-3] if c_file_clean.endswith(".md") else c_file_clean
+
+                if (c_tid == target_id
+                    or c_file == target_id
+                    or c_tid == tid_clean
+                    or c_tid == tid_stem
+                    or c_file_clean == tid_clean
+                    or c_file_stem == tid_stem):
+                    matched.append(c)
+            return matched
+        return data
+    except Exception as err:
+        sys.stderr.write(f"Warning: Error reading comments: {err}\n")
+        return []
+
+
+
+_EVENT_LOCK = threading.Lock()
+
+
+def emit_event(root_dir: Path, event_type: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Emit an immutable, timestamped event to workforces/.events/pending/.
+
+    Creates workforces/.events/pending/ and workforces/.events/processed/ if needed.
+    Writes an immutable, timestamped JSON event file: <ISO_or_compact_timestamp>_<seq>_<event_type>.json
+    """
+    root_dir = Path(root_dir).resolve()
+    events_dir = root_dir / "workforces" / ".events"
+    pending_dir = events_dir / "pending"
+    processed_dir = events_dir / "processed"
+
+    pending_dir.mkdir(parents=True, exist_ok=True)
+    processed_dir.mkdir(parents=True, exist_ok=True)
+
+    event_type_clean = re.sub(r"[^a-zA-Z0-9_-]", "_", str(event_type).strip().lower()) if event_type else "event"
+    if not isinstance(payload, dict):
+        payload = {"data": payload}
+
+    with _EVENT_LOCK:
+        seq_file = events_dir / ".seq"
+        lock_file = events_dir / ".seq.lock"
+        lf = None
+        if fcntl is not None:
+            try:
+                lf = open(lock_file, "w")
+                fcntl.flock(lf.fileno(), fcntl.LOCK_EX)
+            except Exception:
+                lf = None
+
+        try:
+            current_seq = 0
+            if seq_file.exists():
+                try:
+                    current_seq = int(seq_file.read_text(encoding="utf-8").strip())
+                except Exception:
+                    current_seq = 0
+            else:
+                # Scan existing event files across pending and processed to initialize sequence safely
+                for directory in (pending_dir, processed_dir):
+                    if directory.exists():
+                        for f in directory.glob("*.json"):
+                            parts = f.stem.split("_")
+                            if len(parts) >= 2:
+                                try:
+                                    seq_num = int(parts[1])
+                                    if seq_num > current_seq:
+                                        current_seq = seq_num
+                                except ValueError:
+                                    pass
+            next_seq = current_seq + 1
+            try:
+                seq_tmp = seq_file.with_suffix(".tmp")
+                seq_tmp.write_text(str(next_seq), encoding="utf-8")
+                seq_tmp.replace(seq_file)
+            except Exception as e:
+                sys.stderr.write(f"Warning: Could not write sequence file {seq_file}: {e}\n")
+        finally:
+            if lf is not None:
+                try:
+                    fcntl.flock(lf.fileno(), fcntl.LOCK_UN)
+                    lf.close()
+                except Exception:
+                    pass
+
+    now = datetime.datetime.now(datetime.timezone.utc)
+    ts_compact = now.strftime("%Y%m%dT%H%M%SZ")
+    event_id = f"{ts_compact}_{next_seq:04d}_{event_type_clean}"
+    event_file = pending_dir / f"{event_id}.json"
+
+    event_record = {
+        "id": event_id,
+        "event_type": event_type,
+        "type": event_type,
+        "timestamp": now.isoformat(),
+        "payload": payload,
+    }
+
+    # Write atomically via temp file to avoid race conditions with watchers reading incomplete JSON
+    tmp_file = event_file.with_suffix(".tmp")
+    tmp_file.write_text(json.dumps(event_record, indent=2), encoding="utf-8")
+    tmp_file.replace(event_file)
+
+    return event_record
+
+
+def save_comment(root_dir: Path, comment_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Save a visual pin or review comment and append an evolution note if linked to a task."""
+    comments_file = root_dir / "workforces" / ".canvas-comments.json"
+    comments = []
+    if comments_file.exists():
+        try:
+            comments = json.loads(comments_file.read_text(encoding="utf-8"))
+        except Exception:
+            comments = []
+
+    comment_id = f"comment-{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}-{os.urandom(2).hex()}"
+    pin = comment_data.get("pin")
+    entry = {
+        "id": comment_id,
+        "target_type": comment_data.get("target_type", "task"),
+        "target_id": comment_data.get("target_id") or comment_data.get("file", ""),
+        "file": comment_data.get("file", ""),
+        "comment": comment_data.get("comment", ""),
+        "author": comment_data.get("author", "@human"),
+        "pin": pin,
+        "stitch_url": comment_data.get("stitch_url", ""),
+        "created_at": datetime.datetime.now().isoformat(),
+    }
+    comments.append(entry)
+    comments_file.parent.mkdir(parents=True, exist_ok=True)
+    comments_file.write_text(json.dumps(comments, indent=2), encoding="utf-8")
+
+    # If target points to a task file or task ID, resolve path and append evolution note
+    target_identifier = comment_data.get("file") or comment_data.get("target_id") or ""
+    resolved_task_file = None
+    if target_identifier:
+        cand = root_dir / str(target_identifier).lstrip("/")
+        if cand.exists() and cand.is_file():
+            resolved_task_file = str(cand.relative_to(root_dir))
+        elif (root_dir / "workforces" / str(target_identifier).lstrip("/")).exists():
+            resolved_task_file = str((root_dir / "workforces" / str(target_identifier).lstrip("/")).relative_to(root_dir))
+        elif (root_dir / "workforces" / "tasks" / str(target_identifier).lstrip("/")).exists():
+            resolved_task_file = str((root_dir / "workforces" / "tasks" / str(target_identifier).lstrip("/")).relative_to(root_dir))
+        else:
+            tasks_dir = root_dir / "workforces" / "tasks"
+            if tasks_dir.exists():
+                for tf in tasks_dir.glob("*.md"):
+                    if tf.stem == target_identifier or tf.name == target_identifier or tf.name == f"{target_identifier}.md":
+                        resolved_task_file = str(tf.relative_to(root_dir))
+                        break
+                    try:
+                        meta = parse_yaml_frontmatter(tf)
+                        if meta.get("id") == target_identifier:
+                            resolved_task_file = str(tf.relative_to(root_dir))
+                            break
+                    except Exception:
+                        pass
+
+    if resolved_task_file:
+        try:
+            pin_str = f" [Pin: {pin.get('x', 0):.1f}%, {pin.get('y', 0):.1f}%]" if pin else ""
+            stitch_str = f" [Stitch: {entry['stitch_url']}]" if entry.get("stitch_url") else ""
+            note_text = f"{entry['author']}: {entry['comment']}{pin_str}{stitch_str}"
+            update_task_file(root_dir, resolved_task_file, {"evolution_note": note_text})
+            entry["task_updated"] = resolved_task_file
+
+            # If comment is from a human user, queue an inquiry action in dispatch queue
+            author_clean = str(entry.get("author", "")).strip().lstrip("@").lower()
+            if author_clean in HUMAN_HANDLE_TOKENS:
+                full_task_path = root_dir / resolved_task_file
+                if full_task_path.exists():
+                    try:
+                        task_meta = parse_yaml_frontmatter(full_task_path)
+                        comment_text = entry.get("comment", "")
+                        comment_lower = comment_text.lower()
+                        # Inquiry / verification keywords default to @wf-researcher, otherwise task domain agent
+                        if any(kw in comment_lower for kw in ("check", "done", "close", "verify", "is this", "status", "already", "?")):
+                            target_agent = "@wf-researcher"
+                        else:
+                            target_agent = resolve_task_agent(task_meta)
+                        queue_task_execution(
+                            root_dir,
+                            full_task_path,
+                            task_meta,
+                            target_agent,
+                            action=f"Human comment inquiry: {comment_text}"
+                        )
+                        entry["dispatched_agent"] = target_agent
+                    except Exception as q_err:
+                        sys.stderr.write(f"Warning: Could not queue comment dispatch: {q_err}\n")
+        except Exception as e:
+            sys.stderr.write(f"Warning: Could not append comment to task file: {e}\n")
+
+    return entry
+
+
+def get_inbox_items(root_dir: Path) -> List[Dict[str, Any]]:
+    """Retrieve all items from workforces/inbox/ (pending, human_review, processed), supporting JSON and Markdown."""
+    items = []
+    for sub in ("pending", "human_review", "processed"):
+        d = root_dir / "workforces" / "inbox" / sub
+        if d.exists():
+            for f in sorted(list(d.glob("*.json")) + list(d.glob("*.md")), reverse=True):
+                try:
+                    if f.suffix == ".json":
+                        item_data = json.loads(f.read_text(encoding="utf-8"))
+                    else:
+                        meta = parse_yaml_frontmatter(f)
+                        raw_body = meta.get("_body")
+                        if raw_body is None:
+                            try:
+                                raw_body = f.read_text(encoding="utf-8")
+                            except Exception:
+                                raw_body = ""
+                        item_data = {
+                            "id": meta.get("id") or f.stem,
+                            "title": meta.get("title") or f.stem.replace("-", " ").title(),
+                            "type": meta.get("type") or "research",
+                            "content": raw_body,
+                            "source_url": meta.get("source_url") or "",
+                            "status": meta.get("status") or sub,
+                            "captured_at": meta.get("created_at") or datetime.datetime.fromtimestamp(f.stat().st_mtime).isoformat()
+                        }
+                    item_data["_folder"] = sub
+                    item_data["_filename"] = f.name
+                    items.append(item_data)
+                except Exception as err:
+                    sys.stderr.write(f"Warning: error reading inbox file {f.name}: {err}\n")
+    return items
+
+
+class InboxHeartbeatWatcher:
+    """
+    Background watcher that monitors workforces/inbox/pending/ for new items
+    from the Chrome extension or external tools. Routes auto-dispatchable tasks
+    to workforces/tasks/ and moves to processed, ideas to workforces/ideas/,
+    and human review items to workforces/inbox/human_review/.
+    Shuts down cleanly when server.py stops.
+    """
+    def __init__(self, root_dir: Path, interval: float = 2.0):
+        self.root_dir = root_dir
+        self.interval = interval
+        self.stop_event = threading.Event()
+        self.thread: Optional[threading.Thread] = None
+
+    def start(self):
+        self.stop_event.clear()
+        self.thread = threading.Thread(target=self._run, daemon=True)
+        self.thread.start()
+
+    def stop(self):
+        self.stop_event.set()
+        if self.thread and self.thread.is_alive():
+            self.thread.join(timeout=2.0)
+
+    def _run(self):
+        pending_dir = self.root_dir / "workforces" / "inbox" / "pending"
+        processed_dir = self.root_dir / "workforces" / "inbox" / "processed"
+        human_dir = self.root_dir / "workforces" / "inbox" / "human_review"
+        tasks_dir = self.root_dir / "workforces" / "tasks"
+
+        for d in (pending_dir, processed_dir, human_dir, tasks_dir):
+            d.mkdir(parents=True, exist_ok=True)
+
+        while not self.stop_event.is_set():
+            try:
+                self._scan_and_route(pending_dir, processed_dir, human_dir, tasks_dir)
+                self._sweep_dispatch_queue(tasks_dir)
+            except Exception as e:
+                sys.stderr.write(f"[InboxWatcher] Error during scan: {e}\n")
+            self.stop_event.wait(self.interval)
+
+    def _sweep_dispatch_queue(self, tasks_dir: Path):
+        """Monitor .dispatch_queue.json for newly queued tasks and emit structured triggers."""
+        queue_file = tasks_dir / ".dispatch_queue.json"
+        if not queue_file.exists():
+            return
+
+        try:
+            items = json.loads(queue_file.read_text(encoding="utf-8"))
+            updated = False
+            for it in items:
+                if not it.get("notified"):
+                    t_title = it.get("title", "Task")
+                    t_agent = it.get("agent", "@wf-programmer")
+                    t_id = it.get("task_id", "")
+                    t_file = it.get("file", "")
+                    action = it.get("action", "")
+                    
+                    # Print standard structured trigger to stdout
+                    sys.stdout.write(f"\n⚡ [TASK_DISPATCH_TRIGGER] Task '{t_title}' ({t_id}) is READY for {t_agent}.\n")
+                    sys.stdout.write(f"👉 File: {t_file}\n")
+                    if action:
+                        sys.stdout.write(f"🎯 Action: {action}\n")
+                    sys.stdout.flush()
+
+                    it["notified"] = True
+                    it["notified_at"] = datetime.datetime.now().isoformat()
+                    updated = True
+
+            if updated:
+                queue_file.write_text(json.dumps(items, indent=2), encoding="utf-8")
+        except Exception as e:
+            sys.stderr.write(f"[InboxWatcher] Error sweeping dispatch queue: {e}\n")
+
+    def _scan_and_route(self, pending_dir: Path, processed_dir: Path, human_dir: Path, tasks_dir: Path):
+        pending_dir.mkdir(parents=True, exist_ok=True)
+        processed_dir.mkdir(parents=True, exist_ok=True)
+        human_dir.mkdir(parents=True, exist_ok=True)
+        tasks_dir.mkdir(parents=True, exist_ok=True)
+        ideas_dir = self.root_dir / "workforces" / "ideas"
+        ideas_dir.mkdir(parents=True, exist_ok=True)
+
+        for item_file in sorted(list(pending_dir.glob("*.json")) + list(pending_dir.glob("*.md"))):
+            try:
+                now_ts = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+                is_md = item_file.suffix == ".md"
+                if is_md:
+                    meta = parse_yaml_frontmatter(item_file)
+                    content = meta.get("_body")
+                    if content is None:
+                        content = item_file.read_text(encoding="utf-8")
+                    title = meta.get("title")
+                    if not title:
+                        for line in content.splitlines():
+                            if line.startswith("# "):
+                                title = line[2:].strip()
+                                break
+                    title = title or item_file.stem.replace("-", " ").title()
+                    item_id = meta.get("id") or f"inbox-{item_file.stem}"
+                    auto_dispatch = str(meta.get("auto_dispatch", "")).lower() in ("true", "1", "yes")
+                    requires_human = str(meta.get("requires_human", not auto_dispatch)).lower() in ("true", "1", "yes")
+                    item_type = meta.get("type") or "research"
+                    source_url = meta.get("source_url") or ""
+                    priority = meta.get("priority") or "P1"
+                    reporter = meta.get("reporter") or "chrome-extension"
+                    data = {
+                        "id": item_id,
+                        "title": title,
+                        "content": content,
+                        "type": item_type,
+                        "source_url": source_url,
+                        "priority": priority,
+                        "reporter": reporter,
+                        "auto_dispatch": auto_dispatch,
+                        "requires_human": requires_human,
+                        "captured_at": meta.get("created_at") or datetime.datetime.now().isoformat(),
+                    }
+                else:
+                    data = json.loads(item_file.read_text(encoding="utf-8"))
+                    item_id = data.get("id", item_file.stem)
+                    auto_dispatch = data.get("auto_dispatch", False)
+                    requires_human = data.get("requires_human", not auto_dispatch)
+                    item_type = data.get("type", "general")
+                    title = data.get("title", "Inbox Item")
+                    content = data.get("content", "")
+                    source_url = data.get("source_url", "")
+                    priority = data.get("priority", "P1")
+                    reporter = data.get("reporter", "chrome-extension")
+
+                if auto_dispatch:
+                    # Create actionable workforce task
+                    clean_slug = re.sub(r'[^a-zA-Z0-9_-]', '-', title.lower()).strip('-')[:40] or "task"
+                    task_filename = f"{now_ts}-{clean_slug}.md"
+                    task_file = tasks_dir / task_filename
+                    task_content = f"""---
+id: "{item_id}"
+title: "{title}"
+type: "{item_type}"
+priority: "{priority}"
+status: "todo"
+reporter: "@{reporter.lstrip('@')}"
+source_url: "{source_url}"
+created_at: "{datetime.datetime.now().isoformat()}"
+---
+{content}
+"""
+                    task_file.write_text(task_content, encoding="utf-8")
+                    data["status"] = "dispatched"
+                    data["dispatched_task_file"] = str(task_file.relative_to(self.root_dir))
+                    data["routed_at"] = datetime.datetime.now().isoformat()
+                    dest_file = processed_dir / f"{item_file.stem}.json"
+                    dest_file.write_text(json.dumps(data, indent=2), encoding="utf-8")
+                    item_file.unlink(missing_ok=True)
+                    if sync_workstate_from_tasks:
+                        try:
+                            sync_workstate_from_tasks(str(self.root_dir))
+                        except Exception as sync_err:
+                            sys.stderr.write(f"Sync error: {sync_err}\n")
+                    sys.stderr.write(f"[InboxWatcher] Auto-dispatched task {item_id} -> {task_file.name}\n")
+                elif str(item_type).lower() in ("idea", "ideas") or data.get("target_folder") == "ideas":
+                    # Route to ideas folder
+                    clean_slug = re.sub(r'[^a-zA-Z0-9_-]', '-', title.lower()).strip('-')[:40] or "idea"
+                    idea_filename = f"{now_ts}-{clean_slug}.md"
+                    idea_file = ideas_dir / idea_filename
+                    idea_content = f"""---
+id: "{item_id}"
+title: "{title}"
+type: "idea"
+status: "captured"
+reporter: "@{reporter.lstrip('@')}"
+source_url: "{source_url}"
+created_at: "{datetime.datetime.now().isoformat()}"
+---
+{content}
+"""
+                    idea_file.write_text(idea_content, encoding="utf-8")
+                    data["status"] = "saved_to_ideas"
+                    data["dispatched_idea_file"] = str(idea_file.relative_to(self.root_dir))
+                    data["routed_at"] = datetime.datetime.now().isoformat()
+                    dest_file = processed_dir / f"{item_file.stem}.json"
+                    dest_file.write_text(json.dumps(data, indent=2), encoding="utf-8")
+                    item_file.unlink(missing_ok=True)
+                    sys.stderr.write(f"[InboxWatcher] Routed idea {item_id} -> {idea_file.name}\n")
+                elif requires_human or data.get("requires_human", True):
+                    # Route to human review folder
+                    data["status"] = "needs_human_review"
+                    data["routed_at"] = datetime.datetime.now().isoformat()
+                    dest_file = human_dir / f"{item_file.stem}.json"
+                    dest_file.write_text(json.dumps(data, indent=2), encoding="utf-8")
+                    item_file.unlink(missing_ok=True)
+                    sys.stderr.write(f"[InboxWatcher] Routed {item_id} to human review\n")
+            except Exception as e:
+                sys.stderr.write(f"[InboxWatcher] Failed to process {item_file.name}: {e}\n")
+
+
+class WorkforceCanvasHandler(http.server.SimpleHTTPRequestHandler):
+    """Custom HTTP request handler serving the interactive canvas and REST APIs."""
+
+    root_dir: Path = Path.cwd()
+    web_dir: Path = Path(__file__).resolve().parent.parent / "web"
+    last_activity_time: float = 0.0
+    idle_timeout: int = 300  # Default 5 minutes (300 seconds)
+    httpd_instance: Any = None
+    is_shutting_down: bool = False
+    server_port: int = 8765
+    watcher_instance: Any = None
+
+    @classmethod
+    def record_activity(cls):
+        """Reset the activity timestamp whenever an HTTP request or heartbeat is received."""
+        cls.last_activity_time = time.time()
+
+    @classmethod
+    def trigger_shutdown(cls, delay: float = 0.5):
+        """Gracefully stop the HTTP server on a separate background thread."""
+        if cls.is_shutting_down:
+            return
+        cls.is_shutting_down = True
+
+        if cls.watcher_instance:
+            try:
+                cls.watcher_instance.stop()
+            except Exception:
+                pass
+        write_session_state(cls.root_dir, "stopped", getattr(cls, "server_port", 0) or 8765, os.getpid(), {"stopped_at": datetime.datetime.now().isoformat()})
+
+        def _stop():
+            time.sleep(delay)
+            if cls.httpd_instance:
+                try:
+                    cls.httpd_instance.shutdown()
+                except Exception as err:
+                    sys.stderr.write(f"Shutdown error: {err}\n")
+
+        shutdown_thread = threading.Thread(target=_stop, daemon=True)
+        shutdown_thread.start()
+
+    def do_OPTIONS(self):
+        """Handle CORS pre-flight requests."""
+        self.send_response(200)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.end_headers()
+
+    def do_GET(self):
+        self.record_activity()
+        parsed = urllib.parse.urlparse(self.path)
+        path = parsed.path
+        query = urllib.parse.parse_qs(parsed.query)
+
+        if path in ("/api/heartbeat", "/api/ping"):
+            elapsed = time.time() - self.last_activity_time
+            time_remaining = max(0, self.idle_timeout - elapsed) if self.idle_timeout > 0 else -1
+            self.send_json_response({
+                "status": "alive",
+                "idle_timeout": self.idle_timeout,
+                "time_remaining": int(time_remaining),
+                "server_pid": os.getpid(),
+                "timestamp": datetime.datetime.now().isoformat(),
+            })
+        elif path == "/api/state":
+            self.send_json_response(self.handle_get_state())
+        elif path == "/api/chat-sessions":
+            sessions = get_chat_sessions(self.root_dir)
+            current_sid = getattr(self, "chat_session_id", None) or getattr(WorkforceCanvasHandler, "chat_session_id", None) or detect_current_chat_session()
+            self.send_json_response({
+                "chat_sessions": sessions,
+                "current_chat_session_id": current_sid,
+                "count": len(sessions)
+            })
+        elif path in ("/api/sync", "/api/standup"):
+            if sync_workstate_from_tasks:
+                try:
+                    sync_workstate_from_tasks(str(self.root_dir))
+                except Exception:
+                    pass
+            self.send_json_response(self.handle_get_state())
+        elif path == "/api/inbox":
+            items = get_inbox_items(self.root_dir)
+            self.send_json_response({"items": items, "count": len(items)})
+        elif path == "/api/task/dispatch-queue":
+            queue_file = self.root_dir / "workforces" / "tasks" / ".dispatch_queue.json"
+            queue_items = []
+            if queue_file.exists():
+                try:
+                    queue_items = json.loads(queue_file.read_text(encoding="utf-8"))
+                except Exception:
+                    pass
+            self.send_json_response({"queue": queue_items, "count": len(queue_items)})
+        elif path == "/api/comments":
+            target_id = query.get("target_id", [None])[0] or query.get("target", [None])[0]
+            self.send_json_response({"comments": get_comments(self.root_dir, target_id)})
+        elif path == "/api/turn-summary":
+            summary_file = self.root_dir / "workforces" / "tmp" / "turn-summary.txt"
+            content = ""
+            if summary_file.exists():
+                try:
+                    content = summary_file.read_text(encoding="utf-8")
+                except Exception:
+                    pass
+            self.send_json_response({"content": content, "exists": summary_file.exists()})
+        elif path == "/api/document":
+            doc_path = query.get("path", [None])[0]
+            if not doc_path:
+                self.send_error(400, "Missing 'path' parameter")
+                return
+            target = (self.root_dir / doc_path.lstrip("/")).resolve()
+            root_resolved = self.root_dir.resolve()
+            if target.exists() and (str(target).startswith(str(root_resolved)) or str(target).startswith(str(self.root_dir))):
+                try:
+                    content = target.read_text(encoding="utf-8")
+                    self.send_json_response({
+                        "path": doc_path,
+                        "name": target.name,
+                        "size": target.stat().st_size,
+                        "content": content,
+                        "type": "markdown" if target.suffix == ".md" else "text"
+                    })
+                except Exception as e:
+                    self.send_error(500, f"Error reading document: {e}")
+            else:
+                self.send_error(404, "Document Not Found")
+        elif path == "/api/commit":
+            commit_hash = query.get("hash", [None])[0]
+            self.send_json_response(get_commit_details(self.root_dir, commit_hash))
+        elif path == "/api/impact":
+            symbol = query.get("symbol", [None])[0]
+            file_param = query.get("file", [None])[0]
+            self.send_json_response(get_code_blast_radius(self.root_dir, symbol, file_param))
+        elif path == "/" or path == "/index.html":
+            self.serve_file(self.web_dir / "index.html", "text/html")
+        elif path == "/canvas.css":
+            self.serve_file(self.web_dir / "canvas.css", "text/css")
+        elif path == "/canvas.js":
+            self.serve_file(self.web_dir / "canvas.js", "application/javascript")
+        elif path.startswith("/workforces/"):
+            target = (self.root_dir / path.lstrip("/")).resolve()
+            root_resolved = self.root_dir.resolve()
+            if target.exists() and (str(target).startswith(str(root_resolved)) or str(target).startswith(str(self.root_dir))):
+                if target.suffix == ".md":
+                    content = target.read_text(encoding="utf-8")
+                    html_content = f"""<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{target.name}</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+body {{ background: #faf9f5; color: #4d4d4d; font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 40px 24px; max-width: 820px; margin: 0 auto; line-height: 1.65; }}
+a {{ color: #c2410c; text-decoration: underline; text-underline-offset: 2px; }}
+a:hover {{ color: #9a3412; }}
+code {{ background: #f4f4f5; color: #c2410c; padding: 2px 6px; border-radius: 2px; font-family: monospace; font-size: 13px; }}
+pre {{ background: #f8f8f8; border: 1px solid #e2e0dc; padding: 14px; border-radius: 4px; overflow-x: auto; margin: 16px 0; }}
+pre code {{ background: transparent; padding: 0; color: #202020; }}
+h1, h2, h3, h4 {{ color: #202020; font-weight: 600; margin-top: 24px; margin-bottom: 8px; }}
+h1 {{ font-size: 22px; }}
+h2 {{ font-size: 18px; }}
+h3 {{ font-size: 15px; }}
+hr {{ border-color: #e2e0dc; margin: 24px 0; }}
+ul, ol {{ padding-left: 20px; margin: 10px 0; }}
+li {{ margin: 4px 0; }}
+</style></head>
+<body>
+<div class="mb-6 flex items-center justify-between pb-3 border-b border-[#e2e0dc] text-xs text-[#828282]">
+  <span>📄 {target.name}</span>
+  <a href="javascript:window.close()" class="no-underline text-[#828282] hover:text-[#202020]">&larr; Close</a>
+</div>
+<div id="content"></div>
+<script>
+  document.getElementById('content').innerHTML = marked.parse({json.dumps(content)});
+</script>
+</body></html>"""
+                    body_bytes = html_content.encode("utf-8")
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/html; charset=utf-8")
+                    self.send_header("Content-Length", str(len(body_bytes)))
+                    self.end_headers()
+                    self.wfile.write(body_bytes)
+                    return
+                else:
+                    mime_map = {
+                        ".png": "image/png",
+                        ".jpg": "image/jpeg",
+                        ".jpeg": "image/jpeg",
+                        ".gif": "image/gif",
+                        ".webp": "image/webp",
+                        ".svg": "image/svg+xml",
+                        ".json": "application/json",
+                        ".txt": "text/plain",
+                        ".pdf": "application/pdf"
+                    }
+                    mime_type = mime_map.get(target.suffix.lower(), "text/plain")
+                    self.serve_file(target, mime_type)
+                    return
+            else:
+                self.send_error(404, "File Not Found")
+        else:
+            # Fallback to serving files from web_dir
+            target = (self.web_dir / path.lstrip("/")).resolve()
+            if target.exists() and str(target).startswith(str(self.web_dir)):
+                mime = "text/plain"
+                if target.suffix == ".html":
+                    mime = "text/html"
+                elif target.suffix == ".css":
+                    mime = "text/css"
+                elif target.suffix == ".js":
+                    mime = "application/javascript"
+                elif target.suffix == ".svg":
+                    mime = "image/svg+xml"
+                self.serve_file(target, mime)
+            else:
+                self.send_error(404, "Not Found")
+
+    def do_POST(self):
+        self.record_activity()
+        parsed = urllib.parse.urlparse(self.path)
+        path = parsed.path
+
+        if path in ("/api/heartbeat", "/api/ping"):
+            elapsed = time.time() - self.last_activity_time
+            time_remaining = max(0, self.idle_timeout - elapsed) if self.idle_timeout > 0 else -1
+            self.send_json_response({
+                "status": "alive",
+                "idle_timeout": self.idle_timeout,
+                "time_remaining": int(time_remaining),
+                "server_pid": os.getpid(),
+                "timestamp": datetime.datetime.now().isoformat(),
+            })
+            return
+
+        elif path == "/api/shutdown":
+            self.send_json_response({
+                "success": True,
+                "message": "Canvas server is shutting down. Port will be released.",
+                "server_pid": os.getpid(),
+            })
+            self.trigger_shutdown(delay=0.3)
+            return
+
+        content_len = int(self.headers.get("Content-Length", 0))
+        post_body = self.rfile.read(content_len).decode("utf-8") if content_len > 0 else "{}"
+
+        try:
+            data = json.loads(post_body) if post_body else {}
+        except Exception:
+            self.send_error(400, "Invalid JSON body")
+            return
+
+        if path == "/api/task/update":
+            file_rel = data.get("file")
+            updates = data.get("updates", {})
+            if not file_rel:
+                self.send_error(400, "Missing 'file' parameter")
+                return
+            try:
+                res = update_task_file(self.root_dir, file_rel, updates)
+                self.send_json_response({"success": True, "task": res})
+            except Exception as err:
+                self.send_error(500, f"Update failed: {err}")
+
+        elif path == "/api/task/dispatch":
+            file_rel = data.get("file")
+            agent = data.get("agent")
+            if not file_rel:
+                self.send_error(400, "Missing 'file' parameter")
+                return
+            try:
+                task_res = update_task_file(self.root_dir, file_rel, {"status": "in_progress", "delegated_to": agent} if agent else {"status": "in_progress"})
+                self.send_json_response({
+                    "success": True,
+                    "message": f"Task dispatched to {task_res.get('delegated_to', '@wf-programmer')}",
+                    "task": task_res
+                })
+            except Exception as err:
+                self.send_error(500, f"Dispatch failed: {err}")
+
+        elif path == "/api/task/connect":
+            blocker_id = data.get("blocker_id")
+            blocked_id = data.get("blocked_id")
+            if not blocker_id or not blocked_id:
+                self.send_error(400, "Missing 'blocker_id' or 'blocked_id'")
+                return
+            try:
+                all_tasks = get_all_tasks(self.root_dir)
+                target_task = next((t for t in all_tasks if t["id"] == blocked_id), None)
+                if not target_task:
+                    self.send_error(404, f"Task {blocked_id} not found")
+                    return
+                current_blocked_by = target_task.get("blocked_by") or []
+                if blocker_id not in current_blocked_by:
+                    current_blocked_by.append(blocker_id)
+                    update_task_file(self.root_dir, target_task["file"], {"blocked_by": current_blocked_by})
+                self.send_json_response({"success": True, "blocked_by": current_blocked_by})
+            except Exception as err:
+                self.send_error(500, f"Connect failed: {err}")
+
+        elif path == "/api/task/order":
+            order = data.get("order", [])
+            order_file = self.root_dir / "workforces" / ".canvas-order.json"
+            order_file.write_text(json.dumps(order, indent=2), encoding="utf-8")
+            self.send_json_response({"success": True, "order": order})
+
+        elif path == "/api/sync":
+            if sync_workstate_from_tasks:
+                try:
+                    sync_workstate_from_tasks(str(self.root_dir))
+                except Exception as err:
+                    sys.stderr.write(f"Sync error: {err}\n")
+            fresh_state = self.handle_get_state()
+            self.send_json_response({"success": True, "message": "Workstate synchronized from tasks", "state": fresh_state})
+
+        elif path == "/api/chat-sessions/register":
+            session_id = data.get("session_id") or data.get("id") or detect_current_chat_session()
+            alias = data.get("alias")
+            role = data.get("role", "watcher")
+            port = data.get("port")
+            pid = data.get("pid")
+            status = data.get("status", "active")
+            reg_entry = register_chat_session(
+                root_dir=self.root_dir,
+                session_id=session_id,
+                alias=alias,
+                role=role,
+                port=port,
+                pid=pid,
+                status=status
+            )
+            self.send_json_response({"success": True, "session": reg_entry})
+
+        elif path == "/api/chat-sessions/heartbeat":
+            session_id = data.get("session_id") or data.get("id")
+            if not session_id:
+                self.send_error(400, "Missing 'session_id'")
+                return
+            current_task = data.get("current_task")
+            heartbeat_chat_session(self.root_dir, session_id, current_task=current_task)
+            self.send_json_response({"success": True, "session_id": session_id})
+
+        elif path == "/api/chat-sessions/message":
+            target_sid = data.get("session_id") or data.get("target_chat_session_id") or "all"
+            message_text = data.get("message", "").strip()
+            sender = data.get("sender", "@human")
+            priority = data.get("priority", "P1")
+            action = data.get("action")
+            if not message_text:
+                self.send_error(400, "Missing 'message' content")
+                return
+            ev_record = emit_session_directive(
+                root_dir=self.root_dir,
+                target_session_id=target_sid,
+                message=message_text,
+                sender=sender,
+                priority=priority,
+                action=action
+            )
+            self.send_json_response({"success": True, "event": ev_record})
+
+        elif path == "/api/task/assign-session":
+            file_rel = data.get("file")
+            chat_session_id = data.get("chat_session_id") or data.get("session_id") or ""
+            if not file_rel:
+                self.send_error(400, "Missing 'file' parameter")
+                return
+            try:
+                task_res = update_task_file(self.root_dir, file_rel, {"chat_session_id": chat_session_id})
+                self.send_json_response({"success": True, "task": task_res})
+            except Exception as err:
+                self.send_error(500, f"Assign chat session failed: {err}")
+
+        elif path == "/api/task/create":
+            try:
+                task_res = create_task_file(self.root_dir, data)
+                # Emit task_created event to workforces/.events/pending/
+                event_payload = {
+                    "id": task_res.get("id"),
+                    "title": task_res.get("title"),
+                    "type": task_res.get("type"),
+                    "priority": task_res.get("priority"),
+                    "reporter": task_res.get("reporter", "@human"),
+                    "assignee": task_res.get("assignee"),
+                    "file": task_res.get("file"),
+                    "description": data.get("description", ""),
+                    "images": data.get("images", [])
+                }
+                emit_event(self.root_dir, "task_created", event_payload)
+                self.send_json_response({"success": True, "task": task_res, "state": self.handle_get_state()})
+            except Exception as err:
+                self.send_error(500, f"Task creation failed: {err}")
+
+        elif path == "/api/inbox/action":
+            item_id = data.get("item_id")
+            action = data.get("action", "approve")
+            priority = data.get("priority", "P1")
+            task_type = data.get("type", "feature")
+            if not item_id:
+                self.send_error(400, "Missing 'item_id'")
+                return
+            try:
+                res = resolve_inbox_item(self.root_dir, item_id, action, priority, task_type)
+                self.send_json_response({"success": True, "result": res, "state": self.handle_get_state()})
+            except Exception as err:
+                self.send_error(500, f"Inbox action failed: {err}")
+
+        elif path == "/api/inbox/submit":
+            now_ts = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+            raw_title = data.get("title") or "Untitled Capture"
+            clean_slug = re.sub(r"[^a-zA-Z0-9_-]", "-", raw_title.lower()).strip("-")[:40] or "item"
+            item_id = data.get("id") or f"inbox-{now_ts}-{clean_slug}"
+            auto_dispatch = data.get("auto_dispatch", False)
+
+            payload = {
+                "id": item_id,
+                "title": raw_title,
+                "content": data.get("content", ""),
+                "type": data.get("type", "general"),
+                "source_url": data.get("source_url", ""),
+                "selection": data.get("selection", ""),
+                "auto_dispatch": auto_dispatch,
+                "requires_human": data.get("requires_human", not auto_dispatch),
+                "task_id": data.get("task_id", ""),
+                "tags": data.get("tags", []),
+                "captured_at": datetime.datetime.now().isoformat(),
+                "status": "pending"
+            }
+
+            inbox_dir = self.root_dir / "workforces" / "inbox" / "pending"
+            inbox_dir.mkdir(parents=True, exist_ok=True)
+            out_file = inbox_dir / f"{item_id}.json"
+            out_file.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+            # Emit inbox_submission event with title, type, content, source_url
+            event_payload = {
+                "id": item_id,
+                "title": raw_title,
+                "type": data.get("type", "general"),
+                "content": data.get("content", ""),
+                "source_url": data.get("source_url", ""),
+                "file": str(out_file.relative_to(self.root_dir)),
+                "selection": data.get("selection", ""),
+                "auto_dispatch": auto_dispatch,
+                "task_id": data.get("task_id", ""),
+                "tags": data.get("tags", [])
+            }
+            emit_event(self.root_dir, "inbox_submission", event_payload)
+
+            self.send_json_response({
+                "success": True,
+                "id": item_id,
+                "file": str(out_file.relative_to(self.root_dir)),
+                "item": payload
+            })
+
+        elif path == "/api/comments":
+            comment_text = data.get("comment", "").strip()
+            if not comment_text:
+                self.send_error(400, "Missing 'comment' parameter")
+                return
+            try:
+                res = save_comment(self.root_dir, data)
+                # Emit comment event with target file/id, comment text, author, coordinates/pin if present
+                event_payload = {
+                    "target_type": data.get("target_type", "task"),
+                    "target_id": data.get("target_id") or data.get("file", ""),
+                    "file": data.get("file", ""),
+                    "comment": comment_text,
+                    "author": data.get("author", "@human"),
+                    "pin": data.get("pin"),
+                    "stitch_url": data.get("stitch_url", ""),
+                    "comment_id": res.get("id") if isinstance(res, dict) else None,
+                    "task_updated": res.get("task_updated") if isinstance(res, dict) else None
+                }
+                emit_event(self.root_dir, "comment", event_payload)
+                self.send_json_response({"success": True, "comment": res})
+            except Exception as err:
+                self.send_error(500, f"Failed to save comment: {err}")
+
+        elif path == "/api/upload":
+            raw_data = data.get("data") or data.get("image") or data.get("file")
+            filename = data.get("filename") or "upload.png"
+            if not raw_data:
+                self.send_error(400, "Missing 'data' parameter containing base64 string")
+                return
+
+            try:
+                # Strip data URL prefix if present (e.g. data:image/png;base64,...)
+                if "," in raw_data:
+                    header, b64_str = raw_data.split(",", 1)
+                else:
+                    b64_str = raw_data
+
+                file_bytes = base64.b64decode(b64_str)
+                now_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                clean_name = re.sub(r"[^a-zA-Z0-9_.-]", "_", filename).strip("_")
+                media_dir = self.root_dir / "workforces" / "media"
+                media_dir.mkdir(parents=True, exist_ok=True)
+                saved_file = media_dir / f"{now_str}_{clean_name}"
+                saved_file.write_bytes(file_bytes)
+
+                rel_url = f"/workforces/media/{saved_file.name}"
+                rel_path = str(saved_file.relative_to(self.root_dir))
+
+                self.send_json_response({
+                    "success": True,
+                    "filename": saved_file.name,
+                    "url": rel_url,
+                    "file": rel_path,
+                    "size": len(file_bytes)
+                })
+            except Exception as err:
+                self.send_error(500, f"Upload processing failed: {err}")
+        else:
+            self.send_error(404, "Not Found")
+
+    def handle_get_state(self) -> Dict[str, Any]:
+        """Aggregate full workforce state for the canvas."""
+        tasks = get_all_tasks(self.root_dir)
+        hypotheses = get_all_hypotheses(self.root_dir)
+        goals = get_all_goals(self.root_dir)
+
+        # Read saved custom layout coordinates if present
+        order_file = self.root_dir / "workforces" / ".canvas-order.json"
+        custom_order = []
+        if order_file.exists():
+            try:
+                custom_order = json.loads(order_file.read_text(encoding="utf-8"))
+            except Exception:
+                pass
+
+        # Build dependency edges
+        edges = []
+        task_id_set = {t["id"] for t in tasks}
+        for t in tasks:
+            for blocker in t.get("blocked_by", []):
+                if blocker in task_id_set:
+                    edges.append({
+                        "source": blocker,
+                        "target": t["id"],
+                        "type": "dependency",
+                        "label": "blocks"
+                    })
+
+        # Extract available symbols across internal repositories
+        available_symbols = load_multi_repo_symbols(self.root_dir)
+
+        # Correlate linked commits, docs, and code symbols for each task
+        commits = get_recent_commits(self.root_dir)
+        link_task_relationships(tasks, available_symbols, commits)
+
+        # Scan all session context notes
+        sessions = get_all_sessions(self.root_dir)
+
+        # Inbox items
+        inbox_items = get_inbox_items(self.root_dir)
+
+        # Comments
+        comments = get_comments(self.root_dir)
+
+        # Turn summary
+        turn_summary_text = ""
+        summary_file = self.root_dir / "workforces" / "tmp" / "turn-summary.txt"
+        if summary_file.exists():
+            try:
+                turn_summary_text = summary_file.read_text(encoding="utf-8")
+            except Exception:
+                pass
+
+        # Compile standup and executive productivity data
+        standup = get_standup_data(self.root_dir, tasks, inbox_items, sessions)
+
+        # Summary telemetry
+        stats = {
+            "total_tasks": len(tasks),
+            "todo": len([t for t in tasks if t["status"] == "todo"]),
+            "in_progress": len([t for t in tasks if t["status"] == "in_progress"]),
+            "review": len([t for t in tasks if t["status"] == "review"]),
+            "blocked": len([t for t in tasks if t["status"] == "blocked" or t.get("blocked_by")]),
+            "done": len([t for t in tasks if t["status"] == "done"]),
+            "sessions_count": len(sessions),
+            "hypotheses_count": len(hypotheses),
+            "goals_count": len(goals),
+            "symbols_count": len(available_symbols),
+            "inbox_count": len(inbox_items),
+            "needs_attention_count": len(standup.get("needs_attention", [])),
+            "wins_count": len(standup.get("wins_24h", [])),
+            "comments_count": len(comments),
+        }
+
+        return {
+            "tasks": tasks,
+            "sessions": sessions,
+            "hypotheses": hypotheses,
+            "goals": goals,
+            "symbols": available_symbols,
+            "edges": edges,
+            "custom_order": custom_order,
+            "inbox": inbox_items,
+            "comments": comments,
+            "turn_summary": turn_summary_text,
+            "standup": standup,
+            "git": standup.get("git", {}),
+            "installed_teams": standup.get("installed_teams", []),
+            "workstate_markdown": standup.get("workstate_markdown", ""),
+            "stats": stats,
+            "chat_sessions": get_chat_sessions(self.root_dir),
+            "current_chat_session_id": getattr(self, "chat_session_id", None) or getattr(WorkforceCanvasHandler, "chat_session_id", None) or detect_current_chat_session(),
+            "timestamp": datetime.datetime.now().isoformat(),
+        }
+
+    def send_json_response(self, data: Any):
+        body = json.dumps(data, indent=2).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.end_headers()
+        self.wfile.write(body)
+
+    def serve_file(self, file_path: Path, content_type: str):
+        if not file_path.exists():
+            self.send_error(404, "File Not Found")
+            return
+        body = file_path.read_bytes()
+        self.send_response(200)
+        if content_type.startswith("image/"):
+            self.send_header("Content-Type", content_type)
+        else:
+            self.send_header("Content-Type", f"{content_type}; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-cache")
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, format, *args):
+        # Clean compact logging
+        sys.stderr.write(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] {format % args}\n")
+
+
+def run_server(
+    port: int = 8765,
+    host: str = "127.0.0.1",
+    root_dir: Optional[str] = None,
+    open_browser: bool = False,
+    idle_timeout: int = 300,
+    chat_session_id: Optional[str] = None,
+    alias: Optional[str] = None,
+):
+    resolved_root = Path(root_dir).resolve() if root_dir else Path.cwd().resolve()
+    actual_chat_session = chat_session_id or detect_current_chat_session()
+    WorkforceCanvasHandler.root_dir = resolved_root
+    WorkforceCanvasHandler.idle_timeout = idle_timeout
+    WorkforceCanvasHandler.last_activity_time = time.time()
+    WorkforceCanvasHandler.is_shutting_down = False
+    WorkforceCanvasHandler.chat_session_id = actual_chat_session
+
+    class ReusableTCPServer(socketserver.TCPServer):
+        allow_reuse_address = True
+
+    httpd = None
+    selected_port = port
+    for p in range(port, port + 50):
+        try:
+            httpd = ReusableTCPServer((host, p), WorkforceCanvasHandler)
+            selected_port = p
+            break
+        except OSError as e:
+            if e.errno in (48, 98):  # macOS 48 / Linux 98: Address already in use
+                continue
+            raise
+
+    if not httpd:
+        sys.stderr.write(f"Error: Could not find an available port in range {port}-{port+50}.\n")
+        sys.exit(1)
+
+    WorkforceCanvasHandler.httpd_instance = httpd
+    WorkforceCanvasHandler.server_port = selected_port
+
+    # Record active session state to workforces/.canvas-session.json & .canvas-servers.json
+    write_session_state(
+        resolved_root,
+        "running",
+        selected_port,
+        os.getpid(),
+        {
+            "started_at": datetime.datetime.now().isoformat(),
+            "chat_session_id": actual_chat_session,
+            "alias": alias or f"Chat {actual_chat_session[:8]}"
+        }
+    )
+
+    # Start Inbox Heartbeat Watcher for background task routing
+    watcher = InboxHeartbeatWatcher(resolved_root)
+    watcher.start()
+    WorkforceCanvasHandler.watcher_instance = watcher
+
+    # Start background idle watchdog thread
+    if idle_timeout > 0:
+        def _idle_watchdog():
+            while not WorkforceCanvasHandler.is_shutting_down:
+                time.sleep(2)
+                if WorkforceCanvasHandler.is_shutting_down:
+                    break
+                if WorkforceCanvasHandler.idle_timeout > 0:
+                    elapsed = time.time() - WorkforceCanvasHandler.last_activity_time
+                    if elapsed >= WorkforceCanvasHandler.idle_timeout:
+                        print(f"\n⏰ Idle timeout ({int(elapsed)}s with no active browser tab).")
+                        print(f"🛑 Automatically shutting down canvas server to release port {selected_port}.\n")
+                        WorkforceCanvasHandler.trigger_shutdown(delay=0.1)
+                        break
+
+        watchdog_thread = threading.Thread(target=_idle_watchdog, daemon=True)
+        watchdog_thread.start()
+
+    with httpd:
+        url = f"http://{host}:{selected_port}/"
+        if selected_port != port:
+            print(f"\n⚠️  Port {port} is occupied by another instance.")
+            print(f"👉 Automatically allocated port: {selected_port}")
+        print(f"\n🚀 Workforce Command Canvas active at: {url}")
+        print(f"📁 Root workspace: {resolved_root}")
+        print(f"💬 Chat session: {actual_chat_session} ({alias or actual_chat_session[:8]})")
+        print(f"📥 Inbox Watcher: active (monitoring workforces/inbox/pending/)")
+        if idle_timeout > 0:
+            print(f"⏱️  Auto-shutdown watchdog: {idle_timeout}s idle timeout (auto-stops when browser tab closes)")
+        else:
+            print("⏱️  Auto-shutdown watchdog: disabled (runs continuously)")
+        print("Press Ctrl+C or use the canvas UI power button to stop the server.\n")
+
+        if open_browser:
+            try:
+                import webbrowser
+                webbrowser.open(url)
+            except Exception:
+                pass
+
+        try:
+            httpd.serve_forever()
+        except KeyboardInterrupt:
+            print("\nShutting down canvas server.")
+        finally:
+            WorkforceCanvasHandler.is_shutting_down = True
+            if watcher:
+                watcher.stop()
+            write_session_state(
+                resolved_root,
+                "stopped",
+                selected_port,
+                os.getpid(),
+                {
+                    "stopped_at": datetime.datetime.now().isoformat(),
+                    "chat_session_id": actual_chat_session
+                }
+            )
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Workforce Command Canvas Server")
+    parser.add_argument("--port", type=int, default=8765, help="Port to run on (default: 8765)")
+    parser.add_argument("--host", type=str, default="127.0.0.1", help="Host address (default: 127.0.0.1)")
+    parser.add_argument("--root", type=str, default="./", help="Root workforce directory")
+    parser.add_argument("--open", action="store_true", help="Automatically open canvas in default browser")
+    parser.add_argument("--idle-timeout", type=int, default=300, help="Idle timeout in seconds before auto-shutdown (default: 300 / 5 minutes, 0 to disable)")
+    parser.add_argument("--chat-session-id", type=str, default=None, help="Antigravity chat session ID (auto-detected by default)")
+    parser.add_argument("--alias", type=str, default=None, help="Human-readable alias for this chat session")
+
+    args = parser.parse_args()
+    run_server(
+        port=args.port,
+        host=args.host,
+        root_dir=args.root,
+        open_browser=args.open,
+        idle_timeout=args.idle_timeout,
+        chat_session_id=args.chat_session_id,
+        alias=args.alias,
+    )

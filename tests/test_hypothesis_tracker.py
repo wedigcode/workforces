@@ -11,7 +11,7 @@ import tempfile
 import unittest
 
 # Add scripts directory to path
-SKILL_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "skills", "hypothesis-tracker", "scripts"))
+SKILL_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "skills", "wf-hypothesis-tracker", "scripts"))
 if SKILL_DIR not in sys.path:
     sys.path.insert(0, SKILL_DIR)
 

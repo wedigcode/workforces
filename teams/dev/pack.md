@@ -57,21 +57,21 @@ When generating an engineering team for a project, consider whether the project 
 
 ## Design Integration (UI/UX Tasks)
 
-When a frontend task touches **visual design, CSS styling, layout, or UI components**, the `@designer` agent is automatically invoked alongside `@programmer`:
+When a frontend task touches **visual design, CSS styling, layout, or UI components**, the `@wf-designer` agent is automatically invoked alongside `@wf-programmer`:
 
-1. **Dev team** implements the feature (`@programmer` handles code quality, TDD, and architecture).
-2. **Designer** (`@designer`) runs a design audit before the task is marked complete.
+1. **Dev team** implements the feature (`@wf-programmer` handles code quality, TDD, and architecture).
+2. **Designer** (`@wf-designer`) runs a design audit before the task is marked complete.
 3. If the design fails the anti-pattern checklist or brand consistency checks, the Designer revises or provides specifications — the dev team does NOT self-approve visual design.
 
 **Trigger keywords for design review:** UI, UX, component, CSS, layout, styling, landing page, visual design, brand, frontend
 
-> The `@programmer` agent handles code quality (correctness, architecture, tests).  
-> The `@designer` agent handles design quality (anti-patterns, brand, visual hierarchy, UX).  
+> The `@wf-programmer` agent handles code quality (correctness, architecture, tests).  
+> The `@wf-designer` agent handles design quality (anti-patterns, brand, visual hierarchy, UX).  
 > **Both must pass before a frontend task is complete.**
 
 ---
 
-## Multi-Agent Parallelization & Stacked PRs (`agent-parallelization`)
+## Multi-Agent Parallelization & Stacked PRs (`wf-agent-parallelization`)
 
 - **Worktree Isolation:** Concurrent coding tasks must execute in dedicated Git worktrees (`Workspace: 'share'`), preventing `.git/index.lock` collisions and dirty working tree crosstalk.
 - **Stacked PRs via `gh-stack`:** Multi-layer epics are constructed as an atomic chain of reviewable PRs (`gh stack init`, `gh stack add`, `gh stack submit`).

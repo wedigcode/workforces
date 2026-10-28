@@ -1,0 +1,5 @@
+{
+  "name": "wf-integrity-plugin",
+  "version": "1.0.0",
+  "description": "System-enforced file integrity, ghost reference detection, and link validation hooks for workforces."
+}

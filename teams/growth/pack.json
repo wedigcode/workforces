@@ -3,20 +3,20 @@
   "title": "Growth, SEO & Growth Loops",
   "description": "Search intent matching, self-reinforcing closed growth loops, AI Search Optimization (GEO/AISO), and multi-sided platform network effects.",
   "agents": [
-    "growth",
-    "researcher"
+    "wf-growth",
+    "wf-researcher"
   ],
   "rules": [
-    "design-standards.md"
+    "wf-design-standards.md"
   ],
   "skills": [
-    "ai-search-optimization",
-    "feature-research",
-    "business-frameworks",
-    "doc-generator",
-    "memory-management",
-    "hypothesis-tracker",
-    "market-validation"
+    "wf-ai-search-optimization",
+    "wf-feature-research",
+    "wf-business-frameworks",
+    "wf-doc-generator",
+    "wf-memory-management",
+    "wf-hypothesis-tracker",
+    "wf-market-validation"
   ],
   "workflows": []
 }

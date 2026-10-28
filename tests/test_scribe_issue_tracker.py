@@ -19,10 +19,10 @@ import tempfile
 import unittest
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-REPORT_SCRIPT = os.path.join(REPO_ROOT, "skills", "issue-tracker", "scripts", "report-issue.py")
+REPORT_SCRIPT = os.path.join(REPO_ROOT, "skills", "wf-issue-tracker", "scripts", "report-issue.py")
 
 # Import report-issue module directly for unit testing internal functions
-sys.path.insert(0, os.path.join(REPO_ROOT, "skills", "issue-tracker", "scripts"))
+sys.path.insert(0, os.path.join(REPO_ROOT, "skills", "wf-issue-tracker", "scripts"))
 import importlib
 report_issue_mod = importlib.import_module("report-issue")
 

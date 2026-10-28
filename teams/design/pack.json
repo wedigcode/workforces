@@ -3,18 +3,18 @@
   "title": "Design & UI/UX Experience",
   "description": "Visual concept ideation, AI image prototyping, design tokens, UI/UX architecture, anti-pattern defense, and design QA reviews.",
   "agents": [
-    "designer"
+    "wf-designer"
   ],
   "rules": [
-    "design-standards.md"
+    "wf-design-standards.md"
   ],
   "skills": [
-    "ui-ux-design",
-    "visual-design-fundamentals",
-    "design-anti-patterns",
-    "brand-guidelines",
-    "image-workflow",
-    "site-setup"
+    "wf-ui-ux-design",
+    "wf-visual-design-fundamentals",
+    "wf-design-anti-patterns",
+    "wf-brand-guidelines",
+    "wf-image-workflow",
+    "wf-site-setup"
   ],
   "workflows": []
 }

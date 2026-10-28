@@ -3,19 +3,19 @@
   "title": "Social Engagement & Community Growth",
   "description": "Anti-bot high-signal content discovery, cold-post triage caching, multi-tier conversation catalysts, and community cultivation.",
   "agents": [
-    "social"
+    "wf-social"
   ],
   "rules": [
-    "social-engagement.md"
+    "wf-social-engagement.md"
   ],
   "skills": [
-    "social-engagement",
-    "persona-management",
-    "brand-guidelines",
-    "memory-management"
+    "wf-social-engagement",
+    "wf-persona-management",
+    "wf-brand-guidelines",
+    "wf-memory-management"
   ],
   "workflows": [],
   "plugins": [
-    "workforce-social-plugin"
+    "wf-social-plugin"
   ]
 }

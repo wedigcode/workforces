@@ -20,7 +20,7 @@ import json
 
 # Add scripts directory to path
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-SCRIPTS_DIR = os.path.join(REPO_ROOT, "skills", "workforce-management", "scripts")
+SCRIPTS_DIR = os.path.join(REPO_ROOT, "skills", "wf-management", "scripts")
 sys.path.insert(0, SCRIPTS_DIR)
 
 from resolve_manifest import resolve_manifest, get_installed_teams
@@ -52,12 +52,12 @@ class TestPruneTeam(unittest.TestCase):
             f.write("# Work State\n\n## Active Teams\n| ID | Name |\n|---|---|\n| design | Design |\n| marketing | Marketing |\n")
 
         # Create files for design team
-        # design uses: agents: [designer], rules: [design-standards.md], skills: [ui-ux-design, brand-guidelines, image-workflow, visual-design-fundamentals, design-anti-patterns], workflows: [wf-brand-context.md, wf-site-setup.md, wf-image-duplicate.md]
-        with open(os.path.join(self.base_dir, "agents", "designer.md"), "w") as f:
+        # design uses: agents: [wf-designer], rules: [wf-design-standards.md], skills: [wf-ui-ux-design, wf-brand-guidelines, wf-image-workflow, wf-visual-design-fundamentals, wf-design-anti-patterns], workflows: [wf-brand-context.md, wf-site-setup.md, wf-image-duplicate.md]
+        with open(os.path.join(self.base_dir, "agents", "wf-designer.md"), "w") as f:
             f.write("# Designer\n")
-        with open(os.path.join(self.base_dir, "rules", "design-standards.md"), "w") as f:
+        with open(os.path.join(self.base_dir, "rules", "wf-design-standards.md"), "w") as f:
             f.write("# Design Standards\n")
-        for s in ["ui-ux-design", "brand-guidelines", "image-workflow", "visual-design-fundamentals", "design-anti-patterns"]:
+        for s in ["wf-ui-ux-design", "wf-brand-guidelines", "wf-image-workflow", "wf-visual-design-fundamentals", "wf-design-anti-patterns"]:
             os.makedirs(os.path.join(self.base_dir, "skills", s), exist_ok=True)
             with open(os.path.join(self.base_dir, "skills", s, "SKILL.md"), "w") as f:
                 f.write(f"# Skill {s}\n")
@@ -67,20 +67,20 @@ class TestPruneTeam(unittest.TestCase):
             f.write("# Site Setup\n")
 
         # Create files for marketing team
-        # marketing uses: agents: [marketer], rules: [design-standards.md], skills: [persona-management, brand-guidelines, image-workflow, ai-search-optimization, memory-management], workflows: [wf-brand-context.md]
-        with open(os.path.join(self.base_dir, "agents", "marketer.md"), "w") as f:
+        # marketing uses: agents: [wf-marketer], rules: [wf-design-standards.md], skills: [wf-persona-management, wf-brand-guidelines, wf-image-workflow, wf-ai-search-optimization, wf-memory-management], workflows: [wf-brand-context.md]
+        with open(os.path.join(self.base_dir, "agents", "wf-marketer.md"), "w") as f:
             f.write("# Marketer\n")
-        for s in ["persona-management", "ai-search-optimization"]:
+        for s in ["wf-persona-management", "wf-ai-search-optimization"]:
             os.makedirs(os.path.join(self.base_dir, "skills", s), exist_ok=True)
             with open(os.path.join(self.base_dir, "skills", s, "SKILL.md"), "w") as f:
                 f.write(f"# Skill {s}\n")
 
         # Create core assets
-        with open(os.path.join(self.base_dir, "agents", "project-manager.md"), "w") as f:
+        with open(os.path.join(self.base_dir, "agents", "wf-project-manager.md"), "w") as f:
             f.write("# Project Manager\n")
-        with open(os.path.join(self.base_dir, "rules", "base.md"), "w") as f:
+        with open(os.path.join(self.base_dir, "rules", "wf-base.md"), "w") as f:
             f.write("# Base\n")
-        for s in ["workforce-management", "memory-management", "issue-tracker", "session-context", "usage-tracker"]:
+        for s in ["wf-management", "wf-memory-management", "wf-issue-tracker", "wf-session-context", "wf-usage-tracker"]:
             os.makedirs(os.path.join(self.base_dir, "skills", s), exist_ok=True)
             with open(os.path.join(self.base_dir, "skills", s, "SKILL.md"), "w") as f:
                 f.write(f"# Skill {s}\n")
@@ -105,12 +105,12 @@ class TestPruneTeam(unittest.TestCase):
         shutil.rmtree(self.test_dir, ignore_errors=True)
 
     def test_prune_shared_skill_preservation(self):
-        """Test that uninstalling marketing preserves brand-guidelines and image-workflow because design is active."""
+        """Test that uninstalling marketing preserves wf-brand-guidelines and wf-image-workflow because design is active."""
         # Pre-checks
-        self.assertTrue(os.path.exists(os.path.join(self.base_dir, "skills", "brand-guidelines")))
-        self.assertTrue(os.path.exists(os.path.join(self.base_dir, "skills", "image-workflow")))
-        self.assertTrue(os.path.exists(os.path.join(self.base_dir, "skills", "persona-management")))
-        self.assertTrue(os.path.exists(os.path.join(self.base_dir, "agents", "marketer.md")))
+        self.assertTrue(os.path.exists(os.path.join(self.base_dir, "skills", "wf-brand-guidelines")))
+        self.assertTrue(os.path.exists(os.path.join(self.base_dir, "skills", "wf-image-workflow")))
+        self.assertTrue(os.path.exists(os.path.join(self.base_dir, "skills", "wf-persona-management")))
+        self.assertTrue(os.path.exists(os.path.join(self.base_dir, "agents", "wf-marketer.md")))
 
         # Run prune for marketing
         result = prune_team(
@@ -123,18 +123,18 @@ class TestPruneTeam(unittest.TestCase):
         self.assertTrue(result)
 
         # Assert shared skills are preserved
-        self.assertTrue(os.path.exists(os.path.join(self.base_dir, "skills", "brand-guidelines")), "brand-guidelines must be preserved for design")
-        self.assertTrue(os.path.exists(os.path.join(self.base_dir, "skills", "image-workflow")), "image-workflow must be preserved for design")
-        self.assertTrue(os.path.exists(os.path.join(self.base_dir, "rules", "design-standards.md")), "design-standards.md must be preserved for design")
+        self.assertTrue(os.path.exists(os.path.join(self.base_dir, "skills", "wf-brand-guidelines")), "wf-brand-guidelines must be preserved for design")
+        self.assertTrue(os.path.exists(os.path.join(self.base_dir, "skills", "wf-image-workflow")), "wf-image-workflow must be preserved for design")
+        self.assertTrue(os.path.exists(os.path.join(self.base_dir, "rules", "wf-design-standards.md")), "wf-design-standards.md must be preserved for design")
 
         # Assert unshared marketing-exclusive assets are pruned from .agents/
-        self.assertFalse(os.path.exists(os.path.join(self.base_dir, "skills", "persona-management")), "persona-management should be pruned when no active team uses it")
-        self.assertFalse(os.path.exists(os.path.join(self.base_dir, "skills", "ai-search-optimization")), "ai-search-optimization should be pruned")
-        self.assertFalse(os.path.exists(os.path.join(self.base_dir, "agents", "marketer.md")), "marketer.md should be pruned from .agents/agents/")
+        self.assertFalse(os.path.exists(os.path.join(self.base_dir, "skills", "wf-persona-management")), "wf-persona-management should be pruned when no active team uses it")
+        self.assertFalse(os.path.exists(os.path.join(self.base_dir, "skills", "wf-ai-search-optimization")), "wf-ai-search-optimization should be pruned")
+        self.assertFalse(os.path.exists(os.path.join(self.base_dir, "agents", "wf-marketer.md")), "wf-marketer.md should be pruned from .agents/agents/")
 
         # Assert core assets remain intact
-        self.assertTrue(os.path.exists(os.path.join(self.base_dir, "agents", "project-manager.md")))
-        self.assertTrue(os.path.exists(os.path.join(self.base_dir, "skills", "memory-management")))
+        self.assertTrue(os.path.exists(os.path.join(self.base_dir, "agents", "wf-project-manager.md")))
+        self.assertTrue(os.path.exists(os.path.join(self.base_dir, "skills", "wf-memory-management")))
 
         # Assert workspace persona profile and workspace team folder stay behind
         self.assertTrue(os.path.exists(self.jordan_persona), "Workspace persona profile must stay behind")
@@ -156,8 +156,8 @@ class TestPruneTeam(unittest.TestCase):
         self.assertTrue(result)
 
         # Assert files were NOT deleted
-        self.assertTrue(os.path.exists(os.path.join(self.base_dir, "agents", "marketer.md")))
-        self.assertTrue(os.path.exists(os.path.join(self.base_dir, "skills", "persona-management")))
+        self.assertTrue(os.path.exists(os.path.join(self.base_dir, "agents", "wf-marketer.md")))
+        self.assertTrue(os.path.exists(os.path.join(self.base_dir, "skills", "wf-persona-management")))
         
         # Installed teams in workrules.md should remain untouched
         installed = get_installed_teams(self.test_dir, REPO_ROOT)

@@ -30,7 +30,7 @@ class TestStrategySyncAndDesignMemory(unittest.TestCase):
 
     def test_report_issue_with_tools_and_delegation(self):
         """Test reporting an issue with recommended tools, delegation target, and github labels."""
-        script_path = os.path.join(self.test_dir, "skills", "issue-tracker", "scripts", "report-issue.py")
+        script_path = os.path.join(self.test_dir, "skills", "wf-issue-tracker", "scripts", "report-issue.py")
         cmd = [
             "python3",
             script_path,
@@ -65,7 +65,7 @@ class TestStrategySyncAndDesignMemory(unittest.TestCase):
 
     def test_hypothesis_with_tools_and_delegation(self):
         """Test creating a hypothesis with recommended tools, delegation, and labels."""
-        script_path = os.path.join(self.test_dir, "skills", "hypothesis-tracker", "scripts", "hypothesis.py")
+        script_path = os.path.join(self.test_dir, "skills", "wf-hypothesis-tracker", "scripts", "hypothesis.py")
         cmd = [
             "python3",
             script_path,
@@ -108,7 +108,7 @@ class TestStrategySyncAndDesignMemory(unittest.TestCase):
 
     def test_validate_references_script(self):
         """Test validate-references script on root directory without false-positive template errors."""
-        validator_path = os.path.join(ROOT_DIR, "skills", "workforce-management", "scripts", "validate-references.py")
+        validator_path = os.path.join(ROOT_DIR, "skills", "wf-management", "scripts", "validate-references.py")
         res = subprocess.run(["python3", validator_path, ROOT_DIR], capture_output=True, text=True)
         # Should not crash and return 0
         self.assertEqual(res.returncode, 0, f"Validator error: {res.stderr}\nOutput: {res.stdout}")
