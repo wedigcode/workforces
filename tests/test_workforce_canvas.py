@@ -22,9 +22,9 @@ import subprocess
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-CANVAS_SCRIPT_DIR = REPO_ROOT / "skills" / "workforce-canvas" / "scripts"
+CANVAS_SCRIPT_DIR = REPO_ROOT / "skills" / "wf-canvas" / "scripts"
 if not CANVAS_SCRIPT_DIR.exists():
-    CANVAS_SCRIPT_DIR = REPO_ROOT / ".agents" / "skills" / "workforce-canvas" / "scripts"
+    CANVAS_SCRIPT_DIR = REPO_ROOT / ".agents" / "skills" / "wf-canvas" / "scripts"
 sys.path.insert(0, str(CANVAS_SCRIPT_DIR))
 
 import server
@@ -207,22 +207,22 @@ Ad campaigns on Google and Twitter.
         self.assertNotIn("setUp", sym_names)
 
     def test_universal_core_installation_across_all_team_configurations(self):
-        """Assert that workforce-canvas is part of CORE manifest regardless of installed teams."""
-        resolver_dir = REPO_ROOT / "skills" / "workforce-management" / "scripts"
+        """Assert that wf-canvas is part of CORE manifest regardless of installed teams."""
+        resolver_dir = REPO_ROOT / "skills" / "wf-management" / "scripts"
         sys.path.insert(0, str(resolver_dir))
         import resolve_manifest
 
         # Even with zero teams installed (pure core):
         manifest_none = resolve_manifest.resolve_manifest(str(REPO_ROOT), str(REPO_ROOT), teams_arg="none")
-        self.assertIn("workforce-canvas", manifest_none["skills"])
+        self.assertIn("wf-canvas", manifest_none["skills"])
 
         # With only marketing installed:
         manifest_mkt = resolve_manifest.resolve_manifest(str(REPO_ROOT), str(REPO_ROOT), teams_arg="marketing")
-        self.assertIn("workforce-canvas", manifest_mkt["skills"])
+        self.assertIn("wf-canvas", manifest_mkt["skills"])
 
         # With only dev installed:
         manifest_dev = resolve_manifest.resolve_manifest(str(REPO_ROOT), str(REPO_ROOT), teams_arg="dev")
-        self.assertIn("workforce-canvas", manifest_dev["skills"])
+        self.assertIn("wf-canvas", manifest_dev["skills"])
 
     def test_standup_data_and_cockpit_helpers(self):
         """Verify get_standup_data, create_task_file, and resolve_inbox_item."""
@@ -818,7 +818,7 @@ Analyze roundtrip latency for web socket canvas syncing.
 
     def test_copilot_sidebar_visibility_and_web_elements(self):
         """Verify web assets contain the intelligent copilot sidebar toggle and close elements."""
-        web_dir = REPO_ROOT / "skills" / "workforce-canvas" / "web"
+        web_dir = REPO_ROOT / "skills" / "wf-canvas" / "web"
         index_html = (web_dir / "index.html").read_text(encoding="utf-8")
         canvas_js = (web_dir / "canvas.js").read_text(encoding="utf-8")
         canvas_css = (web_dir / "canvas.css").read_text(encoding="utf-8")
@@ -841,7 +841,7 @@ Analyze roundtrip latency for web socket canvas syncing.
 
     def test_kanban_pipeline_ordering_and_archive_support(self):
         """Verify Kanban pipeline is ordered (todo, in_progress, blocked, done) and archive is supported."""
-        web_dir = REPO_ROOT / "skills" / "workforce-canvas" / "web"
+        web_dir = REPO_ROOT / "skills" / "wf-canvas" / "web"
         index_html = (web_dir / "index.html").read_text(encoding="utf-8")
         canvas_js = (web_dir / "canvas.js").read_text(encoding="utf-8")
 
@@ -882,7 +882,7 @@ title: Test Feature for Review
 status: in_progress
 priority: P1
 type: dev
-assignee: "@programmer"
+assignee: "@wf-programmer"
 ---
 Test task awaiting review.
 """, encoding="utf-8")
@@ -934,8 +934,8 @@ Rate limiter token bucket algorithm.
         # Update to in_progress without providing assignee
         updated = server.update_task_file(self.root_path, "20260905-unassigned-feature.md", {"status": "in_progress"})
         self.assertEqual(updated.get("status"), "in_progress")
-        self.assertEqual(updated.get("delegated_to"), "@programmer")
-        self.assertEqual(updated.get("assignee"), "@programmer")
+        self.assertEqual(updated.get("delegated_to"), "@wf-programmer")
+        self.assertEqual(updated.get("assignee"), "@wf-programmer")
 
         # Check dispatch queue file was created
         queue_file = self.tasks_dir / ".dispatch_queue.json"
@@ -944,10 +944,10 @@ Rate limiter token bucket algorithm.
         self.assertTrue(len(queue_items) > 0)
         q_entry = next((i for i in queue_items if i.get("task_id") == "task-unassigned-01"), None)
         self.assertIsNotNone(q_entry)
-        self.assertEqual(q_entry.get("agent"), "@programmer")
+        self.assertEqual(q_entry.get("agent"), "@wf-programmer")
         self.assertEqual(q_entry.get("status"), "pending_execution")
 
-        # Create design task and verify @designer mapping
+        # Create design task and verify @wf-designer mapping
         design_task = self.tasks_dir / "20260905-brand-refresh.md"
         design_task.write_text("""---
 id: "task-design-01"
@@ -959,7 +959,7 @@ status: "todo"
 Brand tokens and mockups.
 """, encoding="utf-8")
         updated_design = server.update_task_file(self.root_path, "20260905-brand-refresh.md", {"status": "in_progress"})
-        self.assertEqual(updated_design.get("delegated_to"), "@designer")
+        self.assertEqual(updated_design.get("delegated_to"), "@wf-designer")
 
         # Verify watcher sweeps queue without error
         watcher = server.InboxHeartbeatWatcher(self.root_path)
@@ -989,7 +989,7 @@ Profile queries.
             "author": "@human"
         }
         res = server.save_comment(self.root_path, comment_payload)
-        self.assertEqual(res.get("dispatched_agent"), "@researcher")
+        self.assertEqual(res.get("dispatched_agent"), "@wf-researcher")
 
         # Verify queue contains the comment inquiry
         queue_file = self.tasks_dir / ".dispatch_queue.json"
@@ -997,7 +997,7 @@ Profile queries.
         queue_items = json.loads(queue_file.read_text(encoding="utf-8"))
         entry = next((i for i in queue_items if i.get("task_id") == "task-audit-01"), None)
         self.assertIsNotNone(entry)
-        self.assertEqual(entry.get("agent"), "@researcher")
+        self.assertEqual(entry.get("agent"), "@wf-researcher")
         self.assertIn("Human comment inquiry", entry.get("action", ""))
 
     def test_http_event_emission_for_comments_and_inbox(self):
@@ -1144,8 +1144,8 @@ Profile queries.
         summary_text = wait_for_message.format_event_summary(events)
         self.assertIn("TASK_CREATED", summary_text)
         self.assertIn("Simplify Intake Modal", summary_text)
-        self.assertIn("@scribe", summary_text)
-        self.assertIn("@project-manager", summary_text)
+        self.assertIn("@wf-scribe", summary_text)
+        self.assertIn("@wf-project-manager", summary_text)
 
     def test_installed_teams_discovery_and_filtering(self):
         """Verify server parses all installed teams from workrules.md and returns them in /api/state."""
@@ -1195,7 +1195,7 @@ Profile queries.
             "reporter": "@human"
         })
         self.assertEqual(task_data["team"], "sales")
-        self.assertEqual(task_data["delegated_to"], "@sales")
+        self.assertEqual(task_data["delegated_to"], "@wf-sales")
 
         # Verify task is returned with team in get_all_tasks
         all_tasks = server.get_all_tasks(self.root_path)
@@ -1237,14 +1237,14 @@ User wants to toggle dark mode from the navigation bar.
         self.assertIsNotNone(started_event)
         self.assertEqual(started_event["payload"]["title"], "Implement Dark Mode Switch")
         self.assertEqual(started_event["payload"]["status"], "in_progress")
-        self.assertEqual(started_event["payload"]["agent"], "@designer")
+        self.assertEqual(started_event["payload"]["agent"], "@wf-designer")
 
         # Format the event summary and assert directives are present
         summary = wait_for_message.format_event_summary(events)
         self.assertIn("EVENT: TASK_STARTED", summary)
         self.assertIn("Implement Dark Mode Switch", summary)
-        self.assertIn("Assigned:    @designer", summary)
-        self.assertIn("@designer: commence immediate autonomous execution", summary)
+        self.assertIn("Assigned:    @wf-designer", summary)
+        self.assertIn("@wf-designer: commence immediate autonomous execution", summary)
 
 
 if __name__ == "__main__":

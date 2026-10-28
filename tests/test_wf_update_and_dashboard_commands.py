@@ -13,7 +13,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SKILLS_DIR = REPO_ROOT / "skills"
 DOT_AGENTS_SKILLS = REPO_ROOT / ".agents" / "skills"
-SCRIPTS_DIR = SKILLS_DIR / "workforce-management" / "scripts"
+SCRIPTS_DIR = SKILLS_DIR / "wf-management" / "scripts"
 
 
 class TestWfUpdateAndDashboardCommands(unittest.TestCase):
@@ -31,7 +31,7 @@ class TestWfUpdateAndDashboardCommands(unittest.TestCase):
         self.assertIn("name: wf-update", content)
         self.assertIn("/wf-update", content)
         self.assertIn("update.sh", content)
-        self.assertIn("workforce-management", content)
+        self.assertIn("wf-management", content)
 
     def test_wf_dashboard_skill_files_exist(self):
         """Verify wf-dashboard skill exists in both skills/ and .agents/skills/."""

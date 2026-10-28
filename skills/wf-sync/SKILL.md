@@ -4,16 +4,16 @@ description: Orchestrates multi-mode team meetings, daily standups, backlog tria
 ---
 # Skill: /wf-sync — Multi-Mode Team Sync & Strategic Alignment
 
-A unified meeting engine for daily execution, strategic course-correction, goal scaffolding, hypothesis tracking, and personal follow-up intelligence. Led dynamically by `@project-manager` (for execution standups & personal syncs) or `@advisor` (for strategic reviews and diagnostics).
+A unified meeting engine for daily execution, strategic course-correction, goal scaffolding, hypothesis tracking, and personal follow-up intelligence. Led dynamically by `@wf-project-manager` (for execution standups & personal syncs) or `/wf-advisor` (for strategic reviews and diagnostics).
 
 ---
 
 ## 🧭 Meeting Modes & Usage
 
 ```bash
-/wf-sync                # Default: Daily Execution Standup (Led by @project-manager)
+/wf-sync                # Default: Daily Execution Standup (Led by @wf-project-manager)
 /wf-sync --daily        # Explicit: 5-min tactical standup on 24h wins, blockers & "The One Thing"
-/wf-sync --strategy     # Strategic Review: OKRs, KPIs, Hypothesis Pacing, SME Round-Table (Led by @advisor)
+/wf-sync --strategy     # Strategic Review: OKRs, KPIs, Hypothesis Pacing, SME Round-Table (Led by /wf-advisor)
 /wf-sync --goals        # Goal & Milestone Scaffolding: Setup/reset Annual North Star & Q1-Q4 OKRs
 /wf-sync --me           # Personal Standup & Follow-Up Radar: Tasks, Git, Follow-ups, Emails, Messages, Meetings & Notes
 ```
@@ -26,17 +26,17 @@ A unified meeting engine for daily execution, strategic course-correction, goal 
 graph TD
     Trigger["/wf-sync [flag]"] --> Router{"Inspect Mode"}
     
-    Router -->|"--daily (Default)"| ModeDaily["Mode 1: Daily Standup<br/><b>Leader: @project-manager</b><br/>Focus: 24h Velocity & Blockers"]
-    Router -->|"--strategy"| ModeStrat["Mode 2: Strategic Review<br/><b>Leader: @advisor</b><br/>Focus: OKRs, Hypotheses & Bottlenecks"]
-    Router -->|"--goals"| ModeGoals["Mode 3: Goal Scaffolding<br/><b>Co-Leaders: @advisor + @project-manager</b><br/>Focus: North Star & OKR Hierarchy"]
-    Router -->|"--me"| ModeMe["Mode 4: Personal Standup & Follow-Ups<br/><b>Leader: @project-manager (Chief of Staff)</b><br/>Focus: My Status, Follow-ups, Emails, Chats, Meetings & Notes"]
+    Router -->|"--daily (Default)"| ModeDaily["Mode 1: Daily Standup<br/><b>Leader: @wf-project-manager</b><br/>Focus: 24h Velocity & Blockers"]
+    Router -->|"--strategy"| ModeStrat["Mode 2: Strategic Review<br/><b>Leader: /wf-advisor</b><br/>Focus: OKRs, Hypotheses & Bottlenecks"]
+    Router -->|"--goals"| ModeGoals["Mode 3: Goal Scaffolding<br/><b>Co-Leaders: /wf-advisor + @wf-project-manager</b><br/>Focus: North Star & OKR Hierarchy"]
+    Router -->|"--me"| ModeMe["Mode 4: Personal Standup & Follow-Ups<br/><b>Leader: @wf-project-manager (Chief of Staff)</b><br/>Focus: My Status, Follow-ups, Emails, Chats, Meetings & Notes"]
     
     ModeDaily --> StandupExec["• Yesterday's Wins & Losses<br/>• The 'One Thing' (P0)<br/>• Blocker Escalation<br/>• Issue Inbox Triage"]
     ModeStrat --> StratExec["• Cross-Functional SME Round-Table<br/>• OKR & Milestone Pacing<br/>• Hypothesis Telemetry & Kill Criteria<br/>• 5 Strategic Multipliers<br/>• 5-Dimension Root-Cause Diagnostic"]
     ModeGoals --> GoalExec["• North Star Metric Formulation<br/>• Q1-Q4 Strategic Objectives<br/>• Monthly Milestones Breakdown<br/>• Goal-to-Sprint Task Alignment"]
     ModeMe --> MeExec["• Multi-Source Status & Git Aggregation<br/>• Follow-ups Required From You<br/>• Follow-ups Waiting on Others<br/>• Today's Meetings & Context Prep<br/>• Unread Emails / Chats / PR Reviews"]
     
-    StandupExec --> ScribeLog["@scribe: Logs to workforces/team-sync/YYYY-MM-DD.md"]
+    StandupExec --> ScribeLog["@wf-scribe: Logs to workforces/team-sync/YYYY-MM-DD.md"]
     StratExec --> ScribeLog
     GoalExec --> ScribeLog
     MeExec --> ScribeLog
@@ -44,14 +44,14 @@ graph TD
 
 ---
 
-# Mode 1: Daily Execution Standup (`/sync --daily`)
+# Mode 1: Daily Execution Standup (`/wf-sync --daily`)
 
-**Meeting Leader:** `@project-manager`  
+**Meeting Leader:** `@wf-project-manager`  
 **Duration Target:** 2–5 minutes  
 **Primary Goal:** Unblock the team, lock in today's single most critical commitment, and triage incoming issues.
 
 ### Step D1 — Ingest Daily State & Remote PR Reconciliation
-1. **Reconcile & Project Tasks:** Run `python3 .agents/skills/task-tracker/scripts/personal_sync.py --root ./` (Fallback: `python3 skills/task-tracker/scripts/personal_sync.py --root ./`) to reconcile tasks against remote GitHub PRs, auto-mark merged PRs as `done`, and synchronize `workforces/workstate.md` from `workforces/tasks/*.md`.
+1. **Reconcile & Project Tasks:** Run `python3 .agents/skills/wf-task-tracker/scripts/personal_sync.py --root ./` (Fallback: `python3 skills/wf-task-tracker/scripts/personal_sync.py --root ./`) to reconcile tasks against remote GitHub PRs, auto-mark merged PRs as `done`, and synchronize `workforces/workstate.md` from `workforces/tasks/*.md`.
 2. Read `workforces/tasks/` and projected `workforces/workstate.md` for active, pending, and completed sprint tasks.
 3. Read `workforces/issues/inbox/` for new bugs, tech debt, or spontaneous ideas logged by agents or user.
 4. Check multi-repo GitHub queue across all `tracked_repos` (`gh pr list --repo <r>`, `gh issue list --repo <r>`) for external PR review requests and assigned issues.
@@ -77,10 +77,10 @@ graph TD
 - [x] Task A — Description of achievement.
 
 ### ⚠️ Roadblocks & Immediate Blockers
-- [ ] Task B — Blocked on staging OAuth domain verification (@programmer).
+- [ ] Task B — Blocked on staging OAuth domain verification (@wf-programmer).
 
 ### 🎯 The One Thing Today
-> **[Task C Title]** (Priority P0 — Owner: `@programmer`)
+> **[Task C Title]** (Priority P0 — Owner: `@wf-programmer`)
 > *Why:* Critical path item blocking revenue milestone.
 
 ### 📬 Inbox Triage
@@ -92,34 +92,34 @@ graph TD
 
 ---
 
-# Mode 2: Strategic Review, Brainstorming & Hypothesis Discovery (`/sync --strategy`)
+# Mode 2: Strategic Review, Brainstorming & Hypothesis Discovery (`/wf-sync --strategy`)
 
-**Meeting Leader:** `@advisor` (Co-pilot: `@project-manager`)  
+**Meeting Leader:** `/wf-advisor` (Co-pilot: `@wf-project-manager`)  
 **Duration Target:** 10–15 minutes  
 **Primary Goal:** Brainstorm high-leverage opportunities for the next cycle, extract winning ideas into falsifiable hypotheses, enforce factual telemetry grounding, explore tool & subagent delegation (Jules, Copilot, Stitch, Flow/Vids/Slides), audit OKR pacing, and enforce kill/pivot criteria.
 
 ### Step S1 — Ingest Factual Business State & Grounding
 1. **Factual Telemetry Grounding:** Enforce the zero-hallucination rule. Check verified outreach logs, commit history, and analytics. If no customer outreach or ad campaigns have run, record the factual baseline (`0 outreach calls / 0 live ads; pre-launch stage`).
 2. **Strategic Goals:** Read `workforces/goals/` for current quarter objectives and key results.
-3. **Active Hypotheses:** Query `skills/hypothesis-tracker/scripts/hypothesis.py --review` for active experiments in `workforces/hypotheses/running/`.
+3. **Active Hypotheses:** Query `skills/wf-hypothesis-tracker/scripts/hypothesis.py --review` for active experiments in `workforces/hypotheses/running/`.
 4. **Velocity & Backlog:** Read `workforces/workstate.md` for completed vs backlog tasks and async worker statuses.
 5. **Design Feedback Memory:** Read `workforces/memory/design-preferences.md` for negative constraints and approved aesthetic preferences.
 
 ### Step S2 — Factual Team Status & Advisor Strategic Inquiry
-Domain agents report ONLY verified historical data. `@advisor` then actively queries each department with sharp consultative probes:
+Domain agents report ONLY verified historical data. `/wf-advisor` then actively queries each department with sharp consultative probes:
 
 ```markdown
 ### 🎙️ Factual Status & Strategic Inquiry Round-Table
-- **💼 Sales (`@sales`):**
+- **💼 Sales (`@wf-sales`):**
   - *Factual Telemetry:* 0 prospect outreach calls completed to date (pre-launch / baseline stage).
   - *Advisor Probe:* "Who is the single most desperate buyer archetype in our target market, and what specific pain hook will get an immediate reply once we launch outbound?"
-- **📈 Marketing & Growth (`@marketer` / `@growth`):**
+- **📈 Marketing & Growth (`@wf-marketer` / `@wf-growth`):**
   - *Factual Telemetry:* Organic search protocols live; 0 ad spend deployed.
   - *Advisor Probe:* "What high-converting content formats (e.g. interactive ROI calculators, short-form video teardowns) can we test next cycle to drive organic acquisition?"
-- **💻 Engineering (`@programmer`):**
+- **💻 Engineering (`@wf-programmer`):**
   - *Factual Telemetry:* Core MVP build passing 100% tests; auth service refactor complete.
   - *Advisor Probe:* "What parts of the upcoming feature backlog can be offloaded to async coding workers like Google Jules or GitHub Copilot to accelerate delivery?"
-- **🎨 Design (`@designer`):**
+- **🎨 Design (`@wf-designer`):**
   - *Factual Telemetry:* Tokens aligned with `design-preferences.md` (0 yellow on light/white).
   - *Advisor Probe:* "What interactive visual prototypes or design variations should we iterate internally before presenting to human review?"
 ```
@@ -128,7 +128,7 @@ Domain agents report ONLY verified historical data. `@advisor` then actively que
 The team engages in a structured brainstorming loop to extract winning ideas for the next cycle:
 1. **Unpack Market Assumptions:** Identify speculative ideas (e.g. *"Solo agents want 1-touch mobile checkout"* or *"Brokers want audit compliance dashboards"*).
 2. **Convert to Falsifiable Hypotheses:** Convert every speculative assumption into a structured experiment using `hypothesis.py --create`:
-   - Define Owner (`@sales`, `@marketer`, `@growth`, `@programmer`, `@designer`)
+   - Define Owner (`@wf-sales`, `@wf-marketer`, `@wf-growth`, `@wf-programmer`, `@wf-designer`)
    - Define Falsifiable Statement
    - Define Leading Indicators (e.g. discovery calls booked, prototype signups) and Lagging Indicators (e.g. paid conversions)
    - Define Kill / Pivot Thresholds
@@ -136,7 +136,7 @@ The team engages in a structured brainstorming loop to extract winning ideas for
 3. **Capture Product / Technical Ideas:** Log technical or UX feature ideas into `workforces/issues/inbox/` using `report-issue.py --title "..." --type idea --tools "..." --sync-session`.
 
 ### Step S4 — Dynamic Tool Enablement & Delegation Inquiry
-`@advisor` probes the team on tool acceleration opportunities:
+`/wf-advisor` probes the team on tool acceleration opportunities:
 > *"What tools, async subagents, or external systems (e.g. Google Jules / GitHub Copilot for dev, Google Stitch for UI, Google Flow/Vids/Slides for marketing, ad/analytics MCPs) could take work off your plate or 10x your throughput next cycle?"*
 
 - **Identified Tooling & Delegation Requests:**
@@ -145,7 +145,7 @@ The team engages in a structured brainstorming loop to extract winning ideas for
   - **Design:** Leverage Google Stitch or Figma MCP for rapid token and component scaffolding (`tool:google-stitch`).
 
 ### Step S5 — Scientific Hypothesis & Experiment Review (Kill / Pivot Enforcer)
-Run `python3 .agents/skills/hypothesis-tracker/scripts/hypothesis.py --review` (Fallback: `python3 skills/hypothesis-tracker/scripts/hypothesis.py --review`):
+Run `python3 .agents/skills/wf-hypothesis-tracker/scripts/hypothesis.py --review` (Fallback: `python3 skills/wf-hypothesis-tracker/scripts/hypothesis.py --review`):
 - Audit weekly pacing on leading and lagging indicators for all running experiments.
 - **Kill Criteria Enforcement:** If an experiment elapsed time is up and metrics breached the kill threshold:
   > *"🚨 **Kill Criteria Triggered:** Experiment `HYP-20260823-01` achieved 2.1% reply rate vs. 3% kill threshold. Recommending immediate sunset and pivoting resources."*
@@ -159,7 +159,7 @@ Compare progress against quarterly key results and calculate the **Goal Alignmen
 | **KR 2:** Launch core MVP platform | 100% | 85% | 🟢 On Track | ✅ Covered | 3 sprint tasks |
 
 ### Step S7 — The 4-Step Executive Decision Sequence & Strategic Multipliers
-`@advisor` and `@project-manager` audit the upcoming strategic roadmap against the **4-Step Decision Sequence (`skills/business-frameworks`)**:
+`/wf-advisor` and `@wf-project-manager` audit the upcoming strategic roadmap against the **4-Step Decision Sequence (`skills/wf-business-frameworks`)**:
 
 1. **JTBD & Customer Validation**: Verify all proposed features and outreach campaigns state explicit situational triggers and 3D jobs (Functional, Emotional, Social) rather than demographic assumptions.
 2. **Value Stick Audit**: Verify initiatives lengthen the total value stick (expanding customer **WTP** via delight or lowering partner/vendor **WTS** via tooling) rather than extracting zero-sum margin.
@@ -177,51 +177,51 @@ Clearly demarcate what AI will execute autonomously next cycle vs. what requires
 ## 🧭 Strategic Review & Next-Cycle Action Plan — YYYY-MM-DD
 
 ### 💡 Brainstormed Hypotheses & Experiments for Next Cycle
-- [ ] **HYP-01 (@sales):** Test 50 personalized problem-first emails to solo agents. [Tools: email-crm, Label: `tool:sales-outreach`]
-- [ ] **HYP-02 (@marketer):** Test 3 video problem teasers for Instagram/TikTok. [Tools: google-vids, Label: `tool:google-vids`]
+- [ ] **HYP-01 (@wf-sales):** Test 50 personalized problem-first emails to solo agents. [Tools: email-crm, Label: `tool:sales-outreach`]
+- [ ] **HYP-02 (@wf-marketer):** Test 3 video problem teasers for Instagram/TikTok. [Tools: google-vids, Label: `tool:google-vids`]
 
 ### 🧰 Tool Enablement & Async Delegation Requests
 - **Dev:** Assign auth token cache refactor to Google Jules (`jules remote list --session`, Label: `tool:jules`, `delegated:jules`).
 - **Marketing:** Enable Google Vids / Slides integration for automated video generation.
 
 ### 🤖 Autonomous AI Next-Cycle Execution (No Human Intervention Needed)
-1. `@programmer`: Execute sprint tasks #12–#14, run test suites, and review Jules patch for auth refactor.
-2. `@designer`: Run multi-pass self-iterations on mobile checkout layout against `design-preferences.md`.
-3. `@marketer`: Draft 3 video scripts and prepare social distribution schedule.
+1. `@wf-programmer`: Execute sprint tasks #12–#14, run test suites, and review Jules patch for auth refactor.
+2. `@wf-designer`: Run multi-pass self-iterations on mobile checkout layout against `design-preferences.md`.
+3. `@wf-marketer`: Draft 3 video scripts and prepare social distribution schedule.
 
 ### 🙋 Human Approval & Direction Gates (Your Decision Needed)
 1. Approve launching Hypothesis HYP-01 and HYP-02.
-2. Review final UI design options once `@designer` completes internal iteration passes.
+2. Review final UI design options once `@wf-designer` completes internal iteration passes.
 ```
 
 ---
 
-# Mode 3: Goal & Milestone Scaffolding (`/sync --goals`)
+# Mode 3: Goal & Milestone Scaffolding (`/wf-sync --goals`)
 
-**Meeting Leaders:** `@advisor` (Strategic Discovery) + `@project-manager` (Scaffolding & Milestone Sequencing)  
+**Meeting Leaders:** `/wf-advisor` (Strategic Discovery) + `@wf-project-manager` (Scaffolding & Milestone Sequencing)  
 **Primary Goal:** Establish or reset company goals, annual North Star, quarterly OKRs, and monthly milestones when `workforces/goals/` is empty or at quarter boundaries.
 
 ### Step G1 — North Star Discovery
-`@advisor` asks 2 targeted consultative questions:
+`/wf-advisor` asks 2 targeted consultative questions:
 1. *"What is the single North Star metric that defines company success for the next 12 months? (e.g. $50k MRR, 10,000 active users, 50 enterprise pilots)"*
 2. *"What are the 2–3 core pillars required to hit that number? (e.g. Acquisition engine, Product retention, Enterprise compliance)"*
 
 ### Step G2 — Scaffold Quarterly OKRs
-Generate `workforces/goals/YYYY_QX_goals.md` using `skills/workforce-management/templates/goal-template.md`:
+Generate `workforces/goals/YYYY_QX_goals.md` using `skills/wf-management/templates/goal-template.md`:
 - 2–3 Objectives with 2–3 quantifiable Key Results each.
-- Assign an owning team (`@sales`, `@growth`, `@programmer`, etc.) to each KR.
+- Assign an owning team (`@wf-sales`, `@wf-growth`, `@wf-programmer`, etc.) to each KR.
 
 ### Step G3 — Break Down Monthly Milestones
 Structure the quarter into 3 monthly milestone gates (Month 1 Foundation, Month 2 Funnel Acceleration, Month 3 Scale).
 
 ### Step G4 — Seed Initial Sprint Backlog
-`@project-manager` turns Month 1 milestones into initial P0/P1 tasks in `workforces/workstate.md` with full goal lineage.
+`@wf-project-manager` turns Month 1 milestones into initial P0/P1 tasks in `workforces/workstate.md` with full goal lineage.
 
 ---
 
-# Mode 4: Personal Standup & Follow-Up Radar (`/sync --me`)
+# Mode 4: Personal Standup & Follow-Up Radar (`/wf-sync --me`)
 
-**Meeting Leader:** `@project-manager` (operating as your proactive AI Chief of Staff) co-piloting with `@scribe`  
+**Meeting Leader:** `@wf-project-manager` (operating as your proactive AI Chief of Staff) co-piloting with `@wf-scribe`  
 **Duration Target:** 2–3 minutes  
 **Primary Goal:** Roll up your personal in-flight work, surface high-priority incoming asks and follow-ups required from you, track pending items you are waiting on, synthesize today's meetings with automated context prep, and pull recent active notes across all connected tools and MCPs.
 
@@ -234,9 +234,9 @@ The AI dynamically inspects available workspace state, CLI utilities, and connec
 1. **Local State & Git Aggregator (`personal_sync.py`):**
    Execute the fast multi-source aggregator:
    ```bash
-   python3 .agents/skills/task-tracker/scripts/personal_sync.py --root ./ --format markdown
+   python3 .agents/skills/wf-task-tracker/scripts/personal_sync.py --root ./ --format markdown
    ```
-   *(Fallback: `python3 skills/task-tracker/scripts/personal_sync.py --root ./ --format markdown`)*
+   *(Fallback: `python3 skills/wf-task-tracker/scripts/personal_sync.py --root ./ --format markdown`)*
    - **Git Workspace:** Active branch, modified/staged files (`git status --porcelain`), recent commit log (`git log -n 5`).
    - **Active Tasks:** `workforces/tasks/` filtered for `in_progress`, `blocked`, and high-priority `todo` tasks.
    - **Sprint State:** `workforces/workstate.md` active sprint tasks and roadblocks.
@@ -284,7 +284,7 @@ Categorize all discovered items into clear, actionable buckets:
 Present the structured briefing to the user in chat:
 
 ```markdown
-## 👤 Personal Sync & Follow-Up Radar (`/sync --me`) — YYYY-MM-DD
+## 👤 Personal Sync & Follow-Up Radar (`/wf-sync --me`) — YYYY-MM-DD
 
 ### 🔨 What You Are Working On (Active Focus)
 - **Git Workspace:** Branch `feature/auth-refactor` (2 modified files)
@@ -306,7 +306,7 @@ Present the structured briefing to the user in chat:
 - **Authored PRs Awaiting Review:**
   - PR #39: Refactor Database Models (Waiting on `@reviewer` — Open 2 days)
 - **Active Running Hypotheses:**
-  - `HYP-01`: Outbound Sales Email Test (Owner: `@sales` — Pacing check in 3 days)
+  - `HYP-01`: Outbound Sales Email Test (Owner: `@wf-sales` — Pacing check in 3 days)
 
 ### 📅 Today's Meetings & Proactive Prep
 - **11:00 AM — Pilot Architecture Review** with *Engineering Team*
@@ -328,14 +328,14 @@ Present the structured briefing to the user in chat:
 ### Step M3 — Optional State Logging
 
 If requested or approved by the user:
-- `@scribe` saves the personal briefing record to `workforces/team-sync/YYYY-MM-DD-me.md`.
+- `@wf-scribe` saves the personal briefing record to `workforces/team-sync/YYYY-MM-DD-me.md`.
 - Synchronize active tasks in `workforces/tasks/` and active session context note in `workforces/session-context/`.
 
 ## 🚀 Direct Orchestration Handoff (Modern Antigravity Execution)
 
 After standup triage, backlog review, or task prioritization:
-- **No manual loops or polling:** Legacy procedural coordinators (`wf-work`) have been retired.
-- High-priority tasks (`P0`/`P1`) are directly dispatched to modern Antigravity subagents via `agent-parallelization`.
+- **No manual loops or polling:** Legacy procedural loop coordinators have been retired.
+- High-priority tasks (`P0`/`P1`) are directly dispatched to modern Antigravity subagents via `wf-agent-parallelization`.
 - **Parallel Worktree Execution (`Topology 1`):** Independent tasks fan out into dedicated git worktrees (`.worktrees/<slug>`) with `Workspace: 'share'` so subagents execute concurrently without dirtying the main working tree.
 - **Vertical Relays (`Topology 2`):** Multi-layer sequential epics execute via `gh-stack` pull request chains.
 - Local tasks and remote PR lifecycles are automatically synchronized back via `personal_sync.py`.
@@ -345,7 +345,7 @@ After standup triage, backlog review, or task prioritization:
 ## 📝 Logging & State Preservation
 
 After the user approves the sync summary:
-1. **Save Log:** `@scribe` writes the approved record to `workforces/team-sync/YYYY-MM-DD.md` (or `YYYY-MM-DD-strategy.md` / `YYYY-MM-DD-me.md`).
+1. **Save Log:** `@wf-scribe` writes the approved record to `workforces/team-sync/YYYY-MM-DD.md` (or `YYYY-MM-DD-strategy.md` / `YYYY-MM-DD-me.md`).
 2. **Update Workstate:** Synchronize `workforces/workstate.md` task priorities and statuses.
 3. **Update Hypotheses:** Transition any killed, validated, or updated hypotheses via `hypothesis.py`.
 4. **Preserve Lineage:** Update active session context note in `workforces/session-context/`.

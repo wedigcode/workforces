@@ -33,7 +33,7 @@ Drives customer-centric positioning, brand strategy, persuasive copywriting, vis
 
 ## Team Roles & Personas
 
-- **Marketer Agent (`@marketer`):** High-converting conversion copywriter, positioning strategist, and email funnel architect. See [`marketer.md`](../../agents/marketer.md).
+- **Marketer Agent (`@wf-marketer`):** High-converting conversion copywriter, positioning strategist, and email funnel architect. See [`wf-marketer.md`](../../agents/wf-marketer.md).
 - **Brand & Positioning Strategist:** Defines value propositions, market positioning, audience personas, competitive differentiation, and messaging matrices.
 - **High-Conversion Copywriter:** Crafts persuasive landing page copy, ad copy, email nurture cadences, and video scripts using PAS and AIDA frameworks.
 - **Lead Nurture & Campaign Manager:** Builds multi-channel campaign architectures, automated email nurture flows, lead magnets, and customer lifecycle funnels.
@@ -42,8 +42,8 @@ Drives customer-centric positioning, brand strategy, persuasive copywriting, vis
 
 ## SOP / Workflow Patterns
 When generating a marketing team for a project, consider whether the project needs:
-- `site-setup` — **Run on empty/greenfield repos.** Sets up initial Product Brief, target personas, conversion goals, and brand context.
-- `brand-context` — **Run first.** Establishes `docs/brand-context.md` with brand voice, palette, typography, and target audience. Shared with the design team.
+- `/wf-site-setup` — **Run on empty/greenfield repos.** Sets up initial Product Brief, target personas, conversion goals, and brand context.
+- `/wf-brand-guidelines` — **Run first.** Establishes `docs/brand-context.md` with brand voice, palette, typography, and target audience. Shared with the design team.
 - `landing-page-copy` (High-converting landing page messaging framework, structure, and copy)
 - `launch-campaign` (Cross-channel campaign planning, asset generation, and launch sequencing)
 - `lead-magnet-funnel` (Valuable opt-in resource definition, lead capture form, and follow-up nurture sequence)
@@ -56,6 +56,6 @@ The marketing team and design team share brand context. All copy and visual asse
 
 - **Brand voice (Section 3)** governs all marketing copy — same voice rules for emails, landing pages, ads, and social.
 - **Visual identity (Section 4)** governs all design assets — same colors, fonts, and imagery style.
-- The `@designer` agent reviews visual marketing assets before shipping.
-- Campaigns requiring new visual assets loop in `@designer` to ensure brand consistency.
+- The `@wf-designer` agent reviews visual marketing assets before shipping.
+- Campaigns requiring new visual assets loop in `@wf-designer` to ensure brand consistency.
 

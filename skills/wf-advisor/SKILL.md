@@ -5,7 +5,7 @@ description: Conducts consultative strategic advisory sessions to unpack root pr
 
 # Strategic Advisory & Problem Discovery (/wf-advisor)
 
-Universal consultative problem discovery, strategic trade-off evaluation, and architecture guidance. Led by `@advisor`.
+Universal consultative problem discovery, strategic trade-off evaluation, and architecture guidance. Led by `wf-advisor`.
 
 ---
 
@@ -50,9 +50,9 @@ Subordinate all secondary optimizations to solving the single primary throughput
 For every feature agreed upon, document in the session brief and register via `report-issue.py`:
 
 ```bash
-python3 .agents/skills/issue-tracker/scripts/report-issue.py \
+python3 .agents/skills/wf-issue-tracker/scripts/report-issue.py \
   --title "<Feature Title>" --type feature --priority P1 \
-  --reporter @advisor --session-id "<Seq>" \
+  --reporter wf-advisor --session-id "<Seq>" \
   --session-file "workforces/session-context/<file>.md" \
   --description "<Problem & Value>" --suggested-action "<Implementation Path>" --sync-session
 ```

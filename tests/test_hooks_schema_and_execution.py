@@ -13,12 +13,14 @@ import sys
 import unittest
 from pathlib import Path
 
+from typing import Tuple
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 ROOT_HOOKS_JSON = REPO_ROOT / "hooks.json"
 PLUGINS_DIR = REPO_ROOT / "plugins"
 
-PRE_TOOL_SCRIPT = REPO_ROOT / "skills" / "code-graph" / "scripts" / "pre_tool_hook.py"
-POST_TOOL_SCRIPT = REPO_ROOT / "skills" / "post-code-review" / "scripts" / "post_tool_hook.py"
+PRE_TOOL_SCRIPT = REPO_ROOT / "skills" / "wf-code-graph" / "scripts" / "pre_tool_hook.py"
+POST_TOOL_SCRIPT = REPO_ROOT / "skills" / "wf-post-code-review" / "scripts" / "post_tool_hook.py"
 
 
 class TestHooksSchema(unittest.TestCase):
@@ -263,14 +265,14 @@ class TestHookScriptsExecution(unittest.TestCase):
     def _create_consumer_tree(self, ws_root: Path) -> Tuple[Path, Path, Path]:
         """Create pure consumer workspace layout without root skills directory."""
         import shutil
-        cg_scripts = ws_root / ".agents" / "skills" / "code-graph" / "scripts"
-        pcr_scripts = ws_root / ".agents" / "skills" / "post-code-review" / "scripts"
+        cg_scripts = ws_root / ".agents" / "skills" / "wf-code-graph" / "scripts"
+        pcr_scripts = ws_root / ".agents" / "skills" / "wf-post-code-review" / "scripts"
         cg_scripts.mkdir(parents=True)
         pcr_scripts.mkdir(parents=True)
         for s in ["pre_tool_hook.py", "graph_indexer.py", "pre_impact_analyzer.py"]:
-            shutil.copy2(REPO_ROOT / "skills" / "code-graph" / "scripts" / s, cg_scripts / s)
+            shutil.copy2(REPO_ROOT / "skills" / "wf-code-graph" / "scripts" / s, cg_scripts / s)
         for s in ["post_tool_hook.py", "post_code_reviewer.py"]:
-            shutil.copy2(REPO_ROOT / "skills" / "post-code-review" / "scripts" / s, pcr_scripts / s)
+            shutil.copy2(REPO_ROOT / "skills" / "wf-post-code-review" / "scripts" / s, pcr_scripts / s)
         sample_py = ws_root / "calc.py"
         sample_py.write_text("def add(a: int, b: int) -> int:\n    return a + b\n", encoding="utf-8")
         subprocess.run(["git", "init"], cwd=ws_root, capture_output=True, check=True)
@@ -320,9 +322,9 @@ class TestHookScriptsExecution(unittest.TestCase):
     def test_hook_commands_in_pure_consumer_workspace_topology(self):
         """Verify hook execution in simulated consumer workspace with only .agents/."""
         import tempfile
-        hooks_file = PLUGINS_DIR / "workforce-programming-plugin" / "hooks.json"
+        hooks_file = PLUGINS_DIR / "wf-programming-plugin" / "hooks.json"
         with open(hooks_file, "r", encoding="utf-8") as f:
-            hooks_cfg = json.load(f)["workforce-programming"]
+            hooks_cfg = json.load(f)["wf-programming"]
         pre_cmd = hooks_cfg["PreToolUse"][0]["hooks"][0]["command"]
         post_cmd = hooks_cfg["PostToolUse"][0]["hooks"][0]["command"]
 

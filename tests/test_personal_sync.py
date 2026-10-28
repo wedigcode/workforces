@@ -13,10 +13,10 @@ import unittest
 import unittest.mock
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-PERSONAL_SYNC_SCRIPT = os.path.join(ROOT_DIR, "skills", "task-tracker", "scripts", "personal_sync.py")
+PERSONAL_SYNC_SCRIPT = os.path.join(ROOT_DIR, "skills", "wf-task-tracker", "scripts", "personal_sync.py")
 
 # Add scripts directory to sys.path for direct import testing
-sys.path.insert(0, os.path.join(ROOT_DIR, "skills", "task-tracker", "scripts"))
+sys.path.insert(0, os.path.join(ROOT_DIR, "skills", "wf-task-tracker", "scripts"))
 import personal_sync  # type: ignore
 
 
@@ -210,7 +210,7 @@ topic: "Personal Sync Workflow"
         self.assertEqual(data["session_context"]["topic"], "Personal Sync Workflow")
 
         md = personal_sync.format_markdown_report(data)
-        self.assertIn("Personal Sync & Follow-Up Radar (`/sync --me`)", md)
+        self.assertIn("Personal Sync & Follow-Up Radar (`/wf-sync --me`)", md)
         self.assertIn("Build Personal Sync Engine", md)
         self.assertIn("Personal Sync Workflow", md)
 

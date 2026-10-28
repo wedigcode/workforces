@@ -1,0 +1,28 @@
+{
+  "wf-programming": {
+    "PreToolUse": [
+      {
+        "matcher": "write_to_file|replace_file_content|multi_replace_file_content",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -c \"import os, sys, subprocess; rel = 'skills/wf-code-graph/scripts/pre_tool_hook.py'; cands = [f'{b}/{rel}' if b else rel for b in ('.agents', '.claude', '.grok', '.github/copilot', '', '../..')]; script = next((p for p in cands if os.path.exists(p)), None); sys.exit(subprocess.call([sys.executable, script])) if script else (print('{\\\"decision\\\": \\\"allow\\\"}'), sys.exit(0))\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "write_to_file|replace_file_content|multi_replace_file_content",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -c \"import os, sys, subprocess; rel = 'skills/wf-post-code-review/scripts/post_tool_hook.py'; cands = [f'{b}/{rel}' if b else rel for b in ('.agents', '.claude', '.grok', '.github/copilot', '', '../..')]; script = next((p for p in cands if os.path.exists(p)), None); sys.exit(subprocess.call([sys.executable, script])) if script else (print('{}'), sys.exit(0))\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

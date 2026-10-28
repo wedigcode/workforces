@@ -15,8 +15,8 @@ import unittest
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-REVIEWER_SCRIPT = REPO_ROOT / "skills" / "post-code-review" / "scripts" / "post_code_reviewer.py"
-TEMPLATES_DIR = REPO_ROOT / "skills" / "site-setup" / "templates" / "quality-toolchain"
+REVIEWER_SCRIPT = REPO_ROOT / "skills" / "wf-post-code-review" / "scripts" / "post_code_reviewer.py"
+TEMPLATES_DIR = REPO_ROOT / "skills" / "wf-site-setup" / "templates" / "quality-toolchain"
 
 sys.path.insert(0, str(REVIEWER_SCRIPT.parent))
 import post_code_reviewer
@@ -762,7 +762,7 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
         long_func = "def long_function():\n" + "".join(f"    v_{i} = {i}\n" for i in range(40)) + "    return v_39\n"
         (self.test_dir / "service.py").write_text(long_func, encoding="utf-8")
 
-        script_path = Path(__file__).parent.parent / "skills" / "post-code-review" / "scripts" / "post_code_reviewer.py"
+        script_path = Path(__file__).parent.parent / "skills" / "wf-post-code-review" / "scripts" / "post_code_reviewer.py"
         res = subprocess.run([sys.executable, str(script_path), "--root", str(self.test_dir), "--strict"], capture_output=True, text=True)
         self.assertEqual(res.returncode, 0, f"Expected 0 exit code, got {res.returncode}. Output: {res.stdout}\nStderr: {res.stderr}")
 
@@ -931,7 +931,7 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
 
     def test_validate_references_pack_json_resolves_against_repo_root(self):
         """Test validate-references.py resolves pack.json against repository root rather than teams/<team>/."""
-        val_script = REPO_ROOT / "skills" / "workforce-management" / "scripts" / "validate-references.py"
+        val_script = REPO_ROOT / "skills" / "wf-management" / "scripts" / "validate-references.py"
         teams_dir = self.test_dir / "teams" / "growth"
         teams_dir.mkdir(parents=True, exist_ok=True)
         rules_dir = self.test_dir / "rules"
@@ -987,7 +987,7 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
 
     def test_validate_references_audits_skills_session_context_while_ignoring_session_notes(self):
         """Test validate-references.py audits skills/session-context while excluding workforces/session-context notes."""
-        val_script = REPO_ROOT / "skills" / "workforce-management" / "scripts" / "validate-references.py"
+        val_script = REPO_ROOT / "skills" / "wf-management" / "scripts" / "validate-references.py"
         sc_skill_dir = self.test_dir / "skills" / "session-context"
         sc_skill_dir.mkdir(parents=True, exist_ok=True)
         (sc_skill_dir / "SKILL.md").write_text("# Skill\n[Broken Link](nonexistent.md)\n", encoding="utf-8")
@@ -1007,7 +1007,7 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
 
     def test_validate_references_only_excludes_exact_runtime_session_paths(self):
         """Test similarly named directories like session-context-backup are still audited."""
-        val_script = REPO_ROOT / "skills" / "workforce-management" / "scripts" / "validate-references.py"
+        val_script = REPO_ROOT / "skills" / "wf-management" / "scripts" / "validate-references.py"
         backup_dir = self.test_dir / "workforces" / "session-context-backup"
         backup_dir.mkdir(parents=True, exist_ok=True)
         (backup_dir / "note.md").write_text("# Backup\n[Broken](missing.md)\n", encoding="utf-8")
@@ -1022,7 +1022,7 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
 
     def test_validate_references_enforces_skill_md_for_pack_skills(self):
         """Test validate-references.py requires SKILL.md for skill candidates and creates SKILL.md on fix."""
-        val_script = REPO_ROOT / "skills" / "workforce-management" / "scripts" / "validate-references.py"
+        val_script = REPO_ROOT / "skills" / "wf-management" / "scripts" / "validate-references.py"
         teams_dir = self.test_dir / "teams" / "dev"
         teams_dir.mkdir(parents=True, exist_ok=True)
         (teams_dir / "pack.json").write_text(json.dumps({"skills": ["my-skill"]}), encoding="utf-8")
@@ -1038,7 +1038,7 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
 
     def test_validate_references_supports_non_agents_editor_bases(self):
         """Test validate-references.py resolves pack.json against .claude and other editor bases."""
-        val_script = REPO_ROOT / "skills" / "workforce-management" / "scripts" / "validate-references.py"
+        val_script = REPO_ROOT / "skills" / "wf-management" / "scripts" / "validate-references.py"
         teams_dir = self.test_dir / ".claude" / "teams" / "dev"
         teams_dir.mkdir(parents=True, exist_ok=True)
         (teams_dir / "pack.json").write_text(json.dumps({"rules": ["clean-coder.md"], "skills": ["my-skill"]}), encoding="utf-8")
@@ -1052,7 +1052,7 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
 
     def test_validate_references_root_pack_does_not_use_editor_local_rule(self):
         """Test repo-root pack.json requires repo-root dependencies, not editor-local copies."""
-        val_script = REPO_ROOT / "skills" / "workforce-management" / "scripts" / "validate-references.py"
+        val_script = REPO_ROOT / "skills" / "wf-management" / "scripts" / "validate-references.py"
         teams_dir = self.test_dir / "teams" / "dev"
         teams_dir.mkdir(parents=True, exist_ok=True)
         (teams_dir / "pack.json").write_text(json.dumps({"rules": ["only-claude.md"]}), encoding="utf-8")
@@ -1071,7 +1071,7 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
 
     def test_validate_references_fix_stays_within_installed_editor_base(self):
         """Test validate-references.py --fix creates missing pack.json dependencies in the same installed base."""
-        val_script = REPO_ROOT / "skills" / "workforce-management" / "scripts" / "validate-references.py"
+        val_script = REPO_ROOT / "skills" / "wf-management" / "scripts" / "validate-references.py"
         claude_teams_dir = self.test_dir / ".claude" / "teams" / "dev"
         claude_teams_dir.mkdir(parents=True, exist_ok=True)
         (claude_teams_dir / "pack.json").write_text(json.dumps({

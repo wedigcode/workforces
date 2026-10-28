@@ -3,25 +3,25 @@
   "title": "Engineering & Development",
   "description": "Software architecture, clean code implementation, TDD, symbol graph indexing, automated post-edit reviews, and bug fixes.",
   "agents": [
-    "programmer"
+    "wf-programmer"
   ],
   "rules": [
-    "clean-coder.md",
-    "git-workflow.md"
+    "wf-clean-coder.md",
+    "wf-git-workflow.md"
   ],
   "skills": [
-    "clean-coder",
-    "code-graph",
-    "post-code-review",
-    "codebase-improvement",
-    "jules-integration",
-    "pr-review",
-    "doc-generator",
-    "agent-parallelization",
+    "wf-clean-coder",
+    "wf-code-graph",
+    "wf-post-code-review",
+    "wf-codebase-improvement",
+    "wf-jules-integration",
+    "wf-pr-review",
+    "wf-doc-generator",
+    "wf-agent-parallelization",
     "wf-investigate"
   ],
   "workflows": [],
   "plugins": [
-    "workforce-programming-plugin"
+    "wf-programming-plugin"
   ]
 }

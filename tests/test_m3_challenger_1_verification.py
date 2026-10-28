@@ -153,9 +153,9 @@ class TestMilestone3EmpiricalChallenger(unittest.TestCase):
         self.assertNotIn("wf-work", [d.name for d in self.skill_dirs])
 
     def test_exhaustive_grep_no_active_wf_work_in_skills(self):
-        """Verify no skill files (excluding workforce-management scripts and usage-tracker) contain /wf-work."""
+        """Verify no skill files (excluding wf-management scripts and wf-usage-tracker) contain /wf-work."""
         for s_dir in self.skill_dirs:
-            if s_dir.name in ("workforce-management", "usage-tracker"):
+            if s_dir.name in ("wf-management", "wf-usage-tracker"):
                 continue
             for file_path in s_dir.glob("**/*"):
                 if not file_path.is_file():
@@ -207,12 +207,12 @@ class TestMilestone3EmpiricalChallenger(unittest.TestCase):
     def test_semantic_task_queries_map_to_sync_and_tracker(self):
         """Adversarially stress-test BM25 retrieval for task triage and standup queries."""
         test_queries = [
-            ("What do we have to work on?", ["wf-sync", "task-tracker"]),
-            ("Show active tasks", ["wf-sync", "task-tracker", "issue-tracker"]),
-            ("What are my active tasks today?", ["wf-sync", "task-tracker"]),
-            ("Daily standup sync and task unblocking", ["wf-sync", "task-tracker"]),
-            ("Review backlog priorities and triage tasks", ["wf-sync", "task-tracker", "github-project-planning"]),
-            ("Check sprint backlog and current task status", ["wf-sync", "task-tracker", "github-project-planning"]),
+            ("What do we have to work on?", ["wf-sync", "wf-task-tracker"]),
+            ("Show active tasks", ["wf-sync", "wf-task-tracker", "wf-issue-tracker"]),
+            ("What are my active tasks today?", ["wf-sync", "wf-task-tracker"]),
+            ("Daily standup sync and task unblocking", ["wf-sync", "wf-task-tracker"]),
+            ("Review backlog priorities and triage tasks", ["wf-sync", "wf-task-tracker", "wf-github-project-planning"]),
+            ("Check sprint backlog and current task status", ["wf-sync", "wf-task-tracker", "wf-github-project-planning"]),
         ]
 
         for query_str, expected_matches in test_queries:
@@ -225,17 +225,17 @@ class TestMilestone3EmpiricalChallenger(unittest.TestCase):
             )
 
     def test_antigravity_orchestration_connected_in_wf_sync_and_plan(self):
-        """Verify modern Antigravity orchestration and agent-parallelization are documented."""
+        """Verify modern Antigravity orchestration and wf-agent-parallelization are documented."""
         sync_text = (SKILLS_DIR / "wf-sync" / "SKILL.md").read_text(encoding="utf-8")
         self.assertIn("Direct Orchestration Handoff", sync_text)
-        self.assertIn("agent-parallelization", sync_text)
+        self.assertIn("wf-agent-parallelization", sync_text)
 
         plan_text = (SKILLS_DIR / "wf-plan" / "SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("agent-parallelization", plan_text)
+        self.assertIn("wf-agent-parallelization", plan_text)
         self.assertNotIn("/wf-work", plan_text)
 
-        base_rules = (RULES_DIR / "base.md").read_text(encoding="utf-8")
-        self.assertIn("agent-parallelization", base_rules)
+        base_rules = (RULES_DIR / "wf-base.md").read_text(encoding="utf-8")
+        self.assertIn("wf-agent-parallelization", base_rules)
         self.assertNotIn("/wf-work", base_rules)
 
 

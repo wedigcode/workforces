@@ -29,7 +29,7 @@ RULES_DIR = REPO_ROOT / "rules"
 WORKFLOWS_DIR = REPO_ROOT / "workflows"
 TEAMS_DIR = REPO_ROOT / "teams"
 DOCS_DIR = REPO_ROOT / "docs"
-PERSONAL_SYNC_SCRIPT = SKILLS_DIR / "task-tracker" / "scripts" / "personal_sync.py"
+PERSONAL_SYNC_SCRIPT = SKILLS_DIR / "wf-task-tracker" / "scripts" / "personal_sync.py"
 
 
 def parse_frontmatter(content: str) -> Dict[str, str]:
@@ -160,9 +160,9 @@ class TestM3TaskQueryMapping(unittest.TestCase):
         cls.retriever = BM25Retriever(cls.skills)
 
     def test_verbatim_trigger_strings_present_in_frontmatters(self):
-        """Verify verbatim triggers 'what do we have to work on?' and 'active tasks' in both wf-sync and task-tracker."""
+        """Verify verbatim triggers 'what do we have to work on?' and 'active tasks' in both wf-sync and wf-task-tracker."""
         wf_sync_desc = self.skills.get("wf-sync", "").lower()
-        task_tracker_desc = self.skills.get("task-tracker", "").lower()
+        task_tracker_desc = self.skills.get("wf-task-tracker", "").lower()
 
         # Both must explicitly address "what do we have to work on?"
         self.assertIn("what do we have to work on?", wf_sync_desc)
@@ -179,17 +179,17 @@ class TestM3TaskQueryMapping(unittest.TestCase):
         )
 
     def test_semantic_retrieval_for_task_queries(self):
-        """Empirically test that realistic task queries rank wf-sync or task-tracker in Top-2 among all 37 skills."""
+        """Empirically test that realistic task queries rank wf-sync or wf-task-tracker in Top-2 among all 39 skills."""
         test_queries = [
-            ("What do we have to work on?", {"wf-sync", "task-tracker"}),
-            ("Show active tasks", {"wf-sync", "task-tracker"}),
-            ("What are my active tasks?", {"wf-sync", "task-tracker"}),
-            ("Review backlog priorities and unblock sprint tasks", {"wf-sync", "task-tracker"}),
-            ("Backlog triage meeting", {"wf-sync", "task-tracker"}),
-            ("What should we work on next?", {"wf-sync", "task-tracker"}),
-            ("Surface blocked tasks during daily standup", {"wf-sync", "task-tracker"}),
-            ("Personal sync review across active git branch and task backlog", {"wf-sync", "task-tracker"}),
-            ("Triage inbox reports into prioritized engineering tasks", {"wf-sync", "task-tracker", "issue-tracker"}),
+            ("What do we have to work on?", {"wf-sync", "wf-task-tracker"}),
+            ("Show active tasks", {"wf-sync", "wf-task-tracker"}),
+            ("What are my active tasks?", {"wf-sync", "wf-task-tracker"}),
+            ("Review backlog priorities and unblock sprint tasks", {"wf-sync", "wf-task-tracker"}),
+            ("Backlog triage meeting", {"wf-sync", "wf-task-tracker"}),
+            ("What should we work on next?", {"wf-sync", "wf-task-tracker"}),
+            ("Surface blocked tasks during daily standup", {"wf-sync", "wf-task-tracker"}),
+            ("Personal sync review across active git branch and task backlog", {"wf-sync", "wf-task-tracker"}),
+            ("Triage inbox reports into prioritized engineering tasks", {"wf-sync", "wf-task-tracker", "wf-issue-tracker"}),
         ]
 
         for query, expected_set in test_queries:
@@ -207,9 +207,9 @@ class TestM3AgentParallelizationTopologies(unittest.TestCase):
     """Verify modern Antigravity orchestration and parallelization topologies documentation."""
 
     def test_agent_parallelization_skill_documents_all_three_topologies(self):
-        """Verify agent-parallelization explicitly documents Topology 1, 2, and 3."""
-        ap_file = SKILLS_DIR / "agent-parallelization" / "SKILL.md"
-        self.assertTrue(ap_file.is_file(), "Missing skills/agent-parallelization/SKILL.md")
+        """Verify wf-agent-parallelization explicitly documents Topology 1, 2, and 3."""
+        ap_file = SKILLS_DIR / "wf-agent-parallelization" / "SKILL.md"
+        self.assertTrue(ap_file.is_file(), "Missing skills/wf-agent-parallelization/SKILL.md")
         content = ap_file.read_text(encoding="utf-8")
 
         # Topologies verification
@@ -238,27 +238,27 @@ class TestM3AgentParallelizationTopologies(unittest.TestCase):
         self.assertTrue(has_worktrees_ignore, ".worktrees/ must be listed in .gitignore")
 
     def test_wf_sync_integrates_direct_orchestration_handoff(self):
-        """Verify wf-sync/SKILL.md explicitly documents direct orchestration handoff to agent-parallelization."""
+        """Verify wf-sync/SKILL.md explicitly documents direct orchestration handoff to wf-agent-parallelization."""
         sync_file = SKILLS_DIR / "wf-sync" / "SKILL.md"
         content = sync_file.read_text(encoding="utf-8")
         self.assertIn("Direct Orchestration Handoff (Modern Antigravity Execution)", content)
-        self.assertIn("agent-parallelization", content)
+        self.assertIn("wf-agent-parallelization", content)
         self.assertIn("Topology 1", content)
         self.assertIn("Topology 2", content)
         self.assertIn("personal_sync.py", content)
 
     def test_wf_plan_integrates_execution_topologies(self):
-        """Verify wf-plan/SKILL.md integrates agent-parallelization execution topologies."""
+        """Verify wf-plan/SKILL.md integrates wf-agent-parallelization execution topologies."""
         plan_file = SKILLS_DIR / "wf-plan" / "SKILL.md"
         content = plan_file.read_text(encoding="utf-8")
-        self.assertIn("agent-parallelization", content)
+        self.assertIn("wf-agent-parallelization", content)
         self.assertIn("Parallel Worktrees", content)
         self.assertIn("Vertical Relay", content)
         self.assertIn("Direct Single-Branch", content)
 
     def test_rules_base_documents_topologies_in_auto_execution(self):
-        """Verify rules/base.md includes the 3 topologies in Auto-Execution Mode."""
-        base_rule = RULES_DIR / "base.md"
+        """Verify rules/wf-base.md includes the 3 topologies in Auto-Execution Mode."""
+        base_rule = RULES_DIR / "wf-base.md"
         content = base_rule.read_text(encoding="utf-8")
         self.assertIn("Parallel Worktrees", content)
         self.assertIn("Vertical Relay", content)

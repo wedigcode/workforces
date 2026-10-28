@@ -26,7 +26,7 @@ Breaks down work into phased, actionable tasks with estimates, dependencies, and
 > [!IMPORTANT]
 > MUST be executed BEFORE drafting the implementation plan.
 
-1. Perform codebase search and symbol discovery using `code-graph` (`python3 .agents/skills/code-graph/scripts/graph_indexer.py --query <feature/component>`), `grep_search`, and `list_dir`.
+1. Perform codebase search and symbol discovery using `wf-code-graph` (`python3 .agents/skills/wf-code-graph/scripts/graph_indexer.py --query <feature/component>`), `grep_search`, and `list_dir`.
 2. Inspect pre-existing schemas, database tables, legacy scripts, or services.
 3. Identify existing abstractions to reuse vs missing components to build.
 4. Record all findings for inclusion in the `## Existing Codebase Audit Findings` section of the plan.
@@ -105,7 +105,7 @@ Critical path: the longest chain of dependent tasks = minimum timeline.
 
 ---
 
-## Step 4b — Execution Topology & Parallelization Strategy (`agent-parallelization`)
+## Step 4b — Execution Topology & Parallelization Strategy (`wf-agent-parallelization`)
 
 Classify the plan's tasks into their Git concurrency mode so execution delegates cleanly:
 - **Parallel Worktrees (`Workspace: 'share'`)**: For independent parallel tasks (e.g. `[task 2.1]` and `[task 2.2]`). Spawns subagents in isolated worktrees (`.worktrees/<slug>`) with zero `.git/index.lock` contention.
@@ -159,7 +159,7 @@ Classify the plan's tasks into their Git concurrency mode so execution delegates
 
 If `--auto` flag is present:
 - Automatically run `/wf-plan --push-to-work` (appends tasks to `workforces/workstate.md` and creates GitHub issues).
-- Immediately dispatch parallel subagents via `agent-parallelization` (Topology 1 isolated worktrees or Topology 2 vertical relays) to begin executing tasks.
+- Immediately dispatch parallel subagents via `wf-agent-parallelization` (Topology 1 isolated worktrees or Topology 2 vertical relays) to begin executing tasks.
 
 If standard mode:
 - Ask user if they want to push Phase 1 tasks into active execution state (`workforces/workstate.md` and `workforces/tasks/`).

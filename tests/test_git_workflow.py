@@ -8,7 +8,7 @@ from pathlib import Path
 import sys
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SCRIPTS_DIR = REPO_ROOT / "skills" / "workforce-management" / "scripts"
+SCRIPTS_DIR = REPO_ROOT / "skills" / "wf-management" / "scripts"
 sys.path.insert(0, str(SCRIPTS_DIR))
 
 from resolve_manifest import resolve_manifest, CORE_RULES
@@ -16,14 +16,14 @@ from resolve_manifest import resolve_manifest, CORE_RULES
 
 class TestGitWorkflowRule(unittest.TestCase):
     def test_git_workflow_rule_files_exist(self):
-        source_rule = REPO_ROOT / "rules" / "git-workflow.md"
-        agent_rule = REPO_ROOT / ".agents" / "rules" / "git-workflow.md"
+        source_rule = REPO_ROOT / "rules" / "wf-git-workflow.md"
+        agent_rule = REPO_ROOT / ".agents" / "rules" / "wf-git-workflow.md"
 
         self.assertTrue(source_rule.exists(), f"Missing rule file: {source_rule}")
         self.assertTrue(agent_rule.exists(), f"Missing mirrored agent rule file: {agent_rule}")
 
     def test_git_workflow_contains_core_mandates(self):
-        rule_content = (REPO_ROOT / "rules" / "git-workflow.md").read_text(encoding="utf-8")
+        rule_content = (REPO_ROOT / "rules" / "wf-git-workflow.md").read_text(encoding="utf-8")
 
         # 1. Zero Blockers & PR-first review
         self.assertIn("Zero Blockers Mandate", rule_content)
@@ -65,22 +65,22 @@ class TestGitWorkflowRule(unittest.TestCase):
         self.assertIn("Architectural & Component Changes", rule_content)
 
     def test_resolve_manifest_includes_git_workflow_as_core_rule(self):
-        self.assertIn("git-workflow.md", CORE_RULES)
+        self.assertIn("wf-git-workflow.md", CORE_RULES)
         manifest = resolve_manifest(toolkit_root=str(REPO_ROOT), target_dir=str(REPO_ROOT), teams_arg="none")
-        self.assertIn("git-workflow.md", manifest["rules"])
+        self.assertIn("wf-git-workflow.md", manifest["rules"])
 
     def test_dev_pack_declares_git_workflow_rule(self):
         pack_path = REPO_ROOT / "teams" / "dev" / "pack.json"
         with open(pack_path, "r", encoding="utf-8") as f:
             data = json.load(f)
-        self.assertIn("git-workflow.md", data.get("rules", []))
+        self.assertIn("wf-git-workflow.md", data.get("rules", []))
 
     def test_base_and_clean_coder_rules_cross_reference_git_workflow(self):
-        base_rule = (REPO_ROOT / "rules" / "base.md").read_text(encoding="utf-8")
-        clean_coder = (REPO_ROOT / "rules" / "clean-coder.md").read_text(encoding="utf-8")
+        base_rule = (REPO_ROOT / "rules" / "wf-base.md").read_text(encoding="utf-8")
+        clean_coder = (REPO_ROOT / "rules" / "wf-clean-coder.md").read_text(encoding="utf-8")
 
-        self.assertIn("git-workflow", base_rule)
-        self.assertIn("git-workflow", clean_coder)
+        self.assertIn("wf-git-workflow", base_rule)
+        self.assertIn("wf-git-workflow", clean_coder)
 
 
 if __name__ == "__main__":

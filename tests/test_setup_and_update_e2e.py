@@ -16,7 +16,7 @@ import unittest
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SCRIPTS_DIR = REPO_ROOT / "skills" / "workforce-management" / "scripts"
+SCRIPTS_DIR = REPO_ROOT / "skills" / "wf-management" / "scripts"
 SETUP_SCRIPT = SCRIPTS_DIR / "setup.sh"
 UPDATE_SCRIPT = SCRIPTS_DIR / "update.sh"
 
@@ -59,15 +59,15 @@ class TestSetupAndUpdateE2E(unittest.TestCase):
         )
 
         # Assert modular plugin hooks exist and are valid JSON
-        hooks_path = self.target_path / ".agents" / "plugins" / "workforce-programming-plugin" / "hooks.json"
+        hooks_path = self.target_path / ".agents" / "plugins" / "wf-programming-plugin" / "hooks.json"
         self.assertTrue(
             hooks_path.is_file(),
-            f"Expected workforce-programming-plugin/hooks.json to exist at {hooks_path}",
+            f"Expected wf-programming-plugin/hooks.json to exist at {hooks_path}",
         )
         with open(hooks_path, "r", encoding="utf-8") as f:
             hooks_data = json.load(f)
         self.assertIsInstance(hooks_data, dict)
-        self.assertIn("workforce-programming", hooks_data)
+        self.assertIn("wf-programming", hooks_data)
 
         # Assert .agents/skills/wf-sync/SKILL.md exists
         wf_sync_skill = self.target_path / ".agents" / "skills" / "wf-sync" / "SKILL.md"
@@ -162,7 +162,7 @@ class TestSetupAndUpdateE2E(unittest.TestCase):
         # 5. Assert current skills and hooks remain intact
         wf_sync_skill = self.target_path / ".agents" / "skills" / "wf-sync" / "SKILL.md"
         self.assertTrue(wf_sync_skill.is_file())
-        hooks_file = self.target_path / ".agents" / "plugins" / "workforce-programming-plugin" / "hooks.json"
+        hooks_file = self.target_path / ".agents" / "plugins" / "wf-programming-plugin" / "hooks.json"
         self.assertTrue(hooks_file.is_file())
 
 

@@ -33,7 +33,7 @@ Optimizes search engine visibility (SEO), AI Search Engine Optimization (GEO/AIS
 
 ## Team Roles & Personas
 
-- **Growth Agent (`@growth`):** Search intent matching, GEO/AISO schema markup, programmatic SEO, growth loops, and platform dynamics. See [`growth.md`](../../agents/growth.md).
+- **Growth Agent (`@wf-growth`):** Search intent matching, GEO/AISO schema markup, programmatic SEO, growth loops, and platform dynamics. See [`wf-growth.md`](../../agents/wf-growth.md).
 - **Technical & Programmatic SEO Lead:** Oversees site crawlability, schema taxonomy, Core Web Vitals optimization, indexing rules, and scalable programmatic template architectures.
 - **AISO / AI Search Optimization Specialist:** Engineers content structure and entity relationships to maximize citation rates across Perplexity, ChatGPT Search, Gemini, and generative AI search engines.
 - **Growth Loops & Network Strategist:** Analyzes closed-loop acquisition compounding, cross-side platform network effects, and unit economics viability.

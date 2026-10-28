@@ -3,19 +3,19 @@
   "title": "Operations, Analytics & Workforce Memory",
   "description": "Empirical metrics tracking, sprint velocity optimization, operational transparency, and persistent workforce memory.",
   "agents": [
-    "operations"
+    "wf-operations"
   ],
   "rules": [
-    "base.md",
-    "session-context.md"
+    "wf-base.md",
+    "wf-session-context.md"
   ],
   "skills": [
-    "usage-tracker",
-    "session-context",
-    "memory-management",
-    "issue-tracker",
+    "wf-usage-tracker",
+    "wf-session-context",
+    "wf-memory-management",
+    "wf-issue-tracker",
     "wf-sync",
-    "task-tracker"
+    "wf-task-tracker"
   ],
   "workflows": []
 }

@@ -28,7 +28,7 @@ Drives high-signal content discovery, cold-post triage caching, persona-driven m
 
 ## Team Roles & Personas
 
-- **Social Agent (`@social`):** Autonomous discovery, cold-post triage, multi-tier comment drafter, and community cultivator. See [`social.md`](../../agents/social.md).
+- **Social Agent (`@wf-social`):** Autonomous discovery, cold-post triage, multi-tier comment drafter, and community cultivator. See [`wf-social.md`](../../agents/wf-social.md).
 - **Social Engagement Lead:** Orchestrates discovery feeds, manages the SQLite triage index, and monitors engagement velocity across channels.
 - **Community Cultivator:** Specializes in community platforms (e.g. Skool, Discord, Reddit), fostering member retention, unblocking questions, and welcoming newcomers.
 - **Conversational Catalyst Specialist:** Crafts high-intent reply frameworks, constructive contrarian perspectives, and open-ended debate catalysts.
@@ -38,6 +38,6 @@ Drives high-signal content discovery, cold-post triage caching, persona-driven m
 
 ## SOP / Workflow Patterns
 When generating a social/growth team for a project, consider:
-- `social` (Comprehensive discovery, scoring, triage, drafting, and HTML action dashboard generation)
+- `/wf-social-engagement` (Comprehensive discovery, scoring, triage, drafting, and HTML action dashboard generation via `@wf-social`)
 - `community-growth` (Dedicated community onboarding, event hosting, and discussion cultivation)
 - `viral-thread-catalysts` (Multi-tier commenter response workflows for high-traffic discussions)

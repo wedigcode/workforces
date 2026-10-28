@@ -3,20 +3,20 @@
   "title": "Marketing & Brand Strategy",
   "description": "Jobs-to-be-Done positioning, Connected Strategy engagement, PAS conversion copywriting, campaign launches, and closed growth loops.",
   "agents": [
-    "marketer"
+    "wf-marketer"
   ],
   "rules": [
-    "design-standards.md"
+    "wf-design-standards.md"
   ],
   "skills": [
-    "persona-management",
-    "brand-guidelines",
-    "business-frameworks",
-    "image-workflow",
-    "ai-search-optimization",
-    "memory-management",
-    "hypothesis-tracker",
-    "market-validation"
+    "wf-persona-management",
+    "wf-brand-guidelines",
+    "wf-business-frameworks",
+    "wf-image-workflow",
+    "wf-ai-search-optimization",
+    "wf-memory-management",
+    "wf-hypothesis-tracker",
+    "wf-market-validation"
   ],
   "workflows": []
 }

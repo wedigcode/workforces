@@ -5,7 +5,7 @@ description: Orchestrates dual-engine product ideation and concept incubation by
 
 # Dual-Engine Product Ideation & Incubation (/wf-ideate)
 
-End-to-end ideation and opportunity incubation engine. Coordinates parallel research across two specialized engines led by `@advisor`.
+End-to-end ideation and opportunity incubation engine. Coordinates parallel research across two specialized engines (`@wf-unbundler` and `@wf-disruptor`) guided by `/wf-advisor`.
 
 ---
 
@@ -13,8 +13,8 @@ End-to-end ideation and opportunity incubation engine. Coordinates parallel rese
 
 | Engine | Lead Agent | Methodology & Evaluation Filters |
 | :--- | :--- | :--- |
-| **Engine A: Atomic Micro-SaaS** | `@unbundler` | • Isolate 1-minute magic moment vs. modern bloat point.<br>• **Viability Scorecard (1–5)**: Frequency, WTP, Standalone Integrity, Spreadsheet Moat.<br>• Bottom-up TAM/SAM/SOM market sizing and \$10k–\$100k MRR operating milestones. |
-| **Engine B: Market Disruption** | `@disruptor` | • Macro industry shifts (consulting reports, VC trends).<br>• **\$1B Market Math**: $\text{Target Customers} \times \text{Product Price} > \$1\text{B}$.<br>• **4 Leverage Criteria**: Subscription, $\ge 70\%$ Margin, Pure Tech Scaled, 100% Owned IP. |
+| **Engine A: Atomic Micro-SaaS** | `@wf-unbundler` | • Isolate 1-minute magic moment vs. modern bloat point.<br>• **Viability Scorecard (1–5)**: Frequency, WTP, Standalone Integrity, Spreadsheet Moat.<br>• Bottom-up TAM/SAM/SOM market sizing and \$10k–\$100k MRR operating milestones. |
+| **Engine B: Market Disruption** | `@wf-disruptor` | • Macro industry shifts (consulting reports, VC trends).<br>• **\$1B Market Math**: $\text{Target Customers} \times \text{Product Price} > \$1\text{B}$.<br>• **4 Leverage Criteria**: Subscription, $\ge 70\%$ Margin, Pure Tech Scaled, 100% Owned IP. |
 
 ---
 
@@ -24,8 +24,8 @@ Synthesize subagent discovery results into a comparative matrix:
 
 | Opportunity | Engine | Extracted Angle | Target Sizing | Viability (1-5) | Primary Moat |
 | :--- | :--- | :--- | :--- | :---: | :--- |
-| **Concept 1** | `@unbundler` | [Atomic extracted feature] | [\$MRR Day 90 / Yr 1] | 4.8 / 5 | [Spreadsheet Moat] |
-| **Concept 2** | `@disruptor` | [Macro trend disruption] | [>\$1B Market Math] | 4.9 / 5 | [Workflow Speed] |
+| **Concept 1** | `@wf-unbundler` | [Atomic extracted feature] | [\$MRR Day 90 / Yr 1] | 4.8 / 5 | [Spreadsheet Moat] |
+| **Concept 2** | `@wf-disruptor` | [Macro trend disruption] | [>\$1B Market Math] | 4.9 / 5 | [Workflow Speed] |
 
 ---
 
@@ -43,16 +43,16 @@ Before writing PRDs, test the winning concept against 3 strict filters:
 Compile output into `docs/prd-[concept-name].md` and register the concept into `workforces/issues/inbox/` via `report-issue.py`:
 
 ```bash
-python3 .agents/skills/issue-tracker/scripts/report-issue.py \
+python3 .agents/skills/wf-issue-tracker/scripts/report-issue.py \
     --title "Micro-SaaS Concept: [Name]" \
     --type idea \
     --severity P0 \
-    --reporter advisor \
+    --reporter wf-ideate \
     --session-id "[seq]" \
     --session-file "workforces/session-context/<seq>_<date>_<slug>.md" \
     --file "docs/prd-[concept-name].md" \
     --description "[One-line thesis & 10x value breakthrough]" \
-    --suggested-action "Validate demand via market-validation skill then scaffold with site-setup" \
+    --suggested-action "Validate demand via wf-market-validation skill then scaffold with wf-site-setup" \
     --sync-session
 ```
-*(Fallback: `python3 skills/issue-tracker/scripts/report-issue.py ...`)*
+*(Fallback: `python3 skills/wf-issue-tracker/scripts/report-issue.py ...`)*

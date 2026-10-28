@@ -12,7 +12,7 @@ import time
 import unittest
 from pathlib import Path
 
-CANVAS_SCRIPTS = Path(__file__).resolve().parent.parent / "skills" / "workforce-canvas" / "scripts"
+CANVAS_SCRIPTS = Path(__file__).resolve().parent.parent / "skills" / "wf-canvas" / "scripts"
 sys.path.insert(0, str(CANVAS_SCRIPTS))
 
 from session_registry import (
@@ -185,7 +185,7 @@ class TestChatSessionRegistry(unittest.TestCase):
                 os.environ.pop("ANTIGRAVITY_APP_DATA_DIR", None)
 
     def test_modal_html_structure(self):
-        html_path = Path(__file__).resolve().parent.parent / "skills" / "workforce-canvas" / "web" / "index.html"
+        html_path = Path(__file__).resolve().parent.parent / "skills" / "wf-canvas" / "web" / "index.html"
         content = html_path.read_text(encoding="utf-8")
 
         # Verify #session-message-modal exists and is NOT inside #new-task-modal

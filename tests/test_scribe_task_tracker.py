@@ -20,10 +20,10 @@ import tempfile
 import unittest
 
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-TASK_SCRIPT = os.path.join(REPO_ROOT, "skills", "task-tracker", "scripts", "report-task.py")
+TASK_SCRIPT = os.path.join(REPO_ROOT, "skills", "wf-task-tracker", "scripts", "report-task.py")
 
 # Import report-task module directly for unit testing internal functions
-sys.path.insert(0, os.path.join(REPO_ROOT, "skills", "task-tracker", "scripts"))
+sys.path.insert(0, os.path.join(REPO_ROOT, "skills", "wf-task-tracker", "scripts"))
 import importlib
 report_task_mod = importlib.import_module("report-task")
 
