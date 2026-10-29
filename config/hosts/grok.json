@@ -1,0 +1,65 @@
+{
+  "id": "grok",
+  "aliases": ["grok", "grok-build"],
+  "display_name": "Grok Build",
+  "base_dir": ".grok",
+  "detect_any": [".grok/agents", ".grok/skills", ".grok/rules", ".grok/commands"],
+  "root_doc": {
+    "path": "AGENTS.md",
+    "template": "# Project Context\n\nThis project uses the [workforces](https://github.com/wedigcode/workforces) AI toolkit, installed for Grok Build.\n\n## Toolkit Structures\n- Config, personas, skills: `.grok/`\n- User workspace and state: `workforces/`\n\n## Instructions\nRefer to `.grok/rules/wf-base.md` and run modular skills from `.grok/skills/` (e.g. `/wf-plan`, `/wf-sync`, `/wf-advisor`) or invoke specialist agents from `.grok/agents/` (e.g. `@wf-programmer`, `@wf-designer`).\n"
+  },
+  "dirs": {
+    "agents": { "path": "agents", "ext": ".md" },
+    "rules": { "path": "rules", "ext": ".md" },
+    "skills": { "path": "skills", "filename": "SKILL.md" },
+    "workflows": { "path": "commands", "ext": ".md" },
+    "plugins": { "path": "plugins" },
+    "teams": { "path": "teams" }
+  },
+  "hooks_mode": "grok_hooks_and_plugins",
+  "hooks_target": ".grok/hooks.json",
+  "hook_capability_map": {
+    "edit": ["Write", "Edit", "write_file", "edit_file"],
+    "multi_edit": ["MultiEdit"]
+  },
+  "capability_map": {
+    "read": ["Read"],
+    "search": ["Grep", "Glob"],
+    "edit": ["Write", "Edit"],
+    "multi_edit": ["Edit"],
+    "execute": ["Bash"],
+    "web": ["web_search"],
+    "image": ["image_gen"],
+    "delegate": ["spawn_subagent"]
+  },
+  "agent_schema": {
+    "field_order": [
+      "name",
+      "description",
+      "allowed-tools",
+      "model",
+      "user-invocable"
+    ],
+    "tools_field": "allowed-tools",
+    "include_skills": false,
+    "defaults": {
+      "model": "inherit",
+      "user-invocable": true
+    },
+    "when_background_only": {
+      "user-invocable": false
+    }
+  },
+  "rule_schema": {
+    "emit_when_always_on": {},
+    "emit_when_scoped": {},
+    "globs_field_when_scoped": "paths"
+  },
+  "skill_schema": {
+    "fields": ["name", "description", "argument-hint", "user-invocable", "disable-model-invocation"],
+    "tools_field": "allowed-tools"
+  },
+  "workflow_schema": {
+    "fields": ["description", "argument-hint"]
+  }
+}

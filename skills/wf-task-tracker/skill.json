@@ -1,0 +1,8 @@
+{
+  "kind": "skill",
+  "name": "wf-task-tracker",
+  "description": "Manages deferred action items, task lifecycles (todo, in_progress, blocked, done, dropped), and priority queues (P0-P3) in `workforces/tasks/`. Reach for this skill when logging action items mid-conversation, answering \"what do we have to work on?\", surfacing active or blocked tasks during daily standups, recording task dependency changes with session lineage, or running personal sync reviews.",
+  "user_invocable": true,
+  "disable_model_invocation": false,
+  "hosts": {}
+}

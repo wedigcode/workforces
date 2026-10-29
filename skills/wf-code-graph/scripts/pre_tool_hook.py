@@ -18,7 +18,10 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
-EDITOR_BASES = (".agents", ".claude", ".grok", ".github/copilot", "")
+EDITOR_BASES = (".agents", ".claude", ".grok", ".github", ".github/copilot", ".cursor", "")
+_TARGET_FILE_KEYS = (
+    "TargetFile", "target_file", "file_path", "filePath", "notebook_path", "notebookPath", "file", "path", "targetFile"
+)
 
 
 def find_sibling_script(script_name: str, root_dir: Optional[Path] = None) -> Optional[Path]:
@@ -58,37 +61,49 @@ def _read_stdin_json(hook_name: str) -> Dict[str, Any]:
 
 
 def _resolve_root_dir(data: Dict[str, Any]) -> Path:
-    """Determine root directory from workspacePaths or plugin cwd ancestry."""
+    """Determine root directory from workspacePaths, payload cwd, or plugin cwd ancestry."""
     workspace_paths = data.get("workspacePaths")
-    if workspace_paths and isinstance(workspace_paths, list) and len(workspace_paths) > 0:
-        candidate_ws = Path(workspace_paths[0]).resolve()
+    if isinstance(workspace_paths, list) and workspace_paths:
+        candidate_ws = Path(str(workspace_paths[0])).resolve()
         if candidate_ws.exists():
             return candidate_ws
+    raw_cwd = data.get("cwd")
+    if isinstance(raw_cwd, str) and raw_cwd.strip():
+        cand_cwd = Path(raw_cwd).resolve()
+        if cand_cwd.exists():
+            return cand_cwd if cand_cwd.is_dir() else cand_cwd.parent
     cwd = Path.cwd().resolve()
     if cwd.parent.name == "plugins":
         p2 = cwd.parent.parent
         if p2.name == "copilot" and p2.parent.name == ".github":
             return p2.parent.parent
-        if p2.name in (".agents", ".claude", ".grok"):
+        if p2.name in (".agents", ".claude", ".grok", ".github", ".cursor"):
             return p2.parent
         return p2
     return cwd
 
 
-def _extract_target_file(data: Dict[str, Any]) -> Optional[str]:
-    """Determine target file from toolCall or toolUse."""
-    tool_call = data.get("toolCall") or data.get("toolUse") or data.get("call") or {}
-    if not isinstance(tool_call, dict):
-        return None
-    args = tool_call.get("args") or tool_call.get("arguments") or {}
-    if isinstance(args, str):
+def _extract_args_dict(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Extract tool argument dictionary across Antigravity, Claude Code, and Grok Build payloads."""
+    raw_args: Any = data.get("tool_input")
+    if raw_args is None:
+        tool_call = data.get("toolCall") or data.get("toolUse") or data.get("call")
+        if isinstance(tool_call, dict):
+            raw_args = tool_call.get("args") or tool_call.get("arguments") or tool_call.get("input")
+    if raw_args is None and isinstance(data.get("input"), dict):
+        raw_args = data["input"]
+    if isinstance(raw_args, str):
         try:
-            args = json.loads(args)
-        except Exception:
-            args = {}
-    if not isinstance(args, dict):
-        return None
-    for key in ("TargetFile", "target_file", "file", "path", "filePath", "targetFile"):
+            raw_args = json.loads(raw_args)
+        except json.JSONDecodeError:
+            raw_args = {}
+    return raw_args if isinstance(raw_args, dict) else {}
+
+
+def _extract_target_file(data: Dict[str, Any]) -> Optional[str]:
+    """Determine target file from tool_input, toolCall, or toolUse."""
+    args = _extract_args_dict(data)
+    for key in _TARGET_FILE_KEYS:
         val = args.get(key)
         if val:
             return str(val)
@@ -125,55 +140,65 @@ def _run_symbol_indexing(root_dir: Path) -> None:
         sys.stderr.write(f"[pre_tool_hook] Indexer execution failed: {err}\n")
 
 
-def _run_impact_analysis(target_file: str, root_dir: Path) -> None:
-    """Invoke pre-impact analyzer for target file."""
+def _run_impact_analysis(target_file: str, root_dir: Path) -> str:
+    """Invoke pre-impact analyzer for target file and return analysis text."""
     analyzer_script = find_sibling_script("pre_impact_analyzer.py", root_dir)
     if not analyzer_script:
-        return
+        return ""
     try:
         res = subprocess.run(
-            [
-                sys.executable,
-                str(analyzer_script),
-                "--file",
-                str(target_file),
-                "--root",
-                str(root_dir),
-            ],
+            [sys.executable, str(analyzer_script), "--file", str(target_file), "--root", str(root_dir)],
             cwd=root_dir,
             capture_output=True,
             text=True,
             timeout=25,
         )
-        if res.stdout:
-            sys.stderr.write(f"\n{res.stdout.strip()}\n\n")
+        out_text = res.stdout.strip() if res.stdout else ""
+        if out_text:
+            sys.stderr.write(f"\n{out_text}\n\n")
         if res.returncode != 0 and res.stderr:
             sys.stderr.write(f"[pre_tool_hook] Analyzer notice: {res.stderr.strip()}\n")
+        return out_text
     except Exception as err:
         sys.stderr.write(f"[pre_tool_hook] Impact analysis failed: {err}\n")
+        return ""
 
 
-def run_code_graph_analysis(target_file: str, root_dir: Path) -> None:
+def run_code_graph_analysis(target_file: str, root_dir: Path) -> str:
     """Execute wf-code-graph symbol indexing and pre-impact analysis."""
     _run_symbol_indexing(root_dir)
-    _run_impact_analysis(target_file, root_dir)
+    return _run_impact_analysis(target_file, root_dir)
+
+
+def _build_pre_hook_stdout(data: Dict[str, Any], impact_text: str) -> Dict[str, Any]:
+    """Build host-compatible PreToolUse stdout JSON payload."""
+    parts = Path(__file__).resolve().parts
+    is_claude = ".claude" in parts or (
+        data.get("hook_event_name") == "PreToolUse" and ".grok" not in parts and "toolCall" not in data
+    )
+    if is_claude:
+        if impact_text:
+            return {"hookSpecificOutput": {"hookEventName": "PreToolUse", "additionalContext": impact_text}}
+        return {}
+    return {"decision": "allow"}
 
 
 def main() -> None:
     """Entry point for PreToolUse lifecycle hook."""
+    data: Dict[str, Any] = {}
+    impact_text = ""
     try:
-        _, target_file, root_dir = parse_pre_tool_stdin()
+        data, target_file, root_dir = parse_pre_tool_stdin()
         if target_file:
-            run_code_graph_analysis(target_file, root_dir)
+            impact_text = run_code_graph_analysis(target_file, root_dir)
     except Exception as err:
         sys.stderr.write(f"[pre_tool_hook] Unexpected hook error: {err}\n")
 
-    # Strictly adhere to Antigravity PreToolUse contract:
-    # Must emit valid JSON on stdout and exit 0
-    sys.stdout.write(json.dumps({"decision": "allow"}) + "\n")
+    sys.stdout.write(json.dumps(_build_pre_hook_stdout(data, impact_text)) + "\n")
     sys.stdout.flush()
     sys.exit(0)
 
 
 if __name__ == "__main__":
     main()
+

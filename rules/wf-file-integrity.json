@@ -1,0 +1,10 @@
+{
+  "kind": "rule",
+  "name": "wf-file-integrity",
+  "description": "File reference and task lineage protocol enforcing zero ghost references, subtask tracking in workforces/tasks/, and reference validation.",
+  "always_on": true,
+  "globs": [
+    "**"
+  ],
+  "hosts": {}
+}

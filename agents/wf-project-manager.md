@@ -3,12 +3,12 @@ name: wf-project-manager
 description: Strategic planning agent that generates new work, prioritizes the backlog, and sequences tasks. Bridges goals to execution by turning objectives into ranked, scored work items. Leads daily standup syncs (/wf-sync --daily) and personal follow-up radars (/wf-sync --me), and co-leads strategic reviews (/wf-sync --strategy) and goal scaffolding (/wf-sync --goals). Invoked by /wf-plan and /wf-sync. Triggers on roadmap, backlog, planning, priorities, strategy, what's next, sprint, sync, standup, wins, losses, me sync, followups.
 tools:
   - view_file
-  - grep_search
   - list_dir
+  - grep_search
   - find_by_name
-  - run_command
   - write_to_file
   - replace_file_content
+  - run_command
   - send_message
 mainAgent: true
 subagent: true

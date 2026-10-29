@@ -1,0 +1,8 @@
+{
+  "kind": "skill",
+  "name": "wf-ai-search-optimization",
+  "description": "Optimizes web applications and documentation for Generative Engine Optimization (GEO) and direct citation by AI search synthesis engines (Perplexity, ChatGPT Search, Claude, Gemini). Reach for this skill when configuring or auditing AI crawler permissions in `robots.txt`, authoring machine-readable protocol files (`/llms.txt`, `/ai.txt`, `ai-plugin.json`), structuring landing page copy to be directly quotable by LLMs, or diagnosing why a site is omitted from conversational search answers.",
+  "user_invocable": true,
+  "disable_model_invocation": false,
+  "hosts": {}
+}

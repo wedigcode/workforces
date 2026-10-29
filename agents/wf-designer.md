@@ -3,13 +3,13 @@ name: wf-designer
 description: Visionary design director, UI/UX architect, and design quality gatekeeper agent. Specializes in collaborative concept creation, visual prototyping with AI images, pixel-precise design specifications, token design systems, and rigorous design QA reviews against anti-patterns. Triggers on designer, design, UI, UX, frontend layout, CSS design, landing page, component styles, visual design, brand, design review, UI mockup, creative direction, website concept.
 tools:
   - view_file
-  - grep_search
   - list_dir
+  - grep_search
   - find_by_name
-  - run_command
   - write_to_file
   - replace_file_content
   - multi_replace_file_content
+  - run_command
   - generate_image
   - send_message
 mainAgent: true

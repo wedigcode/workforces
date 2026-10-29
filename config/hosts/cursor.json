@@ -1,0 +1,65 @@
+{
+  "id": "cursor",
+  "aliases": ["cursor"],
+  "display_name": "Cursor",
+  "base_dir": ".cursor",
+  "detect_any": [".cursor", ".cursorrules"],
+  "root_doc": {
+    "path": "AGENTS.md",
+    "template": "# Project Context\n\nThis project uses the [workforces](https://github.com/wedigcode/workforces) AI toolkit.\n\n## Toolkit Structures\n- Rules: `.cursor/rules/*.mdc`\n- Custom Subagents & Skills: `.cursor/agents/`, `.cursor/skills/`\n- User Workspace & State: `workforces/`\n\n## Instructions\nRefer to `.cursor/rules/wf-base.mdc` and run modular skills from `.cursor/skills/` (e.g. `/wf-plan`, `/wf-sync`, `/wf-advisor`) or delegate to subagents in `.cursor/agents/` (e.g. `@wf-programmer`, `@wf-designer`).\n"
+  },
+  "dirs": {
+    "agents": { "path": "agents", "ext": ".md" },
+    "rules": { "path": "rules", "ext": ".mdc" },
+    "skills": { "path": "skills", "filename": "SKILL.md" },
+    "workflows": { "path": "commands", "ext": ".md" },
+    "teams": { "path": "teams" }
+  },
+  "hooks_mode": "none",
+  "capability_map": {
+    "read": [],
+    "search": [],
+    "edit": [],
+    "multi_edit": [],
+    "execute": [],
+    "web": [],
+    "image": [],
+    "delegate": []
+  },
+  "agent_schema": {
+    "field_order": [
+      "name",
+      "description",
+      "model",
+      "readonly",
+      "is_background"
+    ],
+    "tools_field": null,
+    "derive_readonly_from_capabilities": true,
+    "include_skills": false,
+    "defaults": {
+      "model": "inherit",
+      "is_background": false
+    },
+    "when_background_only": {
+      "is_background": true
+    }
+  },
+  "rule_schema": {
+    "include_description": true,
+    "emit_when_always_on": {
+      "alwaysApply": true
+    },
+    "emit_when_scoped": {
+      "alwaysApply": false
+    },
+    "globs_field_when_scoped": "globs",
+    "globs_format": "csv_or_list"
+  },
+  "skill_schema": {
+    "fields": ["name", "description"]
+  },
+  "workflow_schema": {
+    "fields": ["description"]
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "kind": "skill",
+  "name": "wf-post-code-review",
+  "description": "Performs pre-handoff code review and quality verification on git diffs. Analyzes git diff after editing code to detect broken function contract signatures, duplicate utilities, and missing tests. Evaluates against a PR-style verification form (DRY, advisory line limits, method decomposition, simplicity, and maintainability), surfaces advisory feedback on design heuristics, executes the automated quality triad (unit tests, static analysis/type checks, linters), and manages weekly-retried 3rd-party security bypass caching. Reach for this skill immediately after modifying code.",
+  "user_invocable": true,
+  "disable_model_invocation": false,
+  "hosts": {}
+}

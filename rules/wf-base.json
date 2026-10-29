@@ -1,0 +1,10 @@
+{
+  "kind": "rule",
+  "name": "wf-base",
+  "description": "Core Workforces operational rules governing multi-repo scoping, execution topologies, implementation plans, factual grounding, and conversational recall.",
+  "always_on": true,
+  "globs": [
+    "**"
+  ],
+  "hosts": {}
+}

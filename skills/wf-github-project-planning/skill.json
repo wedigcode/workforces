@@ -1,0 +1,8 @@
+{
+  "kind": "skill",
+  "name": "wf-github-project-planning",
+  "description": "Integrates workforce tasks with GitHub Issues and GitHub Projects V2 boards. Reach for this skill when creating and tracking issues via the `gh` CLI, organizing tasks on project boards with custom fields (Status, Priority, Iteration), scoring and prioritizing backlogs with RICE/ICE methodologies, or reconciling local implementation plans with remote GitHub roadmaps.",
+  "user_invocable": true,
+  "disable_model_invocation": false,
+  "hosts": {}
+}

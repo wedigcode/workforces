@@ -1,0 +1,8 @@
+{
+  "kind": "skill",
+  "name": "wf-pr-review",
+  "description": "Automates GitHub pull request reviews using the `gh` CLI, checking diffs for logic bugs, security vulnerabilities, regression risks, and test coverage. Reach for this skill when conducting structured code reviews on open PRs, posting line-level commentary, approving or requesting changes, or escalating blocking PR review bottlenecks to team standup agendas.",
+  "user_invocable": true,
+  "disable_model_invocation": false,
+  "hosts": {}
+}

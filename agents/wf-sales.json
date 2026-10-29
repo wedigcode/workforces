@@ -1,0 +1,20 @@
+{
+  "kind": "agent",
+  "name": "wf-sales",
+  "description": "Sales and outreach agent. Specializes in research-backed prospect qualification, Jobs-to-be-Done discovery frameworks, outbound email/LinkedIn cadences, objection handling, and deal closing. Triggers on sales, prospect, outreach, cold email, objection handling, pitch deck, discovery call, qualification, BANT.",
+  "capabilities": [
+    "read",
+    "search",
+    "edit",
+    "execute",
+    "delegate"
+  ],
+  "skills": [
+    "wf-persona-management",
+    "wf-brand-guidelines",
+    "wf-business-frameworks",
+    "wf-memory-management"
+  ],
+  "background_only": false,
+  "hosts": {}
+}

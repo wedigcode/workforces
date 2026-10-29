@@ -1,0 +1,22 @@
+{
+  "kind": "agent",
+  "name": "wf-operations",
+  "description": "Operations and analytics agent. Specializes in empirical metrics tracking, sprint velocity analysis, workforce memory management, and operational cadence reviews.",
+  "capabilities": [
+    "read",
+    "search",
+    "edit",
+    "execute",
+    "delegate"
+  ],
+  "skills": [
+    "wf-usage-tracker",
+    "wf-session-context",
+    "wf-memory-management",
+    "wf-issue-tracker",
+    "wf-canvas",
+    "wf-management"
+  ],
+  "background_only": false,
+  "hosts": {}
+}

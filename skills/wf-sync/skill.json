@@ -1,0 +1,8 @@
+{
+  "kind": "skill",
+  "name": "wf-sync",
+  "description": "Orchestrates multi-mode team meetings, daily standups, backlog triage, and personal status reviews. Reach for this skill or trigger it when answering \"what do we have to work on?\", surfacing active tasks, reviewing backlog priorities, unblocking tasks during daily standups, conducting weekly strategic reviews to evaluate OKRs and experiment hypotheses, scaffolding quarterly goals and North Star milestones, or surfacing personal follow-up radars across git branches, messages, and task backlogs (`workforces/team-sync/`).",
+  "user_invocable": true,
+  "disable_model_invocation": false,
+  "hosts": {}
+}

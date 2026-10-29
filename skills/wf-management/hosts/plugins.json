@@ -1,0 +1,65 @@
+{
+  "plugins": {
+    "wf-integrity-plugin": {
+      "kind": "plugin",
+      "name": "wf-integrity-plugin",
+      "version": "1.0.0",
+      "description": "System-enforced file integrity, ghost reference detection, and link validation hooks for workforces.",
+      "hook_namespace": "wf-integrity",
+      "hooks": {
+        "PostToolUse": [
+          {
+            "matcher_capabilities": [
+              "edit",
+              "multi_edit"
+            ],
+            "runner": "integrity_validator",
+            "script_rel": "skills/wf-management/scripts/validate-references.py",
+            "timeout": 30
+          }
+        ]
+      }
+    },
+    "wf-programming-plugin": {
+      "kind": "plugin",
+      "name": "wf-programming-plugin",
+      "version": "1.0.0",
+      "description": "Programming task pre-hook plugin. Automatically detects code modification tasks, forces symbol graph indexing, and enforces wf-clean-coder rules.",
+      "hook_namespace": "wf-programming",
+      "hooks": {
+        "PreToolUse": [
+          {
+            "matcher_capabilities": [
+              "edit",
+              "multi_edit"
+            ],
+            "runner": "script_rel",
+            "script_rel": "skills/wf-code-graph/scripts/pre_tool_hook.py",
+            "fallback_stdout": "{\\\"decision\\\": \\\"allow\\\"}",
+            "timeout": 30
+          }
+        ],
+        "PostToolUse": [
+          {
+            "matcher_capabilities": [
+              "edit",
+              "multi_edit"
+            ],
+            "runner": "script_rel",
+            "script_rel": "skills/wf-post-code-review/scripts/post_tool_hook.py",
+            "fallback_stdout": "{}",
+            "timeout": 30
+          }
+        ]
+      }
+    },
+    "wf-social-plugin": {
+      "kind": "plugin",
+      "name": "wf-social-plugin",
+      "version": "1.0.0",
+      "description": "Human-safe social engagement and community cultivation engine for X.com, Skool, LinkedIn, and online communities.",
+      "hook_namespace": "wf-social",
+      "hooks": {}
+    }
+  }
+}

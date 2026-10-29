@@ -1,0 +1,8 @@
+{
+  "kind": "skill",
+  "name": "wf-advisor",
+  "description": "Conducts consultative strategic advisory sessions to unpack root problems, acute user pain points, failed workarounds, and business bottlenecks before building. Reach for this skill or trigger it when facing architectural dilemmas, choosing between competing technical directions or cloud stacks, evaluating build-vs-buy decisions, diagnosing customer churn or conversion drop-offs, or validating that proposed features solve genuine Jobs-to-be-Done via the Value Stick framework.",
+  "user_invocable": true,
+  "disable_model_invocation": false,
+  "hosts": {}
+}

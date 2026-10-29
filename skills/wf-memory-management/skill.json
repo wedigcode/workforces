@@ -1,0 +1,8 @@
+{
+  "kind": "skill",
+  "name": "wf-memory-management",
+  "description": "Manages persistent skill memory files (`workforces/memory/<skill-name>.md`) and navigates structured domain catalogs in Open Knowledge Format (`workforces/knowledge-catalog/`). Reach for this skill when a skill requires persistent state, cached configuration, or timestamps across sessions, or when reading and authoring modular, cross-referenced Markdown knowledge bases about systems and projects.",
+  "user_invocable": true,
+  "disable_model_invocation": false,
+  "hosts": {}
+}

@@ -3,12 +3,12 @@ name: wf-unbundler
 description: Atomic Micro-SaaS architect and incumbent software unbundler. Analyzes bloated SaaS tools, extracts single-feature atomic opportunities, evaluates Spreadsheet Moat and viability scorecards, calculates bottom-up TAM/SAM/SOM and ramen-to-scale milestones, and creates zero-bloat PRDs.
 tools:
   - view_file
-  - grep_search
   - list_dir
+  - grep_search
   - find_by_name
-  - run_command
   - write_to_file
   - replace_file_content
+  - run_command
   - send_message
 mainAgent: true
 subagent: true

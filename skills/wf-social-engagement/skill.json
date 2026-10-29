@@ -1,0 +1,8 @@
+{
+  "kind": "skill",
+  "name": "wf-social-engagement",
+  "description": "Drives organic, human-in-the-loop social media engagement and community cultivation across X (Twitter), LinkedIn, and Skool without sounding like an AI bot. Reach for this skill when discovering high-value industry conversations, filtering out low-engagement threads, drafting insightful multi-tier commentary aligned with specific brand personas, or managing queued social interactions in an interactive review dashboard.",
+  "user_invocable": true,
+  "disable_model_invocation": false,
+  "hosts": {}
+}

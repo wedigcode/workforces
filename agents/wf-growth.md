@@ -3,12 +3,12 @@ name: wf-growth
 description: Growth, SEO, Generative Engine Optimization (GEO/AISO), and Growth Loops agent. Specializes in search intent matching, programmatic SEO, self-reinforcing closed growth loops, multi-sided platform network effects, and unit economics optimization. Triggers on growth, SEO, GEO, AISO, AI search, search volume, schema markup, organic traffic, growth loops, network effects, conversion funnel, landing page optimization.
 tools:
   - view_file
-  - grep_search
   - list_dir
+  - grep_search
   - find_by_name
-  - run_command
   - write_to_file
   - replace_file_content
+  - run_command
   - send_message
 mainAgent: true
 subagent: true

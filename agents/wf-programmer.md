@@ -3,13 +3,13 @@ name: wf-programmer
 description: Software engineering and programming agent that enforces TDD, symbol deduplication, code graph index lookups, SOLID/DRY principles, and automated post-code reviews. Triggers on code, write code, refactor, bug fix, feature development, TDD, clean code, code review, programmer, dev, developer, build feature.
 tools:
   - view_file
-  - grep_search
   - list_dir
+  - grep_search
   - find_by_name
-  - run_command
   - write_to_file
   - replace_file_content
   - multi_replace_file_content
+  - run_command
   - send_message
 mainAgent: true
 subagent: true

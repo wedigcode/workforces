@@ -1,5 +1,27 @@
 {
+  "kind": "plugin",
   "name": "wf-programming-plugin",
   "version": "1.0.0",
-  "description": "Programming task pre-hook plugin. Automatically detects code modification tasks, forces symbol graph indexing, and enforces wf-clean-coder rules."
+  "description": "Programming task pre-hook plugin. Automatically detects code modification tasks, forces symbol graph indexing, and enforces wf-clean-coder rules.",
+  "hook_namespace": "wf-programming",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher_capabilities": ["edit", "multi_edit"],
+        "runner": "script_rel",
+        "script_rel": "skills/wf-code-graph/scripts/pre_tool_hook.py",
+        "fallback_stdout": "{\\\"decision\\\": \\\"allow\\\"}",
+        "timeout": 30
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher_capabilities": ["edit", "multi_edit"],
+        "runner": "script_rel",
+        "script_rel": "skills/wf-post-code-review/scripts/post_tool_hook.py",
+        "fallback_stdout": "{}",
+        "timeout": 30
+      }
+    ]
+  }
 }

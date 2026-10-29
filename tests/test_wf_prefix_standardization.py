@@ -242,9 +242,16 @@ class TestBrownfieldPrefixMigration(unittest.TestCase):
         (base / "skills" / "clean-coder" / "scripts" / "__pycache__" / "x.pyc").write_bytes(b"0")
         (base / "skills" / "workforce-management" / "SKILL.md").write_text("# Old\n", encoding="utf-8")
         (base / "plugins" / "workforce-programming-plugin" / "plugin.json").write_text("{}", encoding="utf-8")
-        (ws_root / "GEMINI.md").write_text("Refer to `.agents/rules/base.md` and `wf-sync`.\n", encoding="utf-8")
-        (ws_root / "CLAUDE.md").write_text("Refer to `.claude/rules/base.md`.\n", encoding="utf-8")
-        (ws_root / "AGENTS.md").write_text("Refer to `.grok/rules/base.md`.\n", encoding="utf-8")
+        if base_rel == ".agents":
+            (ws_root / "GEMINI.md").write_text("Refer to `.agents/rules/base.md` and `wf-sync`.\n", encoding="utf-8")
+            (ws_root / "CLAUDE.md").write_text("Refer to `.claude/rules/base.md`.\n", encoding="utf-8")
+            (ws_root / "AGENTS.md").write_text("Refer to `.grok/rules/base.md`.\n", encoding="utf-8")
+        elif base_rel == ".claude":
+            (ws_root / "CLAUDE.md").write_text("Refer to `.claude/rules/base.md`.\n", encoding="utf-8")
+        elif base_rel == ".grok":
+            (ws_root / "AGENTS.md").write_text("Refer to `.grok/rules/base.md`.\n", encoding="utf-8")
+        elif base_rel == ".github/copilot":
+            (base / "instructions.md").write_text("Refer to `.github/copilot/rules/base.md`.\n", encoding="utf-8")
         (ws_root / "workforces" / "workrules.md").write_text(
             "# Work Rules\n\n## Installed Teams\n- installed_teams:\n  - dev\n",
             encoding="utf-8",
@@ -274,14 +281,33 @@ class TestBrownfieldPrefixMigration(unittest.TestCase):
         self.assertFalse((base / "skills" / "workforce-management").exists())
         self.assertFalse((base / "plugins" / "workforce-programming-plugin").exists())
 
-        self.assertTrue((base / "agents" / "wf-programmer.md").is_file())
-        self.assertTrue((base / "rules" / "wf-base.md").is_file())
-        self.assertTrue((base / "skills" / "wf-clean-coder" / "SKILL.md").is_file())
-        self.assertTrue((base / "skills" / "wf-management" / "SKILL.md").is_file())
-        self.assertTrue((base / "plugins" / "wf-programming-plugin" / "plugin.json").is_file())
-        self.assertIn(".agents/rules/wf-base.md", (ws_root / "GEMINI.md").read_text(encoding="utf-8"))
-        self.assertIn(".claude/rules/wf-base.md", (ws_root / "CLAUDE.md").read_text(encoding="utf-8"))
-        self.assertIn(".grok/rules/wf-base.md", (ws_root / "AGENTS.md").read_text(encoding="utf-8"))
+        if base_rel == ".github/copilot":
+            gh = ws_root / ".github"
+            self.assertTrue((gh / "agents" / "wf-programmer.agent.md").is_file())
+            self.assertTrue((gh / "instructions" / "wf-base.instructions.md").is_file())
+            self.assertTrue((gh / "skills" / "wf-clean-coder" / "SKILL.md").is_file())
+            self.assertTrue((gh / "skills" / "wf-management" / "SKILL.md").is_file())
+            self.assertIn(
+                ".github/instructions/wf-base.instructions.md",
+                (gh / "copilot-instructions.md").read_text(encoding="utf-8"),
+            )
+        else:
+            self.assertTrue((base / "agents" / "wf-programmer.md").is_file())
+            self.assertTrue((base / "rules" / "wf-base.md").is_file())
+            self.assertTrue((base / "skills" / "wf-clean-coder" / "SKILL.md").is_file())
+            self.assertTrue((base / "skills" / "wf-management" / "SKILL.md").is_file())
+            if base_rel == ".claude":
+                self.assertTrue((base / "settings.json").is_file())
+                self.assertIn(".claude/rules/wf-base.md", (ws_root / "CLAUDE.md").read_text(encoding="utf-8"))
+            elif base_rel == ".grok":
+                self.assertTrue((base / "plugins" / "wf-programming-plugin" / "plugin.json").is_file())
+                self.assertTrue((base / "hooks.json").is_file())
+                self.assertIn(".grok/rules/wf-base.md", (ws_root / "AGENTS.md").read_text(encoding="utf-8"))
+            else:
+                self.assertTrue((base / "plugins" / "wf-programming-plugin" / "plugin.json").is_file())
+                self.assertIn(".agents/rules/wf-base.md", (ws_root / "GEMINI.md").read_text(encoding="utf-8"))
+                self.assertIn(".claude/rules/wf-base.md", (ws_root / "CLAUDE.md").read_text(encoding="utf-8"))
+                self.assertIn(".grok/rules/wf-base.md", (ws_root / "AGENTS.md").read_text(encoding="utf-8"))
 
         # Custom user files preserved
         self.assertTrue((base / "agents" / "my-custom-bot.md").is_file())

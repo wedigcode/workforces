@@ -1,0 +1,8 @@
+{
+  "kind": "skill",
+  "name": "wf-update",
+  "description": "Updates and recompiles the installed Workforces toolkit across active AI host environments (.agents/, .claude/, .grok/, .github/, .cursor/) using the wf-management toolkit management skill. Reach for this skill or trigger it when updating .agents/ files or multi-host installations, executing dry-run or live updates, checking version hashes, pruning obsolete assets, and interactively discovering or upgrading workspace Team Packs.",
+  "user_invocable": true,
+  "disable_model_invocation": false,
+  "hosts": {}
+}

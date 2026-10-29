@@ -1,0 +1,21 @@
+{
+  "kind": "agent",
+  "name": "wf-social",
+  "description": "Specialized autonomous agent for discovering, ranking, cold-post triaging, and drafting high-engagement responses across X.com, Skool, and LinkedIn.",
+  "capabilities": [
+    "read",
+    "search",
+    "edit",
+    "execute",
+    "web",
+    "delegate"
+  ],
+  "skills": [
+    "wf-social-engagement",
+    "wf-persona-management",
+    "wf-brand-guidelines",
+    "wf-memory-management"
+  ],
+  "background_only": false,
+  "hosts": {}
+}

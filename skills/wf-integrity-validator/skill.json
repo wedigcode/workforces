@@ -1,0 +1,8 @@
+{
+  "kind": "skill",
+  "name": "wf-integrity-validator",
+  "description": "Audits markdown documents, JSON manifests, and configuration files for broken relative links, dangling file paths, ghost references to non-existent assets, and uncompleted subtask checkboxes. Reach for this skill during quality gate checks, before git commits or releases, when verifying file lineage after moving or refactoring documentation, or when ensuring zero dead links across project docs.",
+  "user_invocable": true,
+  "disable_model_invocation": false,
+  "hosts": {}
+}

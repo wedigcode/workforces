@@ -35,10 +35,10 @@ A modular architecture for AI agent workforces. Instead of dumping all agents, r
 │   ├── launch/                 # Launch & Fast Validation Pack
 │   └── advisor/                # Strategy, Advisory & Ideation Pack
 │
-├── rules/                      # Slim, non-duplicated domain & core rules
-├── skills/                     # Centralized modular agent skill library
-├── plugins/                    # Domain plugin bundles
-└── hooks.json                  # Native lifecycle hooks
+├── config/hosts/               # Host adapter profiles (antigravity, claude, grok, copilot, cursor)
+├── rules/                      # Slim, non-duplicated domain & core rules (+ *.json sidecars)
+├── skills/                     # Centralized modular agent skill library (+ skill.json sidecars)
+└── plugins/                    # Domain plugin & lifecycle hook bundles (plugin.json + hooks.json)
 ```
 
 ---
@@ -142,6 +142,6 @@ Each domain team is configured via a structured `pack.json` and comprehensive `p
 
 1. **Zero Duplicate Files:** Eliminated duplicate copies of skills and rules between root folders, `teams/skills/`, and `plugins/*/`.
 2. **Context Efficiency:** Agents only load the rules, skills, and tools relevant to their specific domain.
-3. **Selective Installation:** Projects only copy the files for their installed teams, eliminating prompt bloat.
+3. **Selective Host-Native Compilation:** Projects compile only the files and lifecycle hooks for their installed teams and active AI hosts (`antigravity`, `claude`, `grok`, `copilot`, `cursor`), eliminating prompt bloat.
 4. **Transparent Role Discovery:** Users can inspect installed teams and instantly identify which agent handles their task.
 

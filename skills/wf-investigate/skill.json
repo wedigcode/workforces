@@ -1,0 +1,8 @@
+{
+  "kind": "skill",
+  "name": "wf-investigate",
+  "description": "Conducts structured, read-only incident triage and root-cause investigation across cloud services (AWS App Runner, ECS, Lambda, GCP Cloud Run, Kubernetes). Reach for this skill or trigger it when diagnosing production outages, service crashes, elevated error rates, memory exhaustion, or network timeouts, extracting relevant telemetry from cloud logs and metrics, and generating incident postmortems without modifying live infrastructure.",
+  "user_invocable": true,
+  "disable_model_invocation": false,
+  "hosts": {}
+}

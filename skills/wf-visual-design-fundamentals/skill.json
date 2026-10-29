@@ -1,0 +1,8 @@
+{
+  "kind": "skill",
+  "name": "wf-visual-design-fundamentals",
+  "description": "Establishes foundational visual design rules covering typography scales, harmonic color theory, whitespace balancing, responsive 8pt layout grids, and visual hierarchy. Reach for this skill before authoring UI components, styling landing pages, selecting typography and color palettes, or evaluating graphic assets to ensure professional polish, legibility, and aesthetic coherence.",
+  "user_invocable": true,
+  "disable_model_invocation": false,
+  "hosts": {}
+}

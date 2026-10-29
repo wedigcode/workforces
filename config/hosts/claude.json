@@ -1,0 +1,64 @@
+{
+  "id": "claude",
+  "aliases": ["claude", "claude-code"],
+  "display_name": "Claude Code",
+  "base_dir": ".claude",
+  "detect_any": [".claude", "CLAUDE.md"],
+  "root_doc": {
+    "path": "CLAUDE.md",
+    "template": "# Claude Code Instructions\n\nThis project utilizes the [workforces](https://github.com/wedigcode/workforces) AI toolkit.\n\n## Toolkit Structures\n- Config, Personas & Skills: `.claude/`\n- User Workspace & State: `workforces/`\n\n## Instructions\nRefer to rules in `.claude/rules/wf-base.md` and run modular skills from `.claude/skills/` (e.g. `/wf-plan`, `/wf-sync`, `/wf-advisor`) or invoke specialist subagents from `.claude/agents/` (e.g. `@wf-programmer`, `@wf-designer`).\n"
+  },
+  "dirs": {
+    "agents": { "path": "agents", "ext": ".md" },
+    "rules": { "path": "rules", "ext": ".md" },
+    "skills": { "path": "skills", "filename": "SKILL.md" },
+    "workflows": { "path": "commands", "ext": ".md" },
+    "teams": { "path": "teams" }
+  },
+  "hooks_mode": "claude_settings_json",
+  "hooks_target": ".claude/settings.json",
+  "hook_capability_map": {
+    "edit": ["Write", "Edit"],
+    "multi_edit": ["MultiEdit"]
+  },
+  "capability_map": {
+    "read": ["Read"],
+    "search": ["Grep", "Glob"],
+    "edit": ["Write", "Edit"],
+    "multi_edit": ["MultiEdit"],
+    "execute": ["Bash"],
+    "web": ["WebFetch", "WebSearch"],
+    "image": [],
+    "delegate": ["Task"]
+  },
+  "agent_schema": {
+    "field_order": [
+      "name",
+      "description",
+      "tools",
+      "disallowedTools",
+      "model",
+      "permissionMode",
+      "maxTurns",
+      "isolation",
+      "skills"
+    ],
+    "tools_field": "tools",
+    "include_skills": true,
+    "defaults": {
+      "model": "inherit"
+    },
+    "when_background_only": {}
+  },
+  "rule_schema": {
+    "emit_when_always_on": {},
+    "emit_when_scoped": {},
+    "globs_field_when_scoped": "paths"
+  },
+  "skill_schema": {
+    "fields": ["name", "description", "argument-hint", "user-invocable", "disable-model-invocation"]
+  },
+  "workflow_schema": {
+    "fields": ["description", "argument-hint"]
+  }
+}

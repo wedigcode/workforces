@@ -1,0 +1,8 @@
+{
+  "kind": "rule",
+  "name": "wf-social-engagement",
+  "description": "Human-safe social media engagement standards prohibiting robotic AI phrasing and enforcing persona-aligned community replies.",
+  "always_on": false,
+  "globs": [],
+  "hosts": {}
+}

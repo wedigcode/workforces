@@ -1,0 +1,8 @@
+{
+  "kind": "skill",
+  "name": "wf-plan",
+  "description": "Transforms high-level project goals or PRD specifications into phased, actionable engineering plans with explicit dependency mapping and concurrency topologies. Reach for this skill or trigger it when scoping multi-stage development initiatives, conducting pre-plan codebase audits to avoid reinventing existing patterns, breaking down epics into estimated tasks, selecting parallel worktree topologies, or scaffolding roadmaps into `workforces/workstate.md`.",
+  "user_invocable": true,
+  "disable_model_invocation": false,
+  "hosts": {}
+}

@@ -1,0 +1,8 @@
+{
+  "kind": "skill",
+  "name": "wf-session-context",
+  "description": "Preserves transient conversation context, architectural decisions, rationale (\"why\"), and active task states across chat sub-sessions (`workforces/sessions/`). Reach for this skill when concluding long sessions to distill milestones, hydrating context when resuming a project after context truncation, tracking decision evolution across conversation boundaries, or searching historical session notes for past reasoning.",
+  "user_invocable": true,
+  "disable_model_invocation": false,
+  "hosts": {}
+}

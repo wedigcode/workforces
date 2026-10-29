@@ -1,0 +1,8 @@
+{
+  "kind": "skill",
+  "name": "wf-feature-research",
+  "description": "Orchestrates a 5-phase research pipeline that converts raw product concepts into validated Product Requirement Documents (PRDs) and prioritized work breakdowns. Reach for this skill when scoping a new feature, performing competitive or codebase gap analysis, validating user pain points and edge cases before implementation, or slicing a complex capability into phased engineering milestones (P0/P1/P2).",
+  "user_invocable": true,
+  "disable_model_invocation": false,
+  "hosts": {}
+}

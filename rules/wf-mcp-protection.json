@@ -1,0 +1,10 @@
+{
+  "kind": "rule",
+  "name": "wf-mcp-protection",
+  "description": "MCP configuration protection prohibiting automated edits to mcp_config.json files and escalating MCP server issues to the user.",
+  "always_on": true,
+  "globs": [
+    "**"
+  ],
+  "hosts": {}
+}

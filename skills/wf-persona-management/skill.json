@@ -1,0 +1,8 @@
+{
+  "kind": "skill",
+  "name": "wf-persona-management",
+  "description": "Generates, catalogs, and dynamically switches between Author Voice Personas (brand tone and perspective) and Target Audience Personas (customer segment profiles) without hardcoding voices in prompts. Reach for this skill when tailoring copy, marketing assets, sales outreach, or social replies to specific personas, resolving audience segments from `workforces/personas/`, or adapting tone of voice across channels.",
+  "user_invocable": true,
+  "disable_model_invocation": false,
+  "hosts": {}
+}

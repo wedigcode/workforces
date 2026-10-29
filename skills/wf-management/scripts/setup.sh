@@ -1,21 +1,14 @@
 #!/usr/bin/env bash
-# Workforces Setup Script
-# Copies agents, workflows, skills, and rules from the source toolkit into a target project.
+# Workforces Multi-AI Setup Script
+# Compiles and installs agents, rules, skills, workflows, teams, and lifecycle hooks
+# from canonical sidecar metadata into one or more AI host layouts.
 #
 # Usage:
 #   bash skills/wf-management/scripts/setup.sh /path/to/project [options]
-#
-# Options:
-#   --type <type>          Repo type: workforce or project
-#   --editor <type>        Editor type: antigravity, vscode, claude, grok, auto (default: auto)
-#   --teams <team-list>    Comma-separated list of teams to install (e.g., dev,design,launch, all, none)
-#   --non-interactive      Run without prompting the user for any inputs (ideal for AI assistants)
-#   --help, -h             Show this help menu
 
 set -euo pipefail
 
 # python3 is the usual name; Windows (including Grok Build) often only has `python`.
-# Ignore the Microsoft Store stub that prints "Python was not found".
 PYTHON=""
 for cand in python3 python; do
   if command -v "$cand" >/dev/null 2>&1 && "$cand" -c "import sys" >/dev/null 2>&1; then
@@ -23,6 +16,11 @@ for cand in python3 python; do
     break
   fi
 done
+
+if [[ -z "$PYTHON" ]]; then
+  echo "Error: Python 3 is required to compile multi-host Workforces assets." >&2
+  exit 1
+fi
 
 # Colors
 GREEN='\033[0;32m'
@@ -33,13 +31,15 @@ CYAN='\033[0;36m'
 BOLD='\033[1m'
 NC='\033[0m'
 
-# Find source toolkit directory (the parent of skills/wf-management/scripts/setup.sh)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TOOLKIT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
 TARGET=""
 REPO_TYPE=""
-EDITOR_TYPE=""
+HOSTS_ARG=""
+NO_AUTO_DETECT=false
+FORCE_AUTO_DETECT=false
+VSCODE_ALIAS_USED=false
 TEAMS_ARG=""
 SITE_SETUP=""
 NON_INTERACTIVE=false
@@ -52,29 +52,41 @@ usage() {
   echo ""
   echo "Options:"
   echo "  --type <type>          Repo type: workforce or project"
-  echo "  --editor <type>        Editor type: antigravity, vscode, claude, grok, auto (default: auto)"
+  echo "  --hosts <list>         AI hosts: auto, all, or CSV (antigravity,claude,grok,copilot,cursor)"
+  echo "  --editor <list>        Alias for --hosts (supports gemini, vscode, github, claude-code, grok-build)"
+  echo "  --no-auto-detect       Do not auto-detect workspace AI host folders (pin explicit --hosts)"
   echo "  --teams <team-list>    Teams to install (e.g. 'dev,design,launch', 'all', 'none')"
   echo "  --site-setup           Initialize Site Setup & Product Brief starter (for greenfield sites)"
   echo "  --skip-site-setup      Skip Site Setup initialization"
   echo "  --non-interactive      Do not prompt for any options (fails on invalid configuration)"
   echo "  --dry, --dry-run       Dry run: simulate setup without copying files or modifying target"
+  echo "  --help, -h             Show this help menu"
   echo ""
-  exit 0
+  exit "${1:-0}"
 }
 
+record_hosts_arg() {
+  HOSTS_ARG="$1"
+  local norm_hosts
+  norm_hosts="$(printf '%s' "$HOSTS_ARG" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
+  if [[ ",$norm_hosts," == *",vscode,"* || ",$norm_hosts," == *",vs-code,"* ]]; then
+    VSCODE_ALIAS_USED=true
+  fi
+  if [[ "$norm_hosts" == "auto" && "$NO_AUTO_DETECT" == false ]]; then
+    FORCE_AUTO_DETECT=true
+  fi
+}
 
-# Parse args
 if [[ $# -lt 1 ]]; then
-  usage
+  usage 0
 fi
 
 if [[ "$1" == "-h" || "$1" == "--help" ]]; then
-  usage
+  usage 0
 fi
 
 TARGET="$1"
 shift
-
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -82,16 +94,32 @@ while [[ $# -gt 0 ]]; do
       DRY=true
       ;;
     --type)
+      [[ $# -ge 2 ]] || { echo -e "${RED}Error: Missing value for $1${NC}" >&2; usage 1; }
       shift
-      REPO_TYPE="$1"
+      REPO_TYPE="${1:-}"
       ;;
-    --editor)
+    --type=*)
+      REPO_TYPE="${1#*=}"
+      ;;
+    --hosts|--editor)
+      [[ $# -ge 2 ]] || { echo -e "${RED}Error: Missing value for $1${NC}" >&2; usage 1; }
       shift
-      EDITOR_TYPE="$1"
+      record_hosts_arg "${1:-}"
+      ;;
+    --hosts=*|--editor=*)
+      record_hosts_arg "${1#*=}"
+      ;;
+    --no-auto-detect)
+      NO_AUTO_DETECT=true
+      FORCE_AUTO_DETECT=false
       ;;
     --teams)
+      [[ $# -ge 2 ]] || { echo -e "${RED}Error: Missing value for $1${NC}" >&2; usage 1; }
       shift
-      TEAMS_ARG="$1"
+      TEAMS_ARG="${1:-}"
+      ;;
+    --teams=*)
+      TEAMS_ARG="${1#*=}"
       ;;
     --site-setup)
       SITE_SETUP=true
@@ -103,17 +131,16 @@ while [[ $# -gt 0 ]]; do
       NON_INTERACTIVE=true
       ;;
     -h|--help)
-      usage
+      usage 0
       ;;
     *)
-      echo -e "${RED}Unknown option: $1${NC}"
-      usage
+      echo -e "${RED}Unknown option: $1${NC}" >&2
+      usage 1
       ;;
   esac
   shift
 done
 
-# Validate target
 if [[ ! -d "$TARGET" ]]; then
   echo -e "${RED}Error: Target directory does not exist: $TARGET${NC}"
   exit 1
@@ -121,10 +148,19 @@ fi
 
 TARGET="$(cd "$TARGET" && pwd)"
 
-# Detect if target workspace is empty / greenfield
+COMPILER_SCRIPT="$TOOLKIT_ROOT/skills/wf-management/scripts/compile_assets.py"
+if [[ ! -f "$COMPILER_SCRIPT" && -f "$TOOLKIT_ROOT/.agents/skills/wf-management/scripts/compile_assets.py" ]]; then
+  COMPILER_SCRIPT="$TOOLKIT_ROOT/.agents/skills/wf-management/scripts/compile_assets.py"
+fi
+RESOLVER_SCRIPT="$TOOLKIT_ROOT/skills/wf-management/scripts/resolve_manifest.py"
+if [[ ! -f "$RESOLVER_SCRIPT" && -f "$TOOLKIT_ROOT/.agents/skills/wf-management/scripts/resolve_manifest.py" ]]; then
+  RESOLVER_SCRIPT="$TOOLKIT_ROOT/.agents/skills/wf-management/scripts/resolve_manifest.py"
+fi
+
+# Detect if target workspace is empty / greenfield (regex-safe for paths containing brackets)
 IS_EMPTY_WORKSPACE=false
-NON_DOT_COUNT=$(find "$TARGET" -maxdepth 1 -not -name ".*" | grep -v "^$TARGET$" | wc -l || true)
-if [[ "$NON_DOT_COUNT" -eq 0 ]]; then
+NON_DOT_COUNT=$(find "$TARGET" -mindepth 1 -maxdepth 1 -not -name ".*" 2>/dev/null | wc -l | tr -d '[:space:]' || true)
+if [[ "${NON_DOT_COUNT:-0}" -eq 0 ]]; then
   IS_EMPTY_WORKSPACE=true
 fi
 
@@ -137,7 +173,7 @@ if [[ -z "$SITE_SETUP" ]]; then
       echo ""
       echo -e "${BOLD}${CYAN}🚀 Empty project workspace detected!${NC}"
       echo "Would you like to initialize a Site Setup & Product Brief (Design Pilot)?"
-      read -p "Enable site setup? (y/n) [default: y]: " site_choice
+      read -r -p "Enable site setup? (y/n) [default: y]: " site_choice
       case "$site_choice" in
         n|N|no|No) SITE_SETUP=false ;;
         *) SITE_SETUP=true ;;
@@ -148,132 +184,103 @@ if [[ -z "$SITE_SETUP" ]]; then
   fi
 fi
 
-
 # ─── Repo Type Detection / Prompt ───
 if [[ -z "$REPO_TYPE" ]]; then
   if [[ "$NON_INTERACTIVE" == true || "$DRY" == true ]]; then
-    echo -e "${YELLOW}Defaulting repo type to 'project'${NC}"
-    REPO_TYPE="project"
+    EXISTING_REPO_TYPE=$("$PYTHON" -c "import os,sys; sys.path.insert(0, sys.argv[1]); import compile_assets as ca; print(ca.infer_repo_type(sys.argv[2]) or '')" "$(dirname "$COMPILER_SCRIPT")" "$TARGET" 2>/dev/null || true)
+    if [[ "$EXISTING_REPO_TYPE" == "workforce" || "$EXISTING_REPO_TYPE" == "project" || "$EXISTING_REPO_TYPE" == "personal" ]]; then
+      REPO_TYPE="$EXISTING_REPO_TYPE"
+    else
+      echo -e "${YELLOW}Defaulting repo type to 'project'${NC}"
+      REPO_TYPE="project"
+    fi
   else
     echo ""
     echo -e "${BOLD}Select repository type:${NC}"
     echo "  1) Workforce (Central command, plans and delegates to other projects)"
     echo "  2) Project (Specific codebase/initiative with its own issue tracking)"
-    read -p "Select type (1/2): " repo_choice
+    read -r -p "Select type (1/2): " repo_choice
     case "$repo_choice" in
       1|w|workforce|W|Workforce) REPO_TYPE="workforce" ;;
       2|p|project|P|Project)     REPO_TYPE="project" ;;
+      personal|Personal)         REPO_TYPE="personal" ;;
       *) echo -e "${RED}Invalid choice. Defaulting to project.${NC}"; REPO_TYPE="project" ;;
     esac
   fi
 fi
 
-if [[ "$REPO_TYPE" != "workforce" && "$REPO_TYPE" != "project" ]]; then
-  echo -e "${RED}Error: Invalid repo type '$REPO_TYPE'. Must be 'workforce' or 'project'.${NC}"
+if [[ "$REPO_TYPE" != "workforce" && "$REPO_TYPE" != "project" && "$REPO_TYPE" != "personal" ]]; then
+  echo -e "${RED}Error: Invalid repo type '$REPO_TYPE'. Must be 'workforce', 'project', or 'personal'.${NC}"
   exit 1
 fi
 
-# ─── Editor Detection ───
-detect_editor() {
-  if [[ -n "$EDITOR_TYPE" && "$EDITOR_TYPE" != "auto" ]]; then
-    echo "$EDITOR_TYPE"
-    return
-  fi
+# ─── AI Host Detection & Optional Interactive Multi-Host Prompt ───
+DETECT_FLAGS=(--toolkit-root "$TOOLKIT_ROOT" --target "$TARGET" --detect-only --json)
+[[ -n "$HOSTS_ARG" ]] && DETECT_FLAGS+=(--hosts "$HOSTS_ARG")
+[[ "$NO_AUTO_DETECT" == true ]] && DETECT_FLAGS+=(--no-auto-detect)
+[[ "$FORCE_AUTO_DETECT" == true ]] && DETECT_FLAGS+=(--auto-detect)
 
-  # Auto-detection
-  if [[ -d "$TARGET/.gemini" || -f "$TARGET/GEMINI.md" || -d "$TARGET/.agents" ]]; then
+if ! DETECT_JSON=$("$PYTHON" "$COMPILER_SCRIPT" "${DETECT_FLAGS[@]}"); then
+  echo -e "${RED}Error: Failed to resolve AI hosts for '$HOSTS_ARG'.${NC}" >&2
+  exit 1
+fi
+
+EXPLICIT_OR_DETECTED=$("$PYTHON" -c "import json,sys; d=json.loads(sys.argv[1]); print('true' if d.get('explicit_or_detected') else 'false')" "$DETECT_JSON")
+
+map_interactive_hosts() {
+  local raw="${1// /,}"
+  if [[ -z "$raw" ]]; then
     echo "antigravity"
     return
   fi
-
-  if [[ -f "$TARGET/CLAUDE.md" || -d "$TARGET/.claude" ]]; then
-    echo "claude"
-    return
+  local mapped=()
+  IFS=',' read -ra tokens <<< "$raw"
+  for tok in "${tokens[@]}"; do
+    tok="$(echo "$tok" | tr -d '[:space:]')"
+    case "$tok" in
+      1) mapped+=("antigravity") ;;
+      2) mapped+=("claude") ;;
+      3) mapped+=("grok") ;;
+      4) mapped+=("copilot") ;;
+      5) mapped+=("cursor") ;;
+      a|A|all|ALL|"*") echo "all"; return ;;
+      "") ;;
+      *) mapped+=("$tok") ;;
+    esac
+  done
+  if [[ ${#mapped[@]} -eq 0 ]]; then
+    echo "antigravity"
+  else
+    local IFS=','
+    echo "${mapped[*]}"
   fi
-
-  if [[ -d "$TARGET/.vscode" || -d "$TARGET/.github/copilot" ]]; then
-    echo "vscode"
-    return
-  fi
-
-  # Only treat an existing .grok/ toolkit folder as a Grok host.
-  # Do not key off AGENTS.md — many Grok projects have that file without Workforces.
-  if [[ -d "$TARGET/.grok/skills" || -d "$TARGET/.grok/commands" || -d "$TARGET/.grok/agents" ]]; then
-    echo "grok"
-    return
-  fi
-
-  # Default to antigravity
-  echo "antigravity"
 }
 
-DETECTED_EDITOR=$(detect_editor)
-
-get_base_dir() {
-  case "$DETECTED_EDITOR" in
-    antigravity) echo ".agents" ;;
-    vscode)      echo ".github/copilot" ;;
-    claude)      echo ".claude" ;;
-    grok)        echo ".grok" ;;
-    *)           echo ".agents" ;;
-  esac
-}
-
-BASE_DIR=$(get_base_dir)
-AGENTS_DIR="$TARGET/$BASE_DIR/agents"
-# Grok Build discovers slash-command markdown under commands/, not workflows/.
-if [[ "$DETECTED_EDITOR" == "grok" ]]; then
-  WORKFLOWS_DIR="$TARGET/$BASE_DIR/commands"
-else
-  WORKFLOWS_DIR="$TARGET/$BASE_DIR/workflows"
+if [[ -z "$HOSTS_ARG" && "$EXPLICIT_OR_DETECTED" == "false" && "$NON_INTERACTIVE" == false && "$DRY" == false ]]; then
+  echo ""
+  echo -e "${BOLD}Select AI host(s) to configure (comma-separated for multi-AI):${NC}"
+  echo "  1) Antigravity / Gemini (.agents/)"
+  echo "  2) Claude Code (.claude/)"
+  echo "  3) Grok Build (.grok/)"
+  echo "  4) GitHub Copilot / VS Code (.github/)"
+  echo "  5) Cursor (.cursor/)"
+  echo "  a) All supported AI hosts"
+  read -r -p "Select AI host(s) [default: 1]: " host_choice
+  record_hosts_arg "$(map_interactive_hosts "$host_choice")"
+  if [[ ",$(printf '%s' "$host_choice" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')," == *",vscode,"* ]]; then
+    VSCODE_ALIAS_USED=true
+  fi
+  DETECT_FLAGS=(--toolkit-root "$TOOLKIT_ROOT" --target "$TARGET" --hosts "$HOSTS_ARG" --detect-only --json)
+  [[ "$NO_AUTO_DETECT" == true ]] && DETECT_FLAGS+=(--no-auto-detect)
+  [[ "$FORCE_AUTO_DETECT" == true ]] && DETECT_FLAGS+=(--auto-detect)
+  if ! DETECT_JSON=$("$PYTHON" "$COMPILER_SCRIPT" "${DETECT_FLAGS[@]}"); then
+    echo -e "${RED}Error: Invalid AI host selection '$host_choice'.${NC}" >&2
+    exit 1
+  fi
 fi
-SKILLS_DIR="$TARGET/$BASE_DIR/skills"
-RULES_DIR="$TARGET/$BASE_DIR/rules"
-PLUGINS_DIR="$TARGET/$BASE_DIR/plugins"
 
-workflow_rel_dir() {
-  if [[ "$DETECTED_EDITOR" == "grok" ]]; then
-    echo "commands"
-  else
-    echo "workflows"
-  fi
-}
-
-# ─── Counters ───
-COPIED=0
-SKIPPED=0
-
-copy_file() {
-  local src="$1"
-  local dest="$2"
-  local label="$3"
-
-  if [[ ! -f "$src" ]]; then
-    return
-  fi
-
-  if [[ "$DRY" == true ]]; then
-    if [[ -f "$dest" ]] && cmp -s "$src" "$dest"; then
-      SKIPPED=$((SKIPPED + 1))
-    else
-      echo -e "  ${YELLOW}WOULD COPY:${NC} $label"
-      COPIED=$((COPIED + 1))
-    fi
-    return
-  fi
-
-  mkdir -p "$(dirname "$dest")"
-
-  if [[ -f "$dest" ]] && cmp -s "$src" "$dest"; then
-    SKIPPED=$((SKIPPED + 1))
-  else
-    local tmp_dest="${dest}.tmp.$$"
-    cp "$src" "$tmp_dest"
-    mv -f "$tmp_dest" "$dest"
-    echo -e "  ${GREEN}COPIED:${NC} $label"
-    COPIED=$((COPIED + 1))
-  fi
-}
+ACTIVE_HOSTS_CSV=$("$PYTHON" -c "import json,sys; print(','.join(json.loads(sys.argv[1])['hosts']))" "$DETECT_JSON")
+EFFECTIVE_AUTO_DETECT=$("$PYTHON" -c "import json,sys; print('true' if json.loads(sys.argv[1]).get('auto_detect_hosts', True) else 'false')" "$DETECT_JSON")
 
 echo ""
 echo -e "${BOLD}${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -282,25 +289,24 @@ echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━�
 echo ""
 echo -e "  Source:  ${CYAN}$TOOLKIT_ROOT${NC}"
 echo -e "  Target:  ${CYAN}$TARGET${NC}"
-echo -e "  Editor:  ${CYAN}$DETECTED_EDITOR ($BASE_DIR/)${NC}"
+echo -e "  Hosts:   ${CYAN}$ACTIVE_HOSTS_CSV${NC}"
 echo -e "  Type:    ${CYAN}$REPO_TYPE${NC}"
 [[ "$DRY" == true ]] && echo -e "  ${YELLOW}Mode:    DRY RUN — no files will be written${NC}"
 echo ""
 
 # ─── Resolve Assets via Team Manifest Resolver ───
-RESOLVER_SCRIPT="$TOOLKIT_ROOT/skills/wf-management/scripts/resolve_manifest.py"
-if [[ ! -f "$RESOLVER_SCRIPT" && -f "$TOOLKIT_ROOT/.agents/skills/wf-management/scripts/resolve_manifest.py" ]]; then
-  RESOLVER_SCRIPT="$TOOLKIT_ROOT/.agents/skills/wf-management/scripts/resolve_manifest.py"
-fi
 RESOLVER_OK=false
-if [[ -f "$RESOLVER_SCRIPT" && -n "$PYTHON" ]]; then
-  if RESOLVER_OUTPUT=$("$PYTHON" "$RESOLVER_SCRIPT" --toolkit-root "$TOOLKIT_ROOT" --target "$TARGET" ${TEAMS_ARG:+--teams "$TEAMS_ARG"} --format bash-export); then
+RESOLVE_ARGS=(--toolkit-root "$TOOLKIT_ROOT" --target "$TARGET" --hosts "$ACTIVE_HOSTS_CSV" --format bash-export)
+[[ "$EFFECTIVE_AUTO_DETECT" == "false" ]] && RESOLVE_ARGS+=(--no-auto-detect)
+[[ -n "$TEAMS_ARG" ]] && RESOLVE_ARGS+=(--teams "$TEAMS_ARG")
+
+if [[ -f "$RESOLVER_SCRIPT" ]]; then
+  if RESOLVER_OUTPUT=$("$PYTHON" "$RESOLVER_SCRIPT" "${RESOLVE_ARGS[@]}"); then
     eval "$RESOLVER_OUTPUT"
     RESOLVER_OK=true
   fi
 fi
 if [[ "$RESOLVER_OK" != true ]]; then
-  # Fallback if resolver script, python, or the resolver run is unavailable
   ALLOWED_AGENTS="wf-project-manager.md wf-scribe.md wf-programmer.md wf-designer.md"
   ALLOWED_RULES="wf-base.md wf-clean-coder.md wf-design-standards.md wf-lean-execution.md wf-mcp-protection.md wf-session-context.md wf-file-integrity.md wf-git-workflow.md"
   ALLOWED_SKILLS="wf-agent-parallelization wf-brand-guidelines wf-clean-coder wf-code-graph wf-codebase-improvement wf-design-anti-patterns wf-doc-generator wf-image-workflow wf-integrity-validator wf-issue-tracker wf-jules-integration wf-launch-playbook wf-market-validation wf-memory-management wf-persona-management wf-post-code-review wf-pr-review wf-session-context wf-site-setup wf-social-engagement wf-task-tracker wf-ui-ux-design wf-usage-tracker wf-visual-design-fundamentals wf-management wf-canvas wf-github-project-planning wf-hypothesis-tracker wf-plan wf-sync wf-advisor wf-ideate wf-investigate wf-question-formulation wf-update wf-dashboard"
@@ -313,117 +319,34 @@ fi
 echo -e "  Installed Teams: ${GREEN}${INSTALLED_TEAMS_LIST:-core}${NC}"
 echo ""
 
-# Create directories
-[[ "$DRY" != true ]] && mkdir -p "$AGENTS_DIR" "$SKILLS_DIR" "$RULES_DIR"
-
-# ─── Copy Allowed Agents ───
-AGENTS_SRC=""
-if [[ -d "$TOOLKIT_ROOT/agents" ]]; then
-  AGENTS_SRC="$TOOLKIT_ROOT/agents"
-elif [[ -d "$TOOLKIT_ROOT/.agents/agents" ]]; then
-  AGENTS_SRC="$TOOLKIT_ROOT/.agents/agents"
+# ─── Prune Deactivated Team / Host Assets When Re-Running Setup ───
+if [[ -f "$TARGET/workforces/.manifest.json" && -f "$RESOLVER_SCRIPT" ]]; then
+  PRUNE_ARGS=(--toolkit-root "$TOOLKIT_ROOT" --target "$TARGET" --hosts "$ACTIVE_HOSTS_CSV" --prune-obsolete)
+  [[ "$EFFECTIVE_AUTO_DETECT" == "false" ]] && PRUNE_ARGS+=(--no-auto-detect)
+  [[ -n "$TEAMS_ARG" ]] && PRUNE_ARGS+=(--teams "$TEAMS_ARG")
+  [[ "$DRY" == true ]] && PRUNE_ARGS+=(--dry)
+  "$PYTHON" "$RESOLVER_SCRIPT" "${PRUNE_ARGS[@]}"
 fi
 
-if [[ -n "$AGENTS_SRC" ]]; then
-  echo -e "${BOLD}▸ Copying Agents...${NC}"
-  for f in "$AGENTS_SRC"/*.md; do
-    [[ -f "$f" ]] || continue
-    basename=$(basename "$f")
-    if [[ " $ALLOWED_AGENTS " =~ " $basename " ]]; then
-      copy_file "$f" "$AGENTS_DIR/$basename" "$BASE_DIR/agents/$basename"
-    fi
-  done
-fi
+# ─── Compile Assets & Lifecycle Hooks Across Active Hosts ───
+echo -e "${BOLD}▸ Compiling host-native assets & lifecycle hooks...${NC}"
+COMPILE_ARGS=(
+  --toolkit-root "$TOOLKIT_ROOT"
+  --target "$TARGET"
+  --hosts "$ACTIVE_HOSTS_CSV"
+  --repo-type "$REPO_TYPE"
+  --save-config
+  --json
+)
+[[ "$EFFECTIVE_AUTO_DETECT" == "false" ]] && COMPILE_ARGS+=(--no-auto-detect)
+[[ "$FORCE_AUTO_DETECT" == true ]] && COMPILE_ARGS+=(--auto-detect)
+[[ -n "$TEAMS_ARG" ]] && COMPILE_ARGS+=(--teams "$TEAMS_ARG")
+[[ "$DRY" == true ]] && COMPILE_ARGS+=(--dry)
 
-# ─── Copy Allowed Workflows ───
-if [[ -d "$TOOLKIT_ROOT/workflows" ]]; then
-  echo -e "${BOLD}▸ Copying Workflows...${NC}"
-  for f in "$TOOLKIT_ROOT/workflows"/*.md; do
-    [[ -f "$f" ]] || continue
-    basename=$(basename "$f")
-    if [[ " $ALLOWED_WORKFLOWS " =~ " $basename " ]]; then
-      rel_dir=$(workflow_rel_dir)
-      copy_file "$f" "$WORKFLOWS_DIR/$basename" "$BASE_DIR/$rel_dir/$basename"
-    fi
-  done
-fi
-
-# ─── Copy Allowed Rules ───
-if [[ -d "$TOOLKIT_ROOT/rules" ]]; then
-  echo -e "${BOLD}▸ Copying Rules...${NC}"
-  for f in "$TOOLKIT_ROOT/rules"/*.md; do
-    [[ -f "$f" ]] || continue
-    basename=$(basename "$f")
-    if [[ " $ALLOWED_RULES " =~ " $basename " ]]; then
-      copy_file "$f" "$RULES_DIR/$basename" "$BASE_DIR/rules/$basename"
-    fi
-  done
-fi
-
-# ─── Copy Allowed Skills ───
-if [[ -d "$TOOLKIT_ROOT/skills" ]]; then
-  echo -e "${BOLD}▸ Copying Skills...${NC}"
-  for skill_dir in "$TOOLKIT_ROOT/skills"/*; do
-    [[ -d "$skill_dir" ]] || continue
-    skill_name=$(basename "$skill_dir")
-    if [[ " $ALLOWED_SKILLS " =~ " $skill_name " ]]; then
-      [[ "$DRY" != true ]] && mkdir -p "$SKILLS_DIR/$skill_name"
-      while read -r f; do
-        [[ -n "$f" ]] || continue
-        rel_path="${f#$skill_dir/}"
-        copy_file "$f" "$SKILLS_DIR/$skill_name/$rel_path" "$BASE_DIR/skills/$skill_name/$rel_path"
-      done < <(find "$skill_dir" -type f -not -path "*/__pycache__/*" -not -name "*.pyc" -not -name ".DS_Store")
-    fi
-  done
-fi
-
-# ─── Copy Allowed Plugins ───
-if [[ -d "$TOOLKIT_ROOT/plugins" ]]; then
-  echo -e "${BOLD}▸ Copying Plugins...${NC}"
-  for plugin_dir in "$TOOLKIT_ROOT/plugins"/*; do
-    [[ -d "$plugin_dir" ]] || continue
-    plugin_name=$(basename "$plugin_dir")
-    if [[ " $ALLOWED_PLUGINS " =~ " $plugin_name " ]]; then
-      [[ "$DRY" != true ]] && mkdir -p "$PLUGINS_DIR/$plugin_name"
-      while read -r f; do
-        [[ -n "$f" ]] || continue
-        rel_path="${f#$plugin_dir/}"
-        copy_file "$f" "$PLUGINS_DIR/$plugin_name/$rel_path" "$BASE_DIR/plugins/$plugin_name/$rel_path"
-      done < <(find "$plugin_dir" -type f -not -path "*/__pycache__/*" -not -name "*.pyc" -not -name ".DS_Store")
-    fi
-  done
-fi
-
-# ─── Copy Installed Team Pack Building Blocks ───
-if [[ -d "$TOOLKIT_ROOT/teams" ]]; then
-  echo -e "${BOLD}▸ Copying Installed Team Packs...${NC}"
-  for team_dir in "$TOOLKIT_ROOT/teams"/*; do
-    [[ -d "$team_dir" ]] || continue
-    team_name=$(basename "$team_dir")
-    if [[ " $ALLOWED_TEAMS " =~ " $team_name " ]]; then
-      [[ "$DRY" != true ]] && mkdir -p "$TARGET/$BASE_DIR/teams/$team_name"
-      while read -r f; do
-        [[ -n "$f" ]] || continue
-        rel="${f#$team_dir/}"
-        copy_file "$f" "$TARGET/$BASE_DIR/teams/$team_name/$rel" "$BASE_DIR/teams/$team_name/$rel"
-      done < <(find "$team_dir" -type f -not -path "*/__pycache__/*" -not -name "*.pyc" -not -name ".DS_Store")
-    fi
-  done
-fi
-
-# ─── Copy Lifecycle Hooks Configuration ───
-HOOKS_SRC=""
-if [[ -f "$TOOLKIT_ROOT/hooks.json" ]]; then
-  HOOKS_SRC="$TOOLKIT_ROOT/hooks.json"
-elif [[ -f "$TOOLKIT_ROOT/.agents/hooks.json" ]]; then
-  HOOKS_SRC="$TOOLKIT_ROOT/.agents/hooks.json"
-fi
-
-if [[ -n "$HOOKS_SRC" ]]; then
-  echo -e "${BOLD}▸ Copying Lifecycle Hooks Configuration...${NC}"
-  copy_file "$HOOKS_SRC" "$TARGET/$BASE_DIR/hooks.json" "$BASE_DIR/hooks.json"
-fi
-
+COMPILE_JSON=$("$PYTHON" "$COMPILER_SCRIPT" "${COMPILE_ARGS[@]}")
+COPIED=$("$PYTHON" -c "import json,sys; print(json.loads(sys.argv[1]).get('written', 0))" "$COMPILE_JSON")
+TOTAL_MANAGED=$("$PYTHON" -c "import json,sys; print(len(json.loads(sys.argv[1]).get('installed_files', [])))" "$COMPILE_JSON")
+SKIPPED=$(( TOTAL_MANAGED >= COPIED ? TOTAL_MANAGED - COPIED : 0 ))
 
 # ─── Setup Workspace folder (workforces/) ───
 WORKFORCES_DIR="$TARGET/workforces"
@@ -461,7 +384,6 @@ add_gitignore_entry "workforces/memory" "workforces/memory"
 add_gitignore_entry ".worktrees" ".worktrees (agent parallelization)"
 
 if [[ "$DRY" != true ]]; then
-  # Seed workforce.md if not already present
   if [[ ! -f "$WORKFORCES_DIR/README.md" ]]; then
     capitalized_type="$(tr '[:lower:]' '[:upper:]' <<< ${REPO_TYPE:0:1})${REPO_TYPE:1}"
     cat > "$WORKFORCES_DIR/README.md" << EOF
@@ -471,15 +393,12 @@ EOF
     echo -e "  ${GREEN}CREATED:${NC} workforces/README.md"
   fi
 
-  # Format installed teams YAML
   INSTALLED_TEAMS_YAML=""
   for t in $INSTALLED_TEAMS_LIST; do
     INSTALLED_TEAMS_YAML+=$'  - '"$t"$'\n'
   done
 
-  # Seed workrules.md if not already present
   if [[ ! -f "$WORKFORCES_DIR/workrules.md" ]]; then
-
     cat > "$WORKFORCES_DIR/workrules.md" << EOF
 # Work Rules
 
@@ -507,9 +426,25 @@ ${INSTALLED_TEAMS_YAML:-  []}
 3. Check workforces/goals/ for active task boards
 EOF
     echo -e "  ${GREEN}CREATED:${NC} workforces/workrules.md"
+  else
+    "$PYTHON" - "$(dirname "$RESOLVER_SCRIPT")" "$TARGET" "$REPO_TYPE" "$INSTALLED_TEAMS_LIST" << 'PYEOF'
+import os, re, sys
+sys.path.insert(0, sys.argv[1])
+import prune_team as pt
+target, repo_type, teams_raw = sys.argv[2], sys.argv[3], sys.argv[4]
+teams = [t for t in teams_raw.split() if t]
+changed = pt.update_workrules(target, teams, dry_run=False)
+wr = os.path.join(target, "workforces", "workrules.md")
+txt = open(wr, encoding="utf-8").read()
+new_txt = re.sub(r"(?m)^-\s*type:\s*\S+", f"- type: {repo_type}", txt)
+if new_txt != txt:
+    open(wr, "w", encoding="utf-8").write(new_txt)
+    changed = True
+if changed:
+    print("UPDATED")
+PYEOF
   fi
 
-  # Seed workstate.md if not already present
   if [[ ! -f "$WORKFORCES_DIR/workstate.md" ]]; then
     if [[ "$SITE_SETUP" == true ]]; then
       cat > "$WORKFORCES_DIR/workstate.md" << EOF
@@ -623,10 +558,7 @@ EOF
   fi
 fi
 
-
-# Setup project specific structure
 if [[ "$REPO_TYPE" == "workforce" && "$DRY" != true ]]; then
-  # Workforce command repo tracks child projects
   mkdir -p "$WORKFORCES_DIR/projects"
   if [[ ! -f "$WORKFORCES_DIR/projects/README.md" ]]; then
     cat > "$WORKFORCES_DIR/projects/README.md" << EOF
@@ -642,7 +574,7 @@ EOF
   fi
 fi
 
-# ─── Write installed version metadata ───
+# ─── Write installed version metadata & multi-host manifest ───
 if [[ "$DRY" != true ]]; then
   VERSION_FILE="$WORKFORCES_DIR/.version"
   INSTALLED_HASH="unknown"
@@ -658,18 +590,29 @@ date: $(date -u +%Y-%m-%d)
 EOF
   echo -e "  ${GREEN}WRITTEN:${NC} workforces/.version (${INSTALLED_HASH})"
 
-  if [[ -f "$RESOLVER_SCRIPT" && -n "$PYTHON" ]]; then
-    "$PYTHON" "$RESOLVER_SCRIPT" --toolkit-root "$TOOLKIT_ROOT" --target "$TARGET" ${TEAMS_ARG:+--teams "$TEAMS_ARG"} --save-manifest --version-hash "${INSTALLED_HASH}"
+  if [[ -f "$RESOLVER_SCRIPT" ]]; then
+    SAVE_MF_ARGS=(
+      --toolkit-root "$TOOLKIT_ROOT"
+      --target "$TARGET"
+      --hosts "$ACTIVE_HOSTS_CSV"
+      --save-manifest
+      --version-hash "${INSTALLED_HASH}"
+    )
+    [[ "$EFFECTIVE_AUTO_DETECT" == "false" ]] && SAVE_MF_ARGS+=(--no-auto-detect)
+    [[ -n "$TEAMS_ARG" ]] && SAVE_MF_ARGS+=(--teams "$TEAMS_ARG")
+    "$PYTHON" "$RESOLVER_SCRIPT" "${SAVE_MF_ARGS[@]}" >/dev/null
     echo -e "  ${GREEN}WRITTEN:${NC} workforces/.manifest.json"
   fi
 fi
 
-# ─── Editor Config Generator ───
+# ─── Root Host Context Doc Generator (per active host) ───
+has_active_host() {
+  [[ ",$ACTIVE_HOSTS_CSV," == *",$1,"* ]]
+}
+
 if [[ "$DRY" != true ]]; then
-  case "$DETECTED_EDITOR" in
-    antigravity)
-      if [[ ! -f "$TARGET/GEMINI.md" ]]; then
-        cat > "$TARGET/GEMINI.md" << EOF
+  if has_active_host "antigravity" && [[ ! -f "$TARGET/GEMINI.md" ]]; then
+    cat > "$TARGET/GEMINI.md" << EOF
 # Project Context
 
 This project uses the [workforces](https://github.com/wedigcode/workforces) AI toolkit.
@@ -681,44 +624,71 @@ This project uses the [workforces](https://github.com/wedigcode/workforces) AI t
 ## Instructions
 Refer to \`.agents/rules/wf-base.md\` and run modular skills from \`.agents/skills/\` (e.g. \`/wf-plan\`, \`/wf-sync\`, \`/wf-advisor\`) or invoke specialized subagents from \`.agents/agents/\` (e.g. \`@wf-programmer\`, \`@wf-designer\`) to perform tasks.
 EOF
-        echo -e "  ${GREEN}CREATED:${NC} GEMINI.md"
-      fi
-      ;;
-    vscode)
+    echo -e "  ${GREEN}CREATED:${NC} GEMINI.md"
+  fi
+
+  if has_active_host "claude" && [[ ! -f "$TARGET/CLAUDE.md" ]]; then
+    cat > "$TARGET/CLAUDE.md" << EOF
+# Claude Code Instructions
+
+This project utilizes the Workforces AI toolkit. Please refer to rules in \`.claude/rules/wf-base.md\` and run modular skills from \`.claude/skills/\` (e.g. \`/wf-plan\`, \`/wf-sync\`, \`/wf-advisor\`) or invoke specialist agents from \`.claude/agents/\` (e.g. \`@wf-programmer\`, \`@wf-designer\`).
+EOF
+    echo -e "  ${GREEN}CREATED:${NC} CLAUDE.md"
+  fi
+
+  if has_active_host "copilot"; then
+    if [[ ! -f "$TARGET/.github/copilot-instructions.md" ]]; then
+      mkdir -p "$TARGET/.github"
+      cat > "$TARGET/.github/copilot-instructions.md" << EOF
+# GitHub Copilot Instructions
+
+This project utilizes the [workforces](https://github.com/wedigcode/workforces) AI toolkit. Please refer to instructions in \`.github/instructions/wf-base.instructions.md\`, run modular skills from \`.github/skills/\` (e.g. \`/wf-plan\`, \`/wf-sync\`, \`/wf-advisor\`), or invoke specialist custom agents from \`.github/agents/\` (e.g. \`@wf-programmer\`, \`@wf-designer\`).
+EOF
+      echo -e "  ${GREEN}CREATED:${NC} .github/copilot-instructions.md"
+    fi
+
+    if [[ -d "$TARGET/.vscode" || "$VSCODE_ALIAS_USED" == true ]]; then
       mkdir -p "$TARGET/.vscode"
       if [[ ! -f "$TARGET/.vscode/settings.json" ]]; then
         cat > "$TARGET/.vscode/settings.json" << EOF
 {
   "github.copilot.chat.codeGeneration.instructions": [
-    { "file": ".github/copilot/instructions.md" }
+    { "file": ".github/copilot-instructions.md" }
   ]
 }
 EOF
         echo -e "  ${GREEN}CREATED:${NC} .vscode/settings.json"
       fi
-      if [[ ! -f "$TARGET/.github/copilot/instructions.md" ]]; then
-        mkdir -p "$TARGET/.github/copilot"
-        cat > "$TARGET/.github/copilot/instructions.md" << EOF
-# VS Code Copilot Instructions
+    fi
+  fi
 
-This project utilizes the Workforces AI toolkit. Please refer to rules in \`.github/copilot/rules/wf-base.md\` and run modular skills from \`.github/copilot/skills/\` (e.g. \`/wf-plan\`, \`/wf-sync\`, \`/wf-advisor\`) or invoke specialist agents from \`.github/copilot/agents/\` (e.g. \`@wf-programmer\`, \`@wf-designer\`).
-EOF
-        echo -e "  ${GREEN}CREATED:${NC} .github/copilot/instructions.md"
-      fi
-      ;;
-    claude)
-      if [[ ! -f "$TARGET/CLAUDE.md" ]]; then
-        cat > "$TARGET/CLAUDE.md" << EOF
-# Claude Code Instructions
+  if (has_active_host "grok" || has_active_host "cursor") && [[ ! -f "$TARGET/AGENTS.md" ]]; then
+    if has_active_host "grok" && has_active_host "cursor"; then
+      cat > "$TARGET/AGENTS.md" << EOF
+# Project Context
 
-This project utilizes the Workforces AI toolkit. Please refer to rules in \`.claude/rules/wf-base.md\` and run modular skills from \`.claude/skills/\` (e.g. \`/wf-plan\`, \`/wf-sync\`, \`/wf-advisor\`) or invoke specialist agents from \`.claude/agents/\` (e.g. \`@wf-programmer\`, \`@wf-designer\`).
+This project uses the [workforces](https://github.com/wedigcode/workforces) AI toolkit.
+
+## Toolkit Structures
+- Grok Build assets: \`.grok/\` (rules in \`.grok/rules/wf-base.md\`, skills in \`.grok/skills/\`, agents in \`.grok/agents/\`)
+- Cursor assets: \`.cursor/\` (rules in \`.cursor/rules/wf-base.mdc\`, skills in \`.cursor/skills/\`, agents in \`.cursor/agents/\`)
+- User workspace and state: \`workforces/\`
 EOF
-        echo -e "  ${GREEN}CREATED:${NC} CLAUDE.md"
-      fi
-      ;;
-    grok)
-      if [[ ! -f "$TARGET/AGENTS.md" ]]; then
-        cat > "$TARGET/AGENTS.md" << EOF
+    elif has_active_host "cursor"; then
+      cat > "$TARGET/AGENTS.md" << EOF
+# Project Context
+
+This project uses the [workforces](https://github.com/wedigcode/workforces) AI toolkit, configured for Cursor.
+
+## Toolkit Structures
+- Rules, personas & skills: \`.cursor/\`
+- User workspace and state: \`workforces/\`
+
+## Instructions
+Refer to \`.cursor/rules/wf-base.mdc\` and run modular skills from \`.cursor/skills/\` (e.g. \`/wf-plan\`, \`/wf-sync\`, \`/wf-advisor\`) or invoke specialist agents from \`.cursor/agents/\` (e.g. \`@wf-programmer\`, \`@wf-designer\`).
+EOF
+    else
+      cat > "$TARGET/AGENTS.md" << EOF
 # Project Context
 
 This project uses the [workforces](https://github.com/wedigcode/workforces) AI toolkit, installed for Grok Build.
@@ -729,12 +699,10 @@ This project uses the [workforces](https://github.com/wedigcode/workforces) AI t
 
 ## Instructions
 Refer to \`.grok/rules/wf-base.md\` and run modular skills from \`.grok/skills/\` (e.g. \`/wf-plan\`, \`/wf-sync\`, \`/wf-advisor\`) or invoke specialist agents from \`.grok/agents/\` (e.g. \`@wf-programmer\`, \`@wf-designer\`).
-See \`docs/grok.md\` in the Workforces repo for host mapping (tool names, python vs python3).
 EOF
-        echo -e "  ${GREEN}CREATED:${NC} AGENTS.md"
-      fi
-      ;;
-  esac
+    fi
+    echo -e "  ${GREEN}CREATED:${NC} AGENTS.md"
+  fi
 fi
 
 # ─── Summary ───
@@ -742,16 +710,16 @@ echo ""
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "  ${BOLD}Install Summary${NC}"
 if [[ "$DRY" == true ]]; then
-  echo -e "  Simulated: ${YELLOW}$COPIED${NC} files to copy"
+  echo -e "  Simulated: ${YELLOW}$COPIED${NC} files to compile"
   echo -e "  Skipped:   $SKIPPED files (already identical)"
-  echo -e "  Editor:    ${CYAN}$DETECTED_EDITOR${NC}"
+  echo -e "  Hosts:     ${CYAN}$ACTIVE_HOSTS_CSV${NC}"
   echo ""
   echo -e "  ${YELLOW}Mode: DRY RUN — no files were created or modified${NC}"
   echo -e "  ${YELLOW}✓ Dry-run completed successfully! Run without --dry to install.${NC}"
 else
-  echo -e "  Copied:  ${GREEN}$COPIED${NC} files"
-  echo -e "  Skipped: $SKIPPED files (already identical)"
-  echo -e "  Editor:  ${CYAN}$DETECTED_EDITOR${NC}"
+  echo -e "  Compiled: ${GREEN}$COPIED${NC} files"
+  echo -e "  Skipped:  $SKIPPED files (already identical)"
+  echo -e "  Hosts:    ${CYAN}$ACTIVE_HOSTS_CSV${NC}"
   echo ""
   echo -e "  ${GREEN}✓ Workforces toolkit installed successfully!${NC}"
 fi
@@ -759,7 +727,6 @@ if [[ "$SITE_SETUP" == true ]]; then
   echo ""
   echo -e "  ${BOLD}${CYAN}🚀 Site Setup Initialized:${NC}"
   echo -e "     Run ${BOLD}/wf-site-setup${NC} (or invoke ${BOLD}/wf-advisor${NC} / ${BOLD}@wf-designer${NC}) in your AI assistant to:"
-
   echo -e "     1. Consult with wf-advisor to unpack root problems, pain points & stakes"
   echo -e "     2. Brainstorm creative design concepts & define design tokens"
   echo -e "     3. Select tech stack & cloud hosting"
@@ -767,4 +734,3 @@ if [[ "$SITE_SETUP" == true ]]; then
 fi
 echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
-
