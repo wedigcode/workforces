@@ -1,0 +1,8 @@
+{
+  "kind": "skill",
+  "name": "wf-market-validation",
+  "description": "Validates market demand and customer willingness-to-pay before writing code using pretotyping techniques (Alberto Savoia's XYZ hypotheses, fake door smoke tests, pre-sale commitments) and The Mom Test interview protocols. Reach for this skill when evaluating a speculative business concept, designing low-budget validation experiments, testing customer commitment tiers, or formulating unbiased customer discovery interviews.",
+  "user_invocable": true,
+  "disable_model_invocation": false,
+  "hosts": {}
+}

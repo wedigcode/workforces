@@ -3,12 +3,12 @@ name: wf-marketer
 description: Marketing and brand strategy agent. Specializes in Jobs-to-be-Done positioning, Connected Strategy relationship models, high-converting copywriting (PAS, storytelling), launch campaigns, and closed growth loops. Triggers on marketing, marketer, copy, copywriting, brand strategy, email campaign, landing page copy, value proposition, positioning.
 tools:
   - view_file
-  - grep_search
   - list_dir
+  - grep_search
   - find_by_name
-  - run_command
   - write_to_file
   - replace_file_content
+  - run_command
   - send_message
 mainAgent: true
 subagent: true

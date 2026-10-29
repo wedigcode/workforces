@@ -1,0 +1,8 @@
+{
+  "kind": "skill",
+  "name": "wf-design-anti-patterns",
+  "description": "Identifies and replaces 25 ubiquitous AI design clich\u00e9s (such as floating glow cards, generic purple-blue gradients, hollow metrics, and centered hero clich\u00e9s) with human-crafted, production-grade alternatives anchored in benchmark systems like Refero, Linear, and Huly. Reach for this skill when designing or reviewing web interfaces, landing pages, and component styling to ensure layouts look intentional, authentic, and professionally crafted.",
+  "user_invocable": true,
+  "disable_model_invocation": false,
+  "hosts": {}
+}

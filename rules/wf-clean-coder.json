@@ -1,0 +1,8 @@
+{
+  "kind": "rule",
+  "name": "wf-clean-coder",
+  "description": "Clean code craftsmanship, TDD red-green-refactor workflow, symbol deduplication, SOLID/DRY architecture, and pre-handoff quality gates.",
+  "always_on": false,
+  "globs": [],
+  "hosts": {}
+}

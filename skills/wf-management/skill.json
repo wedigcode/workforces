@@ -1,0 +1,8 @@
+{
+  "kind": "skill",
+  "name": "wf-management",
+  "description": "Manages the lifecycle, installation, multi-AI frontmatter compilation, updates, and configuration of the Workforces toolkit across multi-editor environments (.agents/, .claude/, .grok/, .github/, .cursor/). Reach for this skill when installing modular team packs (e.g., dev, marketing, sales), safely pruning unused team configurations with reference-counted dependency resolution, updating core toolkit scripts and files, or adjusting workspace settings in workforces/config.json.",
+  "user_invocable": true,
+  "disable_model_invocation": false,
+  "hosts": {}
+}

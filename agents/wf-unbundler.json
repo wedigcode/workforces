@@ -1,0 +1,22 @@
+{
+  "kind": "agent",
+  "name": "wf-unbundler",
+  "description": "Atomic Micro-SaaS architect and incumbent software unbundler. Analyzes bloated SaaS tools, extracts single-feature atomic opportunities, evaluates Spreadsheet Moat and viability scorecards, calculates bottom-up TAM/SAM/SOM and ramen-to-scale milestones, and creates zero-bloat PRDs.",
+  "capabilities": [
+    "read",
+    "search",
+    "edit",
+    "execute",
+    "delegate"
+  ],
+  "skills": [
+    "wf-site-setup",
+    "wf-feature-research",
+    "wf-brand-guidelines",
+    "wf-ui-ux-design",
+    "wf-memory-management",
+    "wf-issue-tracker"
+  ],
+  "background_only": false,
+  "hosts": {}
+}

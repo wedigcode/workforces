@@ -1,0 +1,8 @@
+{
+  "kind": "skill",
+  "name": "wf-codebase-improvement",
+  "description": "Audits, refactors, and elevates repository quality across five core engineering pillars: Cleanup (dead code, unused deps), Performance (bottlenecks, query efficiency), Security (vulnerabilities, hardcoded secrets), Code Health (type safety, architectural debt), and Testing (coverage gaps). Reach for this skill during proactive hygiene sweeps, post-feature cleanup, or when investigating degraded system performance and accumulated technical debt.",
+  "user_invocable": true,
+  "disable_model_invocation": false,
+  "hosts": {}
+}

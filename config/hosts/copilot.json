@@ -1,0 +1,73 @@
+{
+  "id": "copilot",
+  "aliases": ["copilot", "vscode", "github", "github-copilot"],
+  "display_name": "GitHub Copilot / VS Code",
+  "base_dir": ".github",
+  "detect_any": [
+    ".github/copilot",
+    ".github/copilot-instructions.md",
+    ".github/agents",
+    ".github/instructions",
+    ".github/skills",
+    ".vscode"
+  ],
+  "root_doc": {
+    "path": ".github/copilot-instructions.md",
+    "template": "# GitHub Copilot Instructions\n\nThis project utilizes the [workforces](https://github.com/wedigcode/workforces) AI toolkit.\n\n## Toolkit Structures\n- Custom Agents: `.github/agents/*.agent.md`\n- Scoped & Global Instructions: `.github/instructions/*.instructions.md`\n- Modular Skills: `.github/skills/*/SKILL.md`\n- User Workspace & State: `workforces/`\n\n## Instructions\nRefer to `.github/instructions/wf-base.instructions.md` and run modular skills from `.github/skills/` (e.g. `/wf-plan`, `/wf-sync`, `/wf-advisor`) or invoke custom agents from `.github/agents/` (e.g. `@wf-programmer`, `@wf-designer`).\n"
+  },
+  "dirs": {
+    "agents": { "path": "agents", "ext": ".agent.md" },
+    "rules": { "path": "instructions", "ext": ".instructions.md" },
+    "skills": { "path": "skills", "filename": "SKILL.md" },
+    "workflows": { "path": "prompts", "ext": ".prompt.md" },
+    "teams": { "path": "copilot/teams" }
+  },
+  "hooks_mode": "none",
+  "capability_map": {
+    "read": ["read"],
+    "search": ["search"],
+    "edit": ["edit"],
+    "multi_edit": ["edit"],
+    "execute": ["execute"],
+    "web": ["web"],
+    "image": [],
+    "delegate": ["agent"]
+  },
+  "agent_schema": {
+    "field_order": [
+      "name",
+      "description",
+      "target",
+      "tools",
+      "user-invocable",
+      "disable-model-invocation",
+      "handoffs",
+      "mcp-servers"
+    ],
+    "tools_field": "tools",
+    "include_skills": false,
+    "defaults": {
+      "user-invocable": true,
+      "disable-model-invocation": false
+    },
+    "when_background_only": {
+      "user-invocable": false
+    }
+  },
+  "rule_schema": {
+    "include_description": true,
+    "emit_when_always_on": {
+      "applyTo": "**"
+    },
+    "emit_when_scoped": {},
+    "globs_field_when_scoped": "applyTo",
+    "globs_format": "csv"
+  },
+  "skill_schema": {
+    "fields": ["name", "description", "argument-hint", "user-invocable", "disable-model-invocation"],
+    "tools_field": "allowed-tools"
+  },
+  "workflow_schema": {
+    "fields": ["description", "argument-hint"]
+  }
+}

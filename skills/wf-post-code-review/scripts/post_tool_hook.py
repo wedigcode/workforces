@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
 
-EDITOR_BASES = (".agents", ".claude", ".grok", ".github/copilot", "")
+EDITOR_BASES = (".agents", ".claude", ".grok", ".github", ".github/copilot", ".cursor", "")
 
 
 def find_reviewer_script(root_dir: Optional[Path] = None) -> Optional[Path]:
@@ -44,43 +44,46 @@ def _default_workspace_root() -> Path:
         p2 = cwd.parent.parent
         if p2.name == "copilot" and p2.parent.name == ".github":
             return p2.parent.parent
-        if p2.name in (".agents", ".claude", ".grok"):
+        if p2.name in (".agents", ".claude", ".grok", ".github", ".cursor"):
             return p2.parent
         return p2
     return cwd
 
 
-def parse_post_tool_stdin() -> Tuple[Dict[str, Any], Path]:
-    """
-    Read and parse JSON from sys.stdin adhering to Antigravity PostToolUse protocol.
-    Returns: (payload_dict, root_directory_path)
-    """
-    default_root = _default_workspace_root()
+def _read_post_stdin_dict() -> Dict[str, Any]:
+    """Read and parse JSON object from sys.stdin; return {} on empty or invalid input."""
     raw_input = ""
     try:
         if not sys.stdin.isatty():
             raw_input = sys.stdin.read()
     except Exception as err:
         sys.stderr.write(f"[post_tool_hook] Warning reading stdin: {err}\n")
-
     if not raw_input.strip():
-        return {}, default_root
-
+        return {}
     try:
         data = json.loads(raw_input)
     except Exception as err:
         sys.stderr.write(f"[post_tool_hook] Non-JSON or malformed stdin received: {err}\n")
-        return {}, default_root
+        return {}
+    return data if isinstance(data, dict) else {}
 
-    if not isinstance(data, dict):
-        return {}, default_root
 
+def parse_post_tool_stdin() -> Tuple[Dict[str, Any], Path]:
+    """Read PostToolUse JSON from sys.stdin and return (payload_dict, root_directory_path)."""
+    default_root = _default_workspace_root()
+    data = _read_post_stdin_dict()
+    if not data:
+        return {}, default_root
     workspace_paths = data.get("workspacePaths")
-    if workspace_paths and isinstance(workspace_paths, list) and len(workspace_paths) > 0:
-        candidate_ws = Path(workspace_paths[0]).resolve()
+    if isinstance(workspace_paths, list) and workspace_paths:
+        candidate_ws = Path(str(workspace_paths[0])).resolve()
         if candidate_ws.exists():
             return data, candidate_ws
-
+    raw_cwd = data.get("cwd")
+    if isinstance(raw_cwd, str) and raw_cwd.strip():
+        cand_cwd = Path(raw_cwd).resolve()
+        if cand_cwd.exists():
+            return data, (cand_cwd if cand_cwd.is_dir() else cand_cwd.parent)
     return data, default_root
 
 

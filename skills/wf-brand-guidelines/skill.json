@@ -1,0 +1,8 @@
+{
+  "kind": "skill",
+  "name": "wf-brand-guidelines",
+  "description": "Defines, audits, and enforces brand voice, typography, color palettes, logo usage, and cross-channel consistency. Reach for this skill when bootstrapping brand standards for a new project (`docs/brand-context.md`), auditing marketing copy or UI designs for voice drift and off-brand visual elements, reviewing design tokens against brand rules, or onboarding designers and copywriters to ensure consistent identity.",
+  "user_invocable": true,
+  "disable_model_invocation": false,
+  "hosts": {}
+}

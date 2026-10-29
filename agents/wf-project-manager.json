@@ -1,0 +1,26 @@
+{
+  "kind": "agent",
+  "name": "wf-project-manager",
+  "description": "Strategic planning agent that generates new work, prioritizes the backlog, and sequences tasks. Bridges goals to execution by turning objectives into ranked, scored work items. Leads daily standup syncs (/wf-sync --daily) and personal follow-up radars (/wf-sync --me), and co-leads strategic reviews (/wf-sync --strategy) and goal scaffolding (/wf-sync --goals). Invoked by /wf-plan and /wf-sync. Triggers on roadmap, backlog, planning, priorities, strategy, what's next, sprint, sync, standup, wins, losses, me sync, followups.",
+  "capabilities": [
+    "read",
+    "search",
+    "edit",
+    "execute",
+    "delegate"
+  ],
+  "skills": [
+    "wf-github-project-planning",
+    "wf-memory-management",
+    "wf-business-frameworks",
+    "wf-pr-review",
+    "wf-jules-integration",
+    "wf-task-tracker",
+    "wf-issue-tracker",
+    "wf-hypothesis-tracker",
+    "wf-agent-parallelization",
+    "wf-canvas"
+  ],
+  "background_only": false,
+  "hosts": {}
+}

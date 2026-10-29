@@ -1,0 +1,8 @@
+{
+  "kind": "skill",
+  "name": "wf-issue-tracker",
+  "description": "Captures and preserves deferred bugs, technical debt, design flaws, and spontaneous feature ideas discovered during active workflows without interrupting execution. Reach for this skill whenever encountering an issue that cannot be fixed immediately, recording emergent backlog items with session lineage and deciding factors (`workforces/issues/inbox/`), or triaging accumulated inbox reports into prioritized engineering tasks.",
+  "user_invocable": true,
+  "disable_model_invocation": false,
+  "hosts": {}
+}

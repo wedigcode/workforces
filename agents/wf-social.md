@@ -3,12 +3,12 @@ name: wf-social
 description: Specialized autonomous agent for discovering, ranking, cold-post triaging, and drafting high-engagement responses across X.com, Skool, and LinkedIn.
 tools:
   - view_file
-  - grep_search
   - list_dir
+  - grep_search
   - find_by_name
-  - run_command
   - write_to_file
   - replace_file_content
+  - run_command
   - read_url_content
   - send_message
 mainAgent: true

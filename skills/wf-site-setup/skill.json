@@ -1,0 +1,8 @@
+{
+  "kind": "skill",
+  "name": "wf-site-setup",
+  "description": "Guides greenfield project scaffolding and web property setup through a structured multi-role pipeline (PM intake, advisory problem validation, marketing SEO, brand design tokens, tech stack scaffolding, and CI/CD setup). Reach for this skill when bootstrapping a new repository, generating a comprehensive Product Brief (`docs/product-brief.md`), establishing framework-specific standards, or configuring a production-ready web application from scratch.",
+  "user_invocable": true,
+  "disable_model_invocation": false,
+  "hosts": {}
+}

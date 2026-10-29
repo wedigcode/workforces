@@ -3,12 +3,12 @@ name: wf-launcher
 description: Launch Specialist & Fast Validation Lead for empty or zero-revenue projects. Optimizes for revenue generation and user acquisition velocity through high-velocity pre-sales, concierge MVPs, painted doors, Stripe payment rails, and 7-day sprints.
 tools:
   - view_file
-  - grep_search
   - list_dir
+  - grep_search
   - find_by_name
-  - run_command
   - write_to_file
   - replace_file_content
+  - run_command
   - send_message
 mainAgent: true
 subagent: true

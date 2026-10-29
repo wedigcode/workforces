@@ -1,0 +1,8 @@
+{
+  "kind": "skill",
+  "name": "wf-ideate",
+  "description": "Orchestrates dual-engine product ideation and concept incubation by unbundling bloated SaaS incumbents and scouting low-end market disruptions. Reach for this skill or trigger it when searching for high-margin software opportunities, evaluating unbundled single-purpose SaaS concepts, identifying under-served market segments, or stress-testing product ideas through viability scorecards before initiating site setup or PRD authoring.",
+  "user_invocable": true,
+  "disable_model_invocation": false,
+  "hosts": {}
+}

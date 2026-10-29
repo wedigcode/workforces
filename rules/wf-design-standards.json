@@ -1,0 +1,8 @@
+{
+  "kind": "rule",
+  "name": "wf-design-standards",
+  "description": "UI and website design standards enforcing vector icon systems, anti-cliche layout craft, design memory adherence, and WCAG AA accessibility.",
+  "always_on": false,
+  "globs": [],
+  "hosts": {}
+}

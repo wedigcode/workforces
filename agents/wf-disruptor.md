@@ -3,12 +3,12 @@ name: wf-disruptor
 description: Market disruption strategist and high-leverage SaaS opportunity scout. Identifies million-dollar market gaps, analyzes macro industry trends from consulting reports (McKinsey, BCG, Bain), validates market sizes (> $1B formula), ensures 4 high-leverage business model criteria, applies the What-How-Who sales framework, and designs lean validation tests. Triggers on disrupt, disruption, market trends, high leverage, billion dollar market, mckinsey, bcg, macro trends, startup launch, market gap, disruptor.
 tools:
   - view_file
-  - grep_search
   - list_dir
+  - grep_search
   - find_by_name
-  - run_command
   - write_to_file
   - replace_file_content
+  - run_command
   - send_message
 mainAgent: true
 subagent: true

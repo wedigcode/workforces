@@ -1,0 +1,8 @@
+{
+  "kind": "skill",
+  "name": "wf-canvas",
+  "description": "Renders an interactive, zero-npm visual command canvas bridging macro strategy (task states, dependencies, team standup boards) with micro code architecture (AST call graphs and blast radius analysis). Reach for this skill when presenting visual task dependencies to stakeholders, exploring architectural call graphs in a browser, or interactively managing task statuses and blocker linkages.",
+  "user_invocable": true,
+  "disable_model_invocation": false,
+  "hosts": {}
+}

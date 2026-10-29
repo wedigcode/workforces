@@ -1,0 +1,8 @@
+{
+  "kind": "skill",
+  "name": "wf-agent-parallelization",
+  "description": "Enables safe concurrent multi-agent software engineering using isolated Git worktrees, stacked PRs (`gh-stack`), and conflict resolution (`git rerere`). Reach for this skill when dispatching multiple coding subagents concurrently, fanning out independent backlog tasks, building multi-layer epics that require dependent PR chains without blocking on review, or preventing `.git/index.lock` collisions and dirty working tree crosstalk across parallel sessions.",
+  "user_invocable": true,
+  "disable_model_invocation": false,
+  "hosts": {}
+}

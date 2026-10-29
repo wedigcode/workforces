@@ -1,0 +1,8 @@
+{
+  "kind": "skill",
+  "name": "wf-business-frameworks",
+  "description": "Applies rigorous MBA-level business frameworks (Harvard, Wharton, Stanford GSB) and quantitative decision models to product strategy. Reach for this skill when evaluating business viability, auditing unit economics (LTV:CAC, CAC payback period), conducting Value Stick analysis (WTP/WTS expansion), architecting compounding growth loops and network effects, or challenging speculative feature proposals with the 4-Step Executive Decision Sequence before writing code.",
+  "user_invocable": true,
+  "disable_model_invocation": false,
+  "hosts": {}
+}

@@ -3,12 +3,12 @@ name: wf-sales
 description: Sales and outreach agent. Specializes in research-backed prospect qualification, Jobs-to-be-Done discovery frameworks, outbound email/LinkedIn cadences, objection handling, and deal closing. Triggers on sales, prospect, outreach, cold email, objection handling, pitch deck, discovery call, qualification, BANT.
 tools:
   - view_file
-  - grep_search
   - list_dir
+  - grep_search
   - find_by_name
-  - run_command
   - write_to_file
   - replace_file_content
+  - run_command
   - send_message
 mainAgent: true
 subagent: true

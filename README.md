@@ -1,6 +1,6 @@
 # Workforces
 
-A lean, portable AI toolkit containing modernized subagents, modular skills, native lifecycle hooks, and behavioral rules.
+A lean, portable AI toolkit that compiles modernized subagents, modular skills, native lifecycle hooks, and behavioral rules natively across Antigravity, Claude Code, Grok Build, GitHub Copilot, and Cursor.
 
 ---
 
@@ -22,17 +22,19 @@ A **central coordinator repo** that tracks and manages multiple project repos. I
 
 ## Toolkit Structure
 
-When installed, the toolkit separates static agent assets (the **Toolkit Layer**) from your runtime states and configurations (the **Workspace Layer**):
+When installed, `compile_assets.py` separates host-compiled agent assets (the **Toolkit Layer**) from your runtime states and persistent configuration (the **Workspace Layer**):
 
 ```
-.agents/               ← Toolkit Layer (automatically updated, read-only)
-├── agents/            ← Subagent personas with official Antigravity schema (e.g., wf-project-manager.md)
-├── skills/            ← Modular agent skills with rich semantic discovery (e.g., wf-plan/, wf-clean-coder/)
-├── rules/             ← Always-on behavioral rules (e.g., wf-base.md)
-├── plugins/           ← Domain plugin bundles (e.g., wf-programming-plugin/)
-└── hooks.json         ← Native lifecycle hooks (PreToolUse / PostToolUse)
+.agents/               ← Toolkit Layer for Antigravity (or .claude/, .grok/, .github/, .cursor/)
+├── agents/            ← Host-compiled subagent personas (e.g., wf-project-manager.md / .agent.md)
+├── skills/            ← Modular agent skills with semantic discovery (e.g., wf-plan/, wf-clean-coder/)
+├── rules/             ← Behavioral rules (instructions/*.instructions.md on Copilot, *.mdc on Cursor)
+├── plugins/           ← Domain plugin & lifecycle hook bundles (or .claude/settings.json / .grok/hooks.json)
+└── teams/             ← Installed modular Team Pack manifests
 
 workforces/            ← Workspace Layer (user-owned configuration and state)
+├── config.json        ← Persistent multi-host install config (hosts, auto_detect_hosts, installed_teams)
+├── .manifest.json     ← Compiled file manifest for safe updates and reference-counted pruning
 ├── README.md          ← Workspace overview
 ├── workrules.md       ← User configurations, settings, and response preferences
 ├── workstate.md       ← Workspace tracking state
@@ -45,13 +47,13 @@ workforces/            ← Workspace Layer (user-owned configuration and state)
 ## Installation Guide
 
 ### For AI Assistants (Autopilot Install)
-If you are an AI assistant (Antigravity, Claude Code, VS Code Copilot, or Grok Build) tasked with installing this repo:
+If you are an AI assistant (Antigravity/Gemini, Claude Code, GitHub Copilot, Cursor, or Grok Build) tasked with installing this repo:
 1. Clone this repository to `/tmp/workforces`.
-2. Inspect the host environment and run:
+2. Auto-detect present workspace AI hosts (or specify single/comma-separated hosts) and run:
    ```bash
-   bash /tmp/workforces/skills/wf-management/scripts/setup.sh ./ --editor <editor-type> --type <repo-type> --non-interactive
+   bash /tmp/workforces/skills/wf-management/scripts/setup.sh ./ --hosts <auto|all|csv> --type <repo-type> --non-interactive
    ```
-   *Replace `<editor-type>` with `antigravity`, `vscode`, `claude`, or `grok` depending on the user's workspace profile, and `<repo-type>` with `project` or `workforce`. Grok Build notes: [docs/grok.md](docs/grok.md).*
+   *Supported host IDs (`--hosts` or `--editor` alias): `antigravity` (`gemini`), `claude` (`claude-code`), `copilot` (`vscode`, `github`), `cursor`, `grok` (`grok-build`), `auto`, or `all`. On a first Grok install without existing `.grok/{agents,skills,rules,commands}`, pass `--hosts grok` explicitly ([docs/grok.md](docs/grok.md)).*
 3. Configure the user's response preferences inside `workforces/workrules.md` under `## AI Preferences`.
 
 ### For Humans (Manual Install)
@@ -60,7 +62,7 @@ git clone https://github.com/wedigcode/workforces.git /tmp/workforces
 bash /tmp/workforces/skills/wf-management/scripts/setup.sh ./
 rm -rf /tmp/workforces
 ```
-For more setup options and environment configuration, see the [Setup Guide](docs/setup.md).
+For multi-host options, compiler details, and `workforces/config.json` configuration, see the [Setup Guide](docs/setup.md).
 
 ---
 
@@ -112,7 +114,7 @@ Every Workforces skill and agent uses the `wf-` prefix (`@wf-<agent>`, `/wf-<ski
 | `/wf-ideate` | [`wf-ideate`](skills/wf-ideate/SKILL.md) | Rapid ideation, atomic micro-SaaS unbundling, and market disruption exploration |
 | `/wf-investigate` | [`wf-investigate`](skills/wf-investigate/SKILL.md) | Incident triage, log streaming to scratch, postmortem generation |
 | `/wf-question-formulation` | [`wf-question-formulation`](skills/wf-question-formulation/SKILL.md) | Formulate high-leverage questions with trade-offs before escalating decisions |
-| `/wf-update` | [`wf-update`](skills/wf-update/SKILL.md) | Update installed `.agents/` toolkit files, prune legacy assets, and manage Team Packs |
+| `/wf-update` | [`wf-update`](skills/wf-update/SKILL.md) | Recompile active AI host installations, prune obsolete assets/hooks, and manage Team Packs |
 
 ### Modular Domain & Agent Skills
 Specialist capabilities invoked via `/wf-<skill>`, `@wf-<agent>`, coordinators, or natural prompts:
@@ -130,12 +132,12 @@ Specialist capabilities invoked via `/wf-<skill>`, `@wf-<agent>`, coordinators, 
 | **Social Engagement** | [`wf-social-engagement`](skills/wf-social-engagement/SKILL.md) | Anti-bot community engagement, cold-post triage, and action dashboard |
 | **Integrity Validator** | [`wf-integrity-validator`](skills/wf-integrity-validator/SKILL.md) | Reference lineage enforcement and link verification (`validate-references.py`) |
 | **Workforce Canvas** | [`wf-canvas`](skills/wf-canvas/SKILL.md) | Interactive node-based visual command canvas daemon (`server.py`) |
-| **Workforce Management** | [`wf-management`](skills/wf-management/SKILL.md) | Toolkit updates, team pack installation, and reference-counted pruning |
+| **Workforce Management** | [`wf-management`](skills/wf-management/SKILL.md) | Multi-AI frontmatter compilation, updates, team packs, and reference-counted pruning |
 
-### Native Lifecycle Hooks (`hooks.json`)
-The toolkit integrates native lifecycle hooks distributed to `.agents/hooks.json` to enforce quality without relying solely on system prompts:
-- **`PreToolUse`**: Automatically triggers `wf-code-graph` symbol verification prior to file edits.
-- **`PostToolUse`**: Automatically runs `post_code_reviewer.py` to audit diffs, swallowed errors, and contract boundaries after tool calls.
+### Multi-AI Compiler & Native Lifecycle Hooks
+`compile_assets.py` combines canonical sidecar JSON (`agents/*.json`, `rules/*.json`, `skills/*/skill.json`, `plugins/*/plugin.json`) with declarative host adapter profiles (`config/hosts/*.json`) to emit native frontmatter, extensions (`.agent.md`, `.instructions.md`, `.prompt.md`, `.mdc`), rewritten relative links, and lifecycle hooks per host:
+- **`PreToolUse` & `PostToolUse` Quality Gates**: Triggers `wf-code-graph` symbol verification prior to file edits and runs `post_code_reviewer.py` / `validate-references.py` after edits.
+- **Native Per-Host Hook Emission**: Emits `.agents/plugins/<name>/{plugin.json,hooks.json}` for Antigravity, idempotently merges/prunes `wf-*` hook commands in `.claude/settings.json` for Claude Code, compiles `.grok/hooks.json` + `.grok/plugins/<name>/` for Grok Build, and skips unsupported JSON PreToolUse hooks cleanly on GitHub Copilot and Cursor.
 
 ---
 
@@ -167,16 +169,17 @@ graph LR
 
 ## Updating
 
-Update the installed toolkit using the built-in updater script or `/wf-update`:
+Update all active/detected AI host folders (`workforces/config.json`) using the built-in updater script or `/wf-update`:
 
 ```bash
-# Preview modifications
+# Preview multi-host modifications
 bash .agents/skills/wf-management/scripts/update.sh ./ --dry
 
-# Apply updates (prunes legacy unprefixed assets and updates wf-* skills/hooks)
+# Apply updates across all active/detected hosts (or pass --hosts claude,copilot,cursor)
 bash .agents/skills/wf-management/scripts/update.sh ./
 ```
 
-> **Upgrading from a pre-`wf-` install (`workforce-management`):** Run `/wf-update` (which automatically bootstraps from upstream if `wf-management` is missing) or run the updater once from a temporary clone (`tmp_wf="$(mktemp -d)" && git clone --depth=1 https://github.com/wedigcode/workforces.git "$tmp_wf" && bash "$tmp_wf/skills/wf-management/scripts/update.sh" ./ --force && rm -rf "$tmp_wf"`).
+> **Upgrading from a pre-`wf-` install (`workforce-management`) or legacy `.github/copilot/`:** Run `/wf-update` (which automatically bootstraps from upstream if `wf-management` is missing and migrates legacy paths) or run once from a temporary clone (`tmp_wf="$(mktemp -d)" && git clone --depth=1 https://github.com/wedigcode/workforces.git "$tmp_wf" && bash "$tmp_wf/skills/wf-management/scripts/update.sh" ./ --force && rm -rf "$tmp_wf"`).
 
 Or ask your AI assistant: *"Update the workforces toolkit"* or run `/wf-update`.
+

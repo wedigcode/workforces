@@ -1,0 +1,26 @@
+{
+  "kind": "agent",
+  "name": "wf-launcher",
+  "description": "Launch Specialist & Fast Validation Lead for empty or zero-revenue projects. Optimizes for revenue generation and user acquisition velocity through high-velocity pre-sales, concierge MVPs, painted doors, Stripe payment rails, and 7-day sprints.",
+  "capabilities": [
+    "read",
+    "search",
+    "edit",
+    "execute",
+    "delegate"
+  ],
+  "skills": [
+    "wf-launch-playbook",
+    "wf-market-validation",
+    "wf-hypothesis-tracker",
+    "wf-business-frameworks",
+    "wf-brand-guidelines",
+    "wf-ui-ux-design",
+    "wf-persona-management",
+    "wf-ai-search-optimization",
+    "wf-issue-tracker",
+    "wf-task-tracker"
+  ],
+  "background_only": false,
+  "hosts": {}
+}

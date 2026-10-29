@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "capabilities": {
+    "read": "Read file contents and list directory entries.",
+    "search": "Search file contents (grep/ripgrep) and find files by name or glob.",
+    "edit": "Create new files and replace or modify single blocks in existing files.",
+    "multi_edit": "Perform multi-hunk replacements across file regions.",
+    "execute": "Execute shell or terminal commands.",
+    "web": "Fetch URL contents and perform web searches.",
+    "image": "Generate or edit visual assets from prompts.",
+    "delegate": "Spawn or communicate with subagents."
+  }
+}

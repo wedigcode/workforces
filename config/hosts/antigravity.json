@@ -1,0 +1,69 @@
+{
+  "id": "antigravity",
+  "aliases": ["antigravity", "gemini"],
+  "display_name": "Antigravity / Gemini",
+  "base_dir": ".agents",
+  "detect_any": [".agents", ".gemini", "GEMINI.md"],
+  "root_doc": {
+    "path": "GEMINI.md",
+    "template": "# Project Context\n\nThis project uses the [workforces](https://github.com/wedigcode/workforces) AI toolkit.\n\n## Toolkit Structures\n- Config, Personas & Skills: `.agents/`\n- User Workspace & State: `workforces/`\n\n## Instructions\nRefer to `.agents/rules/wf-base.md` and run modular skills from `.agents/skills/` (e.g. `/wf-plan`, `/wf-sync`, `/wf-advisor`) or invoke specialized subagents from `.agents/agents/` (e.g. `@wf-programmer`, `@wf-designer`) to perform tasks.\n"
+  },
+  "dirs": {
+    "agents": { "path": "agents", "ext": ".md" },
+    "rules": { "path": "rules", "ext": ".md" },
+    "skills": { "path": "skills", "filename": "SKILL.md" },
+    "workflows": { "path": "workflows", "ext": ".md" },
+    "plugins": { "path": "plugins" },
+    "teams": { "path": "teams" }
+  },
+  "hooks_mode": "plugin_bundles",
+  "hook_capability_map": {
+    "edit": ["write_file", "edit_file", "write_to_file", "replace_file_content"],
+    "multi_edit": ["multi_replace_file_content"]
+  },
+  "capability_map": {
+    "read": ["view_file", "list_dir"],
+    "search": ["grep_search", "find_by_name"],
+    "edit": ["write_to_file", "replace_file_content"],
+    "multi_edit": ["multi_replace_file_content"],
+    "execute": ["run_command"],
+    "web": ["read_url_content"],
+    "image": ["generate_image"],
+    "delegate": ["send_message"]
+  },
+  "agent_schema": {
+    "field_order": [
+      "name",
+      "description",
+      "tools",
+      "mainAgent",
+      "subagent",
+      "model",
+      "skills",
+      "commandExecutionPolicy"
+    ],
+    "tools_field": "tools",
+    "include_skills": true,
+    "defaults": {
+      "mainAgent": true,
+      "subagent": true,
+      "model": "inherit",
+      "commandExecutionPolicy": "sandbox"
+    },
+    "when_background_only": {
+      "mainAgent": false
+    }
+  },
+  "rule_schema": {
+    "emit_when_always_on": {
+      "trigger": "always_on"
+    },
+    "emit_when_scoped": {}
+  },
+  "skill_schema": {
+    "fields": ["name", "description"]
+  },
+  "workflow_schema": {
+    "fields": ["description"]
+  }
+}

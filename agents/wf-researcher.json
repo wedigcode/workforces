@@ -1,0 +1,19 @@
+{
+  "kind": "agent",
+  "name": "wf-researcher",
+  "description": "Research-first product and feature strategist that turns feature ideas into gap analyses, PRDs, and prioritized P0/P1/P2 task breakdowns. Triggers on feature, scope, research, PRD, spec, requirement, breakdown, product architecture, researcher.",
+  "capabilities": [
+    "read",
+    "search",
+    "edit",
+    "execute",
+    "delegate"
+  ],
+  "skills": [
+    "wf-feature-research",
+    "wf-doc-generator",
+    "wf-memory-management"
+  ],
+  "background_only": false,
+  "hosts": {}
+}

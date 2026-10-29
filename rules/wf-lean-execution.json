@@ -1,0 +1,10 @@
+{
+  "kind": "rule",
+  "name": "wf-lean-execution",
+  "description": "Lean execution and satisficing protocol enforcing bounded investigation, zero unprompted transcript hunting, and fast-path bugfix exemptions.",
+  "always_on": true,
+  "globs": [
+    "**"
+  ],
+  "hosts": {}
+}

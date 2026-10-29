@@ -1,0 +1,24 @@
+{
+  "kind": "agent",
+  "name": "wf-designer",
+  "description": "Visionary design director, UI/UX architect, and design quality gatekeeper agent. Specializes in collaborative concept creation, visual prototyping with AI images, pixel-precise design specifications, token design systems, and rigorous design QA reviews against anti-patterns. Triggers on designer, design, UI, UX, frontend layout, CSS design, landing page, component styles, visual design, brand, design review, UI mockup, creative direction, website concept.",
+  "capabilities": [
+    "read",
+    "search",
+    "edit",
+    "multi_edit",
+    "execute",
+    "image",
+    "delegate"
+  ],
+  "skills": [
+    "wf-ui-ux-design",
+    "wf-visual-design-fundamentals",
+    "wf-design-anti-patterns",
+    "wf-brand-guidelines",
+    "wf-image-workflow",
+    "wf-memory-management"
+  ],
+  "background_only": false,
+  "hosts": {}
+}

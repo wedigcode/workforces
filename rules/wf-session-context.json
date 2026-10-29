@@ -1,0 +1,10 @@
+{
+  "kind": "rule",
+  "name": "wf-session-context",
+  "description": "Continuous session context and scribe protocol persisting architectural decisions, rationale, and task lineage across turns.",
+  "always_on": true,
+  "globs": [
+    "**"
+  ],
+  "hosts": {}
+}

@@ -30,7 +30,7 @@ To prevent heavy codebase re-scans during interactive editing:
 - If files have changed, only modified files are re-parsed and merged into the cached symbol tree.
 
 ### Automatic Generation
-The incremental index runs automatically via plugin hooks before file modifications (`pre_tool_call` event in [`plugins/wf-programming-plugin/hooks.json`](../plugins/wf-programming-plugin/hooks.json)).
+The incremental index runs automatically via compiled `PreToolUse` lifecycle hooks before file modifications (defined canonically in [`plugins/wf-programming-plugin/plugin.json`](../plugins/wf-programming-plugin/plugin.json) and compiled into `.agents/plugins/wf-programming-plugin/hooks.json`, `.claude/settings.json`, and `.grok/hooks.json`).
 
 ### Full OKF Catalog Rebuild & Background Cleanliness (`/wf-codebase-improvement`)
 Heavy OKF Markdown catalog file generation is decoupled from pre-hooks. To force a full catalog rebuild and run code cleanliness audits, run:
@@ -108,7 +108,7 @@ Output example:
 
 ## 5. Hook Integration
 
-Workforces integrates Code Graph into AI agent execution via plugin hooks in [`plugins/wf-programming-plugin/hooks.json`](../plugins/wf-programming-plugin/hooks.json):
+Workforces compiles canonical plugin hooks from [`plugins/wf-programming-plugin/plugin.json`](../plugins/wf-programming-plugin/plugin.json) into host-native hook definitions across Antigravity ([`plugins/wf-programming-plugin/hooks.json`](../plugins/wf-programming-plugin/hooks.json)), Claude Code (`.claude/settings.json`), and Grok Build (`.grok/hooks.json`):
 
-1. **Pre-Hook (`pre_tool_call`)**: Runs `graph_indexer.py` and `pre_impact_analyzer.py` before `write_to_file`, `replace_file_content`, or `multi_replace_file_content` to warn the AI of downstream callers.
-2. **Post-Hook (`post_tool_call`)**: Runs [`post_code_reviewer.py`](../skills/wf-post-code-review/scripts/post_code_reviewer.py) after edits to verify cross-system consistency.
+1. **Pre-Hook (`PreToolUse`)**: Runs [`pre_tool_hook.py`](../skills/wf-code-graph/scripts/pre_tool_hook.py) (`graph_indexer.py` + `pre_impact_analyzer.py`) before edit/multi-edit tools (`write_to_file`, `replace_file_content`, `multi_replace_file_content` on Antigravity; `Write`, `Edit`, `MultiEdit` on Claude Code & Grok Build) to warn the AI of downstream callers.
+2. **Post-Hook (`PostToolUse`)**: Runs [`post_code_reviewer.py`](../skills/wf-post-code-review/scripts/post_code_reviewer.py) via [`post_tool_hook.py`](../skills/wf-post-code-review/scripts/post_tool_hook.py) after edits to verify cross-system consistency.

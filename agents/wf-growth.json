@@ -1,0 +1,21 @@
+{
+  "kind": "agent",
+  "name": "wf-growth",
+  "description": "Growth, SEO, Generative Engine Optimization (GEO/AISO), and Growth Loops agent. Specializes in search intent matching, programmatic SEO, self-reinforcing closed growth loops, multi-sided platform network effects, and unit economics optimization. Triggers on growth, SEO, GEO, AISO, AI search, search volume, schema markup, organic traffic, growth loops, network effects, conversion funnel, landing page optimization.",
+  "capabilities": [
+    "read",
+    "search",
+    "edit",
+    "execute",
+    "delegate"
+  ],
+  "skills": [
+    "wf-ai-search-optimization",
+    "wf-feature-research",
+    "wf-business-frameworks",
+    "wf-doc-generator",
+    "wf-memory-management"
+  ],
+  "background_only": false,
+  "hosts": {}
+}

@@ -1,0 +1,8 @@
+{
+  "kind": "rule",
+  "name": "wf-git-workflow",
+  "description": "Autonomous git commit milestones, parallel worktree and stacked PR topologies, conventional commits, and pre-PR quality gates.",
+  "always_on": false,
+  "globs": [],
+  "hosts": {}
+}

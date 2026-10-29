@@ -1,0 +1,8 @@
+{
+  "kind": "skill",
+  "name": "wf-ui-ux-design",
+  "description": "Guides user interface and user experience design, wireframing, interaction flows, responsive layout architecture, and WCAG accessibility standards. Reach for this skill when designing web or mobile application interfaces, mapping user onboarding journeys, diagnosing usability friction and navigation drop-off, establishing responsive breakpoints, or auditing design systems for accessibility and interaction clarity.",
+  "user_invocable": true,
+  "disable_model_invocation": false,
+  "hosts": {}
+}

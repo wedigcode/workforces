@@ -1,0 +1,22 @@
+{
+  "kind": "agent",
+  "name": "wf-marketer",
+  "description": "Marketing and brand strategy agent. Specializes in Jobs-to-be-Done positioning, Connected Strategy relationship models, high-converting copywriting (PAS, storytelling), launch campaigns, and closed growth loops. Triggers on marketing, marketer, copy, copywriting, brand strategy, email campaign, landing page copy, value proposition, positioning.",
+  "capabilities": [
+    "read",
+    "search",
+    "edit",
+    "execute",
+    "delegate"
+  ],
+  "skills": [
+    "wf-persona-management",
+    "wf-brand-guidelines",
+    "wf-business-frameworks",
+    "wf-image-workflow",
+    "wf-ai-search-optimization",
+    "wf-memory-management"
+  ],
+  "background_only": false,
+  "hosts": {}
+}

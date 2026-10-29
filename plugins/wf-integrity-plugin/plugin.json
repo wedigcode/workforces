@@ -1,5 +1,17 @@
 {
+  "kind": "plugin",
   "name": "wf-integrity-plugin",
   "version": "1.0.0",
-  "description": "System-enforced file integrity, ghost reference detection, and link validation hooks for workforces."
+  "description": "System-enforced file integrity, ghost reference detection, and link validation hooks for workforces.",
+  "hook_namespace": "wf-integrity",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher_capabilities": ["edit", "multi_edit"],
+        "runner": "integrity_validator",
+        "script_rel": "skills/wf-management/scripts/validate-references.py",
+        "timeout": 30
+      }
+    ]
+  }
 }

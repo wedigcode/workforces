@@ -1,0 +1,8 @@
+{
+  "kind": "skill",
+  "name": "wf-image-workflow",
+  "description": "Manages the visual asset pipeline, including prompt engineering, queue management (`workforces/images.json`), Antigravity image generation, and compression (WebP/JPEG optimization). Reach for this skill when planning marketing or UI imagery, deconstructing reference visuals into reproducible JSON prompts, generating brand assets, or resizing and compressing web assets for optimal page speed.",
+  "user_invocable": true,
+  "disable_model_invocation": false,
+  "hosts": {}
+}

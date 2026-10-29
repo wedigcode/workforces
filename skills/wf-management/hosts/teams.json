@@ -1,0 +1,221 @@
+{
+  "teams": {
+    "advisor": {
+      "name": "advisor",
+      "title": "Strategy, Advisory & Ideation",
+      "description": "Strategic problem discovery, atomic micro-SaaS unbundling, macro market disruption scouting, and high-leverage business model validation.",
+      "agents": [
+        "wf-unbundler",
+        "wf-disruptor"
+      ],
+      "rules": [
+        "wf-design-standards.md"
+      ],
+      "skills": [
+        "wf-site-setup",
+        "wf-feature-research",
+        "wf-brand-guidelines",
+        "wf-memory-management",
+        "wf-issue-tracker",
+        "wf-hypothesis-tracker",
+        "wf-market-validation",
+        "wf-advisor",
+        "wf-ideate"
+      ],
+      "workflows": []
+    },
+    "compliance": {
+      "name": "compliance",
+      "title": "Compliance, Integrity & Reference Lineage",
+      "description": "Enforces zero ghost references, reference lineage, policy compliance, subtask tracking, and decision escalation.",
+      "agents": [],
+      "rules": [
+        "wf-file-integrity.md",
+        "wf-mcp-protection.md"
+      ],
+      "skills": [
+        "wf-integrity-validator",
+        "wf-issue-tracker",
+        "wf-session-context",
+        "wf-usage-tracker",
+        "wf-task-tracker"
+      ],
+      "workflows": [],
+      "plugins": [
+        "wf-integrity-plugin"
+      ]
+    },
+    "design": {
+      "name": "design",
+      "title": "Design & UI/UX Experience",
+      "description": "Visual concept ideation, AI image prototyping, design tokens, UI/UX architecture, anti-pattern defense, and design QA reviews.",
+      "agents": [
+        "wf-designer"
+      ],
+      "rules": [
+        "wf-design-standards.md"
+      ],
+      "skills": [
+        "wf-ui-ux-design",
+        "wf-visual-design-fundamentals",
+        "wf-design-anti-patterns",
+        "wf-brand-guidelines",
+        "wf-image-workflow",
+        "wf-site-setup"
+      ],
+      "workflows": []
+    },
+    "dev": {
+      "name": "dev",
+      "title": "Engineering & Development",
+      "description": "Software architecture, clean code implementation, TDD, symbol graph indexing, automated post-edit reviews, and bug fixes.",
+      "agents": [
+        "wf-programmer"
+      ],
+      "rules": [
+        "wf-clean-coder.md",
+        "wf-git-workflow.md"
+      ],
+      "skills": [
+        "wf-clean-coder",
+        "wf-code-graph",
+        "wf-post-code-review",
+        "wf-codebase-improvement",
+        "wf-jules-integration",
+        "wf-pr-review",
+        "wf-doc-generator",
+        "wf-agent-parallelization",
+        "wf-investigate"
+      ],
+      "workflows": [],
+      "plugins": [
+        "wf-programming-plugin"
+      ]
+    },
+    "growth": {
+      "name": "growth",
+      "title": "Growth, SEO & Growth Loops",
+      "description": "Search intent matching, self-reinforcing closed growth loops, AI Search Optimization (GEO/AISO), and multi-sided platform network effects.",
+      "agents": [
+        "wf-growth",
+        "wf-researcher"
+      ],
+      "rules": [
+        "wf-design-standards.md"
+      ],
+      "skills": [
+        "wf-ai-search-optimization",
+        "wf-feature-research",
+        "wf-business-frameworks",
+        "wf-doc-generator",
+        "wf-memory-management",
+        "wf-hypothesis-tracker",
+        "wf-market-validation"
+      ],
+      "workflows": []
+    },
+    "launch": {
+      "name": "launch",
+      "title": "App Launch & Fast Validation",
+      "description": "Specialized launch team for empty or zero-revenue projects. Optimizes for Time to First Dollar (TTFD) and Time to 100 Users (TTOU) through high-velocity pre-sales, concierge MVPs, painted doors, and disciplined 7-day sprints.",
+      "agents": [
+        "wf-launcher"
+      ],
+      "rules": [
+        "wf-design-standards.md",
+        "wf-clean-coder.md"
+      ],
+      "skills": [
+        "wf-launch-playbook",
+        "wf-market-validation",
+        "wf-hypothesis-tracker",
+        "wf-business-frameworks",
+        "wf-brand-guidelines",
+        "wf-ui-ux-design",
+        "wf-persona-management",
+        "wf-ai-search-optimization"
+      ],
+      "workflows": []
+    },
+    "marketing": {
+      "name": "marketing",
+      "title": "Marketing & Brand Strategy",
+      "description": "Jobs-to-be-Done positioning, Connected Strategy engagement, PAS conversion copywriting, campaign launches, and closed growth loops.",
+      "agents": [
+        "wf-marketer"
+      ],
+      "rules": [
+        "wf-design-standards.md"
+      ],
+      "skills": [
+        "wf-persona-management",
+        "wf-brand-guidelines",
+        "wf-business-frameworks",
+        "wf-image-workflow",
+        "wf-ai-search-optimization",
+        "wf-memory-management",
+        "wf-hypothesis-tracker",
+        "wf-market-validation"
+      ],
+      "workflows": []
+    },
+    "operations": {
+      "name": "operations",
+      "title": "Operations, Analytics & Workforce Memory",
+      "description": "Empirical metrics tracking, sprint velocity optimization, operational transparency, and persistent workforce memory.",
+      "agents": [
+        "wf-operations"
+      ],
+      "rules": [
+        "wf-base.md",
+        "wf-session-context.md"
+      ],
+      "skills": [
+        "wf-usage-tracker",
+        "wf-session-context",
+        "wf-memory-management",
+        "wf-issue-tracker",
+        "wf-sync",
+        "wf-task-tracker"
+      ],
+      "workflows": []
+    },
+    "sales": {
+      "name": "sales",
+      "title": "Sales & Outreach",
+      "description": "Prospect intel research, personalized multi-touch outbound sequences, qualification, and objection handling.",
+      "agents": [
+        "wf-sales"
+      ],
+      "rules": [],
+      "skills": [
+        "wf-persona-management",
+        "wf-brand-guidelines",
+        "wf-memory-management",
+        "wf-advisor"
+      ],
+      "workflows": []
+    },
+    "social": {
+      "name": "social",
+      "title": "Social Engagement & Community Growth",
+      "description": "Anti-bot high-signal content discovery, cold-post triage caching, multi-tier conversation catalysts, and community cultivation.",
+      "agents": [
+        "wf-social"
+      ],
+      "rules": [
+        "wf-social-engagement.md"
+      ],
+      "skills": [
+        "wf-social-engagement",
+        "wf-persona-management",
+        "wf-brand-guidelines",
+        "wf-memory-management"
+      ],
+      "workflows": [],
+      "plugins": [
+        "wf-social-plugin"
+      ]
+    }
+  }
+}
