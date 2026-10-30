@@ -5,7 +5,7 @@ Tests all 38 skills under skills/ for:
 1. Strict YAML validity and scalar safety across all files.
 2. Absence of tautological slash-command listings.
 3. Presence of rich situational context, symptoms, and architectural dilemmas.
-4. BM25 Information Retrieval accuracy across 37 realistic user problem statements.
+4. BM25 Information Retrieval accuracy across 36 realistic user problem statements.
 5. High-precision disambiguation between closely related skills.
 """
 
@@ -160,9 +160,9 @@ class TestEmpiricalSemanticDiscovery(unittest.TestCase):
 
         cls.retriever = BM25Retriever(cls.skills)
 
-    def test_all_39_skills_present(self):
-        """Assert exactly 39 skills are indexed."""
-        self.assertEqual(len(self.skills), 39, f"Expected 39 skills, found {len(self.skills)}")
+    def test_all_38_skills_present(self):
+        """Assert exactly 38 skills are indexed."""
+        self.assertEqual(len(self.skills), 38, f"Expected 38 skills, found {len(self.skills)}")
 
     def test_strict_yaml_validity_via_ruby_psych(self):
         """Empirically test every SKILL.md with Ruby's libyaml engine (Psych) in strict mode."""
@@ -249,7 +249,7 @@ class TestEmpiricalSemanticDiscovery(unittest.TestCase):
 
     def test_bm25_semantic_discovery_oracle(self):
         """
-        Adversarial test: evaluate BM25 retrieval against 37 real-world problem statements.
+        Adversarial test: evaluate BM25 retrieval against 36 real-world problem statements.
         Every test scenario represents an actual symptom, architectural dilemma, or workflow.
         Asserts that the target skill ranks in Top-2 for every query.
         """
@@ -313,10 +313,6 @@ class TestEmpiricalSemanticDiscovery(unittest.TestCase):
             {
                 "query": "Log an emergent bug and technical debt discovered during active coding to backlog inbox without interrupting flow",
                 "expected": "wf-issue-tracker",
-            },
-            {
-                "query": "Sync with Google Jules asynchronous coding agent audit remote changes and review proposed PR diffs",
-                "expected": "wf-jules-integration",
             },
             {
                 "query": "Pre-revenue product launch optimizing Time to First Dollar with 7-day Stripe pre-sale offers and concierge MVP",

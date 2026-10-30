@@ -18,7 +18,6 @@ skills:
   - wf-memory-management
   - wf-business-frameworks
   - wf-pr-review
-  - wf-jules-integration
   - wf-task-tracker
   - wf-issue-tracker
   - wf-hypothesis-tracker
@@ -67,8 +66,7 @@ Before generating any work:
    - Missing or empty → tell the user setup is needed before issue creation can proceed
    - Present → note configured projects and tracked repos for use in Step 4
 6. **Open GitHub PR Reviews** — Query open PRs via `wf-pr-review` skill (`gh pr list --state open`). Run automated code review against Clean Coder rules and flag PRs needing attention or notes.
-7. **Google Jules Sessions** — Check if `jules` CLI is available (`which jules`). Query `jules remote list --session` to discover active/completed Jules sessions and scheduled tasks for workforce repos.
-8. **Issue Inbox & Session Lineage** — Check `workforces/issues/inbox/` for pending unreviewed issues:
+7. **Issue Inbox & Session Lineage** — Check `workforces/issues/inbox/` for pending unreviewed issues:
    ```bash
    ls workforces/issues/inbox/*.md 2>/dev/null
    ```

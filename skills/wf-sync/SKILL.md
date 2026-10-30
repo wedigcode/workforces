@@ -96,7 +96,7 @@ graph TD
 
 **Meeting Leader:** `/wf-advisor` (Co-pilot: `@wf-project-manager`)  
 **Duration Target:** 10–15 minutes  
-**Primary Goal:** Brainstorm high-leverage opportunities for the next cycle, extract winning ideas into falsifiable hypotheses, enforce factual telemetry grounding, explore tool & subagent delegation (Jules, Copilot, Stitch, Flow/Vids/Slides), audit OKR pacing, and enforce kill/pivot criteria.
+**Primary Goal:** Brainstorm high-leverage opportunities for the next cycle, extract winning ideas into falsifiable hypotheses, enforce factual telemetry grounding, explore tool & subagent delegation (Copilot, Stitch, Flow/Vids/Slides), audit OKR pacing, and enforce kill/pivot criteria.
 
 ### Step S1 — Ingest Factual Business State & Grounding
 1. **Factual Telemetry Grounding:** Enforce the zero-hallucination rule. Check verified outreach logs, commit history, and analytics. If no customer outreach or ad campaigns have run, record the factual baseline (`0 outreach calls / 0 live ads; pre-launch stage`).
@@ -118,7 +118,7 @@ Domain agents report ONLY verified historical data. `/wf-advisor` then actively 
   - *Advisor Probe:* "What high-converting content formats (e.g. interactive ROI calculators, short-form video teardowns) can we test next cycle to drive organic acquisition?"
 - **💻 Engineering (`@wf-programmer`):**
   - *Factual Telemetry:* Core MVP build passing 100% tests; auth service refactor complete.
-  - *Advisor Probe:* "What parts of the upcoming feature backlog can be offloaded to async coding workers like Google Jules or GitHub Copilot to accelerate delivery?"
+  - *Advisor Probe:* "What parts of the upcoming feature backlog can be offloaded to async coding workers like GitHub Copilot or background subagents to accelerate delivery?"
 - **🎨 Design (`@wf-designer`):**
   - *Factual Telemetry:* Tokens aligned with `design-preferences.md` (0 yellow on light/white).
   - *Advisor Probe:* "What interactive visual prototypes or design variations should we iterate internally before presenting to human review?"
@@ -132,15 +132,15 @@ The team engages in a structured brainstorming loop to extract winning ideas for
    - Define Falsifiable Statement
    - Define Leading Indicators (e.g. discovery calls booked, prototype signups) and Lagging Indicators (e.g. paid conversions)
    - Define Kill / Pivot Thresholds
-   - Attach Recommended Tools (e.g. `google-vids`, `google-stitch`, `jules`) and GitHub labels (`tool:...`, `type:hypothesis`)
+   - Attach Recommended Tools (e.g. `google-vids`, `google-stitch`, `copilot`) and GitHub labels (`tool:...`, `type:hypothesis`)
 3. **Capture Product / Technical Ideas:** Log technical or UX feature ideas into `workforces/issues/inbox/` using `report-issue.py --title "..." --type idea --tools "..." --sync-session`.
 
 ### Step S4 — Dynamic Tool Enablement & Delegation Inquiry
 `/wf-advisor` probes the team on tool acceleration opportunities:
-> *"What tools, async subagents, or external systems (e.g. Google Jules / GitHub Copilot for dev, Google Stitch for UI, Google Flow/Vids/Slides for marketing, ad/analytics MCPs) could take work off your plate or 10x your throughput next cycle?"*
+> *"What tools, async subagents, or external systems (e.g. GitHub Copilot for dev, Google Stitch for UI, Google Flow/Vids/Slides for marketing, ad/analytics MCPs) could take work off your plate or 10x your throughput next cycle?"*
 
 - **Identified Tooling & Delegation Requests:**
-  - **Dev:** Delegate async refactoring tasks to Google Jules (`jules remote list --session`) or GitHub Copilot PRs (`delegated_to: jules`, label: `tool:jules`).
+  - **Dev:** Delegate async refactoring tasks to GitHub Copilot PRs (label: `tool:copilot`).
   - **Marketing:** Leverage Google Flow / Google Vids / Google Slides for autonomous video script and presentation drafting (`tool:google-vids`).
   - **Design:** Leverage Google Stitch or Figma MCP for rapid token and component scaffolding (`tool:google-stitch`).
 
@@ -181,11 +181,11 @@ Clearly demarcate what AI will execute autonomously next cycle vs. what requires
 - [ ] **HYP-02 (@wf-marketer):** Test 3 video problem teasers for Instagram/TikTok. [Tools: google-vids, Label: `tool:google-vids`]
 
 ### 🧰 Tool Enablement & Async Delegation Requests
-- **Dev:** Assign auth token cache refactor to Google Jules (`jules remote list --session`, Label: `tool:jules`, `delegated:jules`).
+- **Dev:** Assign auth token cache refactor to GitHub Copilot (Label: `tool:copilot`, `delegated:copilot`).
 - **Marketing:** Enable Google Vids / Slides integration for automated video generation.
 
 ### 🤖 Autonomous AI Next-Cycle Execution (No Human Intervention Needed)
-1. `@wf-programmer`: Execute sprint tasks #12–#14, run test suites, and review Jules patch for auth refactor.
+1. `@wf-programmer`: Execute sprint tasks #12–#14, run test suites, and review Copilot patch for auth refactor.
 2. `@wf-designer`: Run multi-pass self-iterations on mobile checkout layout against `design-preferences.md`.
 3. `@wf-marketer`: Draft 3 video scripts and prepare social distribution schedule.
 
@@ -242,7 +242,6 @@ The AI dynamically inspects available workspace state, CLI utilities, and connec
    - **Sprint State:** `workforces/workstate.md` active sprint tasks and roadblocks.
    - **Session Context:** Latest session note in `workforces/session-context/` for active decisions and topics.
    - **GitHub Queue (via `gh` CLI):** PR review requests (`review-requested:@me`), assigned issues (`assignee:@me`), and authored open PRs.
-   - **Async Coding Workers:** Active Google Jules sessions (`jules remote list --session`, excluding completed).
 
 2. **Communication & Calendar Ingestion (Lazy MCP Tools):**
    - **Emails (`ms-teams-email` MCP):** Call `email_list_messages` (or unread / recent inbox) to detect urgent unreplied emails addressed to you, client questions, or pending approvals.

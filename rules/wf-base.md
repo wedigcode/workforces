@@ -10,10 +10,9 @@ These core operational rules govern all workforce interactions and execution loo
 
 ## 1. GitHub Rules & Multi-Repo Scoping
 
-- **Multi-Repo Scoping**: All GitHub CLI queries (`gh issue`, `gh pr`) and Jules sessions MUST iterate across all repositories configured under `tracked_repos` in `workforces/workrules.md` / `workstate.md` (pass `--repo <owner/repo>`).
+- **Multi-Repo Scoping**: All GitHub CLI queries (`gh issue`, `gh pr`) MUST iterate across all repositories configured under `tracked_repos` in `workforces/workrules.md` / `workstate.md` (pass `--repo <owner/repo>`).
 - **Autonomous Git Commits & PR Reviews**: Commit and push at deterministic milestones per [`wf-git-workflow`](wf-git-workflow.md). Code reviews occur within GitHub PRs rather than blocking local execution.
 - **Task Source of Truth & Reconciliation**: `workforces/tasks/*.md` is the single source of truth for all tasks. When remote PRs/issues close, automatically reconcile task status to `done` via `report-task.py` and sync `workforces/workstate.md`.
-- **Jules Session Filter**: Scan only active Jules sessions (`Status != 'Completed'`).
 - **Private by Default**: All new repositories must be created as private unless explicitly specified.
 
 ---

@@ -48,7 +48,7 @@ class TestWfPrefixStandardization(unittest.TestCase):
             d for d in (REPO_ROOT / "skills").iterdir()
             if d.is_dir() and not d.name.startswith(".")
         )
-        self.assertEqual(len(skill_dirs), 39)
+        self.assertEqual(len(skill_dirs), 38)
         for s_dir in skill_dirs:
             self.assertTrue(s_dir.name.startswith("wf-"), f"Unprefixed skill dir: {s_dir.name}")
             self.assertFalse(s_dir.name.startswith("wf-workforce-"), f"Stuttered skill dir: {s_dir.name}")

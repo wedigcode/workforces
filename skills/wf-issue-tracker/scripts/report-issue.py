@@ -470,15 +470,15 @@ def main() -> None:
     parser.add_argument("--session-file", default="", help="Path to session context markdown note")
     parser.add_argument(
         "--tools", "--recommended-tools", dest="recommended_tools",
-        help="Comma-separated list of recommended enabling tools or MCP servers (e.g. 'jules,google-stitch')",
+        help="Comma-separated list of recommended enabling tools or MCP servers (e.g. 'google-stitch,playwright')",
     )
     parser.add_argument(
         "--delegated-to",
-        help="Async subagent or external worker delegated to execute this task (e.g. 'jules')",
+        help="Async subagent or external worker delegated to execute this task (e.g. '@wf-programmer')",
     )
     parser.add_argument(
         "--github-labels",
-        help="Comma-separated list of GitHub labels to attach (e.g. 'tool:jules,status:async-pending')",
+        help="Comma-separated list of GitHub labels to attach (e.g. 'tool:stitch,status:async-pending')",
     )
     parser.add_argument(
         "--evolution-note",

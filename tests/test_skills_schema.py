@@ -26,8 +26,8 @@ DISCRETE_WF_SKILLS = {
     "wf-update",
 }
 
-# Total expected skills: 31 domain skills + 8 discrete wf-* skills = 39
-EXPECTED_TOTAL_SKILLS = 39
+# Total expected skills: 30 domain skills + 8 discrete wf-* skills = 38
+EXPECTED_TOTAL_SKILLS = 38
 
 
 def parse_yaml_frontmatter(content: str) -> Optional[Dict[str, str]]:
@@ -69,7 +69,7 @@ class TestSkillsSchema(unittest.TestCase):
         self.skill_dirs = sorted([d for d in SKILLS_DIR.iterdir() if d.is_dir()])
 
     def test_skills_count_and_categories(self):
-        """Assert exactly 37 skills exist: 31 domain skills + 6 discrete wf-* skills."""
+        """Assert exactly 38 skills exist: 30 domain skills + 8 discrete wf-* skills."""
         self.assertEqual(
             len(self.skill_dirs),
             EXPECTED_TOTAL_SKILLS,
@@ -90,8 +90,8 @@ class TestSkillsSchema(unittest.TestCase):
         domain_skills = skill_names - DISCRETE_WF_SKILLS
         self.assertEqual(
             len(domain_skills),
-            31,
-            f"Expected 31 domain skills, got {len(domain_skills)}: {domain_skills}",
+            30,
+            f"Expected 30 domain skills, got {len(domain_skills)}: {domain_skills}",
         )
 
     def test_all_skills_contain_skill_md(self):

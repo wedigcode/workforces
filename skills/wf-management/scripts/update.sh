@@ -244,7 +244,7 @@ fi
 if [[ "$RESOLVER_OK" != true ]]; then
   ALLOWED_AGENTS="wf-project-manager.md wf-scribe.md wf-programmer.md wf-designer.md"
   ALLOWED_RULES="wf-base.md wf-clean-coder.md wf-design-standards.md wf-lean-execution.md wf-mcp-protection.md wf-session-context.md wf-file-integrity.md wf-git-workflow.md"
-  ALLOWED_SKILLS="wf-agent-parallelization wf-brand-guidelines wf-clean-coder wf-code-graph wf-codebase-improvement wf-design-anti-patterns wf-doc-generator wf-image-workflow wf-integrity-validator wf-issue-tracker wf-jules-integration wf-launch-playbook wf-market-validation wf-memory-management wf-persona-management wf-post-code-review wf-pr-review wf-session-context wf-site-setup wf-social-engagement wf-task-tracker wf-ui-ux-design wf-usage-tracker wf-visual-design-fundamentals wf-management wf-canvas wf-github-project-planning wf-hypothesis-tracker wf-plan wf-sync wf-advisor wf-ideate wf-investigate wf-question-formulation wf-update wf-dashboard"
+  ALLOWED_SKILLS="wf-agent-parallelization wf-brand-guidelines wf-clean-coder wf-code-graph wf-codebase-improvement wf-design-anti-patterns wf-doc-generator wf-image-workflow wf-integrity-validator wf-issue-tracker wf-launch-playbook wf-market-validation wf-memory-management wf-persona-management wf-post-code-review wf-pr-review wf-session-context wf-site-setup wf-social-engagement wf-task-tracker wf-ui-ux-design wf-usage-tracker wf-visual-design-fundamentals wf-management wf-canvas wf-github-project-planning wf-hypothesis-tracker wf-plan wf-sync wf-advisor wf-ideate wf-investigate wf-question-formulation wf-update wf-dashboard"
   ALLOWED_WORKFLOWS=""
   ALLOWED_PLUGINS="wf-programming-plugin wf-integrity-plugin"
   ALLOWED_TEAMS="dev design"

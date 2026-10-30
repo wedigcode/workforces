@@ -34,7 +34,7 @@ VALIDATE_REFERENCES_SCRIPT = SCRIPTS_DIR / "validate-references.py"
 PERSONAL_SYNC_SCRIPT = SKILLS_DIR / "wf-task-tracker" / "scripts" / "personal_sync.py"
 
 # Authoritative Constants derived from PROJECT.md and ORIGINAL_REQUEST.md
-EXPECTED_SKILL_COUNT = 39
+EXPECTED_SKILL_COUNT = 38
 EXPECTED_EXECUTION_AGENTS = {
     "wf-programmer.md",
     "wf-designer.md",

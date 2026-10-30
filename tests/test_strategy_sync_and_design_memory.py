@@ -38,12 +38,12 @@ class TestStrategySyncAndDesignMemory(unittest.TestCase):
             "--type", "refactor",
             "--severity", "P2",
             "--reporter", "programmer",
-            "--tools", "jules,github-copilot",
-            "--delegated-to", "jules",
-            "--github-labels", "tool:jules,status:async-pending",
+            "--tools", "copilot,google-stitch",
+            "--delegated-to", "copilot",
+            "--github-labels", "tool:copilot,status:async-pending",
             "--out-dir", os.path.join(self.workforces_dir, "issues", "inbox"),
             "--description", "Offload token caching refactor to async worker",
-            "--suggested-action", "Run jules session and review patch",
+            "--suggested-action", "Run copilot session and review patch",
         ]
         res = subprocess.run(cmd, cwd=self.test_dir, capture_output=True, text=True)
         self.assertEqual(res.returncode, 0, f"Error: {res.stderr}")
@@ -56,12 +56,12 @@ class TestStrategySyncAndDesignMemory(unittest.TestCase):
             content = f.read()
 
         self.assertIn("recommended_tools:", content)
-        self.assertIn("jules", content)
-        self.assertIn("github-copilot", content)
-        self.assertIn('delegated_to: "jules"', content)
-        self.assertIn("tool:jules", content)
-        self.assertIn("**Recommended Tools:** `jules, github-copilot`", content)
-        self.assertIn("**Delegated To:** `jules`", content)
+        self.assertIn("copilot", content)
+        self.assertIn("google-stitch", content)
+        self.assertIn('delegated_to: "copilot"', content)
+        self.assertIn("tool:copilot", content)
+        self.assertIn("**Recommended Tools:** `copilot, google-stitch`", content)
+        self.assertIn("**Delegated To:** `copilot`", content)
 
     def test_hypothesis_with_tools_and_delegation(self):
         """Test creating a hypothesis with recommended tools, delegation, and labels."""

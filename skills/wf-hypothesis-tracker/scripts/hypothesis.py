@@ -867,7 +867,7 @@ def main() -> None:
         "--tools", "--recommended-tools", dest="recommended_tools",
         help="Comma-separated list of recommended enabling tools (e.g. 'google-vids,google-slides')"
     )
-    parser.add_argument("--delegated-to", help="Async worker or subagent delegated to (e.g. 'jules')")
+    parser.add_argument("--delegated-to", help="Async worker or subagent delegated to (e.g. '@wf-programmer')")
     parser.add_argument("--github-labels", help="Comma-separated list of GitHub labels (e.g. 'tool:vids,type:hypothesis')")
     parser.add_argument("--insight", type=str, help="Emerging insight note")
     parser.add_argument("--rationale", type=str, help="Rationale for kill/pivot/validation")

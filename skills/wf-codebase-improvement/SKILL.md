@@ -19,7 +19,7 @@ This skill is invoked autonomously by `@wf-programmer` or coordinators, or direc
 - *"Find dead code and unreferenced symbols"*
 - *"Audit performance bottlenecks and memory leaks"*
 - *"Check security: input validation and hardcoded secrets"*
-- *"Review open PRs and Google Jules sessions"*
+- *"Review open PRs and refactoring tasks"*
 
 ### Coordinator & Standup Invocations
 - **Via `/wf-sync`**: Standups surface pending debt and recommend hygiene sweeps.

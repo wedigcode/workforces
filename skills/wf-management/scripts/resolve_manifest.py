@@ -125,7 +125,6 @@ LEGACY_OBSOLETE_SUBPATHS = [
     "skills/integrity-validator/SKILL.md",
     "skills/issue-tracker/SKILL.md",
     "skills/issue-tracker/scripts/report-issue.py",
-    "skills/jules-integration/SKILL.md",
     "skills/launch-playbook/SKILL.md",
     "skills/market-validation/SKILL.md",
     "skills/memory-management/SKILL.md",

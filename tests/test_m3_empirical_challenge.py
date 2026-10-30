@@ -179,7 +179,7 @@ class TestM3TaskQueryMapping(unittest.TestCase):
         )
 
     def test_semantic_retrieval_for_task_queries(self):
-        """Empirically test that realistic task queries rank wf-sync or wf-task-tracker in Top-2 among all 39 skills."""
+        """Empirically test that realistic task queries rank wf-sync or wf-task-tracker in Top-2 among all 38 skills."""
         test_queries = [
             ("What do we have to work on?", {"wf-sync", "wf-task-tracker"}),
             ("Show active tasks", {"wf-sync", "wf-task-tracker"}),

@@ -9,7 +9,6 @@ Aggregates:
   4. Active decisions and context from workforces/session-context/
   5. GitHub PR reviews, assigned issues, and authored PRs via `gh` CLI
   6. Running hypotheses from workforces/hypotheses/running/
-  7. Async workers (e.g. Google Jules sessions if available)
 
 Usage:
   python3 .agents/skills/wf-task-tracker/scripts/personal_sync.py
@@ -1017,33 +1016,6 @@ def sync_workstate_from_tasks(root_dir: str) -> bool:
     return True
 
 
-def get_jules_sessions(root_dir: str) -> List[Dict[str, Any]]:
-    """Check for active Google Jules sessions if CLI is available (filtering out Completed)."""
-    sessions: List[Dict[str, Any]] = []
-    if not shutil.which("jules"):
-        return sessions
-
-    try:
-        proc = subprocess.run(
-            ["jules", "remote", "list", "--session"],
-            cwd=root_dir,
-            capture_output=True,
-            text=True,
-            timeout=6,
-        )
-        if proc.returncode == 0:
-            for line in proc.stdout.splitlines():
-                line = line.strip()
-                if line and not line.startswith("ID") and not line.startswith("---"):
-                    # Strictly filter for active sessions where Status != 'Completed'
-                    if not line.endswith("Completed") and " Completed" not in line:
-                        sessions.append({"raw": line})
-    except Exception:
-        pass
-
-    return sessions
-
-
 def generate_personal_sync_data(
     root_dir: str,
     user: str = "@me",
@@ -1073,7 +1045,6 @@ def generate_personal_sync_data(
         "workstate": get_workstate_summary(root_dir),
         "session_context": get_session_context_summary(root_dir),
         "hypotheses": get_running_hypotheses(root_dir),
-        "jules_sessions": get_jules_sessions(root_dir),
         "reconciled_tasks": reconciled_items,
         "github": get_github_summary(root_dir, user=user, tracked_repos=tracked_repos) if check_github else {"available": False},
     }
@@ -1089,7 +1060,6 @@ def format_markdown_report(data: Dict[str, Any]) -> str:
     session_ctx = data.get("session_context", {})
     gh = data.get("github", {})
     hypotheses = data.get("hypotheses", [])
-    jules = data.get("jules_sessions", [])
     reconciled = data.get("reconciled_tasks", [])
     tracked_repos = data.get("tracked_repos", [])
 
@@ -1131,11 +1101,6 @@ def format_markdown_report(data: Dict[str, Any]) -> str:
 
     if session_ctx.get("topic"):
         lines.append(f"- **Active Session Topic:** {session_ctx['topic']} (Session #{session_ctx.get('session_id', 'N/A')})")
-
-    if jules:
-        lines.append(f"- **Async Coding Workers (Jules):** {len(jules)} active session(s)")
-        for j in jules[:2]:
-            lines.append(f"  - `{j['raw']}`")
     lines.append("")
 
     # Section 2: High-Priority Follow-ups Required From You
