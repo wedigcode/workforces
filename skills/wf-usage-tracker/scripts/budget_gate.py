@@ -28,6 +28,7 @@ from typing import Any, Dict, List, Optional
 
 
 CHAR_PER_TOKEN = 4.0
+VALID_HARNESSES = frozenset({"antigravity", "claude", "grok"})
 DEFAULT_WORK_CONTROL: Dict[str, Any] = {
     "issue_discovery": "active",
     "paused_reason": "",
@@ -50,10 +51,17 @@ DISCOVERY_MODES = frozenset({
 
 def detect_active_harness(explicit: Optional[str] = None, repo_root: Optional[Path] = None) -> str:
     """Detect which AI coding harness is currently executing (`antigravity`, `claude`, or `grok`)."""
-    if explicit:
-        return explicit.strip().lower()
-    if os.environ.get("WORKFORCE_HARNESS"):
-        return os.environ["WORKFORCE_HARNESS"].strip().lower()
+    if explicit is not None and str(explicit).strip():
+        val = str(explicit).strip().lower()
+        if val not in VALID_HARNESSES:
+            raise ValueError(f"Unsupported harness '{explicit}'. Must be one of: {sorted(VALID_HARNESSES)}")
+        return val
+    env_harness = os.environ.get("WORKFORCE_HARNESS")
+    if env_harness and env_harness.strip():
+        val = env_harness.strip().lower()
+        if val not in VALID_HARNESSES:
+            raise ValueError(f"Unsupported WORKFORCE_HARNESS '{env_harness}'. Must be one of: {sorted(VALID_HARNESSES)}")
+        return val
     if os.environ.get("ANTIGRAVITY_CONVERSATION_ID") or os.environ.get("ANTIGRAVITY_AGENT") or os.environ.get("AGY_ACCOUNT"):
         return "antigravity"
     if os.environ.get("CLAUDE_PROJECT_DIR") or os.environ.get("CLAUDE_CODE") or os.environ.get("CLAUDE_SESSION_ID"):
@@ -64,8 +72,11 @@ def detect_active_harness(explicit: Optional[str] = None, repo_root: Optional[Pa
     if repo_root:
         cfg = load_config(repo_root)
         hosts = cfg.get("hosts") or []
-        if isinstance(hosts, list) and hosts:
-            return str(hosts[0]).lower()
+        if isinstance(hosts, list):
+            for host in hosts:
+                cand = str(host).strip().lower()
+                if cand in VALID_HARNESSES:
+                    return cand
     return "antigravity"
 
 
@@ -143,23 +154,34 @@ def _scan_recent_jsonl_usage(paths: List[str], now_ts: float) -> Dict[str, Any]:
 
 def collect_harness_telemetry(harness: str, repo_root: Path) -> Dict[str, Any]:
     """Collect local token usage and idle telemetry for the specified harness."""
+    harness = detect_active_harness(explicit=harness, repo_root=repo_root)
     now_ts = time.time()
+    today_prefix = datetime.datetime.now().strftime("%Y-%m-%d")
     home = os.path.expanduser("~")
 
     if harness == "antigravity":
         usage_log = repo_root / "workforces" / "tmp" / "usage-log.json"
         if usage_log.is_file():
             try:
-                data = json.loads(usage_log.read_text(encoding="utf-8"))
-                totals = data.get("aggregate") or {}
-                if isinstance(totals, dict) and "estimated_total_tokens" in totals:
-                    age_min = round((now_ts - usage_log.stat().st_mtime) / 60.0, 1)
-                    return {
-                        "source": str(usage_log),
-                        "logs_scanned_today": 1,
-                        "estimated_tokens_today": int(totals.get("estimated_total_tokens", 0)),
-                        "idle_minutes": age_min,
-                    }
+                mtime = usage_log.stat().st_mtime
+                if datetime.datetime.fromtimestamp(mtime).strftime("%Y-%m-%d") == today_prefix:
+                    data = json.loads(usage_log.read_text(encoding="utf-8"))
+                    totals = data.get("aggregate") or {}
+                    if isinstance(totals, dict) and (
+                        "est_total_tokens" in totals or "estimated_total_tokens" in totals
+                    ):
+                        raw_tokens = (
+                            totals.get("est_total_tokens")
+                            if "est_total_tokens" in totals
+                            else totals.get("estimated_total_tokens", 0)
+                        )
+                        age_min = round((now_ts - mtime) / 60.0, 1)
+                        return {
+                            "source": str(usage_log),
+                            "logs_scanned_today": 1,
+                            "estimated_tokens_today": int(raw_tokens),
+                            "idle_minutes": age_min,
+                        }
             except (OSError, ValueError):
                 pass
         pattern = os.path.join(home, ".gemini", "antigravity", "brain", "*", ".system_generated", "logs", "transcript.jsonl")

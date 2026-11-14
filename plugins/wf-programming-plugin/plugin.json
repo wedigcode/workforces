@@ -3,6 +3,7 @@
   "name": "wf-programming-plugin",
   "version": "1.0.0",
   "description": "Programming task pre-hook plugin. Automatically detects code modification tasks, forces symbol graph indexing, and enforces wf-clean-coder rules.",
+  "required_skills": ["wf-code-graph", "wf-post-code-review"],
   "hook_namespace": "wf-programming",
   "hooks": {
     "PreToolUse": [
@@ -17,7 +18,8 @@
         "matcher_capabilities": ["execute"],
         "runner": "script_rel",
         "script_rel": "skills/wf-post-code-review/scripts/deploy_safety_hook.py",
-        "fallback_stdout": "{\\\"decision\\\": \\\"allow\\\"}",
+        "fallback_stdout": "{\\\"decision\\\": \\\"force_ask\\\", \\\"reason\\\": \\\"Consent Gate: deploy_safety_hook.py is missing or unavailable; manual confirmation required.\\\"}",
+        "fail_closed": true,
         "timeout": 15
       }
     ],

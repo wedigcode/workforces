@@ -47,6 +47,7 @@ Usage:
 import argparse
 import datetime
 import difflib
+import errno
 import json
 import os
 import re
@@ -55,6 +56,16 @@ import sys
 import time
 from contextlib import contextmanager
 from typing import Any, Dict, Iterator, List, Optional, Tuple
+
+try:
+    import fcntl
+except ImportError:
+    fcntl = None  # type: ignore[assignment]
+
+try:
+    import msvcrt
+except ImportError:
+    msvcrt = None  # type: ignore[assignment]
 
 try:
     from personal_sync import sync_workstate_from_tasks, reconcile_github_tasks, resolve_portable_md_link as _resolve_portable_md_link
@@ -76,15 +87,23 @@ VALID_STATUSES = ["todo", "in_progress", "review", "blocked", "done", "dropped"]
 VALID_PRIORITIES = ["P0", "P1", "P2", "P3"]
 VALID_CADENCES = ["one_shot", "rolling_slice"]
 VALID_REVIEW_STATES = ["none", "requires_code_review", "in_review", "ready_for_human", "changes_requested"]
+VALID_HARNESSES = frozenset({"antigravity", "claude", "grok"})
 PRIORITY_ORDER = {"P0": 0, "P1": 1, "P2": 2, "P3": 3}
 
 
 def detect_active_harness(explicit: Optional[str] = None, root_dir: Optional[str] = None) -> str:
     """Resolve current AI harness (`antigravity`, `claude`, or `grok`) from flag, env, or config."""
-    if explicit:
-        return explicit.strip().lower()
-    if os.environ.get("WORKFORCE_HARNESS"):
-        return os.environ["WORKFORCE_HARNESS"].strip().lower()
+    if explicit is not None and str(explicit).strip():
+        val = str(explicit).strip().lower()
+        if val not in VALID_HARNESSES:
+            raise ValueError(f"Unsupported harness '{explicit}'. Must be one of: {sorted(VALID_HARNESSES)}")
+        return val
+    env_harness = os.environ.get("WORKFORCE_HARNESS")
+    if env_harness and env_harness.strip():
+        val = env_harness.strip().lower()
+        if val not in VALID_HARNESSES:
+            raise ValueError(f"Unsupported WORKFORCE_HARNESS '{env_harness}'. Must be one of: {sorted(VALID_HARNESSES)}")
+        return val
     if os.environ.get("ANTIGRAVITY_CONVERSATION_ID") or os.environ.get("ANTIGRAVITY_AGENT") or os.environ.get("AGY_ACCOUNT"):
         return "antigravity"
     if os.environ.get("CLAUDE_PROJECT_DIR") or os.environ.get("CLAUDE_CODE") or os.environ.get("CLAUDE_SESSION_ID"):
@@ -97,8 +116,11 @@ def detect_active_harness(explicit: Optional[str] = None, root_dir: Optional[str
         try:
             with open(cfg_path, "r", encoding="utf-8") as fh:
                 hosts = json.load(fh).get("hosts") or []
-                if isinstance(hosts, list) and hosts:
-                    return str(hosts[0]).lower()
+                if isinstance(hosts, list):
+                    for host in hosts:
+                        cand = str(host).strip().lower()
+                        if cand in VALID_HARNESSES:
+                            return cand
         except (OSError, ValueError):
             pass
     return "antigravity"
@@ -128,14 +150,74 @@ def _prepend_evolution_note(body: str, note: str, now: Optional[datetime.datetim
     return body.rstrip() + f"\n\n{header}\n\n{entry}\n"
 
 
+def _is_pid_dead(lock_path: str) -> bool:
+    """Return True only when the PID recorded in `lock_path` is demonstrably no longer alive."""
+    try:
+        with open(lock_path, "r", encoding="utf-8") as fh:
+            raw_pid = fh.read().strip()
+        pid = int(raw_pid) if raw_pid else 0
+        if pid <= 0:
+            return False
+        os.kill(pid, 0)
+        return False
+    except ProcessLookupError:
+        return True
+    except (OSError, ValueError):
+        return False
+
+
+def _write_lock_pid(fd: int) -> None:
+    """Record current process PID inside an already-locked file descriptor."""
+    try:
+        os.ftruncate(fd, 0)
+        os.lseek(fd, 0, os.SEEK_SET)
+        os.write(fd, f"{os.getpid()}\n".encode("utf-8"))
+    except OSError:
+        pass
+
+
 @contextmanager
 def _claim_lock(tasks_dir: str, timeout_sec: float = 5.0) -> Iterator[None]:
-    """Acquire an atomic OS lock file (`O_CREAT | O_EXCL`) protecting task claiming."""
+    """Acquire a kernel advisory lock (`fcntl.flock` / `msvcrt.locking`) protecting task claiming."""
     os.makedirs(tasks_dir, exist_ok=True)
     lock_path = os.path.join(tasks_dir, ".claim.lock")
     deadline = time.monotonic() + timeout_sec
-    acquired = False
 
+    if fcntl is not None or msvcrt is not None:
+        fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o600)
+        locked = False
+        try:
+            while time.monotonic() < deadline:
+                try:
+                    if fcntl is not None:
+                        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    elif msvcrt is not None:
+                        os.lseek(fd, 0, os.SEEK_SET)
+                        msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+                    locked = True
+                    _write_lock_pid(fd)
+                    break
+                except (BlockingIOError, OSError) as exc:
+                    if fcntl is not None and exc.errno not in (errno.EACCES, errno.EAGAIN, getattr(errno, "EWOULDBLOCK", errno.EAGAIN)):
+                        raise
+                    time.sleep(0.05)
+            if not locked:
+                raise TimeoutError(f"Timed out acquiring task claim lock: {lock_path}")
+            yield
+        finally:
+            if locked:
+                try:
+                    if fcntl is not None:
+                        fcntl.flock(fd, fcntl.LOCK_UN)
+                    elif msvcrt is not None:
+                        os.lseek(fd, 0, os.SEEK_SET)
+                        msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+                except OSError:
+                    pass
+            os.close(fd)
+        return
+
+    acquired = False
     while time.monotonic() < deadline:
         try:
             fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
@@ -144,14 +226,13 @@ def _claim_lock(tasks_dir: str, timeout_sec: float = 5.0) -> Iterator[None]:
             acquired = True
             break
         except FileExistsError:
-            try:
-                if time.time() - os.path.getmtime(lock_path) > 60:
+            if _is_pid_dead(lock_path):
+                try:
                     os.unlink(lock_path)
                     continue
-            except OSError:
-                pass
+                except OSError:
+                    pass
             time.sleep(0.05)
-
     if not acquired:
         raise TimeoutError(f"Timed out acquiring task claim lock: {lock_path}")
     try:
@@ -228,6 +309,12 @@ def claim_next_task(
     Priority 1 (`auto` only): `approved_for_execution == true` and `status == 'todo'`,
       enforcing the stateless rolling 1-bite-per-day guard for `cadence == 'rolling_slice'`.
     """
+    normalized_harness = str(current_harness or "").strip().lower()
+    if normalized_harness not in VALID_HARNESSES:
+        raise ValueError(
+            f"Unsupported harness '{current_harness}'. Must be one of: {sorted(VALID_HARNESSES)}"
+        )
+    current_harness = normalized_harness
     today_str = datetime.date.today().isoformat()
     now_utc = datetime.datetime.now(datetime.timezone.utc)
     now_local = datetime.datetime.now()

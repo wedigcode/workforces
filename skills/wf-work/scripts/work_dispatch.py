@@ -15,8 +15,6 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
-import os
-import re
 import subprocess
 import sys
 from pathlib import Path
@@ -43,21 +41,26 @@ MODE_ALIASES: Dict[str, str] = {
     "resume": "resume",
 }
 
-SCAN_IGNORE_DIRS = frozenset({
-    ".git", ".worktrees", "node_modules", "vendor", "__pycache__",
-    ".venv", "venv", "dist", "build", ".next", "target", "workforces",
-})
-CODE_EXTS = frozenset({".py", ".ts", ".tsx", ".js", ".jsx", ".go", ".php", ".rs", ".java", ".rb"})
-TODO_RE = re.compile(r"(?:#|//|/\*|\*)\s*\b(TODO|FIXME|HACK|XXX)\b[:\s-]*(.*)", re.IGNORECASE)
+_HOST_SKILL_BASES = (".agents", ".claude", ".grok", ".github", ".github/copilot", ".cursor", "")
 
 
-def _load_sibling_script(skill_name: str, script_name: str):
-    """Load a sibling skill script dynamically (works from source or `.agents`)."""
-    here = Path(__file__).resolve().parent
-    candidate = here.parent.parent / skill_name / "scripts" / script_name
-    if not candidate.is_file():
+def _load_sibling_script(skill_name: str, script_name: str, repo_root: Optional[Path] = None):
+    """Locate and load a skill script across source `skills/` and installed host directories."""
+    script_file = Path(__file__).resolve()
+    candidates: List[Path] = []
+    if skill_name == "wf-work":
+        candidates.append(script_file.parent / script_name)
+    if len(script_file.parents) > 2:
+        candidates.append(script_file.parents[2] / skill_name / "scripts" / script_name)
+    if repo_root is not None:
+        for base in _HOST_SKILL_BASES:
+            root_base = (repo_root / base) if base else repo_root
+            candidates.append(root_base / "skills" / skill_name / "scripts" / script_name)
+
+    target = next((p for p in candidates if p.is_file()), None)
+    if target is None:
         return None
-    spec = importlib.util.spec_from_file_location(f"wf_{skill_name}_{candidate.stem}", str(candidate))
+    spec = importlib.util.spec_from_file_location(f"wf_{skill_name}_{target.stem}", str(target))
     if spec and spec.loader:
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
@@ -80,51 +83,8 @@ def _list_open_github_prs(repo_root: Path) -> List[Dict[str, Any]]:
             parsed = json.loads(res.stdout)
             return parsed if isinstance(parsed, list) else []
     except (OSError, ValueError, subprocess.SubprocessError):
-        pass
+        return []
     return []
-
-
-def _scan_debt_hotspots(repo_root: Path, max_files: int = 200) -> Dict[str, Any]:
-    """Bounded read-only scan for `TODO`/`FIXME` items and giant files (>600 lines)."""
-    todos: List[Dict[str, Any]] = []
-    giant_files: List[Dict[str, Any]] = []
-    scanned = 0
-
-    for root, dirs, files in os.walk(repo_root):
-        dirs[:] = sorted(d for d in dirs if d not in SCAN_IGNORE_DIRS)
-        for fname in sorted(files):
-            if Path(fname).suffix.lower() not in CODE_EXTS:
-                continue
-            fpath = Path(root) / fname
-            rel = fpath.relative_to(repo_root).as_posix()
-            scanned += 1
-            try:
-                lines = fpath.read_text(encoding="utf-8", errors="ignore").splitlines()
-            except OSError:
-                continue
-            if len(lines) >= 600:
-                giant_files.append({"file": rel, "lines": len(lines)})
-            for lineno, line in enumerate(lines, 1):
-                match = TODO_RE.search(line)
-                if match:
-                    todos.append({
-                        "file": rel,
-                        "line": lineno,
-                        "tag": match.group(1).upper(),
-                        "text": match.group(2).strip()[:120],
-                    })
-                if len(todos) >= 30:
-                    break
-            if scanned >= max_files:
-                break
-        if scanned >= max_files:
-            break
-
-    return {
-        "files_scanned": scanned,
-        "todo_hits": todos[:15],
-        "giant_files": sorted(giant_files, key=lambda x: x["lines"], reverse=True)[:10],
-    }
 
 
 def _collect_queue_summary(tasks_dir: Path, task_mod: Any) -> Dict[str, Any]:
@@ -162,6 +122,154 @@ def _collect_queue_summary(tasks_dir: Path, task_mod: Any) -> Dict[str, Any]:
     return summary
 
 
+def _try_claim_review(
+    repo_root: Path,
+    tasks_dir: Path,
+    task_mod: Any,
+    active_harness: str,
+    agent: Optional[str],
+    worktree: Optional[str],
+    skip_gh: bool,
+    only_review: bool,
+) -> Optional[Dict[str, Any]]:
+    """Attempt Priority 0 cross-harness code review claim."""
+    claimed_review = task_mod.claim_next_task(
+        tasks_dir=str(tasks_dir),
+        current_harness=active_harness,
+        mode="codereview",
+        agent_name=agent,
+        worktree=worktree,
+    )
+    open_prs = [] if skip_gh else _list_open_github_prs(repo_root)
+    if claimed_review:
+        return {
+            "action": "codereview",
+            "harness": active_harness,
+            "claimed_task": claimed_review,
+            "open_prs": open_prs,
+            "instructions": (
+                "Review diff against `<repo>/docs/index.md` + `wf-pr-review` (Option A: NEVER call `gh pr merge` or deploy). "
+                f"Record verdict via `report-task.py --update \"{claimed_review['path']}\" --complete-review approved|changes_requested`."
+            ),
+        }
+    if only_review:
+        return {
+            "action": "idle" if not open_prs else "review_open_prs",
+            "harness": active_harness,
+            "claimed_task": None,
+            "open_prs": open_prs,
+            "message": "No cross-harness tasks awaiting review." if not open_prs else f"{len(open_prs)} open GitHub PR(s) available for inspection.",
+        }
+    return None
+
+
+def _try_claim_approved_exec(
+    tasks_dir: Path,
+    task_mod: Any,
+    active_harness: str,
+    agent: Optional[str],
+    worktree: Optional[str],
+) -> Optional[Dict[str, Any]]:
+    """Attempt Priority 1 pre-approved task claim with rolling slice protection."""
+    claimed_exec = task_mod.claim_next_task(
+        tasks_dir=str(tasks_dir),
+        current_harness=active_harness,
+        mode="auto",
+        agent_name=agent,
+        worktree=worktree,
+    )
+    if not claimed_exec:
+        return None
+    is_rolling = claimed_exec.get("cadence") == "rolling_slice"
+    return {
+        "action": "execute_approved_task",
+        "harness": active_harness,
+        "claimed_task": claimed_exec,
+        "rolling_slice": is_rolling,
+        "instructions": (
+            "Work in an isolated branch/worktree (`feat/...` or `refactor/...`), extract only 1-3 small helper blocks if rolling_slice, "
+            "run `post_code_reviewer.py --run-checks --strict`, open a Draft PR, and hand off via `--request-review`."
+        ),
+    }
+
+
+def _run_discovery_sweep(
+    canonical_mode: str,
+    repo_root: Path,
+    scanners_mod: Any,
+    okf_mod: Any,
+) -> Dict[str, Any]:
+    """Execute concrete read-only discovery sweep for the selected mode."""
+    if scanners_mod is None:
+        return {"sweep_focus": canonical_mode, "issue_candidates": []}
+    if canonical_mode == "docs":
+        return scanners_mod.run_docs_sweep(repo_root, okf_mod)
+    if canonical_mode == "debt":
+        return scanners_mod.run_debt_sweep(repo_root)
+    if canonical_mode == "security":
+        return scanners_mod.run_security_sweep(repo_root)
+    if canonical_mode == "design":
+        return scanners_mod.run_design_sweep(repo_root)
+    if canonical_mode == "optimization":
+        return scanners_mod.run_optimization_sweep(repo_root)
+    if canonical_mode == "housekeeping":
+        return scanners_mod.run_housekeeping_sweep(repo_root)
+    return {"sweep_focus": canonical_mode, "issue_candidates": []}
+
+
+def _log_discovery_candidates(
+    repo_root: Path,
+    active_harness: str,
+    gate: Dict[str, Any],
+    findings: Dict[str, Any],
+    issue_mod: Any,
+) -> List[str]:
+    """Log bounded, deduplicated discovery findings into `workforces/issues/inbox/`."""
+    if issue_mod is None:
+        return []
+    candidates = findings.get("issue_candidates") or []
+    if not candidates:
+        return []
+
+    inbox_dir = repo_root / "workforces" / "issues" / "inbox"
+    search_dirs = [
+        str(inbox_dir),
+        str(repo_root / "workforces" / "issues" / "triaged"),
+        str(repo_root / "workforces" / "issues" / "completed"),
+    ]
+    current_inbox = int(gate.get("inbox_count", 0))
+    max_inbox = int(gate.get("max_untriaged_inbox", 15))
+    allowance = min(3, max(0, max_inbox - current_inbox)) if max_inbox > 0 else 3
+    if allowance <= 0:
+        return []
+
+    inbox_dir.mkdir(parents=True, exist_ok=True)
+    logged: List[str] = []
+    for cand in candidates:
+        if len(logged) >= allowance:
+            break
+        title = str(cand.get("title") or "").strip()
+        if not title or issue_mod.find_similar_issues(title, search_dirs, threshold=0.78):
+            continue
+        out_file = inbox_dir / f"auto-{issue_mod.slugify(title)}.md"
+        if out_file.exists():
+            continue
+        out_file.write_text(
+            issue_mod.build_issue_markdown(
+                title=title,
+                issue_type=str(cand.get("type") or "chore"),
+                severity=str(cand.get("severity") or "P2"),
+                reporter=f"wf-work:{active_harness}",
+                description=str(cand.get("description") or title),
+                suggested_action=str(cand.get("suggested_action") or "Review and promote via `/wf-sync --daily`."),
+                file_path=str(cand.get("file") or ""),
+            ),
+            encoding="utf-8",
+        )
+        logged.append(str(out_file))
+    return logged
+
+
 def dispatch_work(
     repo_root: Path,
     mode: str = "auto",
@@ -172,17 +280,18 @@ def dispatch_work(
     ignore_idle: bool = False,
     window_remaining_minutes: Optional[int] = None,
     skip_gh: bool = False,
-    log_to_inbox: bool = False,
+    log_to_inbox: bool = True,
 ) -> Dict[str, Any]:
     """Run gate checks, claim priority work, or execute bounded discovery sweeps."""
     canonical_mode = MODE_ALIASES.get(mode.strip().lower())
     if not canonical_mode:
         raise ValueError(f"Unsupported /wf-work mode: {mode}")
 
-    budget_mod = _load_sibling_script("wf-usage-tracker", "budget_gate.py")
-    task_mod = _load_sibling_script("wf-task-tracker", "report-task.py")
-    okf_mod = _load_sibling_script("wf-doc-generator", "scaffold_repo_okf.py")
-    issue_mod = _load_sibling_script("wf-issue-tracker", "report-issue.py")
+    budget_mod = _load_sibling_script("wf-usage-tracker", "budget_gate.py", repo_root=repo_root)
+    task_mod = _load_sibling_script("wf-task-tracker", "report-task.py", repo_root=repo_root)
+    okf_mod = _load_sibling_script("wf-doc-generator", "scaffold_repo_okf.py", repo_root=repo_root)
+    issue_mod = _load_sibling_script("wf-issue-tracker", "report-issue.py", repo_root=repo_root)
+    scanners_mod = _load_sibling_script("wf-work", "discovery_scanners.py", repo_root=repo_root)
     if not budget_mod or not task_mod:
         raise RuntimeError("Required sibling scripts (budget_gate.py / report-task.py) not found.")
 
@@ -190,135 +299,37 @@ def dispatch_work(
     tasks_dir = repo_root / "workforces" / "tasks"
 
     if canonical_mode == "pause":
-        wc = budget_mod.set_discovery_state(repo_root, "paused", reason=reason)
-        return {"action": "paused", "harness": active_harness, "work_control": wc}
-
+        return {"action": "paused", "harness": active_harness, "work_control": budget_mod.set_discovery_state(repo_root, "paused", reason=reason)}
     if canonical_mode == "resume":
-        wc = budget_mod.set_discovery_state(repo_root, "active")
-        return {"action": "resumed", "harness": active_harness, "work_control": wc}
-
+        return {"action": "resumed", "harness": active_harness, "work_control": budget_mod.set_discovery_state(repo_root, "active")}
     if canonical_mode == "status":
         gate = budget_mod.evaluate_budget_gate(repo_root, mode="docs", harness=active_harness, ignore_idle=True)
-        queue = _collect_queue_summary(tasks_dir, task_mod)
-        return {"action": "status", "harness": active_harness, "gate": gate, "queue": queue}
+        return {"action": "status", "harness": active_harness, "gate": gate, "queue": _collect_queue_summary(tasks_dir, task_mod)}
 
-    # Priority 0: Cross-Harness Code Review (`codereview` or first phase of `auto`)
     if canonical_mode in ("codereview", "auto"):
-        claimed_review = task_mod.claim_next_task(
-            tasks_dir=str(tasks_dir),
-            current_harness=active_harness,
-            mode="codereview",
-            agent_name=agent,
-            worktree=worktree,
-        )
-        open_prs = [] if skip_gh else _list_open_github_prs(repo_root)
-        if claimed_review:
-            return {
-                "action": "codereview",
-                "harness": active_harness,
-                "claimed_task": claimed_review,
-                "open_prs": open_prs,
-                "instructions": (
-                    "Review diff against `<repo>/docs/index.md` + `wf-pr-review` (Option A: NEVER call `gh pr merge` or deploy). "
-                    f"Record verdict via `report-task.py --update \"{claimed_review['path']}\" --complete-review approved|changes_requested`."
-                ),
-            }
-        if canonical_mode == "codereview":
-            return {
-                "action": "idle" if not open_prs else "review_open_prs",
-                "harness": active_harness,
-                "claimed_task": None,
-                "open_prs": open_prs,
-                "message": "No cross-harness tasks awaiting review." if not open_prs else f"{len(open_prs)} open GitHub PR(s) available for inspection.",
-            }
+        rev = _try_claim_review(repo_root, tasks_dir, task_mod, active_harness, agent, worktree, skip_gh, canonical_mode == "codereview")
+        if rev is not None:
+            return rev
 
-    # Check token & idle budget before execution/discovery
     gate = budget_mod.evaluate_budget_gate(
-        repo_root,
-        mode=canonical_mode,
-        harness=active_harness,
-        ignore_idle=ignore_idle,
-        window_remaining_minutes=window_remaining_minutes,
+        repo_root, mode=canonical_mode, harness=active_harness, ignore_idle=ignore_idle, window_remaining_minutes=window_remaining_minutes
     )
-
-    # Priority 1: Pre-approved execution queue (`auto` only; bypasses discovery pause)
     if canonical_mode == "auto":
         if gate["code"] in ("token_budget_exhausted", "harness_recently_active"):
             return {"action": "halted", "harness": active_harness, "gate": gate}
-        claimed_exec = task_mod.claim_next_task(
-            tasks_dir=str(tasks_dir),
-            current_harness=active_harness,
-            mode="auto",
-            agent_name=agent,
-            worktree=worktree,
+        claimed = _try_claim_approved_exec(tasks_dir, task_mod, active_harness, agent, worktree)
+        if claimed is not None:
+            return claimed
+        gate = budget_mod.evaluate_budget_gate(
+            repo_root, mode="docs", harness=active_harness, ignore_idle=ignore_idle, window_remaining_minutes=window_remaining_minutes
         )
-        if claimed_exec:
-            is_rolling = claimed_exec.get("cadence") == "rolling_slice"
-            return {
-                "action": "execute_approved_task",
-                "harness": active_harness,
-                "claimed_task": claimed_exec,
-                "rolling_slice": is_rolling,
-                "instructions": (
-                    "Work in an isolated branch/worktree (`feat/...` or `refactor/...`), extract only 1-3 small helper blocks if rolling_slice, "
-                    "run `post_code_reviewer.py --run-checks --strict`, open a Draft PR, and hand off via `--request-review`."
-                ),
-            }
-        # Fall through to discovery (`docs`) only if discovery is allowed
-        discovery_gate = budget_mod.evaluate_budget_gate(
-            repo_root,
-            mode="docs",
-            harness=active_harness,
-            ignore_idle=ignore_idle,
-            window_remaining_minutes=window_remaining_minutes,
-        )
-        if not discovery_gate["allowed"]:
-            return {"action": "halted", "harness": active_harness, "gate": discovery_gate}
         canonical_mode = "docs"
-        gate = discovery_gate
 
     if not gate["allowed"]:
         return {"action": "halted", "harness": active_harness, "gate": gate}
 
-    # Priority 2: Bounded Read-Only Discovery Sweeps
-    findings: Dict[str, Any] = {}
-    logged_issues: List[str] = []
-
-    if canonical_mode == "docs" and okf_mod:
-        findings = okf_mod.audit_hygiene(repo_root)
-    elif canonical_mode == "debt":
-        findings = _scan_debt_hotspots(repo_root)
-    else:
-        findings = {
-            "sweep_focus": canonical_mode,
-            "policy": "Read-only audit; log deduplicated findings to workforces/issues/inbox/ for PM triage. Never open unsolicited PRs.",
-        }
-
-    if log_to_inbox and issue_mod:
-        inbox_dir = repo_root / "workforces" / "issues" / "inbox"
-        triaged_dir = repo_root / "workforces" / "issues" / "triaged"
-        completed_dir = repo_root / "workforces" / "issues" / "completed"
-        search_dirs = [str(inbox_dir), str(triaged_dir), str(completed_dir)]
-        inbox_dir.mkdir(parents=True, exist_ok=True)
-        for gf in findings.get("giant_files", [])[:1]:
-            title = f"Rolling 1-bite/day refactor: {gf['file']}"
-            if not issue_mod.find_similar_issues(title, search_dirs, threshold=0.78):
-                slug = issue_mod.slugify(title)
-                out_file = inbox_dir / f"rolling-{slug}.md"
-                out_file.write_text(
-                    issue_mod.build_issue_markdown(
-                        title=title,
-                        issue_type="refactor",
-                        severity="P2",
-                        reporter=f"wf-work:{active_harness}",
-                        description=f"`{gf['file']}` is {gf['lines']} lines. Propose rolling 1-slice-per-day decomposition (1-3 helpers per Draft PR).",
-                        suggested_action="Promote via report-task.py --promote-issue --cadence rolling_slice --approve once approved.",
-                        file_path=gf["file"],
-                    ),
-                    encoding="utf-8",
-                )
-                logged_issues.append(str(out_file))
-
+    findings = _run_discovery_sweep(canonical_mode, repo_root, scanners_mod, okf_mod)
+    logged_issues = _log_discovery_candidates(repo_root, active_harness, gate, findings, issue_mod) if log_to_inbox else []
     return {
         "action": "discovery",
         "mode": canonical_mode,
@@ -341,7 +352,8 @@ def main() -> int:
     parser.add_argument("--ignore-idle", action="store_true", help="Ignore harness idle threshold")
     parser.add_argument("--window-remaining-minutes", type=int, default=None, help="Remaining quota window minutes")
     parser.add_argument("--skip-gh", action="store_true", help="Skip GitHub CLI queries")
-    parser.add_argument("--log-to-inbox", action="store_true", help="Log top deterministic discovery finding to issues/inbox/")
+    parser.add_argument("--log-to-inbox", dest="log_to_inbox", action="store_true", default=True, help="Log deduplicated discovery findings to issues/inbox/ (default)")
+    parser.add_argument("--no-log-to-inbox", dest="log_to_inbox", action="store_false", help="Run discovery without writing to issues/inbox/")
     parser.add_argument("--json", action="store_true", help="Emit JSON output")
     args = parser.parse_args()
 

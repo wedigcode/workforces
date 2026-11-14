@@ -170,6 +170,69 @@ class TestDeploySafetyHook(unittest.TestCase):
         claude_resp = deploy_safety_hook.format_hook_response("blocked", tool_name="Bash")
         self.assertEqual(claude_resp["hookSpecificOutput"]["permissionDecision"], "ask")
 
+    def test_blocks_wrapper_options_prefix_stripping_force_with_lease_and_substitutions(self):
+        _init_git_repo(self.tmp, branch="feat/origin-cleanup")
+        (self.tmp / "a.txt").write_text("x\n", encoding="utf-8")
+        subprocess.run(["git", "add", "."], cwd=self.tmp, check=True, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "feat: origin cleanup"], cwd=self.tmp, check=True, capture_output=True)
+
+        for cmd in (
+            "git push -u origin feat/origin-cleanup",
+            "git push origin refs/heads/feat/origin-cleanup",
+            "echo 'do not run $(terraform apply)'",
+            "git -C . status",
+        ):
+            self.assertIsNone(deploy_safety_hook.inspect_command(cmd, cwd=str(self.tmp)), cmd)
+
+        for cmd in (
+            "npx --yes ampx pipeline-deploy",
+            "sudo -n terraform apply -auto-approve",
+            "env -i FOO=bar sam deploy --config-env dev",
+            "pnpm --filter web exec ampx deploy",
+            "git push origin release/v1",
+            "git push origin refs/remotes/origin/release/v1",
+            "git push --force-with-lease=main origin feat/origin-cleanup",
+            "git push -uf origin feat/origin-cleanup",
+            "echo $(terraform apply)",
+            'printf "%s" "`gh pr merge 42`"',
+        ):
+            self.assertIsNotNone(deploy_safety_hook.inspect_command(cmd, cwd=str(self.tmp)), f"Bypass not blocked: {cmd}")
+
+    def test_hook_subprocess_fails_closed_and_supports_antigravity_toolcall(self):
+        hook_script = str(REPO_ROOT / "skills" / "wf-post-code-review" / "scripts" / "deploy_safety_hook.py")
+        clean_env = {k: v for k, v in os.environ.items() if k not in ("CLAUDE_PROJECT_DIR", "CLAUDE_CODE")}
+        for raw_stdin in ("", "{malformed-json", "{}"):
+            res = subprocess.run([sys.executable, hook_script], input=raw_stdin, capture_output=True, text=True, check=True, env=clean_env)
+            out = json.loads(res.stdout)
+            self.assertEqual(out.get("decision"), "force_ask", f"Expected fail-closed force_ask for stdin={raw_stdin!r}")
+
+        safe_agy = json.dumps({"toolCall": {"name": "run_command", "args": {"CommandLine": "git status", "Cwd": str(self.tmp)}}})
+        res_safe = subprocess.run([sys.executable, hook_script], input=safe_agy, capture_output=True, text=True, check=True, env=clean_env)
+        self.assertEqual(json.loads(res_safe.stdout).get("decision"), "allow")
+
+        bad_agy = json.dumps({"toolCall": {"name": "run_command", "args": {"CommandLine": "sam deploy --no-confirm", "Cwd": str(self.tmp)}}})
+        res_bad = subprocess.run([sys.executable, hook_script], input=bad_agy, capture_output=True, text=True, check=True, env=clean_env)
+        self.assertEqual(json.loads(res_bad.stdout).get("decision"), "force_ask")
+
+    def test_compiled_execute_hook_fails_closed_when_script_or_python_missing(self):
+        ca = _load_module("compile_assets_test", "skills/wf-management/scripts/compile_assets.py")
+        profiles = ca.load_host_profiles(str(REPO_ROOT))
+        prog_meta = json.loads((REPO_ROOT / "plugins" / "wf-programming-plugin" / "plugin.json").read_text(encoding="utf-8"))
+
+        agy_cmd = ca.compile_plugin_hooks_for_host(prog_meta, profiles["antigravity"])["PreToolUse"][1]["hooks"][0]["command"]
+        claude_cmd = ca.compile_plugin_hooks_for_host(prog_meta, profiles["claude"])["PreToolUse"][1]["hooks"][0]["command"]
+
+        res_agy = subprocess.run(["/bin/sh", "-c", agy_cmd], input='{"toolCall":{"args":{"CommandLine":"git status"}}}', cwd=self.tmp, capture_output=True, text=True, check=True)
+        self.assertEqual(json.loads(res_agy.stdout).get("decision"), "force_ask")
+
+        res_claude = subprocess.run(["/bin/sh", "-c", claude_cmd], input='{"tool_name":"Bash","tool_input":{"command":"git status"}}', cwd=self.tmp, capture_output=True, text=True, check=True)
+        self.assertEqual(json.loads(res_claude.stdout)["hookSpecificOutput"]["permissionDecision"], "ask")
+
+        # Empty PATH simulates both python3 and python missing -> printf fallback must fail closed
+        empty_env = {"PATH": ""}
+        res_nopy = subprocess.run(["/bin/sh", "-c", agy_cmd], input="", cwd=self.tmp, env=empty_env, capture_output=True, text=True, check=True)
+        self.assertEqual(json.loads(res_nopy.stdout).get("decision"), "force_ask")
+
 
 class TestPostCodeReviewerArchitectureChecks(unittest.TestCase):
     """Verify production fallback blocker, SAM/IaC env parity warning, link hygiene, and OKF match notice."""
@@ -389,6 +452,83 @@ class TestWfWorkMultiHarnessAndBudgetGate(unittest.TestCase):
         # Cross-harness codereview remains unblocked even when daily token budget is exhausted
         review_gate = budget_gate.evaluate_budget_gate(self.tmp, mode="codereview", harness="claude")
         self.assertTrue(review_gate["allowed"])
+
+    def test_rejects_arbitrary_harness_and_enforces_antigravity_est_total_tokens(self):
+        tasks_dir = self.tmp / "workforces" / "tasks"
+        with self.assertRaises(ValueError):
+            budget_gate.detect_active_harness(explicit="arbitrary", repo_root=self.tmp)
+        with self.assertRaises(ValueError):
+            budget_gate.evaluate_budget_gate(self.tmp, mode="docs", harness="arbitrary")
+        with self.assertRaises(ValueError):
+            report_task.detect_active_harness(explicit="arbitrary")
+        with self.assertRaises(ValueError):
+            report_task.claim_next_task(str(tasks_dir), current_harness="arbitrary")
+
+        cfg_path = self.tmp / "workforces" / "config.json"
+        cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+        cfg["work_control"] = {"max_daily_tokens": 1000}
+        cfg_path.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+        usage_log = self.tmp / "workforces" / "tmp" / "usage-log.json"
+        usage_log.parent.mkdir(parents=True, exist_ok=True)
+        usage_log.write_text(json.dumps({"aggregate": {"est_total_tokens": 5000}}), encoding="utf-8")
+
+        gated = budget_gate.evaluate_budget_gate(self.tmp, mode="docs", harness="antigravity")
+        self.assertFalse(gated["allowed"])
+        self.assertEqual(gated["code"], "token_budget_exhausted")
+        self.assertEqual(gated["telemetry"]["estimated_tokens_today"], 5000)
+
+    def test_claim_lock_prevents_concurrent_child_entry(self):
+        tasks_dir = self.tmp / "workforces" / "tasks"
+        child_code = (
+            "import importlib.util; "
+            f"spec = importlib.util.spec_from_file_location('rt', {str(REPO_ROOT / 'skills' / 'wf-task-tracker' / 'scripts' / 'report-task.py')!r}); "
+            "mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod); "
+            f"ctx = mod._claim_lock({str(tasks_dir)!r}, timeout_sec=0.25); ctx.__enter__()"
+        )
+        with report_task._claim_lock(str(tasks_dir), timeout_sec=2.0):
+            child = subprocess.run([sys.executable, "-c", child_code], capture_output=True, text=True)
+        self.assertNotEqual(child.returncode, 0)
+        self.assertIn("TimeoutError", child.stderr)
+
+    def test_installed_layout_docs_scaffolding_and_all_discovery_modes(self):
+        _init_git_repo(self.tmp, remote_url="https://github.com/acme/sample-app.git")
+        for skill_name in ("wf-work", "wf-usage-tracker", "wf-task-tracker", "wf-doc-generator", "wf-issue-tracker", "wf-management"):
+            src = REPO_ROOT / "skills" / skill_name / "scripts"
+            dst = self.tmp / ".agents" / "skills" / skill_name / "scripts"
+            dst.mkdir(parents=True, exist_ok=True)
+            for item in src.glob("*.py"):
+                shutil.copy2(item, dst / item.name)
+
+        (self.tmp / "random.tmp").write_text("stray note\n", encoding="utf-8")
+        (self.tmp / "package.json").write_text(json.dumps({"name": "sample", "dependencies": {"lodash": "*"}}), encoding="utf-8")
+        (self.tmp / "src").mkdir(parents=True, exist_ok=True)
+        (self.tmp / "src" / "config.py").write_text("import os\nENV = os.getenv('APP_ENV', 'production')\n", encoding="utf-8")
+        (self.tmp / "src" / "App.tsx").write_text("export function App() { return <img src='/hero.png' />; }\n", encoding="utf-8")
+        (self.tmp / "src" / "worker.py").write_text("import requests\ndef run(urls):\n    for u in urls:\n        requests.get(u)\n", encoding="utf-8")
+
+        installed_dispatch = str(self.tmp / ".agents" / "skills" / "wf-work" / "scripts" / "work_dispatch.py")
+        docs_res = subprocess.run(
+            [sys.executable, installed_dispatch, "docs", "--root", str(self.tmp), "--harness", "claude", "--skip-gh", "--json"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        docs_payload = json.loads(docs_res.stdout)
+        self.assertEqual(docs_payload["action"], "discovery")
+        self.assertTrue((self.tmp / "docs" / "index.md").is_file())
+        self.assertIn("random.tmp", docs_payload["findings"]["stray_root_files"])
+
+        for sweep_mode, expected_kind in (
+            ("security", "production_default"),
+            ("design", "img_missing_alt"),
+            ("optimization", "loop_io_n_plus_1"),
+            ("housekeeping", "unpinned_dep"),
+        ):
+            out = work_dispatch.dispatch_work(self.tmp, mode=sweep_mode, harness="grok", skip_gh=True, log_to_inbox=True)
+            self.assertEqual(out["action"], "discovery")
+            kinds = [f["kind"] for f in out["findings"]["findings"]]
+            self.assertIn(expected_kind, kinds, f"Mode `{sweep_mode}` missed `{expected_kind}` in {out}")
+            self.assertGreaterEqual(len(out["logged_issues"]), 1, f"Expected logged inbox issue for `{sweep_mode}`")
 
 
 class TestRepositoryCleanHygiene(unittest.TestCase):
