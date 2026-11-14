@@ -18,11 +18,14 @@ This protocol enforces high-velocity execution, bounded investigation, and stric
 - **Tentative Inquiry & Graded Confidence**: Provide a direct, tentative answer based on conversation memory and current workspace state with explicit confidence. If unsure or if disk retrieval is needed, confirm with the user before triggering search cascades.
 - **Hypothesis-Driven Lookups**: If file verification is required, verify targeted local files directly rather than broadly searching session histories.
 
-## 3. Strict Scope & Blast Radius Confinement
-- **Localized Focus**: When assigned to debug, inspect, or modify a specific component (e.g., a helper function, a single template, a localized utility):
-  - Confine investigation strictly to the target file and its direct inputs/outputs.
-  - Do NOT proactively traverse or inspect adjacent database tables, controllers, background job queues, or framework configuration files unless a concrete runtime failure or unhandled import directly demands it.
-- **Hypothesis-Driven Lookups**: Every tool call must test a specific, falsifiable hypothesis. Never perform generic browsing or open-ended scanning of database tables or directories.
+## 3. Scope Escalation Judgement & Bounded Investigation
+- **Localized Focus for Purely Local Tasks**: If a fix is strictly internal to a pure helper, UI tweak, or single utility with no external callers, domain events, or runtime config changes, confine investigation to the target file and its direct inputs/outputs.
+- **Automatic Scope Escalation (Gate 1)**: Escalate immediately before planning or coding when a task touches **any** of:
+  1. Domain events, webhooks, message queues, event subscribers/listeners, or notifications/sync across services;
+  2. External APIs, 3rd-party integrations, or shared service interfaces;
+  3. Environment variables, secrets, feature flags, or IaC/deployment templates (`template.yaml`, `samconfig.toml`, `serverless.yml`, Terraform/CDK/Compose).
+  - When escalated, inspect `<repo>/docs/index.md` (and matching `docs/architecture/*.md` cards), search for **1 existing codebase analog** solving a similar integration/notifier/subscriber pattern, and verify event subscribers + deployment config parity.
+- **Hypothesis-Driven Lookups**: Every tool call must test a specific, falsifiable hypothesis. Never perform generic browsing or open-ended scanning of unrelated files.
 
 ## 4. Triage & Bugfix Fast Path (Exemption from Plan Ceremonies)
 - **Fast Path Criteria**: Localized bug fixes, targeted helper modifications, single-file edits (< 50 lines), and direct Q&A are categorized as **Fast Path tasks**.

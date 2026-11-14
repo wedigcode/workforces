@@ -19,7 +19,8 @@
   "hooks_target": ".claude/settings.json",
   "hook_capability_map": {
     "edit": ["Write", "Edit"],
-    "multi_edit": ["MultiEdit"]
+    "multi_edit": ["MultiEdit"],
+    "execute": ["Bash"]
   },
   "capability_map": {
     "read": ["Read"],

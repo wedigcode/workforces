@@ -555,9 +555,13 @@ def _ordered_hook_bases(host_profile: Dict[str, Any]) -> Tuple[str, ...]:
     return tuple(seen)
 
 
-def _wrap_python_with_fallback(py_code: str) -> str:
+def _wrap_python_with_fallback(py_code: str, fail_closed_stdout: Optional[str] = None) -> str:
     """Wrap inline Python one-liner with python3 -> python fallback for Windows/POSIX."""
-    return f'python3 -c "{py_code}" || python -c "{py_code}"'
+    base_cmd = f'python3 -c "{py_code}" || python -c "{py_code}"'
+    if fail_closed_stdout is None:
+        return base_cmd
+    safe_fb = fail_closed_stdout.replace("'", '"')
+    return f"{base_cmd} || printf '%s\\n' '{safe_fb}'"
 
 
 def _build_integrity_hook_cmd(script_rel: str, host_profile: Dict[str, Any]) -> str:
@@ -583,6 +587,29 @@ def _build_integrity_hook_cmd(script_rel: str, host_profile: Dict[str, Any]) -> 
     return _wrap_python_with_fallback(py_code)
 
 
+def _resolve_fallback_stdout(rule: Dict[str, Any], host_profile: Dict[str, Any]) -> str:
+    """Resolve host-native JSON printed when a hook script is missing or fails."""
+    raw_fb = str(rule.get("fallback_stdout", "{}")).replace('\\"', '"')
+    if host_profile.get("id") != "claude" or '"decision"' not in raw_fb:
+        return raw_fb
+    try:
+        fb_obj = json.loads(raw_fb)
+    except ValueError:
+        return "{}"
+    dec = str(fb_obj.get("decision") or "").lower()
+    reason = str(fb_obj.get("reason") or "Consent gate script unavailable; manual confirmation required.")
+    if dec in ("force_ask", "ask", "deny", "block"):
+        perm = "deny" if dec in ("deny", "block") else "ask"
+        return json.dumps({
+            "hookSpecificOutput": {
+                "hookEventName": "PreToolUse",
+                "permissionDecision": perm,
+                "permissionDecisionReason": reason,
+            }
+        })
+    return "{}"
+
+
 def _build_hook_command(rule: Dict[str, Any], host_profile: Dict[str, Any]) -> str:
     """Build cross-workspace Python hook command string for a canonical hook rule."""
     if rule.get("command"):
@@ -590,18 +617,22 @@ def _build_hook_command(rule: Dict[str, Any], host_profile: Dict[str, Any]) -> s
     script_rel = str(rule["script_rel"])
     if rule.get("runner", "script_rel") == "integrity_validator":
         return _build_integrity_hook_cmd(script_rel, host_profile)
-    bases_repr = repr(_ordered_hook_bases(host_profile))
-    raw_fb = str(rule.get("fallback_stdout", "{}")).replace('\\"', '"')
-    if host_profile.get("id") == "claude" and '"decision"' in raw_fb:
-        raw_fb = "{}"
-    escaped_fb = raw_fb.replace('"', '\\"')
-    py_code = (
-        f"import os, sys, subprocess; rel = '{script_rel}'; "
-        f"cands = [f'{{b}}/{{rel}}' if b else rel for b in {bases_repr}]; "
-        "script = next((p for p in cands if os.path.exists(p)), None); "
-        f"sys.exit(subprocess.call([sys.executable, script])) if script else (print('{escaped_fb}'), sys.exit(0))"
+    bases = _ordered_hook_bases(host_profile)
+    bases_repr = repr(bases)
+    ws_bases_repr = repr(tuple(b for b in bases if b != "../.."))
+    raw_fb = _resolve_fallback_stdout(rule, host_profile)
+    escaped_fb = raw_fb.replace("'", '"').replace('"', '\\"')
+    cands_expr = (
+        f"[os.path.join(r, b, rel) if b else os.path.join(r, rel) "
+        f"for r in (os.environ.get('CLAUDE_PROJECT_DIR'), os.environ.get('GROK_PROJECT_DIR')) if r "
+        f"for b in {ws_bases_repr}] + [f'{{b}}/{{rel}}' if b else rel for b in {bases_repr}]"
     )
-    return _wrap_python_with_fallback(py_code)
+    if rule.get("fail_closed"):
+        exec_expr = f"rc = subprocess.call([sys.executable, script]) if script else 1; (print('{escaped_fb}') if rc != 0 else None); sys.exit(0)"
+    else:
+        exec_expr = f"sys.exit(subprocess.call([sys.executable, script])) if script else (print('{escaped_fb}'), sys.exit(0))"
+    py_code = f"import os, sys, subprocess; rel = '{script_rel}'; cands = {cands_expr}; script = next((p for p in cands if os.path.exists(p)), None); {exec_expr}"
+    return _wrap_python_with_fallback(py_code, fail_closed_stdout=raw_fb if rule.get("fail_closed") else None)
 
 
 def _compile_single_hook_rule(

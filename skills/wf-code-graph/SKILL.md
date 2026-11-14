@@ -4,7 +4,10 @@ description: Constructs AST-based code graphs, indexes functions and classes, an
 ---
 # Skill: Code Graph & Method Indexer
 
-Provides lightweight, zero-dependency symbol indexing, function discovery, and call graph mapping.
+Provides lightweight, zero-dependency symbol indexing and call graph mapping for **`wf-canvas` visual inspection** and targeted symbol deduplication sweeps.
+
+> [!NOTE]
+> For cross-harness architecture understanding and pre-plan wiring checks, prefer **`<repo>/docs/index.md`** (`wf-doc-generator`) + 1 codebase analog rather than running a full `graph_indexer.py --build-okf` scan.
 
 ---
 

@@ -172,8 +172,8 @@ Always format the issue body using the following template:
 {Clear, detailed description of what needs to be accomplished and why.}
 
 ## 💻 Target Files & Directories
-- `{absolute path or relative file URL to file1}` (e.g. `[filename](file:///path/to/file)`)
-- `{absolute path or relative file URL to file2}`
+- `{remote Git host URL or repo-relative POSIX path to file1}` (e.g. `[filename](https://github.com/org/repo/blob/main/src/file.py)` or `src/file.py`)
+- `{remote Git host URL or repo-relative POSIX path to file2}`
 
 ## ✅ Acceptance Criteria
 - [ ] {Concrete verification step 1}

@@ -10,13 +10,13 @@ Lean, high-signal engineering workflow enforcing AI TDD, method stubs first, sym
 
 ## Workflow Protocol
 
-### Step 1: Pre-Implementation Graph Check & Method Stubs
-1. Run symbol discovery via `wf-code-graph`:
+### Step 1: Pre-Implementation Analog & Architecture Check
+1. **Architecture Index & Existing Analog First**: If `<repo>/docs/index.md` exists, inspect it and matching `docs/architecture/*.md` cards first. For any task touching domain events, subscribers, queues, webhooks, 3rd-party services, or env/IaC config, find **at least 1 existing analog** in the codebase so you reuse or group into existing dispatcher/subscriber flows instead of scattering duplicate notifications.
+2. *(Optional AST symbol check)* Run symbol discovery via `wf-code-graph` when refactoring or searching helpers:
    ```bash
    python3 .agents/skills/wf-code-graph/scripts/graph_indexer.py --query "<method_or_keyword>"
    ```
-   *(Fallback: `python3 skills/wf-code-graph/scripts/graph_indexer.py --query "<method_or_keyword>"`)
-2. Check `workforces/code-graph.json` or target file helpers. If an existing method performs the required logic or formatting, compose or extend it.
+   *(Fallback: `python3 skills/wf-code-graph/scripts/graph_indexer.py --query "<method_or_keyword>"`)*
 3. **AI TDD First Pass**: Author method signatures, type contracts, and stubs first. Do not jump immediately into full code generation.
 
 ### Step 2: Unit Tests First
@@ -31,6 +31,8 @@ Lean, high-signal engineering workflow enforcing AI TDD, method stubs first, sym
 - **Method Decomposition**: Extract nested blocks (> 2 levels deep) into helper methods when clarity improves.
 - **Simplicity**: Favor clean, idiomatic expressions over verbose intermediate variables or redundant ternary conditionals.
 - **Maintainability & Error Safety**: Always catch specific exceptions, attach contextual metadata, and propagate or log. Never swallow errors with empty `catch` or `except` blocks.
+- **No `"production"` Fallbacks & IaC Env Parity**: NEVER hardcode `"prod"`, `"production"`, or `"live"` as fallback defaults in code. Whenever adding, renaming, or removing an environment variable or hardcoded secret/config value, inspect deployment configs (`template.yaml`, `template.yml`, `samconfig.toml`, `serverless.yml`, `.env.example`) for parity across all environments. Treat missing deployment config as a config/runbook fix (**Config Outage != Code Workaround**).
+- **Concise Boundary Docblocks**: New services, event subscribers, and integration handlers should carry a short (2–4 line) class/module docblock explaining role, events handled, and external config assumptions, paired with living `docs/architecture/*.md` OKF cards where cross-service contracts exist.
 
 ### Step 4: Pre-empt the PR Review Verification Form
 Review the code against the 5-point verification checklist before declaring completion:

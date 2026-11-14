@@ -33,7 +33,7 @@ CORE_SKILLS = {
     'wf-management', 'wf-memory-management', 'wf-task-tracker', 'wf-issue-tracker',
     'wf-session-context', 'wf-usage-tracker', 'wf-integrity-validator', 'wf-canvas',
     'wf-github-project-planning', 'wf-hypothesis-tracker',
-    'wf-plan', 'wf-sync', 'wf-advisor', 'wf-ideate', 'wf-investigate',
+    'wf-plan', 'wf-sync', 'wf-work', 'wf-advisor', 'wf-ideate', 'wf-investigate',
     'wf-question-formulation', 'wf-update', 'wf-dashboard',
 }
 CORE_WORKFLOWS = set()
@@ -49,7 +49,7 @@ _LEGACY_COPILOT_CATS = frozenset({"agents", "rules", "skills", "workflows", "plu
 LEGACY_OBSOLETE_SUBPATHS = [
     "agents/compliance.md",
     "agents/advisor.md",
-    "skills/wf-work/SKILL.md",
+    "workflows/wf-work.md",
     "agents/clean-coder.md",
     "agents/design-pilot.md",
     "agents/heartbeat.md",

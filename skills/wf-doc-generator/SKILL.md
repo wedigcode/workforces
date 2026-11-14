@@ -22,23 +22,30 @@ Detects project programming language, discovers native documentation generators 
 
 ## Execution Protocol
 
-### Step 1: Detect Project Stack
-1. Scan project root for signature manifest files (`package.json`, `go.mod`, `Cargo.toml`, `pyproject.toml`).
-2. Identify primary and secondary programming languages.
-
-### Step 2: Extract & Convert to OKF
-1. Run `wf-code-graph` indexer first for baseline symbol indexing:
+### Step 1: Detect Project Stack & Scaffold Repo-Local OKF Docs (`<repo>/docs/`)
+Save architecture docs directly inside **`<repo>/docs/`** so all coding harnesses (even without Workforces installed) share architecture context:
+1. Run the non-destructive OKF scaffolder across PHP, Go, Node/TypeScript, Python, Rust, and AWS SAM/IaC:
    ```bash
-   python3 .agents/skills/wf-code-graph/scripts/graph_indexer.py --scan ./ --out-okf workforces/knowledge-catalog
+   python3 .agents/skills/wf-doc-generator/scripts/scaffold_repo_okf.py --scan ./
    ```
-   *(Fallback: `python3 skills/wf-code-graph/scripts/graph_indexer.py ...`)*
-2. If native doc tools are installed or requested, invoke them to populate raw docs under `workforces/docs/`.
-3. Synthesize API documentation into OKF concept files in `workforces/knowledge-catalog/docs/`.
+   *(Fallback: `python3 skills/wf-doc-generator/scripts/scaffold_repo_okf.py --scan ./`)*
+2. Inspect and enrich generated `<repo>/docs/index.md` and `docs/architecture/*.md` cards (`affected_files:` frontmatter globs + concise `## Constraints & Why` entries — never maintain a redundant `CHANGELOG.md`).
+
+### Step 2: Repo Hygiene Audit & Dehydrating Shipped PRDs/Specs
+1. Audit stray root files, bulky shipped PRDs/specs, and undocumented services:
+   ```bash
+   python3 .agents/skills/wf-doc-generator/scripts/scaffold_repo_okf.py --audit-hygiene ./
+   ```
+2. Collapse shipped PRDs/specs into permanent commit-linked stubs (retaining short summary + Git SHA snapshot link):
+   ```bash
+   python3 .agents/skills/wf-doc-generator/scripts/scaffold_repo_okf.py --dehydrate-spec docs/specs/example-prd.md --living-doc docs/architecture/service.md
+   ```
+
+### Step 3: Optional Native Extractors & Canvas Symbol Index
+- Native extractors (`typedoc`, `pydoc`, `go doc`, `cargo doc`) or optional symbol graph exports (`wf-code-graph`) may supplement `<repo>/docs/` when deep API dumps are needed.
 
 ---
 
 ## Output Location
-All generated docs and indexes reside in the workspace directory:
-- `workforces/knowledge-catalog/index.md`
-- `workforces/knowledge-catalog/symbols/`
-- `workforces/docs/`
+- **Primary Architecture Surface (Universal)**: `<repo>/docs/index.md`, `<repo>/docs/architecture/*.md`
+- **Optional Deep Reference Cache**: `workforces/docs/`, `workforces/knowledge-catalog/code/`

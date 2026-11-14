@@ -207,7 +207,8 @@ When invoked for `/wf-sync`, route by mode:
    - Read `workforces/workstate.md`, `workforces/issues/inbox/`, and GitHub PRs.
    - Summarize 24h Wins & Roadblocks.
    - Designate today's single **"One Thing"** (P0).
-   - Triage inbox items into `workstate.md` and GitHub.
+   - Triage inbox items (`workforces/issues/inbox/`) into approved queue tasks (`report-task.py --promote-issue <issue> --approve` and `--cadence rolling_slice` for 1-bite/day refactors on giant files) or reject; enforce discovery check-in pause (`budget_gate.py --pause-discovery` / `/wf-work pause`) when `workforces/issues/inbox/` exceeds cap or focus is needed.
+   - Surface cross-harness review queue (`review_state: requires_code_review`) and multi-harness claims (`[antigravity]`, `[claude]`, `[grok]`) in `workstate.md`.
    - Save summary to `workforces/team-sync/YYYY-MM-DD.md`.
 2. **Strategic Review (`/wf-sync --strategy`):**
    - Co-pilot using the `wf-advisor` skill (`/wf-advisor`) to lead strategic discovery.

@@ -62,7 +62,7 @@ tracked_issues: []
 - Initial proposal for bold saturated accents.
 
 ## 📁 Key Files & Code Symbols
-- [theme.css](file:///path/to/theme.css)
+- [theme.css](src/styles/theme.css)
 
 ## 🔑 Keywords & Scanning Hooks
 `theme`, `colors`, `design`

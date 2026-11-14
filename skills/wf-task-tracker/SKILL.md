@@ -159,7 +159,7 @@ github_issue: ~
 
 **Type:** `follow-up` | **Priority:** `P1` | **Status:** `todo` | **Reporter:** `wf-scribe` | **Assignee:** `@user`  
 **Reported:** 2026-08-23 12:00 | **Updated:** 2026-08-23 12:15  
-**Origin Session:** [026_2026-08-23_claude_scribe_product_brief.md](file:///path/to/session.md)  
+**Origin Session:** [026_2026-08-23_claude_scribe_product_brief.md](https://github.com/org/repo/blob/main/workforces/session-context/026_2026-08-23_claude_scribe_product_brief.md)  
 
 ## Description
 

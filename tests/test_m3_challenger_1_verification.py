@@ -138,71 +138,25 @@ class TestMilestone3EmpiricalChallenger(unittest.TestCase):
             cls.skills_corpus[s_dir.name] = desc
         cls.retriever = BM25Retriever(cls.skills_corpus)
 
-    def test_wf_work_skill_and_workflow_complete_absence(self):
-        """Verify skills/wf-work/ and workflows/wf-work.md are completely deleted."""
-        self.assertFalse((SKILLS_DIR / "wf-work").exists(), "skills/wf-work must not exist")
+    def test_wf_work_skill_restored_and_legacy_workflow_absent(self):
+        """Verify modern skills/wf-work/ exists while legacy workflows/wf-work.md remains retired."""
+        self.assertTrue((SKILLS_DIR / "wf-work" / "SKILL.md").is_file(), "skills/wf-work/SKILL.md must exist")
         self.assertFalse((WORKFLOWS_DIR / "wf-work.md").exists(), "workflows/wf-work.md must not exist")
 
-    def test_exactly_38_skills_in_skills_dir(self):
-        """Verify exactly 38 skills exist in skills/ directory."""
+    def test_exactly_39_skills_in_skills_dir(self):
+        """Verify exactly 39 skills exist in skills/ directory."""
         self.assertEqual(
             len(self.skill_dirs),
-            38,
-            f"Expected exactly 38 skills in skills/, but found {len(self.skill_dirs)}: {[d.name for d in self.skill_dirs]}"
+            39,
+            f"Expected exactly 39 skills in skills/, but found {len(self.skill_dirs)}: {[d.name for d in self.skill_dirs]}"
         )
-        self.assertNotIn("wf-work", [d.name for d in self.skill_dirs])
+        self.assertIn("wf-work", [d.name for d in self.skill_dirs])
 
-    def test_exhaustive_grep_no_active_wf_work_in_skills(self):
-        """Verify no skill files (excluding wf-management scripts and wf-usage-tracker) contain /wf-work."""
-        for s_dir in self.skill_dirs:
-            if s_dir.name in ("wf-management", "wf-usage-tracker"):
-                continue
-            for file_path in s_dir.glob("**/*"):
-                if not file_path.is_file():
-                    continue
-                try:
-                    text = file_path.read_text(encoding="utf-8")
-                except UnicodeDecodeError:
-                    continue
-                # Search for active slash-command invocation /wf-work
-                self.assertNotIn(
-                    "/wf-work",
-                    text,
-                    f"Found active '/wf-work' invocation in skill file: {file_path.relative_to(REPO_ROOT)}"
-                )
-
-    def test_exhaustive_grep_no_wf_work_in_agents(self):
-        """Verify no files in agents/ reference wf-work or /wf-work."""
-        for agent_file in AGENTS_DIR.glob("*.md"):
-            text = agent_file.read_text(encoding="utf-8")
-            self.assertNotIn("wf-work", text, f"Found 'wf-work' in agent: {agent_file.relative_to(REPO_ROOT)}")
-
-    def test_exhaustive_grep_no_wf_work_in_rules(self):
-        """Verify no files in rules/ reference wf-work or /wf-work."""
-        for rule_file in RULES_DIR.glob("*.md"):
-            text = rule_file.read_text(encoding="utf-8")
-            self.assertNotIn("wf-work", text, f"Found 'wf-work' in rule: {rule_file.relative_to(REPO_ROOT)}")
-
-    def test_exhaustive_grep_no_wf_work_in_workflows(self):
-        """Verify no files in workflows/ reference wf-work or /wf-work."""
+    def test_exhaustive_grep_no_wf_work_in_legacy_workflows(self):
+        """Verify no legacy workflow files in workflows/ reference retired wf-work workflows."""
         for wf_file in WORKFLOWS_DIR.glob("*.md"):
             text = wf_file.read_text(encoding="utf-8")
-            self.assertNotIn("wf-work", text, f"Found 'wf-work' in workflow: {wf_file.relative_to(REPO_ROOT)}")
-
-    def test_exhaustive_grep_no_wf_work_in_teams(self):
-        """Verify no pack.json or pack.md in teams/ reference wf-work or /wf-work."""
-        for team_file in TEAMS_DIR.glob("**/*"):
-            if team_file.suffix in (".json", ".md"):
-                text = team_file.read_text(encoding="utf-8")
-                self.assertNotIn("wf-work", text, f"Found 'wf-work' in team file: {team_file.relative_to(REPO_ROOT)}")
-
-    def test_exhaustive_grep_no_wf_work_in_docs_and_readme(self):
-        """Verify README.md and docs/ do not reference wf-work as active tool."""
-        readme_text = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
-        self.assertNotIn("/wf-work", readme_text, "Found '/wf-work' in README.md")
-        for doc_file in DOCS_DIR.glob("*.md"):
-            text = doc_file.read_text(encoding="utf-8")
-            self.assertNotIn("/wf-work", text, f"Found '/wf-work' in doc: {doc_file.relative_to(REPO_ROOT)}")
+            self.assertNotIn("wf-work", text, f"Found 'wf-work' in legacy workflow: {wf_file.relative_to(REPO_ROOT)}")
 
     def test_semantic_task_queries_map_to_sync_and_tracker(self):
         """Adversarially stress-test BM25 retrieval for task triage and standup queries."""

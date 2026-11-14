@@ -20,6 +20,7 @@ import re
 import shutil
 import subprocess
 import sys
+from fnmatch import fnmatch
 from pathlib import Path
 from typing import Dict, List, Any, Set, Tuple, Optional
 
@@ -575,14 +576,201 @@ def audit_code_security_and_bug_patterns(diff_text: str, modified_files: List[st
             if re.search(r"(?:\.innerHTML\s*=|dangerouslySetInnerHTML\s*=)", code_line):
                 sec_issues.append(f"⚠️ **XSS Injection Risk:** Unescaped HTML/DOM injection detected in `{curr_file}`.")
 
-        # 3. Common Bug Traps (Copilot-style missed bug checks)
+        # 3. Common Bug Traps & Production-Default Fallbacks
         if curr_file.endswith(".py"):
             if re.search(r"def\s+[a-zA-Z_]\w*\s*\([^)]*=\s*(?:\[\]|\{\}|set\(\))", code_line):
                 bug_issues.append(f"🐛 **Potential Bug Flagged:** Mutable default argument in `{curr_file}`: `{code_line}`. Use `None` as default.")
             if re.search(r"except(?:\s+[a-zA-Z_]\w*)?\s*:\s*(?:pass|\.\.\.)\s*$", code_line) and not is_test_file(curr_file):
                 bug_issues.append(f"🐛 **Potential Bug Flagged:** Silent exception swallowing with `pass` in `{curr_file}`. Log or propagate errors.")
 
+        code_exts = (".py", ".js", ".jsx", ".ts", ".tsx", ".go", ".php", ".rb", ".java", ".rs")
+        is_regex_def = ("re.compile" in code_line or "re.search" in code_line or "r\"" in code_line or "r'" in code_line)
+        if curr_file.endswith(code_exts) and not is_test_file(curr_file) and not is_regex_def:
+            prod_default_call = re.search(
+                r"(?i)(?:os\.getenv|os\.environ\.get|getenv|env)\s*\(\s*['\"][A-Z0-9_]+['\"]\s*,\s*['\"](?:prod|production|live)['\"]\s*\)",
+                code_line,
+            )
+            prod_default_or = re.search(
+                r"(?i)(?:process\.env\.[A-Z0-9_]+|os\.getenv\([^)]+\)|os\.environ\.get\([^)]+\)|\$_ENV\[[^\]]+\]|getenv\([^)]+\))\s*(?:\|\||\?\?|\bor\b|\?:)\s*['\"](?:prod|production|live)['\"]",
+                code_line,
+            )
+            if prod_default_call or prod_default_or:
+                sec_issues.append(
+                    f"❌ **Production Default Fallback Blocked:** Hardcoded fallback to `prod`/`production`/`live` in `{curr_file}`. "
+                    "Fail fast or set the variable in deployment config (`samconfig.toml` / IaC) instead."
+                )
+
     return sec_issues, bug_issues
+
+
+_BUILTIN_ENV_VARS = frozenset({
+    "PATH", "HOME", "PWD", "USER", "SHELL", "TERM", "LANG", "TMPDIR", "CI",
+    "NODE_ENV", "PYTHONPATH", "AWS_REGION", "AWS_DEFAULT_REGION",
+    "AWS_LAMBDA_FUNCTION_NAME", "GITHUB_ACTIONS", "ANTIGRAVITY_CONVERSATION_ID",
+    "CLAUDE_PROJECT_DIR",
+})
+_IAC_FILENAMES = (
+    "template.yaml", "template.yml", "samconfig.toml",
+    "serverless.yml", "serverless.yaml", ".env.example", "docker-compose.yml",
+)
+
+
+def _find_iac_config_files(target_dir: Path) -> List[Path]:
+    """Locate IaC and environment template files in `target_dir` up to depth 3."""
+    found: List[Path] = []
+    for root, dirs, files in os.walk(target_dir):
+        dirs[:] = [d for d in dirs if d not in IGNORE_DIRS]
+        rel_depth = len(Path(root).relative_to(target_dir).parts)
+        if rel_depth > 3:
+            dirs[:] = []
+            continue
+        for fname in files:
+            if fname in _IAC_FILENAMES:
+                found.append(Path(root) / fname)
+    return found
+
+
+def _collect_defined_env_names(iac_files: List[Path]) -> Set[str]:
+    """Extract configured environment variable and SAM parameter names from IaC files."""
+    names: Set[str] = set()
+    for fpath in iac_files:
+        try:
+            text = fpath.read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            continue
+        for match in re.finditer(r"^\s*([A-Z][A-Z0-9_]{2,})\s*[:=]", text, re.MULTILINE):
+            names.add(match.group(1))
+        for match in re.finditer(r"\b([A-Za-z][A-Za-z0-9_]{2,})\s*=", text):
+            if fpath.name == "samconfig.toml":
+                names.add(match.group(1))
+        for match in re.finditer(r"^\s{2,4}([A-Z][A-Za-z0-9]{2,})\s*:\s*$", text, re.MULTILINE):
+            names.add(match.group(1))
+    return names
+
+
+def audit_iac_env_parity(diff_text: str, target_dir: Path) -> List[str]:
+    """Warn when added application env lookups are missing from IaC/SAM templates."""
+    iac_files = _find_iac_config_files(target_dir)
+    if not iac_files:
+        return []
+
+    defined_vars = _collect_defined_env_names(iac_files)
+    issues: List[str] = []
+    seen_warnings: Set[Tuple[str, str]] = set()
+    curr_file = "unknown"
+    code_exts = (".py", ".js", ".jsx", ".ts", ".tsx", ".go", ".php", ".rb", ".java", ".rs")
+
+    for line in diff_text.splitlines():
+        if line.startswith("+++ b/"):
+            curr_file = line[6:].strip()
+            continue
+        if not line.startswith("+") or line.startswith("+++"):
+            continue
+        if not curr_file.endswith(code_exts) or is_test_file(curr_file):
+            continue
+        code_line = line[1:].strip()
+        if not code_line or ("re.compile" in code_line or "re.search" in code_line):
+            continue
+        env_hits = re.findall(
+            r"(?:os\.getenv|os\.environ\.get|os\.Getenv|getenv)\(\s*['\"]([A-Z][A-Z0-9_]{2,})['\"]"
+            r"|os\.environ\[['\"]([A-Z][A-Z0-9_]{2,})['\"]\]"
+            r"|process\.env\.([A-Z][A-Z0-9_]{2,})"
+            r"|\$_ENV\[['\"]([A-Z][A-Z0-9_]{2,})['\"]\]",
+            code_line,
+        )
+        for groups in env_hits:
+            var_name = next((g for g in groups if g), "")
+            if not var_name or var_name in _BUILTIN_ENV_VARS or var_name.startswith("WORKFORCE_"):
+                continue
+            if var_name not in defined_vars and (curr_file, var_name) not in seen_warnings:
+                seen_warnings.add((curr_file, var_name))
+                cfg_names = ", ".join(sorted({f.name for f in iac_files}))
+                issues.append(
+                    f"⚠️ **IaC Env-Var Parity Warning:** `{curr_file}` reads `{var_name}`, which was not found in "
+                    f"deployment config ({cfg_names}). Verify environment parameters before deploying."
+                )
+    return issues
+
+
+def audit_portable_links(diff_text: str) -> List[str]:
+    """Flag added `file://` or machine-local OS home path links in markdown/docs diffs."""
+    issues: List[str] = []
+    curr_file = "unknown"
+    for line in diff_text.splitlines():
+        if line.startswith("+++ b/"):
+            curr_file = line[6:].strip()
+            continue
+        if not line.startswith("+") or line.startswith("+++"):
+            continue
+        if not curr_file.endswith((".md", ".mdx")) or is_test_file(curr_file):
+            continue
+        raw_line = line[1:]
+        if re.search(r"\]\(\s*(?:file://|/Users/|/home/|[A-Za-z]:[/\\]Users[/\\])", raw_line) or re.search(
+            r"\bfile:///(?:Users|home)/", raw_line
+        ):
+            issues.append(
+                f"⚠️ **Non-Portable Local Path Link:** Machine-local link in `{curr_file}`. "
+                "Use a remote Git host URL or repo-relative POSIX path via `git_link_resolver.py`."
+            )
+            break
+    return issues
+
+
+def _parse_okf_affected_files(md_path: Path) -> List[str]:
+    """Read `affected_files` patterns from simple YAML frontmatter in `<repo>/docs/*.md`."""
+    try:
+        text = md_path.read_text(encoding="utf-8")
+    except OSError:
+        return []
+    if not text.startswith("---"):
+        return []
+    parts = text.split("---", 2)
+    if len(parts) < 3:
+        return []
+    patterns: List[str] = []
+    in_affected = False
+    for line in parts[1].splitlines():
+        stripped = line.strip()
+        if stripped.startswith("affected_files:"):
+            in_affected = True
+            val = stripped.split(":", 1)[1].strip()
+            if val.startswith("[") and val.endswith("]"):
+                patterns.extend(p.strip().strip("'\"") for p in val[1:-1].split(",") if p.strip())
+                in_affected = False
+            continue
+        if in_affected:
+            if stripped.startswith("- "):
+                patterns.append(stripped[2:].strip().strip("'\""))
+            elif stripped and ":" in stripped:
+                in_affected = False
+    return [p for p in patterns if p]
+
+
+def audit_okf_affected_files(modified_files: List[str], target_dir: Path) -> List[str]:
+    """Notify when modified code files fall under `<repo>/docs/**/*.md` `affected_files` globs."""
+    docs_dir = target_dir / "docs"
+    if not docs_dir.is_dir():
+        return []
+    code_mods = [m.replace("\\", "/") for m in modified_files if not m.endswith(".md")]
+    if not code_mods:
+        return []
+    mod_set = {m.replace("\\", "/") for m in modified_files}
+    stale_docs: List[str] = []
+    for doc_path in sorted(docs_dir.rglob("*.md")):
+        patterns = _parse_okf_affected_files(doc_path)
+        if not patterns:
+            continue
+        rel_doc = doc_path.relative_to(target_dir).as_posix()
+        if rel_doc in mod_set:
+            continue
+        if any(fnmatch(code_f, pat) for code_f in code_mods for pat in patterns):
+            stale_docs.append(rel_doc)
+    if stale_docs:
+        return [
+            f"ℹ️ **Living OKF Doc Notice:** Modified files match `affected_files` in {', '.join(f'`{d}`' for d in stale_docs)}. "
+            "Verify their `## Constraints & Why` notes remain accurate."
+        ]
+    return []
 
 # --- PR Review Verification Form & Heuristic Checks ---
 
@@ -1075,9 +1263,12 @@ def run_code_review_gate(
     form_md, _pr_passed, pushbacks, candidates = evaluate_pr_verification_form(diff_text, modified_files, symbols, target_dir, justification=just)
     sec_issues = audit_dependency_security(modified_files, target_dir)
     code_sec_issues, bug_issues = audit_code_security_and_bug_patterns(diff_text, modified_files)
+    iac_issues = audit_iac_env_parity(diff_text, target_dir)
+    link_issues = audit_portable_links(diff_text)
+    okf_notices = audit_okf_affected_files(modified_files, target_dir)
     detected_cmds = detect_quality_commands(target_dir)
 
-    all_issues = list(sec_issues) + list(code_sec_issues) + list(bug_issues)
+    all_issues = list(sec_issues) + list(code_sec_issues) + list(bug_issues) + iac_issues + link_issues + okf_notices
     if run_checks and detected_cmds:
         q_issues, _q_passed = run_quality_gate_checks(
             target_dir, detected_cmds, modified_files=modified_files, candidates=candidates

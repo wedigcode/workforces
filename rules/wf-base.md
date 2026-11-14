@@ -11,9 +11,19 @@ These core operational rules govern all workforce interactions and execution loo
 ## 1. GitHub Rules & Multi-Repo Scoping
 
 - **Multi-Repo Scoping**: All GitHub CLI queries (`gh issue`, `gh pr`) MUST iterate across all repositories configured under `tracked_repos` in `workforces/workrules.md` / `workstate.md` (pass `--repo <owner/repo>`).
-- **Autonomous Git Commits & PR Reviews**: Commit and push at deterministic milestones per [`wf-git-workflow`](wf-git-workflow.md). Code reviews occur within GitHub PRs rather than blocking local execution.
+- **Autonomous Feature-Branch Commits & Consent Gate**: Commit and push autonomously **only** on isolated feature branches/worktrees to open Draft PRs per [`wf-git-workflow`](wf-git-workflow.md). NEVER execute cloud deployments (`sam deploy`, `ampx`, `terraform apply`, `kubectl`, etc.), merge PRs (`gh pr merge`), or push to protected branches (`main`, `master`, `prod`, `staging`, `develop`) without explicit user consent.
 - **Task Source of Truth & Reconciliation**: `workforces/tasks/*.md` is the single source of truth for all tasks. When remote PRs/issues close, automatically reconcile task status to `done` via `report-task.py` and sync `workforces/workstate.md`.
 - **Private by Default**: All new repositories must be created as private unless explicitly specified.
+- **Portable Remote Git Links**: Never emit `file://` URIs or OS local paths (`/Users/...`, `/home/...`); use remote Git host URLs (GitHub, GitLab, Bitbucket, Azure DevOps, Gitea) or repo-relative POSIX paths.
+
+---
+
+## 1b. Cross-Service Architecture, IaC Env Parity & Production-Default Ban
+
+- **Read Repo OKF Architecture Index First**: When `<repo>/docs/index.md` exists, inspect it before planning or implementing any system-wired, integration, webhook, or configuration change so existing services, event subscribers, and grouping patterns are reused rather than duplicated.
+- **IaC & Environment Variable Parity**: Before adding, renaming, or removing an environment variable or hardcoded secret/config value, inspect deployment configs (`template.yaml`, `template.yml`, `samconfig.toml`, `serverless.yml`, `.env.example`, Terraform/Helm/Compose files) to verify parity across every target environment.
+- **Ban `"production"` Fallbacks**: NEVER hardcode `"prod"`, `"production"`, or `"live"` as fallback defaults in application code (e.g., `os.getenv("ENV", "production")`, `process.env.APP_ENV || "prod"`). Missing configuration must fail fast or derive explicitly from deployment config.
+- **Config Outage != Code Workaround**: When an outage or integration failure stems from missing/mismatched deployment environment variables, fix or document the deployment config/runbook instead of writing code workarounds or `"production"` defaults.
 
 ---
 

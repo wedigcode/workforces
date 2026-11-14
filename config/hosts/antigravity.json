@@ -19,7 +19,8 @@
   "hooks_mode": "plugin_bundles",
   "hook_capability_map": {
     "edit": ["write_file", "edit_file", "write_to_file", "replace_file_content"],
-    "multi_edit": ["multi_replace_file_content"]
+    "multi_edit": ["multi_replace_file_content"],
+    "execute": ["run_command"]
   },
   "capability_map": {
     "read": ["view_file", "list_dir"],

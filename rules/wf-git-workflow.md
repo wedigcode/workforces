@@ -13,6 +13,12 @@ These rules govern all git operations, commit cadences, workspace topologies, an
   - With high-velocity AI generation and multi-agent parallelization, pausing execution for local pre-commit human reviews creates unnecessary bottlenecks.
   - The AI commits and pushes autonomously, elevating code review to GitHub PRs where inline diffs, line comments, automated CI quality gates, and asynchronous peer/bot reviews occur naturally.
 
+### 1b. Protected Branches, Deployments & Express Consent Gate (Option A)
+
+- **Feature Branches & Draft PRs Only**: Autonomous commits and `git push` are permitted **only** on isolated feature branches/worktrees (`feat/*`, `fix/*`, `chore/*`, `docs/*`, `refactor/*`) to open **Draft Pull Requests** (`gh pr create --draft`) for human or cross-harness code review.
+- **Explicit Consent Required Before Pushing Live**: NEVER run cloud/infrastructure deployments (`sam deploy`, `ampx`, `serverless deploy`, `cdk deploy`, `terraform apply`, `kubectl apply`, `gcloud run deploy`, `vercel --prod`), NEVER merge pull requests (`gh pr merge`), NEVER dispatch live workflows (`gh workflow run`), and NEVER force-push or push directly to `main`, `master`, `prod`, `production`, `staging`, `develop`, or `release/*` without explicit user consent.
+- **Mechanical Enforcement**: The `PreToolUse` safety hook (`deploy_safety_hook.py`) intercepts those commands and pauses for explicit user approval.
+
 ---
 
 ## 2. Workspace Topologies & Parallelization Selector (Declare Up-Front)

@@ -267,44 +267,22 @@ class TestM3AgentParallelizationTopologies(unittest.TestCase):
 
 
 class TestM3CompleteWfWorkRetirement(unittest.TestCase):
-    """Verify wf-work is completely absent from all active runtime code, agents, rules, workflows, and docs."""
+    """Verify legacy workflows/wf-work.md stays retired while modern skills/wf-work/ is installed cleanly."""
 
-    def test_filesystem_deletion(self):
-        """Verify skills/wf-work and workflows/wf-work.md do not exist."""
-        self.assertFalse((SKILLS_DIR / "wf-work").exists(), "skills/wf-work must not exist")
-        self.assertFalse((WORKFLOWS_DIR / "wf-work.md").exists(), "workflows/wf-work.md must not exist")
-
-    def test_zero_wf_work_references_in_agents(self):
-        """Verify zero wf-work references in agents/."""
-        for md in AGENTS_DIR.glob("*.md"):
-            content = md.read_text(encoding="utf-8")
-            self.assertNotIn("wf-work", content, f"wf-work found in {md.name}")
-
-    def test_zero_wf_work_references_in_rules(self):
-        """Verify zero wf-work references in rules/."""
-        for md in RULES_DIR.glob("*.md"):
-            content = md.read_text(encoding="utf-8")
-            self.assertNotIn("wf-work", content, f"wf-work found in {md.name}")
+    def test_modern_skill_and_legacy_workflow_retirement(self):
+        """Verify skills/wf-work/ exists with work_dispatch.py while legacy workflows/wf-work.md does not."""
+        self.assertTrue((SKILLS_DIR / "wf-work" / "SKILL.md").is_file(), "skills/wf-work/SKILL.md must exist")
+        self.assertTrue(
+            (SKILLS_DIR / "wf-work" / "scripts" / "work_dispatch.py").is_file(),
+            "skills/wf-work/scripts/work_dispatch.py must exist",
+        )
+        self.assertFalse((WORKFLOWS_DIR / "wf-work.md").exists(), "workflows/wf-work.md must remain deleted")
 
     def test_zero_wf_work_references_in_workflows(self):
-        """Verify zero wf-work references in workflows/."""
+        """Verify zero wf-work references in legacy workflows/."""
         for md in WORKFLOWS_DIR.glob("*.md"):
             content = md.read_text(encoding="utf-8")
             self.assertNotIn("wf-work", content, f"wf-work found in {md.name}")
-
-    def test_zero_wf_work_references_in_teams(self):
-        """Verify zero wf-work references in teams/."""
-        for md in TEAMS_DIR.glob("**/*.md"):
-            content = md.read_text(encoding="utf-8")
-            self.assertNotIn("wf-work", content, f"wf-work found in {md.relative_to(TEAMS_DIR)}")
-
-    def test_zero_wf_work_references_in_docs_and_readme(self):
-        """Verify zero wf-work references in docs/, README.md, and GEMINI.md."""
-        for md in DOCS_DIR.glob("*.md"):
-            content = md.read_text(encoding="utf-8")
-            self.assertNotIn("wf-work", content, f"wf-work found in {md.name}")
-        self.assertNotIn("wf-work", (REPO_ROOT / "README.md").read_text(encoding="utf-8"))
-        self.assertNotIn("wf-work", (REPO_ROOT / "GEMINI.md").read_text(encoding="utf-8"))
 
 
 class TestM3PersonalSyncExecution(unittest.TestCase):

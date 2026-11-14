@@ -64,10 +64,12 @@ graph TD
 - Identify the single highest-leverage task for today (**P0 Priority**).
 - Verify that every active team has exactly one primary focus.
 
-### Step D4 — Triage Issue Inbox
-- Review pending files in `workforces/issues/inbox/*.md`.
-- Promote P0/P1 items to `workstate.md` and GitHub Issues.
-- Move triaged files to `workforces/issues/triaged/` or `workforces/issues/completed/` (if rejected).
+### Step D4 — Triage Issue Inbox, Cross-Harness Reviews & PM Discovery Check-In
+- Review pending files in `workforces/issues/inbox/*.md` (including findings from `/wf-work docs|security|design|optimization|debt|housekeeping`).
+- Promote approved items to the worker back-queue (`report-task.py --promote-issue <issue> --approve`, using `--cadence rolling_slice` for 1-bite-per-day refactors of giant files).
+- Review items marked `requires_code_review` across harnesses (`antigravity`, `claude`, `grok`) and check `ready_for_human` Draft PRs.
+- Move triaged files to `workforces/issues/triaged/` or rejected items to `workforces/issues/completed/`.
+- **Discovery Check-In / Kill Switch:** If inbox accumulates unreviewed noise or priorities shift, pause background issue discovery with `/wf-work pause` (via `budget_gate.py --pause-discovery`) while keeping cross-harness code review active.
 
 ### Step D5 — Present Standup Report
 ```markdown

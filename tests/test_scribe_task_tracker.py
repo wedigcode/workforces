@@ -61,7 +61,7 @@ tracked_tasks: []
 - Agreed to send security overview before contract review.
 
 ## 📁 Key Files & Code Symbols
-- [pilot-plan.md](file:///path/to/docs/pilot-plan.md)
+- [pilot-plan.md](docs/pilot-plan.md)
 
 ## 🔑 Keywords & Scanning Hooks
 `pilot`, `enterprise`, `strategy`

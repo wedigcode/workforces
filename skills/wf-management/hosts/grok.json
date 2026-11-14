@@ -20,7 +20,8 @@
   "hooks_target": ".grok/hooks.json",
   "hook_capability_map": {
     "edit": ["Write", "Edit", "write_file", "edit_file"],
-    "multi_edit": ["MultiEdit"]
+    "multi_edit": ["MultiEdit"],
+    "execute": ["Bash", "run_command"]
   },
   "capability_map": {
     "read": ["Read"],
