@@ -14,7 +14,7 @@ from typing import Any, Dict, Optional
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SKILLS_DIR = REPO_ROOT / "skills"
 
-# 8 discrete slash-command workflow skills (wf-work retired per R3)
+# 9 discrete slash-command workflow skills
 DISCRETE_WF_SKILLS = {
     "wf-advisor",
     "wf-dashboard",
@@ -24,10 +24,11 @@ DISCRETE_WF_SKILLS = {
     "wf-question-formulation",
     "wf-sync",
     "wf-update",
+    "wf-work",
 }
 
-# Total expected skills: 30 domain skills + 8 discrete wf-* skills = 38
-EXPECTED_TOTAL_SKILLS = 38
+# Total expected skills: 30 domain skills + 9 discrete wf-* skills = 39
+EXPECTED_TOTAL_SKILLS = 39
 
 
 def parse_yaml_frontmatter(content: str) -> Optional[Dict[str, str]]:
@@ -69,7 +70,7 @@ class TestSkillsSchema(unittest.TestCase):
         self.skill_dirs = sorted([d for d in SKILLS_DIR.iterdir() if d.is_dir()])
 
     def test_skills_count_and_categories(self):
-        """Assert exactly 38 skills exist: 30 domain skills + 8 discrete wf-* skills."""
+        """Assert exactly 39 skills exist: 30 domain skills + 9 discrete wf-* skills."""
         self.assertEqual(
             len(self.skill_dirs),
             EXPECTED_TOTAL_SKILLS,

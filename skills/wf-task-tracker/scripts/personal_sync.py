@@ -20,6 +20,7 @@ Usage:
 
 import argparse
 import datetime
+import importlib.util
 import json
 import os
 import re
@@ -27,6 +28,27 @@ import shutil
 import subprocess
 import sys
 from typing import Any, Dict, List, Optional, Tuple
+
+
+def resolve_portable_md_link(target_path: str, relative_from: Optional[str] = None) -> str:
+    """Resolve target_path to a remote Git host URL or repo-relative POSIX path."""
+    here = os.path.dirname(os.path.abspath(__file__))
+    resolver_path = os.path.normpath(
+        os.path.join(here, "..", "..", "wf-management", "scripts", "git_link_resolver.py")
+    )
+    if os.path.isfile(resolver_path):
+        spec = importlib.util.spec_from_file_location("wf_git_link_resolver", resolver_path)
+        if spec and spec.loader:
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            return mod.resolve_portable_link(target_path, relative_from=relative_from)
+    if relative_from:
+        from_dir = relative_from if os.path.isdir(relative_from) else os.path.dirname(os.path.abspath(relative_from))
+        try:
+            return os.path.relpath(os.path.abspath(target_path), from_dir).replace(os.sep, "/")
+        except ValueError:
+            pass
+    return os.path.basename(target_path) if os.path.isabs(target_path) else target_path.replace("\\", "/")
 
 
 def parse_frontmatter(content: str) -> Tuple[Dict[str, Any], str]:
@@ -207,19 +229,20 @@ def sync_task_to_session_file(
             if summary_text.startswith(prefix):
                 summary_text = summary_text[len(prefix):].strip()
 
+        task_link = resolve_portable_md_link(task_file_path, relative_from=session_file_path)
         if is_dropped:
-            task_entry = f"- [~~{title}~~](file://{os.path.abspath(task_file_path)}) (~~`{task_type}`~~ | ~~{priority}~~) — ❌ **Dropped:** {summary_text}"
+            task_entry = f"- [~~{title}~~]({task_link}) (~~`{task_type}`~~ | ~~{priority}~~) — ❌ **Dropped:** {summary_text}"
         elif status == "done":
-            task_entry = f"- [{title}](file://{os.path.abspath(task_file_path)}) (`{task_type}` | {priority}) — ✅ **Done:** {summary_text}"
+            task_entry = f"- [{title}]({task_link}) (`{task_type}` | {priority}) — ✅ **Done:** {summary_text}"
         elif status == "review":
             reviewer_tag = f" (Reviewer: {task_meta.get('reviewer', '@human')})"
-            task_entry = f"- [{title}](file://{os.path.abspath(task_file_path)}) (`{task_type}` | {priority}) — 🔍 **Awaiting Review{reviewer_tag}:** {summary_text}"
+            task_entry = f"- [{title}]({task_link}) (`{task_type}` | {priority}) — 🔍 **Awaiting Review{reviewer_tag}:** {summary_text}"
         elif status == "in_progress":
-            task_entry = f"- [{title}](file://{os.path.abspath(task_file_path)}) (`{task_type}` | {priority}) — ⏳ **In Progress:** {summary_text}"
+            task_entry = f"- [{title}]({task_link}) (`{task_type}` | {priority}) — ⏳ **In Progress:** {summary_text}"
         elif status == "blocked":
-            task_entry = f"- [{title}](file://{os.path.abspath(task_file_path)}) (`{task_type}` | {priority}) — ⚠️ **Blocked:** {summary_text}"
+            task_entry = f"- [{title}]({task_link}) (`{task_type}` | {priority}) — ⚠️ **Blocked:** {summary_text}"
         else:
-            task_entry = f"- [{title}](file://{os.path.abspath(task_file_path)}) (`{task_type}` | {priority}) — {summary_text}"
+            task_entry = f"- [{title}]({task_link}) (`{task_type}` | {priority}) — {summary_text}"
 
         section_headers = [
             "## 📋 Tracked Tasks & Action Items",
@@ -836,10 +859,18 @@ def reconcile_github_tasks(
                 reconciled.append(reconciled_item)
 
                 if not dry_run:
-                    meta["status"] = "done"
+                    if meta.get("cadence") == "rolling_slice" and pr_state == "MERGED":
+                        meta["status"] = "todo"
+                        meta["review_state"] = "none"
+                        meta["github_pr"] = None
+                        meta["last_slice_date"] = now.strftime("%Y-%m-%d")
+                        for c_key in ("claimed_by_harness", "claimed_by_agent", "claimed_at", "claimed_session_id", "claimed_worktree", "claim_expires_at"):
+                            meta[c_key] = None
+                    else:
+                        meta["status"] = "done"
+                        if repo_hint and not meta.get("github_pr"):
+                            meta["github_pr"] = pr_url
                     meta["updated_at"] = now.isoformat()
-                    if repo_hint and not meta.get("github_pr"):
-                        meta["github_pr"] = pr_url
 
                     evo_header = "## 🧠 Session Lineage & Deciding Factors"
                     evo_entry = f"- **{now.strftime('%Y-%m-%d %H:%M')}:** ✅ {evo_note}."
@@ -920,14 +951,38 @@ def sync_workstate_from_tasks(root_dir: str) -> bool:
             if len(note) > 60:
                 note = note[:57] + "..."
 
+            claimed_h = meta.get("claimed_by_harness")
+            claimed_a = meta.get("claimed_by_agent")
+            if claimed_h:
+                assignee_display = f"{claimed_a or assignee} [{claimed_h}]"
+            else:
+                assignee_display = assignee
+
+            review_state = meta.get("review_state")
+            author_h = meta.get("authored_by_harness")
+            status_display = status
+            if review_state and review_state != "none":
+                status_display = f"{status} ({review_state})"
+            elif meta.get("approved_for_execution") is True and status == "todo":
+                status_display = "todo (approved)"
+
+            extra_tags: List[str] = []
+            if author_h:
+                extra_tags.append(f"author:{author_h}")
+            if meta.get("cadence") == "rolling_slice":
+                extra_tags.append("rolling-slice")
+            if extra_tags:
+                note = f"{note} [{' '.join(extra_tags)}]".strip()
+
             task_dict = {
                 "id": fname[:-3],
                 "file": fpath,
                 "title": title,
                 "priority": priority,
                 "status": status,
+                "status_display": status_display,
                 "issue_pr": issue_pr_cell,
-                "assignee": assignee,
+                "assignee": assignee_display,
                 "updated": updated or datetime.datetime.now().strftime("%Y-%m-%d"),
                 "note": note,
             }
@@ -955,10 +1010,10 @@ def sync_workstate_from_tasks(root_dir: str) -> bool:
     ]
     if active_tasks:
         for idx, t in enumerate(active_tasks, 1):
-            rel_file = os.path.relpath(t["file"], root_dir)
+            rel_file = os.path.relpath(t["file"], root_dir).replace(os.sep, "/")
             task_link = f"[{t['title']}]({rel_file})"
             active_table_lines.append(
-                f"| {idx} | {task_link} | {t['priority']} | {t['status']} | {t['issue_pr']} | {t['assignee']} | {t['updated']} | {t['note']} |"
+                f"| {idx} | {task_link} | {t['priority']} | {t.get('status_display', t['status'])} | {t['issue_pr']} | {t['assignee']} | {t['updated']} | {t['note']} |"
             )
     else:
         active_table_lines.append("| — | _No active tasks in progress or todo_ | — | — | — | — | — | — |")

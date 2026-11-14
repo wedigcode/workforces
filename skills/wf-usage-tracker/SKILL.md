@@ -26,3 +26,11 @@ To trigger an on-demand update of token and usage metrics:
 python3 .agents/skills/wf-usage-tracker/scripts/track_usage.py ./
 ```
 *(Fallback: `python3 skills/wf-usage-tracker/scripts/track_usage.py ./`)*
+
+To check harness capacity, discovery pause state, and inbox check-in limits before `/wf-work` runs:
+
+```bash
+python3 .agents/skills/wf-usage-tracker/scripts/budget_gate.py --root ./ --status
+python3 .agents/skills/wf-usage-tracker/scripts/budget_gate.py --root ./ --pause-discovery --reason "Reviewing existing backlog"
+python3 .agents/skills/wf-usage-tracker/scripts/budget_gate.py --root ./ --resume-discovery
+```

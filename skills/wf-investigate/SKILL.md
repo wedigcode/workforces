@@ -56,12 +56,13 @@ To analyze large volumes of logs without exhausting context window memory:
 ### Phase 6 — Diagnosis & Report
 1. Output the Summary Table and Root Cause classification:
    - 🟥 **Bug** (unhandled exception, null pointer, syntax/runtime failure)
-   - 🟧 **Config** (missing env var, wrong IAM policy, invalid connection string)
+   - 🟧 **Config** (missing env var, wrong IAM policy, invalid connection string, missing `samconfig.toml` parameter override)
    - 🟨 **Scale** (connection pool exhaustion, OOM, CPU throttling, concurrency limit reached)
    - 🟦 **External** (third-party API outage, DNS failure, upstream service degradation)
-2. List 2–4 prioritized recommendations (P0, P1, P2).
-3. **Save Postmortem Artifact**: Save full report to `workforces/incidents/YYYY-MM-DD-[service-name].md`.
-4. **Update Memory**: Append new learnings to `workforces/memory/incident-investigate.md` so the next investigation on this service is faster.
+2. **Config Outage != Code Workaround**: When the root cause is `🟧 Config` (missing/mismatched deployment environment variables or secrets), recommend updating deployment config (`samconfig.toml`, IaC parameters, secrets manager) and requesting explicit deployment consent — **NEVER** propose hardcoding `"prod"`/`"production"` defaults in application code as a workaround.
+3. List 2–4 prioritized recommendations (P0, P1, P2).
+4. **Save Postmortem Artifact**: Save full report to `workforces/incidents/YYYY-MM-DD-[service-name].md`.
+5. **Update Memory**: Append new learnings to `workforces/memory/incident-investigate.md` so the next investigation on this service is faster.
 
 ---
 

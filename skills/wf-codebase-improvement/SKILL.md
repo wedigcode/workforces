@@ -44,7 +44,7 @@ This skill is invoked autonomously by `@wf-programmer` or coordinators, or direc
 
 ### 3. Security
 - **Input Sanitization**: Ensure untrusted user inputs are validated and sanitized (prevent SQLi, XSS, Command Injection).
-- **Secret Protection**: Check for hardcoded API keys, tokens, or credentials; move to environment variables.
+- **Secret Protection & IaC Env Parity**: Check for hardcoded API keys, tokens, or credentials; move to environment variables **only after** verifying parity in deployment configs (`template.yaml`, `template.yml`, `samconfig.toml`, `serverless.yml`, `.env.example`) across every environment. NEVER introduce `"prod"`/`"production"` fallback defaults in code, and obtain explicit consent before running any deployment.
 - **Dependency Vulnerabilities & SAST**: Run automated security sweeps (`npm audit`, `pip-audit`, `composer audit`, `trivy fs`, `semgrep`) and remediate CVEs.
 
 ### 4. Code Health (SOLID / DRY / KISS & Architecture)
@@ -63,14 +63,14 @@ This skill is invoked autonomously by `@wf-programmer` or coordinators, or direc
 
 ## Workflow Protocols
 
-### Protocol A: Codebase Hygiene & Knowledge Maintenance
+### Protocol A: Codebase Hygiene & Living OKF Knowledge Maintenance
 
-1. **Force Full Code Graph & OKF Catalog Rebuild**:
-   Re-indexes all codebase symbols and regenerates individual OKF concept Markdown files under `workforces/knowledge-catalog/code/`:
+1. **Audit Repo Hygiene & Scaffold Living OKF Docs (`<repo>/docs/`)**:
+   Keep portable architecture docs in `<repo>/docs/` using `wf-doc-generator` (paired optionally with `wf-code-graph` for AST call inspection):
    ```bash
-   python3 .agents/skills/wf-code-graph/scripts/graph_indexer.py --scan ./ --out-okf workforces/knowledge-catalog/code --build-okf --force
+   python3 .agents/skills/wf-doc-generator/scripts/scaffold_repo_okf.py --audit-hygiene ./
    ```
-   *(Fallback: `python3 skills/wf-code-graph/scripts/graph_indexer.py ...`)*
+   *(Fallback: `python3 skills/wf-doc-generator/scripts/scaffold_repo_okf.py --audit-hygiene ./`)*
 
 2. **Code Cleanliness Audit**:
    - **Dead Code & Unused Symbols**: Identify indexed symbols with zero downstream callers across the codebase.

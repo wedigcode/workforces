@@ -59,19 +59,16 @@ Tracks: last time memory was audited, any skills that registered themselves, not
 
 ---
 
-## 2. Knowledge Catalog (OKF)
+## 2. Living Architecture Docs & Knowledge Catalog (OKF)
 
-The `workforces/knowledge-catalog/` directory is an **Open Knowledge Format (OKF) bundle** — a collection of markdown files with YAML frontmatter describing the project's systems, APIs, data sources, and resources.
-
-This is a **read surface** for agents in most cases. The project owner or enrichment agents write it; workforce agents read it to gain context.
+Use **two complementary OKF tiers**:
+1. **Universal Repo Architecture (`<repo>/docs/` — PRIMARY for all harnesses)**: Stores `<repo>/docs/index.md` and `docs/architecture/*.md` cards with `affected_files:` globs and `## Constraints & Why` notes so non-Workforces agents also read system wiring and invariants.
+2. **Workforce-Specific Domain Bundle (`workforces/knowledge-catalog/`)**: Optional internal catalog for workforce-only domain playbooks, Canvas symbol exports (`code/`), and analytics references.
 
 ### How to navigate
 
-1. **Start at the index:**
-   ```
-   workforces/knowledge-catalog/index.md
-   ```
-   The index lists all concepts with their `type` and `description`. Read it first to find the right file.
+1. **Start at `<repo>/docs/index.md` (and `workforces/knowledge-catalog/index.md` if present):**
+   The index lists all architecture cards and concepts with their `type`, `affected_files`, and `description`. Read it first before planning or reviewing system-wired changes.
 
 2. **Parse the frontmatter:** Every concept file opens with YAML. Check `type` and `description` before reading the body.
    ```yaml

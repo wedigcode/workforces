@@ -37,11 +37,33 @@ Usage:
 import argparse
 import datetime
 import difflib
+import importlib.util
 import json
 import os
 import re
 import sys
 from typing import Any, Dict, List, Optional, Tuple
+
+
+def _resolve_portable_md_link(target_path: str, relative_from: Optional[str] = None) -> str:
+    """Resolve target_path to a remote Git host URL or repo-relative POSIX path."""
+    here = os.path.dirname(os.path.abspath(__file__))
+    resolver_path = os.path.normpath(
+        os.path.join(here, "..", "..", "wf-management", "scripts", "git_link_resolver.py")
+    )
+    if os.path.isfile(resolver_path):
+        spec = importlib.util.spec_from_file_location("wf_git_link_resolver", resolver_path)
+        if spec and spec.loader:
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            return mod.resolve_portable_link(target_path, relative_from=relative_from)
+    if relative_from:
+        from_dir = relative_from if os.path.isdir(relative_from) else os.path.dirname(os.path.abspath(relative_from))
+        try:
+            return os.path.relpath(os.path.abspath(target_path), from_dir).replace(os.sep, "/")
+        except ValueError:
+            pass
+    return os.path.basename(target_path) if os.path.isabs(target_path) else target_path.replace("\\", "/")
 
 
 def slugify(text: str) -> str:
@@ -279,7 +301,8 @@ def build_issue_markdown(
 
     session_origin_link = ""
     if session_file:
-        session_origin_link = f"**Origin Session:** [{os.path.basename(session_file)}]({session_file})\n"
+        session_href = _resolve_portable_md_link(session_file)
+        session_origin_link = f"**Origin Session:** [{os.path.basename(session_file)}]({session_href})\n"
 
     tool_delegation_line = ""
     parts_line = []
@@ -396,10 +419,11 @@ def sync_issue_to_session_file(
         elif summary_text.startswith("❌ Rejected by user:"):
             summary_text = summary_text[len("❌ Rejected by user:"):].strip()
 
+        issue_link = _resolve_portable_md_link(issue_file_path, relative_from=session_file_path)
         if is_rejected:
-            issue_entry = f"- [~~{title}~~](file://{os.path.abspath(issue_file_path)}) (~~`{issue_type}`~~ | ~~{severity}~~) — ❌ **Rejected:** {summary_text}"
+            issue_entry = f"- [~~{title}~~]({issue_link}) (~~`{issue_type}`~~ | ~~{severity}~~) — ❌ **Rejected:** {summary_text}"
         else:
-            issue_entry = f"- [{title}](file://{os.path.abspath(issue_file_path)}) (`{issue_type}` | {severity}) — {summary_text}"
+            issue_entry = f"- [{title}]({issue_link}) (`{issue_type}` | {severity}) — {summary_text}"
 
         if section_header in body:
             parts = body.split(section_header, 1)

@@ -27,9 +27,13 @@ For each open PR:
 ```bash
 gh pr diff <pr_number>
 ```
-Audit the diff against **Clean Coder Rules** (`rules/wf-clean-coder.md`):
+Audit the diff against **Clean Coder Rules** (`rules/wf-clean-coder.md`) and **Macro-Architecture Context (Gate 2)**:
+- **Macro-Architecture & Existing Service Grouping**: Read `<repo>/docs/index.md` and `docs/architecture/*.md` matching `affected_files`. Verify the PR groups notifications/integrations into existing dispatchers/subscribers rather than scattering side effects into unrelated controllers or services.
+- **Event Subscriber & Cross-Service Ripple**: Trace events emitted or modified by the diff to confirm downstream listeners/subscribers/webhooks are aware and compatible.
+- **IaC Env Parity & Production-Default Ban**: Verify added/removed env vars exist across `template.yaml`/`samconfig.toml`/`serverless.yml`/`.env.example`, and block hardcoded `"prod"`/`"production"`/`"live"` fallbacks or unapproved deploy scripts.
+- **Portable Links & Doc Sync**: Ensure changed links use remote Git host URLs or repo-relative POSIX paths (zero `file://` or `/Users/...`), and confirm matching `docs/architecture/*.md` (`## Constraints & Why`) / inline class docblocks stay current.
 - **SOLID / DRY / KISS**: Are functions small, focused, and free of duplicated code?
-- **Existing Method Check**: Does the PR introduce redundant helper functions that already exist in `workforces/code-graph.json`?
+- **Existing Method Check**: Confirm the PR does not reimplement an existing codebase helper or service.
 - **Error Handling**: Are there any swallowed exceptions, empty `catch`/`except` blocks, or unhandled promise rejections?
 - **Testing**: Are corresponding unit/integration tests added or updated for new features/bugfixes?
 - **Quality Gate Triad & CI Status**: Does the PR pass unit tests, strict static analysis (`tsc --noEmit`, `mypy`, `phpstan`), and linters (`biome`, `eslint`, `ruff`)?

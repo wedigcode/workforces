@@ -96,7 +96,7 @@ def resolve_target_dir(
             except Exception:
                 pass
 
-    # 4. Target file hint (e.g. apps/chcked/app/api/... or /path/to/apps/chcked/...)
+    # 4. Target file hint (e.g. apps/web/app/api/... or /path/to/apps/web/...)
     if target_file_hint:
         hint_path = Path(target_file_hint)
         if hint_path.is_absolute():

@@ -61,11 +61,33 @@ Usage:
 
 import argparse
 import datetime
+import importlib.util
 import json
 import os
 import re
 import sys
 from typing import Any, Dict, List, Optional, Tuple
+
+
+def _resolve_portable_md_link(target_path: str, relative_from: Optional[str] = None) -> str:
+    """Resolve target_path to a remote Git host URL or repo-relative POSIX path."""
+    here = os.path.dirname(os.path.abspath(__file__))
+    resolver_path = os.path.normpath(
+        os.path.join(here, "..", "..", "wf-management", "scripts", "git_link_resolver.py")
+    )
+    if os.path.isfile(resolver_path):
+        spec = importlib.util.spec_from_file_location("wf_git_link_resolver", resolver_path)
+        if spec and spec.loader:
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            return mod.resolve_portable_link(target_path, relative_from=relative_from)
+    if relative_from:
+        from_dir = relative_from if os.path.isdir(relative_from) else os.path.dirname(os.path.abspath(relative_from))
+        try:
+            return os.path.relpath(os.path.abspath(target_path), from_dir).replace(os.sep, "/")
+        except ValueError:
+            pass
+    return os.path.basename(target_path) if os.path.isabs(target_path) else target_path.replace("\\", "/")
 
 
 def slugify(text: str) -> str:
@@ -370,7 +392,7 @@ def create_hypothesis(args: argparse.Namespace, root_dir: str) -> str:
     session_id = args.session_id or ""
     session_file = args.session_file or ""
     session_file_basename = os.path.basename(session_file) if session_file else "session"
-    session_file_link = f"file://{os.path.abspath(session_file)}" if session_file else "#"
+    session_file_link = _resolve_portable_md_link(session_file) if session_file else "#"
 
     tools_list = []
     if getattr(args, "recommended_tools", None):

@@ -187,10 +187,12 @@ class TestMultiHostCompiler(unittest.TestCase):
         merged = json.loads(settings_file.read_text(encoding="utf-8"))
         self.assertEqual(merged["env"]["FOO"], "bar")
         pre_rules = merged["hooks"]["PreToolUse"]
-        self.assertEqual(len(pre_rules), 2)
+        self.assertEqual(len(pre_rules), 3)
         self.assertTrue(any("custom-user-hook" in json.dumps(r) for r in pre_rules))
         wf_rule = [r for r in pre_rules if "pre_tool_hook.py" in json.dumps(r)][0]
         self.assertEqual(wf_rule["matcher"], "Write|Edit|MultiEdit")
+        deploy_rule = [r for r in pre_rules if "deploy_safety_hook.py" in json.dumps(r)][0]
+        self.assertEqual(deploy_rule["matcher"], "Bash")
 
         # Re-running with identical plugins is idempotent (changed == False)
         changed_again, _ = ca.sync_claude_settings_hooks(
@@ -207,6 +209,7 @@ class TestMultiHostCompiler(unittest.TestCase):
         self.assertEqual(len(after_prune["hooks"]["PreToolUse"]), 1)
         self.assertIn("custom-user-hook", json.dumps(after_prune["hooks"]["PreToolUse"]))
         self.assertNotIn("pre_tool_hook.py", json.dumps(after_prune))
+        self.assertNotIn("deploy_safety_hook.py", json.dumps(after_prune))
 
     def test_multi_host_autodetect_config_and_full_compile(self):
         """Auto-detects multiple AI folders, persists workforces/config.json, and compiles all 5 hosts."""

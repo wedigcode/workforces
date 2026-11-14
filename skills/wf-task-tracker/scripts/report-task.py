@@ -50,25 +50,361 @@ import difflib
 import json
 import os
 import re
+import shutil
 import sys
-from typing import Any, Dict, List, Optional, Tuple
+import time
+from contextlib import contextmanager
+from typing import Any, Dict, Iterator, List, Optional, Tuple
 
 try:
-    from personal_sync import sync_workstate_from_tasks, reconcile_github_tasks
+    from personal_sync import sync_workstate_from_tasks, reconcile_github_tasks, resolve_portable_md_link as _resolve_portable_md_link
 except ImportError:
     script_dir = os.path.dirname(os.path.abspath(__file__))
     if script_dir not in sys.path:
         sys.path.insert(0, script_dir)
     try:
-        from personal_sync import sync_workstate_from_tasks, reconcile_github_tasks
+        from personal_sync import sync_workstate_from_tasks, reconcile_github_tasks, resolve_portable_md_link as _resolve_portable_md_link
     except ImportError:
         def sync_workstate_from_tasks(root_dir: str) -> bool:
             return False
         def reconcile_github_tasks(root_dir: str, **kwargs) -> list:
             return []
+        def _resolve_portable_md_link(target_path: str, relative_from: Optional[str] = None) -> str:
+            return os.path.basename(target_path) if os.path.isabs(target_path) else target_path.replace("\\", "/")
 
 VALID_STATUSES = ["todo", "in_progress", "review", "blocked", "done", "dropped"]
 VALID_PRIORITIES = ["P0", "P1", "P2", "P3"]
+VALID_CADENCES = ["one_shot", "rolling_slice"]
+VALID_REVIEW_STATES = ["none", "requires_code_review", "in_review", "ready_for_human", "changes_requested"]
+PRIORITY_ORDER = {"P0": 0, "P1": 1, "P2": 2, "P3": 3}
+
+
+def detect_active_harness(explicit: Optional[str] = None, root_dir: Optional[str] = None) -> str:
+    """Resolve current AI harness (`antigravity`, `claude`, or `grok`) from flag, env, or config."""
+    if explicit:
+        return explicit.strip().lower()
+    if os.environ.get("WORKFORCE_HARNESS"):
+        return os.environ["WORKFORCE_HARNESS"].strip().lower()
+    if os.environ.get("ANTIGRAVITY_CONVERSATION_ID") or os.environ.get("ANTIGRAVITY_AGENT") or os.environ.get("AGY_ACCOUNT"):
+        return "antigravity"
+    if os.environ.get("CLAUDE_PROJECT_DIR") or os.environ.get("CLAUDE_CODE") or os.environ.get("CLAUDE_SESSION_ID"):
+        return "claude"
+    if os.environ.get("GROK_PROJECT_DIR") or os.environ.get("GROK_CLI") or os.environ.get("GROK_SESSION_ID"):
+        return "grok"
+    cfg_root = root_dir or os.getcwd()
+    cfg_path = os.path.join(cfg_root, "workforces", "config.json")
+    if os.path.isfile(cfg_path):
+        try:
+            with open(cfg_path, "r", encoding="utf-8") as fh:
+                hosts = json.load(fh).get("hosts") or []
+                if isinstance(hosts, list) and hosts:
+                    return str(hosts[0]).lower()
+        except (OSError, ValueError):
+            pass
+    return "antigravity"
+
+
+def _clear_claim_fields(meta: Dict[str, Any]) -> None:
+    """Clear worker claim ownership and expiration timestamps on a task metadata dict."""
+    for key in (
+        "claimed_by_harness",
+        "claimed_by_agent",
+        "claimed_at",
+        "claimed_session_id",
+        "claimed_worktree",
+        "claim_expires_at",
+    ):
+        meta[key] = None
+
+
+def _prepend_evolution_note(body: str, note: str, now: Optional[datetime.datetime] = None) -> str:
+    """Prepend a timestamped lineage bullet under `## 🧠 Session Lineage & Deciding Factors`."""
+    stamp = (now or datetime.datetime.now()).strftime("%Y-%m-%d %H:%M")
+    entry = f"- **{stamp}:** {note}"
+    header = "## 🧠 Session Lineage & Deciding Factors"
+    if header in body:
+        before, after = body.split(header, 1)
+        return before + header + "\n\n" + entry + "\n" + after.lstrip("\r\n")
+    return body.rstrip() + f"\n\n{header}\n\n{entry}\n"
+
+
+@contextmanager
+def _claim_lock(tasks_dir: str, timeout_sec: float = 5.0) -> Iterator[None]:
+    """Acquire an atomic OS lock file (`O_CREAT | O_EXCL`) protecting task claiming."""
+    os.makedirs(tasks_dir, exist_ok=True)
+    lock_path = os.path.join(tasks_dir, ".claim.lock")
+    deadline = time.monotonic() + timeout_sec
+    acquired = False
+
+    while time.monotonic() < deadline:
+        try:
+            fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+            os.write(fd, f"{os.getpid()}\n".encode("utf-8"))
+            os.close(fd)
+            acquired = True
+            break
+        except FileExistsError:
+            try:
+                if time.time() - os.path.getmtime(lock_path) > 60:
+                    os.unlink(lock_path)
+                    continue
+            except OSError:
+                pass
+            time.sleep(0.05)
+
+    if not acquired:
+        raise TimeoutError(f"Timed out acquiring task claim lock: {lock_path}")
+    try:
+        yield
+    finally:
+        try:
+            os.unlink(lock_path)
+        except OSError:
+            pass
+
+
+def _is_claim_expired(meta: Dict[str, Any], now_utc: datetime.datetime) -> bool:
+    """Return True if a task has an active claim whose TTL has expired."""
+    expires_raw = meta.get("claim_expires_at")
+    if not expires_raw or expires_raw in ("~", "None"):
+        return False
+    try:
+        expires_dt = datetime.datetime.fromisoformat(str(expires_raw).replace("Z", "+00:00"))
+        if expires_dt.tzinfo is None:
+            expires_dt = expires_dt.replace(tzinfo=datetime.timezone.utc)
+        return now_utc >= expires_dt
+    except ValueError:
+        return False
+
+
+def _reclaim_expired_in_locked_dir(tasks_dir: str, now_utc: datetime.datetime) -> List[Dict[str, Any]]:
+    """Release expired leases inside `tasks_dir` (caller MUST hold `_claim_lock`)."""
+    reclaimed: List[Dict[str, Any]] = []
+    if not os.path.isdir(tasks_dir):
+        return reclaimed
+    now_local = datetime.datetime.now()
+    for fname in sorted(os.listdir(tasks_dir)):
+        if not fname.endswith(".md"):
+            continue
+        fpath = os.path.abspath(os.path.join(tasks_dir, fname))
+        try:
+            with open(fpath, "r", encoding="utf-8") as f:
+                meta, body = parse_frontmatter(f.read())
+        except OSError:
+            continue
+        if not meta.get("claimed_by_harness"):
+            continue
+        if not _is_claim_expired(meta, now_utc):
+            continue
+
+        prev_harness = meta.get("claimed_by_harness")
+        if meta.get("review_state") == "in_review":
+            meta["review_state"] = "requires_code_review"
+            meta["status"] = "review"
+        elif meta.get("status") == "in_progress":
+            meta["status"] = "todo"
+        _clear_claim_fields(meta)
+        meta["updated_at"] = now_local.isoformat()
+        body = _prepend_evolution_note(body, f"⏱️ Lease expired (previous harness: {prev_harness}); returned to queue.", now_local)
+        with open(fpath, "w", encoding="utf-8") as f:
+            f.write(dump_frontmatter(meta, body))
+        reclaimed.append({"path": fpath, "title": meta.get("title", fname), "previous_harness": prev_harness})
+    return reclaimed
+
+
+def claim_next_task(
+    tasks_dir: str,
+    current_harness: str,
+    mode: str = "auto",
+    agent_name: Optional[str] = None,
+    worktree: Optional[str] = None,
+    ttl_minutes: int = 90,
+) -> Optional[Dict[str, Any]]:
+    """
+    Atomically claim the highest-priority eligible work item for `current_harness`.
+
+    Priority 0 (`codereview` or `auto`): cross-harness PR/task reviews
+      (`review_state == 'requires_code_review'` and `authored_by_harness != current_harness`).
+    Priority 1 (`auto` only): `approved_for_execution == true` and `status == 'todo'`,
+      enforcing the stateless rolling 1-bite-per-day guard for `cadence == 'rolling_slice'`.
+    """
+    today_str = datetime.date.today().isoformat()
+    now_utc = datetime.datetime.now(datetime.timezone.utc)
+    now_local = datetime.datetime.now()
+    expires_utc = now_utc + datetime.timedelta(minutes=ttl_minutes)
+    session_id = os.environ.get("ANTIGRAVITY_CONVERSATION_ID") or os.environ.get("CLAUDE_SESSION_ID") or ""
+
+    with _claim_lock(tasks_dir):
+        _reclaim_expired_in_locked_dir(tasks_dir, now_utc)
+        records: List[Tuple[str, Dict[str, Any], str]] = []
+        active_rolling_files = set()
+
+        if not os.path.isdir(tasks_dir):
+            return None
+
+        for fname in sorted(os.listdir(tasks_dir)):
+            if not fname.endswith(".md"):
+                continue
+            fpath = os.path.abspath(os.path.join(tasks_dir, fname))
+            try:
+                with open(fpath, "r", encoding="utf-8") as f:
+                    meta, body = parse_frontmatter(f.read())
+                records.append((fpath, meta, body))
+                if meta.get("status") in ("in_progress", "review") and meta.get("file"):
+                    active_rolling_files.add(str(meta.get("file")).strip())
+            except OSError:
+                continue
+
+        # Priority 0: Cross-Harness Code Review
+        review_candidates: List[Tuple[int, str, str, Dict[str, Any], str]] = []
+        for fpath, meta, body in records:
+            if meta.get("claimed_by_harness"):
+                continue
+            r_state = str(meta.get("review_state") or "none").lower()
+            st = str(meta.get("status") or "todo").lower()
+            needs_review = r_state == "requires_code_review" or (st == "review" and r_state not in ("ready_for_human", "in_review"))
+            if not needs_review:
+                continue
+            author_h = str(meta.get("authored_by_harness") or "").lower()
+            if author_h and author_h == current_harness.lower():
+                continue
+            prio = PRIORITY_ORDER.get(str(meta.get("priority", "P2")), 9)
+            stamp = str(meta.get("updated_at") or meta.get("reported_at") or "")
+            review_candidates.append((prio, stamp, fpath, meta, body))
+
+        if review_candidates:
+            review_candidates.sort(key=lambda x: (x[0], x[1]))
+            fpath, meta, body = review_candidates[0][2:]
+            meta["status"] = "review"
+            meta["review_state"] = "in_review"
+            meta["claimed_by_harness"] = current_harness
+            meta["claimed_by_agent"] = agent_name or f"@{current_harness}-reviewer"
+            meta["claimed_at"] = now_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+            meta["claim_expires_at"] = expires_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+            if session_id:
+                meta["claimed_session_id"] = session_id
+            if worktree:
+                meta["claimed_worktree"] = worktree
+            meta["updated_at"] = now_local.isoformat()
+            body = _prepend_evolution_note(
+                body,
+                f"🔎 Claimed for cross-harness review by `{current_harness}` ({meta['claimed_by_agent']}).",
+                now_local,
+            )
+            with open(fpath, "w", encoding="utf-8") as f:
+                f.write(dump_frontmatter(meta, body))
+            return {"claim_kind": "codereview", "path": fpath, **meta}
+
+        if mode == "codereview":
+            return None
+
+        # Priority 1: Approved Execution Back-Queue
+        exec_candidates: List[Tuple[int, str, str, Dict[str, Any], str]] = []
+        for fpath, meta, body in records:
+            if meta.get("status") != "todo" or meta.get("claimed_by_harness"):
+                continue
+            if meta.get("approved_for_execution") is not True:
+                continue
+            cadence = str(meta.get("cadence") or "one_shot")
+            target_file = str(meta.get("file") or "").strip()
+            if cadence == "rolling_slice":
+                if str(meta.get("last_slice_date") or "") == today_str:
+                    continue
+                if target_file and target_file in active_rolling_files:
+                    continue
+            prio = PRIORITY_ORDER.get(str(meta.get("priority", "P2")), 9)
+            stamp = str(meta.get("reported_at") or meta.get("updated_at") or "")
+            exec_candidates.append((prio, stamp, fpath, meta, body))
+
+        if not exec_candidates:
+            return None
+
+        exec_candidates.sort(key=lambda x: (x[0], x[1]))
+        fpath, meta, body = exec_candidates[0][2:]
+        meta["status"] = "in_progress"
+        meta["claimed_by_harness"] = current_harness
+        meta["claimed_by_agent"] = agent_name or f"@{current_harness}"
+        meta["claimed_at"] = now_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+        meta["claim_expires_at"] = expires_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+        if session_id:
+            meta["claimed_session_id"] = session_id
+        if worktree:
+            meta["claimed_worktree"] = worktree
+        meta["updated_at"] = now_local.isoformat()
+        body = _prepend_evolution_note(
+            body,
+            f"⏳ Claimed from approved queue by `{current_harness}` ({meta['claimed_by_agent']}).",
+            now_local,
+        )
+        with open(fpath, "w", encoding="utf-8") as f:
+            f.write(dump_frontmatter(meta, body))
+        return {"claim_kind": "execution", "path": fpath, **meta}
+
+
+def promote_issue_to_task(
+    issue_path: str,
+    tasks_dir: str,
+    approved: bool = False,
+    cadence: str = "one_shot",
+    priority_override: Optional[str] = None,
+    assignee: Optional[str] = None,
+) -> str:
+    """Promote a backlog issue file (`workforces/issues/inbox/`) into an actionable task."""
+    with open(issue_path, "r", encoding="utf-8") as f:
+        imeta, ibody = parse_frontmatter(f.read())
+
+    now = datetime.datetime.now()
+    title = str(imeta.get("title") or os.path.splitext(os.path.basename(issue_path))[0])
+    prio = priority_override or str(imeta.get("severity") or imeta.get("priority") or "P2")
+    if prio not in VALID_PRIORITIES:
+        prio = "P2"
+
+    desc_match = re.search(r"## Description\s*\n\n(.*?)(?=\n\n##|\Z)", ibody, re.DOTALL)
+    act_match = re.search(r"## Suggested Action\s*\n\n(.*?)(?=\n\n##|\Z)", ibody, re.DOTALL)
+    description = desc_match.group(1).strip() if desc_match else ""
+    suggested_action = act_match.group(1).strip() if act_match else ""
+
+    os.makedirs(tasks_dir, exist_ok=True)
+    filename = f"{now.strftime('%Y%m%d-%H%M%S')}-{slugify(title)}.md"
+    task_path = os.path.join(tasks_dir, filename)
+
+    triaged_dest = issue_path
+    inbox_parent = os.path.dirname(os.path.dirname(os.path.abspath(issue_path)))
+    if os.path.basename(os.path.dirname(os.path.abspath(issue_path))) == "inbox":
+        triaged_dir = os.path.join(inbox_parent, "triaged")
+        os.makedirs(triaged_dir, exist_ok=True)
+        triaged_dest = os.path.join(triaged_dir, os.path.basename(issue_path))
+        imeta["status"] = "triaged"
+        imeta["triage_status"] = "triaged"
+        imeta["updated_at"] = now.isoformat()
+        with open(issue_path, "w", encoding="utf-8") as f:
+            f.write(dump_frontmatter(imeta, ibody))
+        shutil.move(issue_path, triaged_dest)
+
+    rel_source = _resolve_portable_md_link(triaged_dest)
+    content = build_task_markdown(
+        title=title,
+        task_type=str(imeta.get("type") or "task"),
+        priority=prio,
+        status="todo",
+        reporter=str(imeta.get("reporter") or "wf-project-manager"),
+        assignee=assignee,
+        description=description,
+        suggested_action=suggested_action,
+        file_path=str(imeta.get("file") or ""),
+        session_id=str(imeta.get("session_id") or ""),
+        session_file=str(imeta.get("session_file") or ""),
+        github_issue=imeta.get("github_issue"),
+        evolution_notes=[f"**{now.strftime('%Y-%m-%d %H:%M')}:** Promoted from `{rel_source}` (approved={approved}, cadence={cadence})."],
+        created_at=now,
+        updated_at=now,
+        approved_for_execution=approved,
+        cadence=cadence,
+        source_issue=rel_source,
+    )
+    with open(task_path, "w", encoding="utf-8") as f:
+        f.write(content)
+    return task_path
 
 
 def slugify(text: str) -> str:
@@ -287,6 +623,11 @@ def build_task_markdown(
     evolution_notes: Optional[List[str]] = None,
     created_at: Optional[datetime.datetime] = None,
     updated_at: Optional[datetime.datetime] = None,
+    approved_for_execution: Optional[bool] = None,
+    cadence: Optional[str] = None,
+    authored_by_harness: Optional[str] = None,
+    review_state: Optional[str] = None,
+    source_issue: Optional[str] = None,
 ) -> str:
     """Construct complete task file markdown with frontmatter and lineage."""
     now = created_at or datetime.datetime.now()
@@ -311,10 +652,21 @@ def build_task_markdown(
         "github_issue": github_issue or None,
         "github_pr": github_pr or None,
     }
+    if approved_for_execution is not None:
+        metadata["approved_for_execution"] = approved_for_execution
+    if cadence:
+        metadata["cadence"] = cadence
+    if authored_by_harness:
+        metadata["authored_by_harness"] = authored_by_harness
+    if review_state:
+        metadata["review_state"] = review_state
+    if source_issue:
+        metadata["source_issue"] = source_issue
 
     session_origin_link = ""
     if session_file:
-        session_origin_link = f"**Origin Session:** [{os.path.basename(session_file)}]({session_file})\n"
+        session_href = _resolve_portable_md_link(session_file)
+        session_origin_link = f"**Origin Session:** [{os.path.basename(session_file)}]({session_href})\n"
 
     header_parts = [
         f"**Type:** `{task_type}`",
@@ -436,16 +788,17 @@ def sync_task_to_session_file(
             if summary_text.startswith(prefix):
                 summary_text = summary_text[len(prefix):].strip()
 
+        task_link = _resolve_portable_md_link(task_file_path, relative_from=session_file_path)
         if is_dropped:
-            task_entry = f"- [~~{title}~~](file://{os.path.abspath(task_file_path)}) (~~`{task_type}`~~ | ~~{priority}~~) — ❌ **Dropped:** {summary_text}"
+            task_entry = f"- [~~{title}~~]({task_link}) (~~`{task_type}`~~ | ~~{priority}~~) — ❌ **Dropped:** {summary_text}"
         elif status == "done":
-            task_entry = f"- [{title}](file://{os.path.abspath(task_file_path)}) (`{task_type}` | {priority}) — ✅ **Done:** {summary_text}"
+            task_entry = f"- [{title}]({task_link}) (`{task_type}` | {priority}) — ✅ **Done:** {summary_text}"
         elif status == "in_progress":
-            task_entry = f"- [{title}](file://{os.path.abspath(task_file_path)}) (`{task_type}` | {priority}) — ⏳ **In Progress:** {summary_text}"
+            task_entry = f"- [{title}]({task_link}) (`{task_type}` | {priority}) — ⏳ **In Progress:** {summary_text}"
         elif status == "blocked":
-            task_entry = f"- [{title}](file://{os.path.abspath(task_file_path)}) (`{task_type}` | {priority}) — ⚠️ **Blocked:** {summary_text}"
+            task_entry = f"- [{title}]({task_link}) (`{task_type}` | {priority}) — ⚠️ **Blocked:** {summary_text}"
         else:
-            task_entry = f"- [{title}](file://{os.path.abspath(task_file_path)}) (`{task_type}` | {priority}) — {summary_text}"
+            task_entry = f"- [{title}]({task_link}) (`{task_type}` | {priority}) — {summary_text}"
 
         # Match section header (either tasks or legacy issues)
         section_headers = [
@@ -631,6 +984,27 @@ def main() -> None:
         "--force", action="store_true",
         help="Skip duplicate check and write regardless",
     )
+    parser.add_argument("--approve", action="store_true", help="Mark task approved_for_execution: true for worker queue")
+    parser.add_argument("--unapprove", action="store_true", help="Mark task approved_for_execution: false")
+    parser.add_argument("--cadence", choices=VALID_CADENCES, help="Execution cadence: one_shot | rolling_slice")
+    parser.add_argument("--last-slice-date", default="", help="Override YYYY-MM-DD last rolling slice date")
+    parser.add_argument("--promote-issue", help="Promote an issue file from issues/inbox/ into tasks/")
+    parser.add_argument("--request-review", action="store_true", help="Mark task ready for cross-harness code review")
+    parser.add_argument(
+        "--complete-review",
+        choices=["approved", "changes_requested"],
+        help="Submit cross-harness review verdict",
+    )
+    parser.add_argument("--review-notes", default="", help="Review commentary appended when completing review")
+    parser.add_argument("--allow-same-harness", action="store_true", help="Allow review verdict from same harness")
+    parser.add_argument("--complete-slice", action="store_true", help="Complete one rolling slice while keeping task active for future days")
+    parser.add_argument("--claim-next", action="store_true", help="Atomically claim next highest-priority review or approved task")
+    parser.add_argument("--reclaim-stale", action="store_true", help="Release expired worker claims back to the queue")
+    parser.add_argument("--mode", default="auto", help="Claim mode: auto | codereview")
+    parser.add_argument("--harness", default="", help="Override active harness (`antigravity`, `claude`, `grok`)")
+    parser.add_argument("--agent", default="", help="Worker agent label when claiming (e.g. @wf-programmer)")
+    parser.add_argument("--worktree", default="", help="Worktree/branch label when claiming")
+    parser.add_argument("--ttl-minutes", type=int, default=90, help="Claim lease TTL in minutes (default: 90)")
 
     args = parser.parse_args()
 
@@ -658,6 +1032,64 @@ def main() -> None:
 
     # Resolve priority
     effective_priority = args.priority_alias or args.priority
+    active_harness = detect_active_harness(explicit=args.harness or None)
+
+    # MODE -3: Reclaim Stale Claims
+    if args.reclaim_stale:
+        with _claim_lock(tasks_dir):
+            reclaimed = _reclaim_expired_in_locked_dir(tasks_dir, datetime.datetime.now(datetime.timezone.utc))
+        if reclaimed and not args.no_sync_workstate:
+            root_dir = os.path.abspath(os.path.join(tasks_dir, "..", "..")) if ("workforces" in tasks_dir or ".scribe" in tasks_dir) else os.getcwd()
+            sync_workstate_from_tasks(root_dir)
+        if args.json:
+            print(json.dumps({"reclaimed": reclaimed}, indent=2))
+        else:
+            print(f"♻️ Reclaimed {len(reclaimed)} stale task claim(s).")
+        return
+
+    # MODE -2: Atomic Claim Next (Priority 0 cross-harness review -> Priority 1 approved queue)
+    if args.claim_next:
+        claimed = claim_next_task(
+            tasks_dir=tasks_dir,
+            current_harness=active_harness,
+            mode=args.mode,
+            agent_name=args.agent or None,
+            worktree=args.worktree or None,
+            ttl_minutes=args.ttl_minutes,
+        )
+        if claimed and not args.no_sync_workstate:
+            root_dir = os.path.abspath(os.path.join(tasks_dir, "..", "..")) if ("workforces" in tasks_dir or ".scribe" in tasks_dir) else os.getcwd()
+            sync_workstate_from_tasks(root_dir)
+        if args.json:
+            print(json.dumps({"claimed": claimed}, indent=2))
+        elif claimed:
+            print(f"🔒 Claimed [{claimed['claim_kind']}] for `{active_harness}`: {claimed['title']} -> {claimed['path']}")
+        else:
+            print(f"No eligible tasks to claim for `{active_harness}` (mode={args.mode}).")
+        return
+
+    # MODE -1: Promote Issue to Task
+    if args.promote_issue:
+        issue_target = find_task_by_identifier(args.promote_issue, search_dirs)
+        if not issue_target:
+            print(f"❌ Error: Could not locate issue matching '{args.promote_issue}'", file=sys.stderr)
+            sys.exit(1)
+        new_task_path = promote_issue_to_task(
+            issue_path=issue_target,
+            tasks_dir=tasks_dir,
+            approved=args.approve,
+            cadence=args.cadence or "one_shot",
+            priority_override=args.priority_alias or (args.priority if args.priority != "P2" else None),
+            assignee=args.assignee,
+        )
+        if not args.no_sync_workstate:
+            root_dir = os.path.abspath(os.path.join(tasks_dir, "..", "..")) if ("workforces" in tasks_dir or ".scribe" in tasks_dir) else os.getcwd()
+            sync_workstate_from_tasks(root_dir)
+        if args.json:
+            print(json.dumps({"task_path": new_task_path, "approved_for_execution": bool(args.approve)}, indent=2))
+        else:
+            print(f"✅ Promoted issue to task: {new_task_path}")
+        return
 
     # MODE 0: Reconcile GitHub Tasks
     if args.reconcile_github:
@@ -805,8 +1237,47 @@ def main() -> None:
                 if pr_match:
                     meta["github_pr"] = pr_match.group(1)
 
-        # Handle status transitions
-        if args.status:
+        # Handle status transitions & multi-harness review lifecycle
+        if args.approve:
+            meta["approved_for_execution"] = True
+        elif args.unapprove:
+            meta["approved_for_execution"] = False
+        if args.cadence:
+            meta["cadence"] = args.cadence
+        if args.last_slice_date:
+            meta["last_slice_date"] = args.last_slice_date
+
+        if args.request_review:
+            meta["status"] = "review"
+            meta["review_state"] = "requires_code_review"
+            meta["authored_by_harness"] = active_harness
+            if meta.get("cadence") == "rolling_slice":
+                meta["last_slice_date"] = datetime.date.today().isoformat()
+            _clear_claim_fields(meta)
+        elif args.complete_review:
+            author_h = str(meta.get("authored_by_harness") or "").lower()
+            if author_h and author_h == active_harness.lower() and not args.allow_same_harness:
+                print(
+                    f"❌ Error: Cross-harness review required (authored on `{author_h}`, cannot review on `{active_harness}` without --allow-same-harness).",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+            meta["reviewed_by_harness"] = active_harness
+            _clear_claim_fields(meta)
+            if args.complete_review == "approved":
+                meta["review_state"] = "ready_for_human"
+                meta["status"] = "done" if args.done_task else "review"
+            else:
+                meta["review_state"] = "changes_requested"
+                meta["status"] = "todo"
+                meta["approved_for_execution"] = True
+        elif args.complete_slice:
+            meta["status"] = "todo"
+            meta["review_state"] = "none"
+            meta["github_pr"] = None
+            meta["last_slice_date"] = datetime.date.today().isoformat()
+            _clear_claim_fields(meta)
+        elif args.status:
             meta["status"] = args.status
         elif args.start_task:
             meta["status"] = "in_progress"
@@ -816,8 +1287,10 @@ def main() -> None:
             meta["status"] = "blocked"
         elif args.done_task:
             meta["status"] = "done"
+            _clear_claim_fields(meta)
         elif args.drop_reason:
             meta["status"] = "dropped"
+            _clear_claim_fields(meta)
 
         if args.reviewer:
             meta["reviewer"] = args.reviewer
@@ -849,6 +1322,15 @@ def main() -> None:
         if args.drop_reason:
             drop_note = args.drop_reason if (isinstance(args.drop_reason, str) and args.drop_reason.strip() and args.drop_reason != "true") else "Dropped by user during consultation."
             evo_entry = f"- **{now.strftime('%Y-%m-%d %H:%M')}:** ❌ Dropped: {drop_note}"
+        elif args.request_review:
+            note_text = args.evolution_note or f"Authored on `{active_harness}`; awaiting cross-harness review."
+            evo_entry = f"- **{now.strftime('%Y-%m-%d %H:%M')}:** 🔍 Requesting Cross-Harness Code Review: {note_text}"
+        elif args.complete_review:
+            r_notes = args.review_notes or args.evolution_note or args.complete_review
+            badge = "✅ Review Approved (ready for human merge)" if args.complete_review == "approved" else "🔄 Review Changes Requested"
+            evo_entry = f"- **{now.strftime('%Y-%m-%d %H:%M')}:** {badge} by `{active_harness}`: {r_notes}"
+        elif args.complete_slice:
+            evo_entry = f"- **{now.strftime('%Y-%m-%d %H:%M')}:** 🧩 Rolling slice completed for {meta.get('last_slice_date')}; next slice deferred to future day."
         elif args.block and isinstance(args.block, str) and args.block.strip() and args.block != "true":
             evo_entry = f"- **{now.strftime('%Y-%m-%d %H:%M')}:** ⚠️ Blocked: {args.block}"
         elif args.done_task:
@@ -1010,6 +1492,8 @@ def main() -> None:
         evolution_notes=evolution_notes,
         created_at=now,
         updated_at=now,
+        approved_for_execution=True if args.approve else None,
+        cadence=args.cadence,
     )
 
     with open(filepath, "w", encoding="utf-8") as f:

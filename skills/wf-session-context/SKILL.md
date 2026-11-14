@@ -63,10 +63,10 @@ tracked_tasks:
 - **Rejected:** Trade-offs and reasons for rejecting alternatives.
 
 ## 📋 Tracked Tasks & Action Items
-- [Feature Brief & Task](file:///absolute/path/to/workforces/tasks/20260805-162000-feature-brief-task.md) (`follow-up` | P1) — Initial formulation and core acceptance criteria.
+- [Feature Brief & Task](https://github.com/org/repo/blob/main/workforces/tasks/20260805-162000-feature-brief-task.md) (`follow-up` | P1) — Initial formulation and core acceptance criteria.
 
 ## 📁 Key Files & Code Symbols
-- [file.py](file:///absolute/path/to/file.py#L10-L40) — Core logic modified/discussed
+- [file.py](https://github.com/org/repo/blob/main/src/file.py#L10-L40) — Core logic modified/discussed
 
 ## 🔑 Keywords & Scanning Hooks
 `keyword1`, `keyword2`, `tag1`, `topic_name`
@@ -125,8 +125,8 @@ During any session:
 
    | Sequence | Date | Topic | Tags | Tracked Issues | File |
    |:---:|:---:|:---|:---|:---:|:---|
-   | #022 | 2026-08-22 | Scribe Issue Tracker Integration | `[scribe, issues]` | 2 | [022_...md](file:///path/to/022.md) |
-   | #021 | 2026-08-21 | Refero Design Overhaul | `[design, refero]` | 1 | [021_...md](file:///path/to/021.md) |
+   | #022 | 2026-08-22 | Scribe Issue Tracker Integration | `[scribe, issues]` | 2 | [022_...md](workforces/session-context/022_2026-08-22_scribe-issue-tracker.md) |
+   | #021 | 2026-08-21 | Refero Design Overhaul | `[design, refero]` | 1 | [021_...md](workforces/session-context/021_2026-08-21_refero-design-overhaul.md) |
    ```
 
 ### C. Loading Context

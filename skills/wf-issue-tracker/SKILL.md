@@ -139,7 +139,7 @@ github_issue: ~
 
 **Type:** `design` | **Severity:** `P2` | **Reporter:** `wf-scribe`  
 **Reported:** 2026-08-22 07:15 | **Updated:** 2026-08-22 08:30  
-**Origin Session:** [022_2026-08-22_theme-strategy.md](file:///path/to/workforces/session-context/022_2026-08-22_theme-strategy.md)  
+**Origin Session:** [022_2026-08-22_theme-strategy.md](https://github.com/org/repo/blob/main/workforces/session-context/022_2026-08-22_theme-strategy.md)  
 **Affected file:** `src/styles/theme.css`
 
 ## Description

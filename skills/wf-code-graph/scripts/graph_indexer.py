@@ -186,11 +186,30 @@ class SymbolIndexer:
                     calls.add(node.func.attr)
         return sorted(list(calls))
 
+    def _extract_regex_calls(self, lines: List[str], start_idx: int) -> List[str]:
+        """Extract approximate callee names within the enclosing brace block following start_idx."""
+        calls: Set[str] = set()
+        depth = 0
+        opened = False
+        keywords = {"if", "for", "while", "switch", "catch", "return", "function", "func", "fn", "class", "new", "typeof"}
+        for line in lines[start_idx - 1:start_idx + 80]:
+            depth += line.count("{") - line.count("}")
+            if "{" in line:
+                opened = True
+            for callee in re.findall(r"\b([a-zA-Z_][a-zA-Z0-9_]*)\s*\(", line):
+                if callee not in keywords and not callee.startswith("__"):
+                    calls.add(callee)
+            if opened and depth <= 0:
+                break
+        return sorted(calls)[:40]
+
     def _parse_regex(self, content: str, rel_path: str, language: str):
         lines = content.splitlines()
 
         # Regex patterns for functions/methods across languages
         patterns = [
+            # PHP: function foo(...) or public/private/protected static function foo(...)
+            (r'^\s*(?:(?:public|private|protected|static|final|abstract)\s+)*function\s+([a-zA-Z0-9_]+)\s*\(([^)]*)\)', "method"),
             # JS/TS: function foo(), const foo = () =>, async function foo()
             (r'^\s*(?:export\s+)?(?:async\s+)?function\s+([a-zA-Z0-9_]+)\s*\(([^)]*)\)', "function"),
             (r'^\s*(?:export\s+)?const\s+([a-zA-Z0-9_]+)\s*=\s*(?:async\s*)?\(([^)]*)\)\s*=>', "function"),
@@ -201,8 +220,8 @@ class SymbolIndexer:
             (r'^\s*(?:pub\s+)?(?:async\s+)?fn\s+([a-zA-Z0-9_]+)\s*\(([^)]*)\)', "function"),
             # Java / C#: public void foo(...)
             (r'^\s*(?:public|private|protected|static|async|override|\s)+\s+[\w<>]+\s+([a-zA-Z0-9_]+)\s*\(([^)]*)\)', "method"),
-            # Class definition across languages
-            (r'^\s*(?:export\s+)?(?:default\s+)?class\s+([a-zA-Z0-9_]+)', "class")
+            # Class / interface / struct definition across languages
+            (r'^\s*(?:export\s+)?(?:default\s+)?(?:abstract\s+|final\s+)?(?:class|interface|struct)\s+([a-zA-Z0-9_]+)', "class")
         ]
 
         for idx, line in enumerate(lines, 1):
@@ -210,11 +229,14 @@ class SymbolIndexer:
                 match = re.search(pat, line)
                 if match:
                     name = match.group(1)
-                    if name in ("if", "for", "while", "switch", "catch", "constructor"):
+                    if name in ("if", "for", "while", "switch", "catch", "constructor", "fn"):
                         continue
                     args = match.group(2) if match.lastindex >= 2 else ""
                     sig = f"{name}({args.strip()})" if kind != "class" else f"class {name}"
-                    
+                    calls = self._extract_regex_calls(lines, idx) if kind != "class" else []
+                    if name in calls:
+                        calls.remove(name)
+
                     self.symbols.append({
                         "name": name,
                         "kind": kind,
@@ -223,7 +245,7 @@ class SymbolIndexer:
                         "file": rel_path,
                         "line": idx,
                         "docstring": "",
-                        "calls": []
+                        "calls": calls
                     })
                     break
 
@@ -247,18 +269,19 @@ class SymbolIndexer:
         code_catalog_dir.mkdir(parents=True, exist_ok=True)
         root_catalog_dir.mkdir(parents=True, exist_ok=True)
 
-        # Write or seed root knowledge catalog index file if missing or updating
+        # Non-destructively seed root knowledge catalog index file only if missing
         root_index_file = root_catalog_dir / "index.md"
-        with open(root_index_file, "w", encoding="utf-8") as f:
-            f.write("---\n")
-            f.write("type: Knowledge Catalog\n")
-            f.write("title: Project Knowledge Catalog\n")
-            f.write("description: Central catalog of project architecture, domain knowledge, and code symbol indices.\n")
-            f.write("---\n\n")
-            f.write("# Project Knowledge Catalog\n\n")
-            f.write("Central repository of codebase documentation and indexed symbols.\n\n")
-            f.write("## Catalog Sections\n\n")
-            f.write(f"- 💻 **[Codebase Symbol Index](code/index.md)** — Auto-generated catalog of {len(self.symbols)} indexed functions, methods, and classes.\n")
+        if not root_index_file.exists():
+            with open(root_index_file, "w", encoding="utf-8") as f:
+                f.write("---\n")
+                f.write("type: Knowledge Catalog\n")
+                f.write("title: Project Knowledge Catalog\n")
+                f.write("description: Central catalog of project architecture, domain knowledge, and code symbol indices.\n")
+                f.write("---\n\n")
+                f.write("# Project Knowledge Catalog\n\n")
+                f.write("Central repository of codebase documentation and indexed symbols.\n\n")
+                f.write("## Catalog Sections\n\n")
+                f.write(f"- 💻 **[Codebase Symbol Index](code/index.md)** — Auto-generated catalog of {len(self.symbols)} indexed functions, methods, and classes.\n")
 
         # Write code symbols index file
         index_file = code_catalog_dir / "index.md"
@@ -419,7 +442,7 @@ def resolve_target_dir(
             except Exception:
                 pass
 
-    # 4. Target file hint (e.g. apps/chcked/app/api/... or /path/to/apps/chcked/...)
+    # 4. Target file hint (e.g. apps/web/app/api/... or /path/to/apps/web/...)
     if target_file_hint:
         hint_path = Path(target_file_hint)
         if hint_path.is_absolute():

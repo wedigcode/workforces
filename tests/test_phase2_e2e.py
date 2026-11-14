@@ -34,7 +34,7 @@ VALIDATE_REFERENCES_SCRIPT = SCRIPTS_DIR / "validate-references.py"
 PERSONAL_SYNC_SCRIPT = SKILLS_DIR / "wf-task-tracker" / "scripts" / "personal_sync.py"
 
 # Authoritative Constants derived from PROJECT.md and ORIGINAL_REQUEST.md
-EXPECTED_SKILL_COUNT = 38
+EXPECTED_SKILL_COUNT = 39
 EXPECTED_EXECUTION_AGENTS = {
     "wf-programmer.md",
     "wf-designer.md",
@@ -135,18 +135,18 @@ class TestPhase2Tier1FeatureCoverage(unittest.TestCase):
     """
 
     def test_all_37_skills_frontmatter_presence_and_validity(self):
-        """Verify all skills under skills/ (exactly 37, excluding wf-work) have valid frontmatter."""
+        """Verify all skills under skills/ (exactly 39, including restored wf-work) have valid frontmatter."""
         skill_dirs = [d for d in SKILLS_DIR.iterdir() if d.is_dir() and not d.name.startswith(".")]
         skill_names = {d.name for d in skill_dirs}
 
-        # Requirement R3: wf-work must not be present
-        self.assertNotIn(
+        # Restored wf-work autonomous dispatcher skill must be present alongside existing core skills
+        self.assertIn(
             "wf-work",
             skill_names,
-            "Legacy orchestrator 'skills/wf-work' must be completely removed in Phase 2.",
+            "Restored skill 'skills/wf-work' must be present for autonomous /wf-work dispatching.",
         )
 
-        # Requirement R1 & Acceptance Criteria: exactly 37 skills
+        # Requirement R1 & Acceptance Criteria: exactly 39 skills
         self.assertEqual(
             len(skill_dirs),
             EXPECTED_SKILL_COUNT,
@@ -190,8 +190,6 @@ class TestPhase2Tier1FeatureCoverage(unittest.TestCase):
         slash_trigger_pattern = re.compile(r"(Triggers on /|/wf-[a-z0-9_-]+)", re.IGNORECASE)
 
         for s_dir in skill_dirs:
-            if s_dir.name == "wf-work":
-                continue  # Covered by test_complete_removal_of_wf_work_skill
             skill_file = s_dir / "SKILL.md"
             if not skill_file.is_file():
                 continue
@@ -279,11 +277,20 @@ class TestPhase2Tier1FeatureCoverage(unittest.TestCase):
             )
 
     def test_complete_removal_of_wf_work_skill(self):
-        """Verify skills/wf-work/ directory is completely removed."""
-        wf_work_dir = SKILLS_DIR / "wf-work"
+        """Verify legacy workflows/wf-work.md is absent while restored skills/wf-work/SKILL.md exists."""
+        legacy_workflow = REPO_ROOT / "workflows" / "wf-work.md"
         self.assertFalse(
-            wf_work_dir.exists(),
-            f"Directory {wf_work_dir} must be completely deleted in Phase 2.",
+            legacy_workflow.exists(),
+            f"Legacy workflow {legacy_workflow} must not exist.",
+        )
+        wf_work_dir = SKILLS_DIR / "wf-work"
+        self.assertTrue(
+            (wf_work_dir / "SKILL.md").is_file(),
+            f"Restored skill {wf_work_dir / 'SKILL.md'} must exist.",
+        )
+        self.assertTrue(
+            (wf_work_dir / "scripts" / "work_dispatch.py").is_file(),
+            f"Dispatcher script {wf_work_dir / 'scripts' / 'work_dispatch.py'} must exist.",
         )
 
     def test_task_query_consolidation_in_wf_sync_and_task_tracker(self):
@@ -665,10 +672,10 @@ class TestPhase2Tier3CrossFeatureInteractions(unittest.TestCase):
         self.assertIsNotNone(core_skills_match, "CORE_SKILLS definition not found in resolve_manifest.py")
         core_skills = {item.strip().strip("'\"") for item in core_skills_match.group(1).replace("\n", "").split(",") if item.strip()}
 
-        self.assertNotIn(
+        self.assertIn(
             "wf-work",
             core_skills,
-            "CORE_SKILLS in resolve_manifest.py must not include 'wf-work'",
+            "CORE_SKILLS in resolve_manifest.py must include restored 'wf-work'",
         )
 
     def test_resolve_manifest_prune_obsolete_assets_integration(self):
@@ -763,11 +770,16 @@ class TestPhase2Tier4RealWorldScenarios(unittest.TestCase):
         manifest_data = json.loads(manifest_path.read_text(encoding="utf-8"))
         installed_files = manifest_data.get("installed_files", [])
 
-        # Assert no retired assets installed in filesystem
-        installed_wf_work = self.target_path / ".agents" / "skills" / "wf-work"
+        # Assert active core wf-work skill installed and legacy workflow retired
+        installed_wf_work = self.target_path / ".agents" / "skills" / "wf-work" / "SKILL.md"
+        self.assertTrue(
+            installed_wf_work.is_file(),
+            f"Expected core skill 'wf-work' to be installed in target workspace at {installed_wf_work}",
+        )
+        legacy_wf_work = self.target_path / ".agents" / "workflows" / "wf-work.md"
         self.assertFalse(
-            installed_wf_work.exists(),
-            f"Retired skill 'wf-work' was installed in target workspace at {installed_wf_work}",
+            legacy_wf_work.exists(),
+            f"Legacy workflow 'wf-work.md' must not be installed at {legacy_wf_work}",
         )
 
         installed_compliance = self.target_path / ".agents" / "agents" / "compliance.md"
@@ -784,7 +796,7 @@ class TestPhase2Tier4RealWorldScenarios(unittest.TestCase):
 
         # Assert no retired assets in manifest tracking
         for file_entry in installed_files:
-            self.assertNotIn("wf-work", file_entry, f"Manifest tracks retired asset: {file_entry}")
+            self.assertNotIn("workflows/wf-work.md", file_entry, f"Manifest tracks retired asset: {file_entry}")
             self.assertNotIn("compliance.md", file_entry, f"Manifest tracks retired agent: {file_entry}")
             self.assertNotIn("advisor.md", file_entry, f"Manifest tracks retired agent: {file_entry}")
 
@@ -873,7 +885,7 @@ class TestPhase2Tier4RealWorldScenarios(unittest.TestCase):
 
         # 2. Inject artificial legacy assets into the installed workspace
         legacy_files = [
-            self.target_path / ".agents" / "skills" / "wf-work" / "SKILL.md",
+            self.target_path / ".agents" / "workflows" / "wf-work.md",
             self.target_path / ".agents" / "agents" / "compliance.md",
             self.target_path / ".agents" / "agents" / "advisor.md",
             self.target_path / ".agents" / "workflows" / "wf-obsolete.md",
@@ -925,6 +937,11 @@ class TestPhase2Tier4RealWorldScenarios(unittest.TestCase):
         self.assertTrue(
             active_skill.is_file(),
             f"Active skill {active_skill} was erroneously removed during update!",
+        )
+        active_work_skill = self.target_path / ".agents" / "skills" / "wf-work" / "SKILL.md"
+        self.assertTrue(
+            active_work_skill.is_file(),
+            f"Active skill {active_work_skill} was erroneously removed during update!",
         )
 
     def test_full_repository_reference_lineage_clean(self):

@@ -8,8 +8,9 @@ Enforces reference lineage, zero broken links, subtask tracking, and adaptive ga
 
 ---
 
-## 1. Zero Ghost References
+## 1. Zero Ghost References & Portable Git Links
 - **Strict Invariant**: Every referenced file path or markdown link (`[text](path)`) MUST exist on disk.
+- **No Machine-Local Paths**: NEVER emit `file://` URIs or OS filesystem home/absolute paths (`/Users/...`, `/home/...`, `C:\...`) in documentation, issues, tasks, PRs, or session notes. Always emit remote Git host URLs (GitHub, GitLab, Bitbucket, Azure DevOps, Gitea) via `.agents/skills/wf-management/scripts/git_link_resolver.py` or clean repo-relative POSIX paths.
 - If a created file references a target that does not exist, immediately create the target file with structured content.
 
 ## 2. Task Tracking, Session Lineage & Completion Gates

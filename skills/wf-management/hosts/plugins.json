@@ -37,6 +37,15 @@
             "script_rel": "skills/wf-code-graph/scripts/pre_tool_hook.py",
             "fallback_stdout": "{\\\"decision\\\": \\\"allow\\\"}",
             "timeout": 30
+          },
+          {
+            "matcher_capabilities": [
+              "execute"
+            ],
+            "runner": "script_rel",
+            "script_rel": "skills/wf-post-code-review/scripts/deploy_safety_hook.py",
+            "fallback_stdout": "{\\\"decision\\\": \\\"allow\\\"}",
+            "timeout": 15
           }
         ],
         "PostToolUse": [

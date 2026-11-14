@@ -10,6 +10,16 @@
             "timeout": 30
           }
         ]
+      },
+      {
+        "matcher": "run_command",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -c \"import os, sys, subprocess; rel = 'skills/wf-post-code-review/scripts/deploy_safety_hook.py'; cands = [f'{b}/{rel}' if b else rel for b in ('.agents', '.claude', '.grok', '.github', '.cursor', '.github/copilot', '', '../..')]; script = next((p for p in cands if os.path.exists(p)), None); sys.exit(subprocess.call([sys.executable, script])) if script else (print('{\\\"decision\\\": \\\"allow\\\"}'), sys.exit(0))\" || python -c \"import os, sys, subprocess; rel = 'skills/wf-post-code-review/scripts/deploy_safety_hook.py'; cands = [f'{b}/{rel}' if b else rel for b in ('.agents', '.claude', '.grok', '.github', '.cursor', '.github/copilot', '', '../..')]; script = next((p for p in cands if os.path.exists(p)), None); sys.exit(subprocess.call([sys.executable, script])) if script else (print('{\\\"decision\\\": \\\"allow\\\"}'), sys.exit(0))\"",
+            "timeout": 15
+          }
+        ]
       }
     ],
     "PostToolUse": [

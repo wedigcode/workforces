@@ -98,13 +98,13 @@ tracked_hypotheses:
 - **Rejected:** Trade-offs and why alternatives were dropped.
 
 ## 🔬 Strategic Hypotheses & Experiments
-- `HYP-01`: [Title](file:///path/to/workforces/hypotheses/running/<file>.md) (`running`) — Pacing and telemetry notes.
+- `HYP-01`: [Title](workforces/hypotheses/running/<file>.md) (`running`) — Pacing and telemetry notes.
 
 ## 📋 Tracked Tasks & Action Items
-- [Title](file:///path/to/workforces/tasks/<file>.md) (`<type>` | <priority>) — Summary.
+- [Title](workforces/tasks/<file>.md) (`<type>` | <priority>) — Summary.
 
 ## 📁 Key Files & Code Symbols
-- [file.py](file:///absolute/path/to/file.py#L10-L40) — Core logic modified/discussed
+- [file.py](https://github.com/org/repo/blob/main/src/file.py#L10-L40) — Core logic modified/discussed
 
 ## 🔑 Keywords & Scanning Hooks
 `keyword1`, `keyword2`, `tag1`, `topic_name`
