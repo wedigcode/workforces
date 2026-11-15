@@ -94,9 +94,14 @@ class TestStrategySyncAndDesignMemory(unittest.TestCase):
         self.assertIn("**Recommended Tools:** `google-vids, google-slides`", content)
 
     def test_design_preferences_memory_file(self):
-        """Verify design preferences memory file exists and contains negative constraints."""
-        pref_path = os.path.join(ROOT_DIR, "workforces", "memory", "design-preferences.md")
-        self.assertTrue(os.path.exists(pref_path), "design-preferences.md does not exist")
+        """Verify the shipped design preferences template contains negative constraints.
+
+        workforces/memory/ is the user's gitignored workspace, so check the template that seeds it.
+        """
+        pref_path = os.path.join(
+            ROOT_DIR, "skills", "wf-memory-management", "templates", "design-preferences-template.md"
+        )
+        self.assertTrue(os.path.exists(pref_path), "design-preferences-template.md does not exist")
 
         with open(pref_path, "r", encoding="utf-8") as f:
             content = f.read()

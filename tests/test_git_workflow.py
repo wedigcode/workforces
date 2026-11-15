@@ -12,15 +12,23 @@ SCRIPTS_DIR = REPO_ROOT / "skills" / "wf-management" / "scripts"
 sys.path.insert(0, str(SCRIPTS_DIR))
 
 from resolve_manifest import resolve_manifest, CORE_RULES
+import compile_assets
+import tempfile
 
 
 class TestGitWorkflowRule(unittest.TestCase):
     def test_git_workflow_rule_files_exist(self):
         source_rule = REPO_ROOT / "rules" / "wf-git-workflow.md"
-        agent_rule = REPO_ROOT / ".agents" / "rules" / "wf-git-workflow.md"
-
         self.assertTrue(source_rule.exists(), f"Missing rule file: {source_rule}")
-        self.assertTrue(agent_rule.exists(), f"Missing mirrored agent rule file: {agent_rule}")
+
+        # The .agents mirror is an install artifact (gitignored), so compile one instead of
+        # relying on a local install in the repo root.
+        with tempfile.TemporaryDirectory() as tmp:
+            compile_assets.install_compiled_hosts(
+                str(REPO_ROOT), tmp, ["antigravity"], {"rules": ["wf-git-workflow"]}
+            )
+            agent_rule = Path(tmp) / ".agents" / "rules" / "wf-git-workflow.md"
+            self.assertTrue(agent_rule.exists(), f"Missing compiled agent rule file: {agent_rule}")
 
     def test_git_workflow_contains_core_mandates(self):
         rule_content = (REPO_ROOT / "rules" / "wf-git-workflow.md").read_text(encoding="utf-8")

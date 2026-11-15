@@ -1,6 +1,6 @@
 ---
 name: wf-question-formulation
-description: Structures complex questions requiring human decisions, design trade-offs, or preferences into an anti-cognitive-offloading XML schema (`<question>`, `<ai_instructions>`). Reach for this skill or trigger it when prompting users for critical architectural choices, framing business or technical dilemmas so an external AI acts as an interviewer rather than fabricating answers on the user's behalf, or standardizing collaborative decision intake.
+description: Structures complex questions requiring human decisions, design trade-offs, or preferences into an anti-cognitive-offloading XML schema (question and ai_instructions elements). Reach for this skill or trigger it when prompting users for critical architectural choices, framing business or technical dilemmas so an external AI acts as an interviewer rather than fabricating answers on the user's behalf, or standardizing collaborative decision intake.
 ---
 
 # Question Formulation & Strategic Framing (/wf-question-formulation)

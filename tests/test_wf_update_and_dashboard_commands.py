@@ -7,25 +7,39 @@ and command documentation consistency.
 
 import os
 import re
+import sys
+import tempfile
 import unittest
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SKILLS_DIR = REPO_ROOT / "skills"
-DOT_AGENTS_SKILLS = REPO_ROOT / ".agents" / "skills"
 SCRIPTS_DIR = SKILLS_DIR / "wf-management" / "scripts"
+if str(SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_DIR))
+
+import compile_assets  # noqa: E402
+
+
+def _compiled_antigravity_skill_exists(skill: str) -> bool:
+    """Compile one skill for Antigravity into a temp dir and report whether SKILL.md landed.
+
+    The repo's own .agents/ folder is a gitignored install artifact, so tests must not rely on it.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        compile_assets.install_compiled_hosts(str(REPO_ROOT), tmp, ["antigravity"], {"skills": [skill]})
+        return (Path(tmp) / ".agents" / "skills" / skill / "SKILL.md").is_file()
 
 
 class TestWfUpdateAndDashboardCommands(unittest.TestCase):
     """Verifies /wf-update and /wf-dashboard skills and toolkit wiring."""
 
     def test_wf_update_skill_files_exist(self):
-        """Verify wf-update skill exists in both skills/ and .agents/skills/."""
+        """Verify wf-update skill exists in skills/ and compiles into .agents/skills/."""
         skill_file = SKILLS_DIR / "wf-update" / "SKILL.md"
-        dot_agents_file = DOT_AGENTS_SKILLS / "wf-update" / "SKILL.md"
 
         self.assertTrue(skill_file.is_file(), f"Missing {skill_file}")
-        self.assertTrue(dot_agents_file.is_file(), f"Missing {dot_agents_file}")
+        self.assertTrue(_compiled_antigravity_skill_exists("wf-update"), "wf-update did not compile into .agents/skills/")
 
         content = skill_file.read_text(encoding="utf-8")
         self.assertIn("name: wf-update", content)
@@ -34,12 +48,11 @@ class TestWfUpdateAndDashboardCommands(unittest.TestCase):
         self.assertIn("wf-management", content)
 
     def test_wf_dashboard_skill_files_exist(self):
-        """Verify wf-dashboard skill exists in both skills/ and .agents/skills/."""
+        """Verify wf-dashboard skill exists in skills/ and compiles into .agents/skills/."""
         skill_file = SKILLS_DIR / "wf-dashboard" / "SKILL.md"
-        dot_agents_file = DOT_AGENTS_SKILLS / "wf-dashboard" / "SKILL.md"
 
         self.assertTrue(skill_file.is_file(), f"Missing {skill_file}")
-        self.assertTrue(dot_agents_file.is_file(), f"Missing {dot_agents_file}")
+        self.assertTrue(_compiled_antigravity_skill_exists("wf-dashboard"), "wf-dashboard did not compile into .agents/skills/")
 
         content = skill_file.read_text(encoding="utf-8")
         self.assertIn("name: wf-dashboard", content)

@@ -38,8 +38,10 @@ class TestAgentParallelization(unittest.TestCase):
         programmer_path = REPO_ROOT / "agents" / "wf-programmer.md"
         content = programmer_path.read_text(encoding="utf-8")
         self.assertIn("wf-agent-parallelization", content)
-        self.assertIn("gh-stack", content)
-        self.assertIn("gh stack init", content)
+        self.assertIn("stacked PRs", content)
+        # The gh-stack commands live once, in the skill the agent points to.
+        skill = (REPO_ROOT / "skills" / "wf-agent-parallelization" / "SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("gh stack init", skill)
 
     def test_rules_include_parallelization(self):
         base_rule = (REPO_ROOT / "rules" / "wf-base.md").read_text(encoding="utf-8")

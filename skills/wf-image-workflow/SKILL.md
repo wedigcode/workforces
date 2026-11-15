@@ -1,6 +1,6 @@
 ---
 name: wf-image-workflow
-description: Manages the visual asset pipeline, including prompt engineering, queue management (`workforces/images.json`), Antigravity image generation, and compression (WebP/JPEG optimization). Reach for this skill when planning marketing or UI imagery, deconstructing reference visuals into reproducible JSON prompts, generating brand assets, or resizing and compressing web assets for optimal page speed.
+description: Manages the visual asset pipeline, including prompt engineering, queue management (`workforces/images.json`), image generation (Antigravity generate_image, an image MCP tool, or a configured CLI, with a prompt-only fallback), and compression (WebP/JPEG optimization). Reach for this skill when planning marketing or UI imagery, deconstructing reference visuals into reproducible JSON prompts, generating brand assets, or resizing and compressing web assets for optimal page speed.
 ---
 # 🎨 Image Planning & Generation Workflow
 
@@ -118,6 +118,7 @@ All duplicate prompts MUST strictly structure key variables at the very top of t
 4. **Feed into Image Tool**:
    - For **Nano Banana / External CLI Tools**: Pass the compiled JSON payload or prompt string into the generation tool.
    - For **Antigravity Native Pipeline**: Compile the JSON into a descriptive prompt and invoke `generate_image`.
+   - For **Hosts without a native image tool** (e.g. Claude Code): Follow the generator fallback order in [Generating Queued Images](#-generating-queued-images).
 
 ---
 
@@ -155,21 +156,28 @@ All duplicate prompts MUST strictly structure key variables at the very top of t
 
 ---
 
-## ⚡ Generation with Antigravity `generate_image`
+## ⚡ Generating Queued Images
 
-Images in the queue are generated via Antigravity's native `generate_image` tool:
+Not every host ships an image tool. Antigravity has a native `generate_image` tool; Claude Code does not. Prepare the queue the same way on every host, then use the first generator that is actually available in the current session.
 
 1. **Parse pending entries**: Scan `workforces/images.json` for entries where `generated == false`.
-2. **Template interpolation**: Replace `{{primaryColor}}`, `{{secondaryColor}}`, `{{brandMood}}`, `{{visualStyle}}` with values from `brandVariables`.
-3. **Execute tool call**:
-   ```
-   generate_image(
-     Prompt="...",
-     ImageName="hero-dashboard-preview",
-     AspectRatio="16:9"
-   )
-   ```
-4. **Mark completed**: Update `generated: true` and save output path.
+2. **Template interpolation**: Replace `{{primaryColor}}`, `{{secondaryColor}}`, `{{brandMood}}`, `{{visualStyle}}` with values from `brandVariables`, and store the result in the entry's `compiledPrompt` field.
+3. **Pick a generator** (first match wins; never pretend a tool exists):
+   1. **Native tool (Antigravity)**: If `generate_image` is in your tool list, call it:
+      ```
+      generate_image(
+        Prompt="...",
+        ImageName="hero-dashboard-preview",
+        AspectRatio="16:9"
+      )
+      ```
+   2. **Image MCP tool**: If the session exposes an image-generation tool from an MCP server (any tool whose name or description says it generates images), call it with `compiledPrompt`, the aspect ratio, and save the result to `outputPath`.
+   3. **Configured CLI**: If `workforces/images.json` defines `"generator": { "command": "..." }`, run that command with the shell tool after substituting `{prompt}`, `{output}`, `{aspect}` and `{slug}` (quote the prompt). Example:
+      ```json
+      "generator": { "command": "my-image-cli --aspect {aspect} --out {output} --prompt {prompt}" }
+      ```
+   4. **Prompt-only fallback**: If none of the above is available, do not fail the run. Leave `generated: false`, set `error` to `"no image generator available on this host"`, keep `compiledPrompt` populated, and tell the user which slugs are ready so they can paste the prompts into an external tool (or add a `generator` command and rerun). Skip optimization for those entries.
+4. **Mark completed**: When an image was written, set `generated: true`, clear `error`, and confirm the file exists at `outputPath`.
 
 ---
 

@@ -16,7 +16,6 @@ model: inherit
 skills:
   - wf-github-project-planning
   - wf-memory-management
-  - wf-business-frameworks
   - wf-pr-review
   - wf-task-tracker
   - wf-issue-tracker
@@ -129,7 +128,7 @@ RICE = (Reach × Impact × Confidence) ÷ Effort
 ICE = Impact × Confidence × Ease   (each 1–10)
 ```
 
-**Strategic Value & Unit Economics Guardrails (`skills/wf-business-frameworks`)**:
+**Strategic Value & Unit Economics Guardrails** (deeper frameworks live in `wf-business-frameworks`, installed with the growth, marketing and launch teams):
 - **Value Stick Impact**: Evaluate whether the task expands customer **WTP** or lowers supplier **WTS** rather than zero-sum margin squeezing.
 - **Unit Economics Hurdle**: Growth/acquisition initiatives must model path to $\text{LTV:CAC} \ge 3.0\times$ and $\text{CAC Payback} < 12\text{ months}$.
 - **Dynamic Capabilities Mapping**: Map tasks across **Sense** (discovery/telemetry), **Seize** (build/pricing), and **Transform** (operational realignment).

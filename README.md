@@ -75,7 +75,7 @@ For multi-host options, compiler details, and `workforces/config.json` configura
 | [`wf-post-code-review`](skills/wf-post-code-review/SKILL.md) | Whole-codebase post-hook quality reviewer and blast-radius evaluator |
 | [`wf-site-setup`](skills/wf-site-setup/SKILL.md) | Greenfield site initialization, multi-team handoffs, scaffolding safeguards, and brief generation |
 | [`wf-ai-search-optimization`](skills/wf-ai-search-optimization/SKILL.md) | Framework-aware GEO readiness: llms.txt, robots.txt, ai.txt, ai-plugin.json, and sitemaps |
-| [`wf-image-workflow`](skills/wf-image-workflow/SKILL.md) | Image planning queue in `workforces/images.json`, Antigravity `generate_image`, and optimization |
+| [`wf-image-workflow`](skills/wf-image-workflow/SKILL.md) | Image planning queue in `workforces/images.json`, generation via Antigravity `generate_image`, an image MCP tool or a configured CLI (prompt-only fallback), and optimization |
 | [`wf-memory-management`](skills/wf-memory-management/SKILL.md) | Protocol for navigating OKF catalogs and managing workspace memories |
 | [`wf-github-project-planning`](skills/wf-github-project-planning/SKILL.md) | Create/update GitHub issues and interact with Project V2 boards |
 | [`wf-management`](skills/wf-management/SKILL.md) | Update, patch, and align settings for the Workforces toolkit |
@@ -89,7 +89,7 @@ Full roster documentation available in [`docs/teams-and-agents.md`](docs/teams-a
 | Agent Tag | Role / Domain | Core Capabilities |
 | :--- | :--- | :--- |
 | [`@wf-project-manager`](agents/wf-project-manager.md) | Project Manager | Backlog prioritization, Value Stick scoring, SaaS unit economics, and GitHub sync |
-| [`@wf-programmer`](agents/wf-programmer.md) | Software Engineer | Clean code authoring, TDD, symbol graph index lookup, and post-edit reviews |
+| [`@wf-programmer`](agents/wf-programmer.md) | Software Engineer | Coding worker that follows wf-clean-coder and runs the post-edit quality gate |
 | [`@wf-designer`](agents/wf-designer.md) | Visual & UI/UX Designer | Visual concept ideation, design tokens, layout specifications, and design QA reviews |
 | [`@wf-marketer`](agents/wf-marketer.md) | Marketer | JTBD positioning, Connected Strategy models, PAS copywriting, and closed growth loops |
 | [`@wf-sales`](agents/wf-sales.md) | Sales Specialist | Prospect research, JTBD discovery, Customer Delight ROI framing, and closing |

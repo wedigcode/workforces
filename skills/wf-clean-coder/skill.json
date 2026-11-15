@@ -1,7 +1,7 @@
 {
   "kind": "skill",
   "name": "wf-clean-coder",
-  "description": "MANDATORY for any programming, coding, refactoring, bug fixing, or code modification task. Enforces software craftsmanship, Test-Driven Development (TDD) red-green-refactor, method stubs first, symbol deduplication via wf-code-graph, single responsibility and SOLID architecture, advisory function line limits (<= 35 lines), method decomposition, zero error swallowing, PR-style code review verification checklist with advisory feedback, weekly-retried 3rd-party security bypass, and pre-handoff quality gates. Reach for this skill whenever writing, editing, or refactoring code, adding new functions or classes, implementing APIs, fixing bugs, or modifying tests before and after code changes.",
+  "description": "MANDATORY for any programming, coding, refactoring, bug fixing, or code modification task. Enforces software craftsmanship, a test written or updated and run for every behavior change or bug fix, searching for existing similar code before adding new functions, the simplest design that works with a rule of three for duplication, shallow control flow, a soft ~50-60 line function limit with extraction only for nameable, reused or separately tested blocks, zero error swallowing, PR-style code review verification checklist with advisory feedback, weekly-retried 3rd-party security bypass, and pre-handoff quality gates. Reach for this skill whenever writing, editing, or refactoring code, adding new functions or classes, implementing APIs, fixing bugs, or modifying tests before and after code changes.",
   "user_invocable": true,
   "disable_model_invocation": false,
   "hosts": {}

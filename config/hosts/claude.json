@@ -32,6 +32,23 @@
     "image": [],
     "delegate": ["Task"]
   },
+  "body_tool_map": {
+    "view_file": "Read",
+    "list_dir": "Glob",
+    "grep_search": "Grep",
+    "find_by_name": "Glob",
+    "run_command": "Bash",
+    "write_to_file": "Write",
+    "replace_file_content": "Edit",
+    "multi_replace_file_content": "MultiEdit",
+    "read_url_content": "WebFetch"
+  },
+  "body_phrase_map": {
+    "`Workspace: 'share'`": "the Agent tool's `isolation: \"worktree\"`",
+    "`Workspace: 'inherit'`": "the shared checkout (Agent tool without `isolation`)",
+    "`IsDaemon=True`": "`run_in_background: true`",
+    "`WaitMsBeforeAsync=1000`": "`run_in_background: true`"
+  },
   "agent_schema": {
     "field_order": [
       "name",
