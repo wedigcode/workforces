@@ -15,6 +15,7 @@ These core operational rules govern all workforce interactions and execution loo
 - **Task Source of Truth & Reconciliation**: `workforces/tasks/*.md` is the single source of truth for all tasks. When remote PRs/issues close, automatically reconcile task status to `done` via `report-task.py` and sync `workforces/workstate.md`.
 - **Private by Default**: All new repositories must be created as private unless explicitly specified.
 - **Portable Remote Git Links**: Never emit `file://` URIs or OS local paths (`/Users/...`, `/home/...`); use remote Git host URLs (GitHub, GitLab, Bitbucket, Azure DevOps, Gitea) or repo-relative POSIX paths.
+- **Protect Uncommitted, Untracked & Ignored Files**: NEVER delete, truncate, overwrite, dehydrate, or discard files with uncommitted edits, untracked (`??`) local files, or `.gitignore`d (`!!`) files without explicit user consent. Verify `git status --porcelain=v1 --ignored=matching -- <path>` is empty before removing any file per [`wf-file-integrity`](wf-file-integrity.md) and `deploy_safety_hook.py`.
 
 ---
 

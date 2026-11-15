@@ -9,29 +9,25 @@ Claude Code, and Grok:
 - Requires explicit human confirmation (`force_ask` / `ask`) before:
   1. Cloud deployments (`sam deploy`, `ampx`, `serverless deploy`, `cdk deploy`, `terraform apply`, `kubectl apply`, etc.)
   2. Production GitHub actions (`gh pr merge`, `gh workflow run`, `gh release create`)
-  3. Force pushes (`-f`, `--force`, `--force-with-lease=...`) or pushes targeting protected branches (`main`, `master`, `prod`, `production`, `staging`, `develop`, `release/*`).
+  3. Force pushes (`-f`, `--force`, `--force-with-lease=...`) or pushes targeting protected branches (`main`, `master`, `prod`, `production`, `staging`, `develop`, `release/*`)
+  4. Deleting, truncating, overwriting, or discarding uncommitted, untracked (`??`), or Git-ignored (`!!`) local files.
 """
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import re
 import shlex
 import subprocess
 import sys
+from pathlib import Path
 from typing import Any, Dict, FrozenSet, List, Optional, Tuple
 
 
 PROTECTED_BRANCHES = frozenset({
-    "main",
-    "master",
-    "prod",
-    "production",
-    "staging",
-    "stage",
-    "develop",
-    "dev",
+    "main", "master", "prod", "production", "staging", "stage", "develop", "dev",
 })
 PROTECTED_PREFIXES = ("release/", "hotfix/", "prod/", "production/")
 
@@ -63,7 +59,7 @@ _BENIGN_OUTER_COMMANDS = frozenset({
     "echo", "printf", "grep", "rg", "ag", "awk", "sed", "cat", "head", "tail",
 })
 _SAFE_GIT_SUBCOMMANDS = frozenset({
-    "commit", "status", "diff", "log", "branch", "checkout", "switch", "add", "fetch", "show",
+    "commit", "status", "diff", "log", "branch", "add", "fetch", "show",
 })
 _SHELL_BINARIES = frozenset({"sh", "bash", "zsh", "dash", "ksh"})
 _ENV_ASSIGN_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
@@ -134,32 +130,26 @@ def _extract_command_substitutions(text: str) -> List[str]:
         if escaped:
             escaped = False
             i += 1
-            continue
-        if ch == "\\" and quote != "'":
+        elif ch == "\\" and quote != "'":
             escaped = True
             i += 1
-            continue
-        if ch in ("'", '"'):
+        elif ch in ("'", '"'):
             quote = None if quote == ch else (ch if quote is None else quote)
             i += 1
-            continue
-        if quote == "'":
+        elif quote == "'":
             i += 1
-            continue
-        if text[i:i + 3] == "$((":
+        elif text[i:i + 3] == "$((":
             i += 3
-            continue
-        if text[i:i + 2] == "$(" or (quote is None and text[i:i + 2] in ("<(", ">(")):
+        elif text[i:i + 2] == "$(" or (quote is None and text[i:i + 2] in ("<(", ">(")):
             inner, i = _read_balanced_paren_body(text, i + 2)
             if inner.strip():
                 subs.append(inner)
-            continue
-        if ch == "`":
+        elif ch == "`":
             inner, i = _read_backtick_body(text, i + 1)
             if inner.strip():
                 subs.append(inner)
-            continue
-        i += 1
+        else:
+            i += 1
     return subs
 
 
@@ -173,33 +163,18 @@ def _split_shell_segments(command: str) -> List[str]:
     while i < len(command):
         ch = command[i]
         if escaped:
-            buf.append(ch)
-            escaped = False
-            i += 1
-            continue
-        if ch == "\\" and quote != "'":
-            buf.append(ch)
-            escaped = True
-            i += 1
-            continue
-        if ch in ("'", '"'):
+            buf.append(ch); escaped = False; i += 1
+        elif ch == "\\" and quote != "'":
+            buf.append(ch); escaped = True; i += 1
+        elif ch in ("'", '"'):
             quote = None if quote == ch else (ch if quote is None else quote)
-            buf.append(ch)
-            i += 1
-            continue
-        if quote is None:
-            if command[i:i + 2] in ("&&", "||"):
-                segments.append("".join(buf).strip())
-                buf = []
-                i += 2
-                continue
-            if ch in (";", "|", "\n"):
-                segments.append("".join(buf).strip())
-                buf = []
-                i += 1
-                continue
-        buf.append(ch)
-        i += 1
+            buf.append(ch); i += 1
+        elif quote is None and command[i:i + 2] in ("&&", "||"):
+            segments.append("".join(buf).strip()); buf = []; i += 2
+        elif quote is None and ch in (";", "|", "\n"):
+            segments.append("".join(buf).strip()); buf = []; i += 1
+        else:
+            buf.append(ch); i += 1
     tail = "".join(buf).strip()
     if tail:
         segments.append(tail)
@@ -223,6 +198,14 @@ def _consume_generic_options(
     return idx
 
 
+def _split_tokens_safe(text: str) -> List[str]:
+    """Split shell tokens with `shlex.split`, falling back to whitespace split."""
+    try:
+        return shlex.split(text)
+    except ValueError:
+        return text.split()
+
+
 def _consume_env_wrapper(tokens: List[str], idx: int) -> List[str]:
     """Consume `env` options (`-i`, `-u VAR`, `-C dir`, `-S str`, `--`) and inline VAR=val."""
     extra_tokens: List[str] = []
@@ -235,18 +218,11 @@ def _consume_env_wrapper(tokens: List[str], idx: int) -> List[str]:
             idx += 2
             continue
         if tok in ("-S", "--split-string") and idx + 1 < len(tokens):
-            try:
-                extra_tokens = shlex.split(tokens[idx + 1])
-            except ValueError:
-                extra_tokens = tokens[idx + 1].split()
+            extra_tokens = _split_tokens_safe(tokens[idx + 1])
             idx += 2
             break
         if tok.startswith("--split-string="):
-            raw_s = tok.split("=", 1)[1]
-            try:
-                extra_tokens = shlex.split(raw_s)
-            except ValueError:
-                extra_tokens = raw_s.split()
+            extra_tokens = _split_tokens_safe(tok.split("=", 1)[1])
             idx += 1
             break
         if tok.startswith("-") and tok != "-":
@@ -296,10 +272,7 @@ def _try_unwrap_pkg_exec(tokens: List[str]) -> Optional[List[str]]:
 
 def _unwrap_segment_tokens(segment: str) -> Tuple[List[str], List[str]]:
     """Strip env assignments and runner wrappers with their options, returning `(tokens, extra_cmds)`."""
-    try:
-        tokens = shlex.split(segment)
-    except ValueError:
-        tokens = segment.split()
+    tokens = _split_tokens_safe(segment)
     extra_cmds: List[str] = []
     while tokens:
         head = os.path.basename(tokens[0])
@@ -347,10 +320,7 @@ def _current_git_branch(cwd: Optional[str]) -> Optional[str]:
     try:
         res = subprocess.run(
             ["git", "-C", work_dir, "rev-parse", "--abbrev-ref", "HEAD"],
-            capture_output=True,
-            text=True,
-            timeout=3,
-            check=False,
+            capture_output=True, text=True, timeout=3, check=False,
         )
         if res.returncode == 0:
             return res.stdout.strip()
@@ -366,7 +336,9 @@ def _git_subcommand_index(tokens: List[str], cwd: Optional[str]) -> Tuple[int, O
     while sub_idx < len(tokens) and tokens[sub_idx].startswith("-"):
         flag = tokens[sub_idx]
         if flag == "-C" and sub_idx + 1 < len(tokens):
-            eff_cwd = tokens[sub_idx + 1]
+            target_dir = os.path.expanduser(tokens[sub_idx + 1])
+            base_dir = eff_cwd or os.getcwd()
+            eff_cwd = target_dir if os.path.isabs(target_dir) else os.path.normpath(os.path.join(base_dir, target_dir))
             sub_idx += 2
         elif flag in ("-c", "--git-dir", "--work-tree", "--namespace"):
             sub_idx += 2
@@ -452,118 +424,151 @@ def _extract_shell_c_command(tokens: List[str]) -> Optional[str]:
     return None
 
 
+def _load_worktree_guard():
+    """Load sibling `worktree_file_guard` module; return None if missing or invalid."""
+    guard_path = Path(__file__).resolve().parent / "worktree_file_guard.py"
+    if not guard_path.is_file():
+        return None
+    try:
+        spec = importlib.util.spec_from_file_location("wf_worktree_file_guard", str(guard_path))
+        if spec and spec.loader:
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            return mod
+    except Exception:
+        return None
+    return None
+
+
+def _next_cwd(tokens: List[str], active_cwd: Optional[str]) -> Optional[str]:
+    """Compute updated working directory after a `cd` segment."""
+    dest = next((t for t in tokens[1:] if t != "--" and (t == "-" or not t.startswith("-"))), None)
+    if dest is None:
+        return os.path.expanduser("~")
+    if dest == "-":
+        return active_cwd
+    expanded = os.path.expanduser(dest)
+    if os.path.isabs(expanded):
+        return os.path.normpath(expanded)
+    base = active_cwd if active_cwd else os.getcwd()
+    return os.path.normpath(os.path.join(base, expanded))
+
+
+def _inspect_exec_tokens(
+    tokens: List[str], active_cwd: Optional[str], guard: Any
+) -> Optional[str]:
+    """Check shell-c nesting, destructive file commands, git push, and deploy CLIs."""
+    shell_c = _extract_shell_c_command(tokens)
+    if shell_c:
+        nested = inspect_command(shell_c, cwd=active_cwd)
+        if nested:
+            return nested
+    file_reason = guard.check_file_command(tokens, active_cwd)
+    if file_reason:
+        return file_reason
+    push_reason = _check_git_push(tokens, cwd=active_cwd)
+    if push_reason:
+        return push_reason
+    normalized_cmd = " ".join(tokens)
+    for pattern, label in _DEPLOY_PATTERNS + _GH_DANGEROUS_PATTERNS:
+        if pattern.search(normalized_cmd):
+            return f"{label} requires explicit user consent before executing."
+    return None
+
+
+def _inspect_segment(
+    segment: str, active_cwd: Optional[str], guard: Any
+) -> Tuple[Optional[str], Optional[str]]:
+    """Inspect a single shell segment and return `(escalation_reason, next_cwd)`."""
+    for sub_cmd in _extract_command_substitutions(segment):
+        nested = inspect_command(sub_cmd, cwd=active_cwd)
+        if nested:
+            return nested, active_cwd
+    trunc_reason = guard.check_truncating_redirections(segment, active_cwd)
+    if trunc_reason:
+        return trunc_reason, active_cwd
+    tokens, extra_cmds = _unwrap_segment_tokens(segment)
+    for sub_cmd in extra_cmds:
+        nested = inspect_command(sub_cmd, cwd=active_cwd)
+        if nested:
+            return nested, active_cwd
+    if not tokens:
+        return None, active_cwd
+    head = os.path.basename(tokens[0])
+    if head == "cd":
+        return None, _next_cwd(tokens, active_cwd)
+    if head in _BENIGN_OUTER_COMMANDS:
+        return None, active_cwd
+    if head == "git":
+        sub_idx, eff_cwd = _git_subcommand_index(tokens, active_cwd)
+        git_dest = guard.check_git_destructive(tokens, sub_idx, eff_cwd)
+        if git_dest:
+            return git_dest, active_cwd
+        if sub_idx < len(tokens) and tokens[sub_idx] in _SAFE_GIT_SUBCOMMANDS:
+            return None, active_cwd
+    return _inspect_exec_tokens(tokens, active_cwd, guard), active_cwd
+
+
 def inspect_command(command: str, cwd: Optional[str] = None) -> Optional[str]:
     """Analyze a shell command string and return an escalation reason if consent is required."""
     if not command or not command.strip():
         return None
-
+    guard = _load_worktree_guard()
+    if guard is None:
+        return "Worktree file safety guard (`worktree_file_guard.py`) is unavailable; manual confirmation required."
+    active_cwd = cwd
     for segment in _split_shell_segments(command):
-        for sub_cmd in _extract_command_substitutions(segment):
-            nested = inspect_command(sub_cmd, cwd=cwd)
-            if nested:
-                return nested
-
-        tokens, extra_cmds = _unwrap_segment_tokens(segment)
-        for sub_cmd in extra_cmds:
-            nested = inspect_command(sub_cmd, cwd=cwd)
-            if nested:
-                return nested
-        if not tokens:
-            continue
-
-        head = os.path.basename(tokens[0])
-        if head in _BENIGN_OUTER_COMMANDS:
-            continue
-        if head == "git":
-            sub_idx, _ = _git_subcommand_index(tokens, cwd)
-            if sub_idx < len(tokens) and tokens[sub_idx] in _SAFE_GIT_SUBCOMMANDS:
-                continue
-
-        shell_c = _extract_shell_c_command(tokens)
-        if shell_c:
-            nested = inspect_command(shell_c, cwd=cwd)
-            if nested:
-                return nested
-
-        push_reason = _check_git_push(tokens, cwd=cwd)
-        if push_reason:
-            return push_reason
-
-        normalized_cmd = " ".join(tokens)
-        for pattern, label in _DEPLOY_PATTERNS + _GH_DANGEROUS_PATTERNS:
-            if pattern.search(normalized_cmd):
-                return f"{label} requires explicit user consent before executing."
-
+        reason, active_cwd = _inspect_segment(segment, active_cwd, guard)
+        if reason:
+            return reason
     return None
 
 
 def format_hook_response(reason: Optional[str], tool_name: str = "") -> Dict[str, object]:
     """Format hook JSON response for Claude/Grok (`Bash`) or Antigravity (`run_command`)."""
-    is_claude_family = tool_name == "Bash" or bool(
-        os.environ.get("CLAUDE_PROJECT_DIR") or os.environ.get("CLAUDE_CODE")
-    )
+    is_claude = tool_name == "Bash" or bool(os.environ.get("CLAUDE_PROJECT_DIR") or os.environ.get("CLAUDE_CODE"))
     if reason:
         message = f"🛑 Consent Gate: {reason}"
-        if is_claude_family:
-            return {
-                "hookSpecificOutput": {
-                    "hookEventName": "PreToolUse",
-                    "permissionDecision": "ask",
-                    "permissionDecisionReason": message,
-                }
-            }
+        if is_claude:
+            return {"hookSpecificOutput": {
+                "hookEventName": "PreToolUse", "permissionDecision": "ask", "permissionDecisionReason": message,
+            }}
         return {"decision": "force_ask", "reason": message}
-
-    if is_claude_family:
-        return {}
-    return {"decision": "allow"}
+    return {} if is_claude else {"decision": "allow"}
 
 
 def extract_hook_command_context(payload: Dict[str, Any]) -> Tuple[str, Optional[str], Optional[str]]:
     """Extract `(tool_name, command_or_None, cwd)` across Claude, Grok, and Antigravity payloads."""
     tool_call = payload.get("toolCall") or payload.get("toolUse") or payload.get("call")
     tc = tool_call if isinstance(tool_call, dict) else {}
-    tool_name = str(
-        payload.get("tool_name") or payload.get("toolName") or tc.get("name") or tc.get("toolName") or ""
-    )
-
+    tool_name = str(payload.get("tool_name") or payload.get("toolName") or tc.get("name") or tc.get("toolName") or "")
     raw_args: Any = payload.get("tool_input")
-    from_tool_input_str = isinstance(raw_args, str) and not raw_args.strip().startswith("{")
+    from_str = isinstance(raw_args, str) and not raw_args.strip().startswith("{")
     if raw_args is None:
-        raw_args = tc.get("args") or tc.get("arguments") or tc.get("input")
-    if raw_args is None:
-        raw_args = payload.get("input") or payload.get("args") or payload.get("arguments")
-
+        raw_args = tc.get("args") or tc.get("arguments") or tc.get("input") or payload.get("input") or payload.get("args") or payload.get("arguments")
     if isinstance(raw_args, str):
         if raw_args.strip().startswith("{"):
             try:
                 raw_args = json.loads(raw_args)
             except ValueError:
                 return tool_name, None, None
-        elif from_tool_input_str:
+        elif from_str:
             return tool_name, raw_args, payload.get("cwd")
         else:
             return tool_name, None, None
-
     if not isinstance(raw_args, dict):
         return tool_name, None, payload.get("cwd")
-
-    command: Optional[str] = None
-    for key in _COMMAND_KEYS:
-        if key in raw_args and raw_args[key] is not None:
-            command = str(raw_args[key])
-            break
+    command = next((str(raw_args[k]) for k in _COMMAND_KEYS if k in raw_args and raw_args[k] is not None), None)
     ws_paths = payload.get("workspacePaths")
     fallback_ws = ws_paths[0] if isinstance(ws_paths, list) and ws_paths else None
-    cwd = (
-        raw_args.get("Cwd")
-        or raw_args.get("cwd")
-        or raw_args.get("working_directory")
-        or raw_args.get("workdir")
-        or payload.get("cwd")
-        or fallback_ws
-    )
+    cwd = raw_args.get("Cwd") or raw_args.get("cwd") or raw_args.get("working_directory") or raw_args.get("workdir") or payload.get("cwd") or fallback_ws
     return tool_name, command, str(cwd) if cwd else None
+
+
+def _emit_hook(reason: Optional[str], tool_name: str = "") -> int:
+    """Print formatted PreToolUse hook decision and exit 0."""
+    print(json.dumps(format_hook_response(reason, tool_name=tool_name)))
+    return 0
 
 
 def main() -> int:
@@ -571,33 +576,16 @@ def main() -> int:
     try:
         raw = sys.stdin.read()
         if not raw or not raw.strip():
-            print(json.dumps(format_hook_response("Empty PreToolUse hook payload; manual confirmation required.")))
-            return 0
+            return _emit_hook("Empty PreToolUse hook payload; manual confirmation required.")
         payload = json.loads(raw)
         if not isinstance(payload, dict):
-            print(json.dumps(format_hook_response("Malformed PreToolUse hook payload; manual confirmation required.")))
-            return 0
+            return _emit_hook("Malformed PreToolUse hook payload; manual confirmation required.")
         tool_name, command, cwd = extract_hook_command_context(payload)
         if command is None:
-            print(
-                json.dumps(
-                    format_hook_response(
-                        "Unrecognized PreToolUse execution payload schema; manual confirmation required.",
-                        tool_name=tool_name,
-                    )
-                )
-            )
-            return 0
-        reason = inspect_command(command, cwd=cwd)
-        print(json.dumps(format_hook_response(reason, tool_name=tool_name)))
-        return 0
+            return _emit_hook("Unrecognized PreToolUse execution payload schema; manual confirmation required.", tool_name)
+        return _emit_hook(inspect_command(command, cwd=cwd), tool_name)
     except Exception as exc:
-        print(
-            json.dumps(
-                format_hook_response(f"PreToolUse consent gate error ({type(exc).__name__}); manual confirmation required.")
-            )
-        )
-        return 0
+        return _emit_hook(f"PreToolUse consent gate error ({type(exc).__name__}); manual confirmation required.")
 
 
 if __name__ == "__main__":

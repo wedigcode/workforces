@@ -33,7 +33,8 @@ This skill is invoked autonomously by `@wf-programmer` or coordinators, or direc
 
 ### 1. Cleanup & Hygiene
 - **Dead Code Elimination**: Remove unused imports, unreferenced functions/variables, obsolete comment blocks.
-- **File & Directory Organization**: Group related modules cleanly, eliminate orphan scratch files.
+- **File & Directory Organization**: Group related modules cleanly; surface questionable root files to the user rather than deleting them autonomously.
+- **Uncommitted & Local File Protection**: NEVER delete, overwrite, or discard uncommitted, untracked (`??`), or `.gitignore`d (`!!`) files without explicit user consent. Always verify `git status --porcelain=v1 --ignored=matching -- <path>` returns empty before deleting any file outside ephemeral caches (`__pycache__/`, `*.pyc`, `workforces/tmp/`).
 - **Formatting & Consistency**: Enforce uniform code formatting, naming conventions, and docstrings.
 - **Automated Refactoring & Upgrades**: Run automated codemods (`ast-grep`, `jscodeshift`, `Rector` for PHP, `ruff --fix` for Python) to modernize deprecated syntax and upgrade libraries.
 
@@ -74,9 +75,9 @@ This skill is invoked autonomously by `@wf-programmer` or coordinators, or direc
 
 2. **Code Cleanliness Audit**:
    - **Dead Code & Unused Symbols**: Identify indexed symbols with zero downstream callers across the codebase.
-   - **Workspace Scratch Cleanup**: Sweep `workforces/tmp/` and temporary execution logs older than 7 days.
+   - **Workspace Scratch Cleanup**: Sweep `workforces/tmp/` and temporary execution logs older than 7 days (never delete outside `workforces/tmp/` without `git status --porcelain=v1 --ignored=matching` verification and user consent).
    - **Broken Relative Links**: Scan `workforces/knowledge-catalog/` for references pointing to non-existent files.
-   - **Git Workspace Hygiene**: Report untracked artifacts or uncommitted scratch files.
+   - **Git Workspace Hygiene**: Report untracked artifacts or uncommitted scratch files to the user; NEVER delete or `git clean` them autonomously.
 
 3. **Deferred Issue Reporting**:
    For any issues found that cannot be fixed immediately (e.g. dead code intertwined with active logic, architectural debt, breaking-change refactors), report each one to the issue inbox:

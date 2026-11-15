@@ -16,8 +16,8 @@ These rules govern all git operations, commit cadences, workspace topologies, an
 ### 1b. Protected Branches, Deployments & Express Consent Gate (Option A)
 
 - **Feature Branches & Draft PRs Only**: Autonomous commits and `git push` are permitted **only** on isolated feature branches/worktrees (`feat/*`, `fix/*`, `chore/*`, `docs/*`, `refactor/*`) to open **Draft Pull Requests** (`gh pr create --draft`) for human or cross-harness code review.
-- **Explicit Consent Required Before Pushing Live**: NEVER run cloud/infrastructure deployments (`sam deploy`, `ampx`, `serverless deploy`, `cdk deploy`, `terraform apply`, `kubectl apply`, `gcloud run deploy`, `vercel --prod`), NEVER merge pull requests (`gh pr merge`), NEVER dispatch live workflows (`gh workflow run`), and NEVER force-push or push directly to `main`, `master`, `prod`, `production`, `staging`, `develop`, or `release/*` without explicit user consent.
-- **Mechanical Enforcement**: The `PreToolUse` safety hook (`deploy_safety_hook.py`) intercepts those commands and pauses for explicit user approval.
+- **Explicit Consent Required Before Pushing Live or Deleting Local Work**: NEVER run cloud/infrastructure deployments (`sam deploy`, `ampx`, `serverless deploy`, `cdk deploy`, `terraform apply`, `kubectl apply`, `gcloud run deploy`, `vercel --prod`), NEVER merge pull requests (`gh pr merge`), NEVER dispatch live workflows (`gh workflow run`), NEVER force-push or push directly to `main`, `master`, `prod`, `production`, `staging`, `develop`, or `release/*`, and NEVER run destructive working-tree or local-file removal commands (`rm`, `unlink`, `git rm -f`, `git reset --hard`, `git reset --merge`, `git clean -f`, `git checkout -- <dirty>`, `git restore <dirty>`, `git switch -f`, `git worktree remove --force`, `git stash drop/clear`) that erase uncommitted, untracked (`??`), or Git-ignored (`!!`) files without explicit user consent.
+- **Mechanical Enforcement**: The `PreToolUse` safety hook (`deploy_safety_hook.py` together with `worktree_file_guard.py`) intercepts those commands and pauses for explicit user approval.
 
 ---
 
@@ -107,7 +107,7 @@ The AI MUST automatically create a conventional commit upon reaching any of the 
 2. **Structural Scaffolding & Manifest Setup:** Immediately after scaffolding a new framework, package, monorepo app, cloud backend, database schema, or migration, *before* writing UI or application logic.
 3. **Approved Specs & Architecture:** When a formal specification (`DESIGN.md`, `LANDING_PAGE_SPEC.md`, `product-brief.md`, ADRs) is authored and approved.
 4. **Atomic Refactoring & Quality Increments:** When completing a clean, self-contained sub-step (e.g. extracting a shared helper, restructuring a module) that passes verification.
-5. **Session / Turn Handoff & Branch Switch:** Before concluding any substantive session turn or switching branches, ensure the working tree is clean. Never leave uncommitted production code.
+5. **Session / Turn Handoff & Branch Switch:** Before concluding any substantive session turn or switching branches, ensure your own task changes are cleanly committed on a feature branch. NEVER delete, revert, or `git clean` pre-existing uncommitted, untracked (`??`), or `.gitignore`d (`!!`) user files (such as `.env*`, keys, or `readme-deploy.md`) just to make `git status` clean.
 
 ---
 

@@ -324,6 +324,43 @@ class TestScaffoldRepoOkf(unittest.TestCase):
         self.assertIn(dehydrated["last_full_commit"], stub_text)
         self.assertIn("https://github.com/acme/platform/blob/", stub_text)
 
+    def test_standard_root_docs_dirty_files_and_uncommitted_spec_protection(self):
+        _init_git_repo(self.tmp)
+        git_repo = self.tmp
+        docs_specs = git_repo / "docs" / "specs"
+        docs_specs.mkdir(parents=True, exist_ok=True)
+        for root_doc in ("readme-deploy.md", "README-local.md", "DEPLOYMENT.md", "llms.txt"):
+            (git_repo / root_doc).write_text(f"# {root_doc}\n", encoding="utf-8")
+        (git_repo / ".gitignore").write_text("*.log\n", encoding="utf-8")
+        (git_repo / "local.log").write_text("ignored log\n", encoding="utf-8")
+
+        dirty_bak = git_repo / "stray-notes.bak"
+        dirty_bak.write_text("committed\n", encoding="utf-8")
+        committed_spec = docs_specs / "dirty-spec.md"
+        committed_spec.write_text("\n".join(f"Line {i}" for i in range(95)) + "\n", encoding="utf-8")
+        subprocess.run(["git", "add", ".gitignore", "stray-notes.bak", "docs/specs/dirty-spec.md"], cwd=str(git_repo), check=True, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "seed"], cwd=str(git_repo), check=True, capture_output=True)
+
+        dirty_bak.write_text("uncommitted local edit\n", encoding="utf-8")
+        committed_spec.write_text(committed_spec.read_text(encoding="utf-8") + "UNCOMMITTED_EDIT\n", encoding="utf-8")
+        untracked_spec = docs_specs / "untracked-spec.md"
+        untracked_spec.write_text("\n".join(f"Draft {i}" for i in range(95)) + "\n", encoding="utf-8")
+
+        hygiene = scaffold_repo_okf.audit_hygiene(git_repo)
+        for safe_name in ("readme-deploy.md", "README-local.md", "DEPLOYMENT.md", "llms.txt", "local.log", "stray-notes.bak"):
+            self.assertNotIn(safe_name, hygiene["stray_root_files"])
+        self.assertIn("stray-notes.bak", hygiene["protected_dirty_files"])
+        dehydratable = [item["file"] for item in hygiene["un_dehydrated_specs"]]
+        self.assertNotIn("docs/specs/dirty-spec.md", dehydratable)
+        self.assertNotIn("docs/specs/untracked-spec.md", dehydratable)
+
+        with self.assertRaises(ValueError):
+            scaffold_repo_okf.dehydrate_spec(committed_spec, repo_root=git_repo)
+        self.assertIn("UNCOMMITTED_EDIT", committed_spec.read_text(encoding="utf-8"))
+        with self.assertRaises(ValueError):
+            scaffold_repo_okf.dehydrate_spec(untracked_spec, repo_root=git_repo)
+        self.assertIn("Draft 90", untracked_spec.read_text(encoding="utf-8"))
+
 
 class TestWfWorkMultiHarnessAndBudgetGate(unittest.TestCase):
     """Verify PM pause switch, inbox cap, cross-harness codereview, and rolling 1-bite/day guard."""

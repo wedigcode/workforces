@@ -13,6 +13,11 @@ Enforces reference lineage, zero broken links, subtask tracking, and adaptive ga
 - **No Machine-Local Paths**: NEVER emit `file://` URIs or OS filesystem home/absolute paths (`/Users/...`, `/home/...`, `C:\...`) in documentation, issues, tasks, PRs, or session notes. Always emit remote Git host URLs (GitHub, GitLab, Bitbucket, Azure DevOps, Gitea) via `.agents/skills/wf-management/scripts/git_link_resolver.py` or clean repo-relative POSIX paths.
 - If a created file references a target that does not exist, immediately create the target file with structured content.
 
+## 1b. Uncommitted, Untracked & Git-Ignored File Protection (Zero Data Loss)
+- **Strict Prohibition Without Explicit Consent**: NEVER delete (`rm`, `unlink`, `trash`, `git rm -f`), truncate (`>`), overwrite (`mv`/`cp`), discard (`git checkout --`, `git restore`, `git reset --hard`, `git clean -f`), or dehydrate (`--dehydrate-spec`) any file that has uncommitted staged/unstaged changes, is untracked (`??`), or is Git-ignored (`!!`) local content (such as `.env*`, `readme-deploy.md`, SSH/signing keys, SQL dumps, or local user notes) without explicit user approval. Uncommitted and unpushed local files have NO backup in Git history.
+- **Mandatory Pre-Delete Verification**: Inside a Git repository, BEFORE deleting, overwriting, or discarding any file path (other than known ephemeral caches such as `__pycache__/`, `*.pyc`, `workforces/tmp/`, or `.claim.lock`), verify via `git status --porcelain=v1 --ignored=matching -- <path>` that output is empty and the file matches a clean `HEAD` commit.
+- **Zero Autonomous Hygiene Deletions**: Hygiene sweeps (`/wf-work docs`, `wf-codebase-improvement`, `wf-doc-generator`, scratch cleanups) MUST NEVER delete or dehydrate uncommitted, untracked, or Git-ignored files on their own. Surface questionable files as review findings in `workforces/issues/inbox/` or ask the user directly.
+
 ## 2. Task Tracking, Session Lineage & Completion Gates
 - Whenever new feature horizons, dependencies, unhandled risks, or tasks (`- [ ]`) are discussed:
 - Report each item to `workforces/tasks/` via `report-task.py` with `--session-id`, `--session-file`, and `--sync-session`.

@@ -1,7 +1,7 @@
 {
   "kind": "rule",
   "name": "wf-file-integrity",
-  "description": "File reference and task lineage protocol enforcing zero ghost references, subtask tracking in workforces/tasks/, and reference validation.",
+  "description": "File integrity and reference lineage protocol enforcing protection against deleting uncommitted, untracked, or Git-ignored local files, zero ghost references, subtask tracking in workforces/tasks/, and reference validation.",
   "always_on": true,
   "globs": [
     "**"
