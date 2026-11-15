@@ -670,6 +670,21 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
         touched = post_code_reviewer._get_touched_lines(diff)
         self.assertEqual(touched.get("calc.py"), {12})
 
+    def test_simplicity_and_nesting_checks_skip_markdown_docs(self):
+        """Code samples inside Markdown docs are not linted as source code."""
+        diff = (
+            "+++ b/docs/guide.md\n@@ -0,0 +1,6 @@\n"
+            "+Avoid `x ? true : false`.\n"
+            "+    if a:\n+        for b in c:\n+            while d:\n+                if e:\n+                    pass\n"
+        )
+        ok_simple, _, _ = post_code_reviewer.audit_simplicity_and_verbosity(diff, ["docs/guide.md"])
+        ok_nest, _, _ = post_code_reviewer.audit_method_scoping(diff, ["docs/guide.md"], self.test_dir)
+        self.assertTrue(ok_simple)
+        self.assertTrue(ok_nest)
+        js_diff = "+++ b/app.js\n@@ -0,0 +1 @@\n+const ok = flag ? true : false;\n"
+        ok_js, _, _ = post_code_reviewer.audit_simplicity_and_verbosity(js_diff, ["app.js"])
+        self.assertFalse(ok_js)
+
     def test_same_name_symbol_is_not_a_dry_violation(self):
         """A new function sharing a name with an existing symbol is not flagged as duplication."""
         symbols = [{"name": "main", "file": "src/cli.py", "line": 42}]

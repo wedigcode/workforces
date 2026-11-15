@@ -282,7 +282,7 @@ def audit_swallowed_errors(diff_text: str, modified_files: List[str], root_dir: 
             continue
         if not curr.endswith((".py", ".ts", ".tsx", ".js", ".jsx", ".php")):
             continue
-        if is_test_file(curr):
+        if is_test_file(curr) or is_doc_file(curr):
             continue
         if line.startswith("+") and not line.startswith("+++"):
             code = line[1:].strip()
@@ -915,7 +915,7 @@ def _diff_nesting_violations(diff_text: str, skip_files: Set[str]) -> List[str]:
     curr, hunk = "unknown", []
 
     def flush() -> None:
-        if not hunk or curr in skip_files or is_test_file(curr):
+        if not hunk or curr in skip_files or is_test_file(curr) or is_doc_file(curr):
             return
         base = min(ind for ind, _ in hunk)
         steps = sorted({ind - base for ind, _ in hunk if ind > base})
@@ -956,6 +956,14 @@ def audit_method_scoping(diff_text: str, modified_files: List[str], target_dir: 
     violations.extend(_diff_nesting_violations(diff_text, ast_checked))
     return len(violations) == 0, violations, []
 
+DOC_EXTENSIONS = (".md", ".mdx", ".markdown", ".rst", ".txt", ".adoc")
+
+
+def is_doc_file(path: str) -> bool:
+    """Return True for prose/documentation files whose code samples should not be linted."""
+    return path.lower().endswith(DOC_EXTENSIONS)
+
+
 def audit_simplicity_and_verbosity(diff_text: str, modified_files: List[str]) -> Tuple[bool, List[str], List[str]]:
     """Detect verbose anti-patterns like redundant ternary or boolean returns."""
     violations = []
@@ -964,7 +972,7 @@ def audit_simplicity_and_verbosity(diff_text: str, modified_files: List[str]) ->
         if line.startswith("+++ b/"):
             curr = line[6:].strip()
             continue
-        if is_test_file(curr):
+        if is_test_file(curr) or is_doc_file(curr):
             continue
         if line.startswith("+") and not line.startswith("+++"):
             code = line[1:].strip()

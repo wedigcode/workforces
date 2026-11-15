@@ -89,7 +89,7 @@ Full roster documentation available in [`docs/teams-and-agents.md`](docs/teams-a
 | Agent Tag | Role / Domain | Core Capabilities |
 | :--- | :--- | :--- |
 | [`@wf-project-manager`](agents/wf-project-manager.md) | Project Manager | Backlog prioritization, Value Stick scoring, SaaS unit economics, and GitHub sync |
-| [`@wf-programmer`](agents/wf-programmer.md) | Software Engineer | Clean code authoring, TDD, symbol graph index lookup, and post-edit reviews |
+| [`@wf-programmer`](agents/wf-programmer.md) | Software Engineer | Coding worker that follows wf-clean-coder and runs the post-edit quality gate |
 | [`@wf-designer`](agents/wf-designer.md) | Visual & UI/UX Designer | Visual concept ideation, design tokens, layout specifications, and design QA reviews |
 | [`@wf-marketer`](agents/wf-marketer.md) | Marketer | JTBD positioning, Connected Strategy models, PAS copywriting, and closed growth loops |
 | [`@wf-sales`](agents/wf-sales.md) | Sales Specialist | Prospect research, JTBD discovery, Customer Delight ROI framing, and closing |
