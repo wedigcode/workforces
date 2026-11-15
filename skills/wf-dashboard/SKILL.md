@@ -124,7 +124,9 @@ When Antigravity wakes up from `wait_for_message.py` with an event:
 ## ⏰ Cron Alternative (`/wf-dashboard --cron`)
 
 If preferred over a continuous background task, or if running in an environment where long-running background tasks are killed:
-Instead of running `wait_for_message.py` continuously, schedule a recurring cron check using the `schedule` tool:
+Instead of running `wait_for_message.py` continuously, schedule a recurring check with `--once`.
+
+- **Antigravity**: use the native `schedule` tool:
 ```python
 schedule(
     CronExpression="* * * * *",
@@ -132,4 +134,6 @@ schedule(
     IsDaemon=True
 )
 ```
+- **Hosts without a `schedule` tool** (e.g. Claude Code): use the host's own recurring-task feature if it has one (such as `/loop 1m`), or add a system cron entry: `* * * * * cd <repo> && python3 <skills-dir>/wf-canvas/scripts/wait_for_message.py --root ./ --once`. Never call `schedule(...)` on a host that does not list it.
+
 This sweeps `workforces/.events/pending/` every 1 minute via `--once`.
