@@ -5,7 +5,7 @@ Zero external dependencies (Python 3 standard library: ast, re, json, pathlib, a
 
 Fires on post_tool_call and pre-handoff quality gates.
 Audits git diffs and wf-code-graph relationships for:
-1. PR-style review verification form ([x] DRY, [x] <= 35 lines, [x] method scoping, [x] simplicity, [x] maintainability)
+1. PR-style review verification form ([x] DRY, [x] soft ~60-line function limit, [x] method scoping, [x] simplicity, [x] maintainability)
 2. AI pushback on skipped coding principles & candidate issue logging
 3. Persistent 3rd-party security bypass caching with weekly retry intervals
 4. Quality triad execution (unit tests, static analysis/type checks, linters)
@@ -803,6 +803,11 @@ def _get_touched_lines(diff_text: str) -> Dict[str, Set[int]]:
 
     return lines_by_file
 
+# Soft limit: long sequential flows read better in one function than split into
+# single-use helpers, so only flag functions well past a typical screen.
+FUNCTION_LINE_SOFT_LIMIT = 60
+
+
 def _check_py_function_lengths(path: Path, rel: str, touched: Set[int], max_lines: int) -> Tuple[List[str], List[str]]:
     """Inspect Python AST for functions exceeding max_lines."""
     viols, cands = [], []
@@ -823,7 +828,7 @@ def _check_py_function_lengths(path: Path, rel: str, touched: Set[int], max_line
         sys.stderr.write(f"[post_code_reviewer] AST parse notice: {err}\n")
     return viols, cands
 
-def audit_function_length(diff_text: str, modified_files: List[str], target_dir: Path, max_lines: int = 35) -> Tuple[bool, List[str], List[str]]:
+def audit_function_length(diff_text: str, modified_files: List[str], target_dir: Path, max_lines: int = FUNCTION_LINE_SOFT_LIMIT) -> Tuple[bool, List[str], List[str]]:
     """Check whether modified functions exceed max_lines limit."""
     touched_by_file = _get_touched_lines(diff_text)
     violations, candidates = [], []
@@ -966,14 +971,14 @@ def _build_pr_checks_list(
 ) -> Tuple[List[Tuple[bool, str, List[str], str]], List[str]]:
     """Audit diff against 5 PR criteria and return checklist definitions with candidates."""
     dry_ok, dry_v, dry_c = audit_dry_principles(diff_text, modified_files, symbols, target_dir)
-    len_ok, len_v, len_c = audit_function_length(diff_text, modified_files, target_dir, max_lines=35)
+    len_ok, len_v, len_c = audit_function_length(diff_text, modified_files, target_dir, max_lines=FUNCTION_LINE_SOFT_LIMIT)
     scop_ok, scop_v, scop_c = audit_method_scoping(diff_text, modified_files, target_dir)
     simp_ok, simp_v, simp_c = audit_simplicity_and_verbosity(diff_text, modified_files)
     maint_ok, maint_v, maint_c = audit_code_maintainability(diff_text, modified_files, symbols, target_dir)
 
     checks = [
         (dry_ok, "is it dry", dry_v, "Verified clean. No duplicate helper logic detected."),
-        (len_ok, "no new code exceeds 35 lines", len_v, "All modified functions within line limits."),
+        (len_ok, f"no new code exceeds {FUNCTION_LINE_SOFT_LIMIT} lines", len_v, "All modified functions within line limits."),
         (scop_ok, "should any new code be in its own method", scop_v, "Method granularity is clean; no deeply nested blocks."),
         (simp_ok, "is any of it too verbose or can it be simplified", simp_v, "Clean, idiomatic expressions without redundant boilerplate."),
         (maint_ok, "code maintainability", maint_v, "Error propagation preserved, caller contracts intact.")

@@ -50,7 +50,7 @@ This skill is invoked autonomously by `@wf-programmer` or coordinators, or direc
 
 ### 4. Code Health (SOLID / DRY / KISS & Architecture)
 - **Architecture & Boundary Enforcement**: Run `dependency-cruiser` or `madge --circular` to eliminate circular dependencies and prevent UI layers from bypassing domain/service layers.
-- **Refactoring Complex Functions**: Break down functions >30 lines or cyclomatic complexity >10.
+- **Refactoring Complex Functions**: Break down functions that are hard to follow (well past ~60 lines or cyclomatic complexity >10), extracting only blocks you can name, reuse or test on their own.
 - **Deduplication**: Merge identical or near-duplicate functions into single clean utilities.
 - **Strict Type Safety**: Strengthen type declarations and eliminate explicit `any` usage.
 

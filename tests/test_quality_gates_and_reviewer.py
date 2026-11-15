@@ -151,14 +151,14 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
         self.assertTrue(passed)
         self.assertEqual(len(pushbacks), 0)
         self.assertIn("- [x] **is it dry:**", form_md)
-        self.assertIn("- [x] **no new code exceeds 35 lines:**", form_md)
+        self.assertIn("- [x] **no new code exceeds 60 lines:**", form_md)
         self.assertIn("- [x] **should any new code be in its own method:**", form_md)
         self.assertIn("- [x] **is any of it too verbose or can it be simplified:**", form_md)
         self.assertIn("- [x] **code maintainability:**", form_md)
 
     def test_audit_function_length_violation_triggers_pushback(self):
-        """Test functions exceeding 35 lines are flagged and trigger AI pushback."""
-        long_func = "def process_big_data():\n" + "".join(f"    x_{i} = {i}\n" for i in range(40)) + "    return x_39\n"
+        """Test functions exceeding 60 lines are flagged and trigger AI pushback."""
+        long_func = "def process_big_data():\n" + "".join(f"    x_{i} = {i}\n" for i in range(70)) + "    return x_69\n"
         py_file = self.test_dir / "big_task.py"
         py_file.write_text(long_func, encoding="utf-8")
         diff = f"+++ b/big_task.py\n@@ -0,0 +1,42 @@\n+{long_func.replace(chr(10), chr(10)+'+')}"
@@ -167,8 +167,8 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
             diff, ["big_task.py"], [], self.test_dir
         )
         self.assertFalse(passed)
-        self.assertTrue(any("exceeds 35 lines" in p or "limit" in p for p in pushbacks))
-        self.assertIn("- [ ] **no new code exceeds 35 lines:**", form_md)
+        self.assertTrue(any("exceeds 60 lines" in p or "limit" in p for p in pushbacks))
+        self.assertIn("- [ ] **no new code exceeds 60 lines:**", form_md)
 
     def test_audit_method_scoping_nested_control_flow(self):
         """Test deeply nested control flow blocks (indent >= 4) are flagged in production code."""
@@ -231,8 +231,8 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
         """Test that function length check skips functions in test files."""
         test_py = self.test_dir / "tests" / "test_long.py"
         test_py.parent.mkdir(parents=True, exist_ok=True)
-        # Create a 40-line test function
-        body = "\n".join(f"    x_{i} = {i}" for i in range(40))
+        # Create a 70-line test function
+        body = "\n".join(f"    x_{i} = {i}" for i in range(70))
         test_py.write_text(f"def test_massive():\n{body}\n", encoding="utf-8")
 
         diff = (
@@ -241,7 +241,7 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
             "+def test_massive():\n"
         )
         passed, violations, _ = post_code_reviewer.audit_function_length(
-            diff, ["tests/test_long.py"], self.test_dir, max_lines=35
+            diff, ["tests/test_long.py"], self.test_dir, max_lines=60
         )
         self.assertTrue(passed)
         self.assertEqual(len(violations), 0)
@@ -373,7 +373,7 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
 
     def test_ai_pushback_with_no_justification(self):
         """Test rule violation without justification triggers AI pushback."""
-        long_func = "def big_runner():\n" + "".join(f"    val_{i} = {i}\n" for i in range(40)) + "    return val_39\n"
+        long_func = "def big_runner():\n" + "".join(f"    val_{i} = {i}\n" for i in range(70)) + "    return val_69\n"
         py_file = self.test_dir / "runner.py"
         py_file.write_text(long_func, encoding="utf-8")
         diff = f"+++ b/runner.py\n@@ -0,0 +1,42 @@\n+{long_func.replace(chr(10), chr(10)+'+')}"
@@ -384,11 +384,11 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
         self.assertFalse(passed)
         self.assertTrue(any("Pushback" in p for p in pushbacks))
         self.assertTrue(any("No explanation provided" in p for p in pushbacks))
-        self.assertIn("- [ ] **no new code exceeds 35 lines:**", form_md)
+        self.assertIn("- [ ] **no new code exceeds 60 lines:**", form_md)
 
     def test_ai_pushback_with_bad_reason_rejected(self):
         """Test rule violation with trivial/evasive justification is rejected with pushback."""
-        long_func = "def big_runner():\n" + "".join(f"    val_{i} = {i}\n" for i in range(40)) + "    return val_39\n"
+        long_func = "def big_runner():\n" + "".join(f"    val_{i} = {i}\n" for i in range(70)) + "    return val_69\n"
         py_file = self.test_dir / "runner.py"
         py_file.write_text(long_func, encoding="utf-8")
         diff = f"+++ b/runner.py\n@@ -0,0 +1,42 @@\n+{long_func.replace(chr(10), chr(10)+'+')}"
@@ -401,7 +401,7 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
 
     def test_ai_pushback_with_valid_technical_justification_accepted(self):
         """Test rule violation with legitimate technical rationale is accepted as justified."""
-        long_func = "def big_runner():\n" + "".join(f"    val_{i} = {i}\n" for i in range(40)) + "    return val_39\n"
+        long_func = "def big_runner():\n" + "".join(f"    val_{i} = {i}\n" for i in range(70)) + "    return val_69\n"
         py_file = self.test_dir / "runner.py"
         py_file.write_text(long_func, encoding="utf-8")
         diff = f"+++ b/runner.py\n@@ -0,0 +1,42 @@\n+{long_func.replace(chr(10), chr(10)+'+')}"
@@ -412,14 +412,14 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
         )
         self.assertTrue(passed)
         self.assertEqual(len(pushbacks), 0)
-        self.assertIn("- [x] **no new code exceeds 35 lines:** [Justified:", form_md)
+        self.assertIn("- [x] **no new code exceeds 60 lines:** [Justified:", form_md)
 
     def test_ai_pushback_in_diff_comment_justification(self):
         """Test justification provided directly in diff comments is extracted and accepted."""
         code_lines = [
             "# justification: Legacy protocol parser with strictly ordered packet decoding",
             "def parse_protocol():"
-        ] + [f"    field_{i} = {i}" for i in range(38)] + ["    return field_37"]
+        ] + [f"    field_{i} = {i}" for i in range(68)] + ["    return field_67"]
         full_code = "\n".join(code_lines) + "\n"
 
         py_file = self.test_dir / "protocol.py"
@@ -431,7 +431,7 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
         )
         self.assertTrue(passed)
         self.assertEqual(len(pushbacks), 0)
-        self.assertIn("- [x] **no new code exceeds 35 lines:** [Justified:", form_md)
+        self.assertIn("- [x] **no new code exceeds 60 lines:** [Justified:", form_md)
 
     def test_security_bypass_active_unexpired_returns_info_notice(self):
         """Test active unexpired 7-day bypass returns info notice and does not block."""
@@ -720,7 +720,7 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
     def test_untracked_files_diff_heuristics(self):
         """Test newly added untracked files are inspected in diff heuristics."""
         subprocess.run(["git", "init"], cwd=self.test_dir, capture_output=True)
-        long_func = "def untracked_func():\n" + "".join(f"    x_{i} = {i}\n" for i in range(40)) + "    return x_39\n"
+        long_func = "def untracked_func():\n" + "".join(f"    x_{i} = {i}\n" for i in range(70)) + "    return x_69\n"
         (self.test_dir / "untracked.py").write_text(long_func, encoding="utf-8")
 
         diff = post_code_reviewer.get_git_diff(self.test_dir)
@@ -731,7 +731,7 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
             diff, ["untracked.py"], [], self.test_dir
         )
         self.assertFalse(passed)
-        self.assertTrue(any("exceeds 35 lines" in p for p in pushbacks))
+        self.assertTrue(any("exceeds 60 lines" in p for p in pushbacks))
 
     def test_heuristics_advisory_non_blocking_in_gate(self):
         """Test line length and checklist heuristics surface advisory feedback but do not block gate with strict=True."""
@@ -739,7 +739,7 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
         subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=self.test_dir, capture_output=True)
         subprocess.run(["git", "config", "user.name", "Test"], cwd=self.test_dir, capture_output=True)
 
-        long_func = "def long_function():\n" + "".join(f"    v_{i} = {i}\n" for i in range(40)) + "    return v_39\n"
+        long_func = "def long_function():\n" + "".join(f"    v_{i} = {i}\n" for i in range(70)) + "    return v_69\n"
         (self.test_dir / "service.py").write_text(long_func, encoding="utf-8")
 
         report, passed = post_code_reviewer.run_code_review_gate(
@@ -750,7 +750,7 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
         )
         self.assertTrue(passed, "Advisory checklist heuristics should not block execution even when strict=True")
         self.assertIn("ADVISORY REVIEW FEEDBACK", report)
-        self.assertIn("no new code exceeds 35 lines", report)
+        self.assertIn("no new code exceeds 60 lines", report)
         self.assertNotIn("PRE-HANDOFF BLOCKER", report)
 
     def test_cli_strict_exit_zero_on_advisory_heuristics(self):
@@ -759,7 +759,7 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
         subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=self.test_dir, capture_output=True)
         subprocess.run(["git", "config", "user.name", "Test"], cwd=self.test_dir, capture_output=True)
 
-        long_func = "def long_function():\n" + "".join(f"    v_{i} = {i}\n" for i in range(40)) + "    return v_39\n"
+        long_func = "def long_function():\n" + "".join(f"    v_{i} = {i}\n" for i in range(70)) + "    return v_69\n"
         (self.test_dir / "service.py").write_text(long_func, encoding="utf-8")
 
         script_path = Path(__file__).parent.parent / "skills" / "wf-post-code-review" / "scripts" / "post_code_reviewer.py"
@@ -779,7 +779,7 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
         subprocess.run(["git", "update-ref", "refs/remotes/origin/main", origin_main], cwd=self.test_dir, capture_output=True)
         subprocess.run(["git", "checkout", "-b", "feature"], cwd=self.test_dir, capture_output=True)
 
-        long_func = "def long_function():\n" + "".join(f"    v_{i} = {i}\n" for i in range(40)) + "    return v_39\n"
+        long_func = "def long_function():\n" + "".join(f"    v_{i} = {i}\n" for i in range(70)) + "    return v_69\n"
         (self.test_dir / "service.py").write_text(long_func, encoding="utf-8")
         subprocess.run(["git", "add", "service.py"], cwd=self.test_dir, capture_output=True)
         subprocess.run(["git", "commit", "-m", "feature"], cwd=self.test_dir, capture_output=True)

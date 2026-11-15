@@ -1,6 +1,6 @@
 ---
 name: wf-clean-coder
-description: MANDATORY for any programming, coding, refactoring, bug fixing, or code modification task. Enforces software craftsmanship, a test written or updated and run for every behavior change or bug fix, searching for existing similar code before adding new functions, single responsibility and SOLID architecture, advisory function line limits (35 lines or fewer), method decomposition, zero error swallowing, PR-style code review verification checklist with advisory feedback, weekly-retried 3rd-party security bypass, and pre-handoff quality gates. Reach for this skill whenever writing, editing, or refactoring code, adding new functions or classes, implementing APIs, fixing bugs, or modifying tests before and after code changes.
+description: MANDATORY for any programming, coding, refactoring, bug fixing, or code modification task. Enforces software craftsmanship, a test written or updated and run for every behavior change or bug fix, searching for existing similar code before adding new functions, single responsibility and SOLID architecture, a soft ~50-60 line function limit with extraction only for nameable, reused or separately tested blocks, zero error swallowing, PR-style code review verification checklist with advisory feedback, weekly-retried 3rd-party security bypass, and pre-handoff quality gates. Reach for this skill whenever writing, editing, or refactoring code, adding new functions or classes, implementing APIs, fixing bugs, or modifying tests before and after code changes.
 ---
 # Skill: Clean Coder
 
@@ -19,7 +19,7 @@ For every behavior change or bug fix, write or update a test that covers it and 
 
 ### Step 3: Concrete Coding Constraints
 - **SOLID, DRY, KISS, YAGNI**: Apply standard design principles cleanly without redundant boilerplate.
-- **Function Line Limit (<= 35 lines)**: Keep functions and methods concise and single-purpose (advisory heuristic; methods exceeding this should be considered for decomposition unless contiguous flow is clearer).
+- **Function Length (soft limit ~50–60 lines)**: Prefer functions that fit on one screen, but length alone is not a reason to split. Extract a block into its own function only when (a) its purpose can be named in one short phrase, (b) it is reused, or (c) it is worth testing on its own. Never extract just to meet a line count, and keep a sequential flow (step 1, step 2, step 3) in one function that reads top to bottom rather than scattering it across single-use helpers the reviewer has to jump between.
 - **Method Decomposition**: Extract nested blocks (> 2 levels deep) into helper methods when clarity improves.
 - **Simplicity**: Favor clean, idiomatic expressions over verbose intermediate variables or redundant ternary conditionals.
 - **Maintainability & Error Safety**: Always catch specific exceptions, attach contextual metadata, and propagate or log. Never swallow errors with empty `catch` or `except` blocks.
@@ -29,7 +29,7 @@ For every behavior change or bug fix, write or update a test that covers it and 
 ### Step 4: Pre-empt the PR Review Verification Form
 Review the code against the 5-point verification checklist before declaring completion:
 - [x] **is it dry**: No duplicate logic or copy-pasted helpers across files.
-- [x] **no new code exceeds 35 lines**: All modified methods evaluated for concise scoping.
+- [x] **no new code exceeds 60 lines**: Longer functions are fine when they read as one top-to-bottom flow; split only along the extraction criteria above.
 - [x] **should any new code be in its own method**: Monolithic or deeply nested code blocks extracted.
 - [x] **is any of it too verbose or can it be simplified**: Concise and idiomatic.
 - [x] **code maintainability**: Error propagation, contract compatibility, and tests verified.

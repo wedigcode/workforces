@@ -12,7 +12,7 @@ Automated whole-codebase code reviewer and quality gate that audits code modific
 
 1. **PR-Style Verification Form**: Automatically evaluates diffs against the 5 core criteria:
    - `[ ] - is it dry` (checks duplicate symbols across wf-code-graph and neighboring class helpers)
-   - `[ ] - no new code exceeds 35 lines` (flags functions/methods exceeding max line thresholds as advisory guidance)
+   - `[ ] - no new code exceeds 60 lines` (soft limit; flags functions/methods well past one screen as advisory guidance, not a reason to split sequential flows)
    - `[ ] - should any new code be in its own method` (detects deeply nested blocks or monolithic branches)
    - `[ ] - is any of it too verbose or can it be simplified?` (identifies redundant boilerplate or verbose returns)
    - `[ ] - code maintainability` (verifies error safety, missing tests, and caller blast radius)
