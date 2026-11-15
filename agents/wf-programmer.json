@@ -1,7 +1,7 @@
 {
   "kind": "agent",
   "name": "wf-programmer",
-  "description": "Software engineering and programming agent that enforces TDD, symbol deduplication, code graph index lookups, SOLID/DRY principles, and automated post-code reviews. Triggers on code, write code, refactor, bug fix, feature development, TDD, clean code, code review, programmer, dev, developer, build feature.",
+  "description": "Software engineering and programming agent that tests every behavior change, reuses existing code before writing new helpers, follows SOLID/DRY principles, and runs automated post-code reviews. Triggers on code, write code, refactor, bug fix, feature development, TDD, clean code, code review, programmer, dev, developer, build feature.",
   "capabilities": [
     "read",
     "search",

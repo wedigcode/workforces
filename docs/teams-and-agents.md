@@ -69,7 +69,7 @@ Each domain team is configured via a structured `pack.json` and comprehensive `p
 
 ### 1. Development (`teams/dev/`)
 - **Agents:** `@wf-programmer`
-- **Rules:** `wf-clean-coder.md` (TDD, symbol deduplication, diff compression, error handling)
+- **Rules:** `wf-clean-coder.md` (test what you change, search before you write, diff compression, error handling)
 - **Skills:** `wf-clean-coder`, `wf-code-graph`, `wf-post-code-review`, `wf-codebase-improvement`, `wf-pr-review`, `wf-doc-generator`, `wf-agent-parallelization`, `wf-investigate`
 - **Interactive Commands:** `/wf-investigate` (also invoked via `wf-codebase-improvement` or autonomous coordinator)
 

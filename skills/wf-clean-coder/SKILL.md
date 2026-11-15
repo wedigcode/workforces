@@ -1,10 +1,10 @@
 ---
 name: wf-clean-coder
-description: MANDATORY for any programming, coding, refactoring, bug fixing, or code modification task. Enforces software craftsmanship, Test-Driven Development (TDD) red-green-refactor, method stubs first, symbol deduplication via wf-code-graph, single responsibility and SOLID architecture, advisory function line limits (35 lines or fewer), method decomposition, zero error swallowing, PR-style code review verification checklist with advisory feedback, weekly-retried 3rd-party security bypass, and pre-handoff quality gates. Reach for this skill whenever writing, editing, or refactoring code, adding new functions or classes, implementing APIs, fixing bugs, or modifying tests before and after code changes.
+description: MANDATORY for any programming, coding, refactoring, bug fixing, or code modification task. Enforces software craftsmanship, a test written or updated and run for every behavior change or bug fix, searching for existing similar code before adding new functions, single responsibility and SOLID architecture, advisory function line limits (35 lines or fewer), method decomposition, zero error swallowing, PR-style code review verification checklist with advisory feedback, weekly-retried 3rd-party security bypass, and pre-handoff quality gates. Reach for this skill whenever writing, editing, or refactoring code, adding new functions or classes, implementing APIs, fixing bugs, or modifying tests before and after code changes.
 ---
 # Skill: Clean Coder
 
-Lean, high-signal engineering workflow enforcing AI TDD, method stubs first, symbol deduplication, and automated PR-style review verification.
+Lean, high-signal engineering workflow: reuse before you write, test what you change, and verify against a PR-style review checklist.
 
 ---
 
@@ -12,18 +12,10 @@ Lean, high-signal engineering workflow enforcing AI TDD, method stubs first, sym
 
 ### Step 1: Pre-Implementation Analog & Architecture Check
 1. **Architecture Index & Existing Analog First**: If `<repo>/docs/index.md` exists, inspect it and matching `docs/architecture/*.md` cards first. For any task touching domain events, subscribers, queues, webhooks, 3rd-party services, or env/IaC config, find **at least 1 existing analog** in the codebase so you reuse or group into existing dispatcher/subscriber flows instead of scattering duplicate notifications.
-2. *(Optional AST symbol check)* Run symbol discovery via `wf-code-graph` when refactoring or searching helpers:
-   ```bash
-   python3 .agents/skills/wf-code-graph/scripts/graph_indexer.py --query "<method_or_keyword>"
-   ```
-   *(Fallback: `python3 skills/wf-code-graph/scripts/graph_indexer.py --query "<method_or_keyword>"`)*
-3. **AI TDD First Pass**: Author method signatures, type contracts, and stubs first. Do not jump immediately into full code generation.
+2. **Search for Similar Code Before Adding Functions**: Before writing a new function, class or helper, search for existing ones with similar names or purpose using `grep_search` (name fragments, synonyms such as `format`/`render`/`to_string`) and `list_dir` (likely `utils`, `helpers`, `lib`, `services` folders). Reuse or extend what exists instead of adding a near-duplicate.
 
-### Step 2: Unit Tests First
-1. Write unit tests asserting input/output contracts, boundary values, and error conditions against the stubs.
-2. Confirm the test fails (Red).
-3. Implement minimal clean code to pass (Green).
-4. Refactor for clarity and simplicity (Refactor).
+### Step 2: Test What You Change
+For every behavior change or bug fix, write or update a test that covers it and run it before declaring the task done. For a bug fix, the test should exercise the failing case. Pure refactors, renames, docs and config-only changes rely on the existing suite passing.
 
 ### Step 3: Concrete Coding Constraints
 - **SOLID, DRY, KISS, YAGNI**: Apply standard design principles cleanly without redundant boilerplate.
