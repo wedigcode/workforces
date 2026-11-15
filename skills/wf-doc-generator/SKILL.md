@@ -32,11 +32,11 @@ Save architecture docs directly inside **`<repo>/docs/`** so all coding harnesse
 2. Inspect and enrich generated `<repo>/docs/index.md` and `docs/architecture/*.md` cards (`affected_files:` frontmatter globs + concise `## Constraints & Why` entries — never maintain a redundant `CHANGELOG.md`).
 
 ### Step 2: Repo Hygiene Audit & Dehydrating Shipped PRDs/Specs
-1. Audit stray root files, bulky shipped PRDs/specs, and undocumented services:
+1. Audit stray root files, bulky shipped PRDs/specs, and undocumented services (protects dirty, untracked, and Git-ignored files; never deletes files):
    ```bash
    python3 .agents/skills/wf-doc-generator/scripts/scaffold_repo_okf.py --audit-hygiene ./
    ```
-2. Collapse shipped PRDs/specs into permanent commit-linked stubs (retaining short summary + Git SHA snapshot link):
+2. Collapse shipped PRDs/specs into permanent commit-linked stubs (retaining short summary + Git SHA snapshot link). Refuses specs with uncommitted edits or untracked status (`git status --porcelain=v1 --ignored=matching` must be clean and match `HEAD`); NEVER delete specs or root docs without explicit user consent:
    ```bash
    python3 .agents/skills/wf-doc-generator/scripts/scaffold_repo_okf.py --dehydrate-spec docs/specs/example-prd.md --living-doc docs/architecture/service.md
    ```

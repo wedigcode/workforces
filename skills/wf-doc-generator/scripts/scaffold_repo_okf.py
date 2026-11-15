@@ -35,19 +35,42 @@ IGNORE_DIRS = frozenset({
     ".claude", ".grok", ".github", "workforces",
 })
 
-STANDARD_ROOT_FILES = frozenset({
-    "readme.md", "license", "license.md", "license.txt", "contributing.md",
-    "code_of_conduct.md", "security.md", "changelog.md", "agents.md",
-    "gemini.md", "claude.md", "makefile", "dockerfile", "docker-compose.yml",
-    "docker-compose.yaml", "template.yaml", "template.yml", "samconfig.toml",
-    "serverless.yml", "serverless.yaml", "package.json", "package-lock.json",
-    "pnpm-lock.yaml", "yarn.lock", "tsconfig.json", "composer.json", "composer.lock",
-    "go.mod", "go.sum", "cargo.toml", "cargo.lock", "pyproject.toml", "setup.py",
-    "requirements.txt", "update.sh", "install.sh",
-})
+STANDARD_ROOT_FILES = frozenset((
+    "readme.md readme-deploy.md deploy.md deployment.md architecture.md runbook.md install.md "
+    "upgrading.md migration.md development.md testing.md governance.md maintainers.md authors "
+    "authors.md authors.txt notice notice.md notice.txt version version.txt llms.txt llms-full.txt "
+    "ai.txt robots.txt humans.txt security.txt license license.md license.txt contributing.md "
+    "code_of_conduct.md security.md changelog.md agents.md gemini.md claude.md makefile dockerfile "
+    "docker-compose.yml docker-compose.yaml procfile justfile rakefile gemfile gemfile.lock pipfile "
+    "pipfile.lock poetry.lock uv.lock bun.lock bun.lockb template.yaml template.yml samconfig.toml "
+    "serverless.yml serverless.yaml package.json package-lock.json pnpm-lock.yaml yarn.lock "
+    "tsconfig.json composer.json composer.lock go.mod go.sum cargo.toml cargo.lock pyproject.toml "
+    "setup.py requirements.txt update.sh install.sh"
+).split())
+
+_README_VARIANT_RE = re.compile(r"^readme[-_.].+\.(?:md|txt)$")
 
 AUTO_START = "<!-- wf-okf:auto-start -->"
 AUTO_END = "<!-- wf-okf:auto-end -->"
+
+
+def _is_standard_root_file(lower_name: str) -> bool:
+    """Return True if a lowercase filename is a standard root repository file or README variant."""
+    return lower_name in STANDARD_ROOT_FILES or bool(_README_VARIANT_RE.match(lower_name))
+
+
+def _git_porcelain_for_path(repo_root: Path, rel_path: str) -> Optional[str]:
+    """Return `git status --porcelain=v1 --ignored=matching` output for `rel_path`, or None on error."""
+    try:
+        res = subprocess.run(
+            ["git", "-C", str(repo_root), "status", "--porcelain=v1", "--ignored=matching", "--", rel_path],
+            capture_output=True, text=True, timeout=5, check=False,
+        )
+        if res.returncode == 0:
+            return res.stdout.rstrip("\r\n")
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return None
 
 
 def _load_git_link_resolver():
@@ -343,67 +366,93 @@ def _parse_simple_frontmatter(text: str) -> Tuple[Dict[str, Any], str]:
     return meta, parts[2].lstrip("\r\n")
 
 
-def audit_hygiene(repo_root: Path) -> Dict[str, Any]:
-    """Identify stray root clutter, bulky shipped PRDs needing dehydration, and missing OKF docs."""
-    stray_root_files: List[str] = []
+def _should_skip_git_root_entry(repo_root: Path, name: str, lower: str, protected_dirty: List[str]) -> bool:
+    """Return True when Git status marks a root file as ignored, dirty, or untracked prose."""
+    porcelain = _git_porcelain_for_path(repo_root, name)
+    if porcelain is None:
+        protected_dirty.append(name)
+        return True
+    if porcelain.startswith("!!"):
+        return True
+    if not porcelain:
+        return False
+    protected_dirty.append(name)
+    return not porcelain.startswith("??") or lower.endswith((".md", ".txt"))
+
+
+def _scan_stray_root_files(repo_root: Path, in_git: bool, protected_dirty: List[str]) -> List[str]:
+    """Find non-standard root text/temp files while protecting dirty, untracked docs, and ignored files."""
+    stray: List[str] = []
     for entry in sorted(repo_root.iterdir()):
         if not entry.is_file() or entry.name.startswith("."):
             continue
         lower = entry.name.lower()
-        if lower in STANDARD_ROOT_FILES:
+        if _is_standard_root_file(lower) or not lower.endswith((".md", ".txt", ".log", ".bak", ".tmp")):
             continue
-        if lower.endswith((".md", ".txt", ".log", ".bak", ".tmp")):
-            stray_root_files.append(entry.name)
+        if in_git and _should_skip_git_root_entry(repo_root, entry.name, lower, protected_dirty):
+            continue
+        stray.append(entry.name)
+    return stray
 
-    bulky_specs: List[Dict[str, Any]] = []
-    docs_dir = repo_root / "docs"
-    search_roots = [docs_dir, repo_root / "workforces"]
-    for base in search_roots:
+
+def _scan_bulky_specs(repo_root: Path, in_git: bool, protected_dirty: List[str]) -> List[Dict[str, Any]]:
+    """Find committed clean PRDs/specs over 60 body lines while protecting uncommitted specs."""
+    bulky: List[Dict[str, Any]] = []
+    for base in (repo_root / "docs", repo_root / "workforces"):
         if not base.is_dir():
             continue
         for md_path in sorted(base.rglob("*.md")):
             if "node_modules" in md_path.parts or ".worktrees" in md_path.parts:
                 continue
             rel = md_path.relative_to(repo_root).as_posix()
-            name_lower = md_path.name.lower()
             try:
-                content = md_path.read_text(encoding="utf-8", errors="ignore")
+                meta, body = _parse_simple_frontmatter(md_path.read_text(encoding="utf-8", errors="ignore"))
             except OSError:
                 continue
-            meta, body = _parse_simple_frontmatter(content)
-            if meta.get("dehydrated") is True:
-                continue
-            is_spec_like = any(tok in name_lower for tok in ("prd", "spec", "proposal", "rfc")) or (
-                str(meta.get("status", "")).lower() in ("shipped", "completed", "implemented", "archived")
-            )
+            is_spec = any(tok in md_path.name.lower() for tok in ("prd", "spec", "proposal", "rfc")) or str(meta.get("status", "")).lower() in ("shipped", "completed", "implemented", "archived")
             line_count = len(body.splitlines())
-            if is_spec_like and line_count > 60:
-                bulky_specs.append({"file": rel, "body_lines": line_count, "status": meta.get("status", "unknown")})
+            if meta.get("dehydrated") is True or not (is_spec and line_count > 60):
+                continue
+            if in_git and _git_porcelain_for_path(repo_root, rel) != "":
+                protected_dirty.append(rel)
+                continue
+            bulky.append({"file": rel, "body_lines": line_count, "status": meta.get("status", "unknown")})
+    return bulky
 
-    missing_okf: List[str] = []
+
+def _scan_missing_okf(repo_root: Path) -> List[str]:
+    """Identify missing `<repo>/docs/index.md` or key directories lacking OKF card coverage."""
+    docs_dir = repo_root / "docs"
+    missing: List[str] = []
     if not (docs_dir / "index.md").is_file():
-        missing_okf.append("Missing `<repo>/docs/index.md` repository architecture index.")
-    arch_dir = docs_dir / "architecture"
+        missing.append("Missing `<repo>/docs/index.md` repository architecture index.")
     covered_globs: List[str] = []
+    arch_dir = docs_dir / "architecture"
     if arch_dir.is_dir():
         for card in arch_dir.rglob("*.md"):
             meta, _ = _parse_simple_frontmatter(card.read_text(encoding="utf-8", errors="ignore"))
             aff = meta.get("affected_files") or []
             if isinstance(aff, list):
                 covered_globs.extend(aff)
-
-    key_dirs = ["src/Service", "src/EventSubscriber", "src/EventListener", "internal", "cmd", "apps"]
-    for kd in key_dirs:
+    for kd in ("src/Service", "src/EventSubscriber", "src/EventListener", "internal", "cmd", "apps"):
         if (repo_root / kd).exists():
             sample = f"{kd}/sample.file"
             if not any(fnmatch(sample, g) or fnmatch(kd, g.rstrip("/*")) for g in covered_globs):
-                missing_okf.append(f"Directory `{kd}` has no matching `affected_files:` card under `docs/architecture/`.")
+                missing.append(f"Directory `{kd}` has no matching `affected_files:` card under `docs/architecture/`.")
+    return missing
 
+
+def audit_hygiene(repo_root: Path) -> Dict[str, Any]:
+    """Identify stray root clutter, bulky shipped PRDs needing dehydration, and missing OKF docs."""
+    in_git = _run_git(repo_root, ["rev-parse", "--is-inside-work-tree"]) == "true"
+    protected_dirty: List[str] = []
+    stray_root_files = _scan_stray_root_files(repo_root, in_git, protected_dirty)
+    bulky_specs = _scan_bulky_specs(repo_root, in_git, protected_dirty)
+    missing_okf = _scan_missing_okf(repo_root)
     return {
-        "repo_root": str(repo_root),
-        "stray_root_files": stray_root_files,
-        "un_dehydrated_specs": bulky_specs,
-        "missing_okf_coverage": missing_okf,
+        "repo_root": str(repo_root), "stray_root_files": stray_root_files,
+        "un_dehydrated_specs": bulky_specs, "missing_okf_coverage": missing_okf,
+        "protected_dirty_files": sorted(set(protected_dirty)),
         "total_findings": len(stray_root_files) + len(bulky_specs) + len(missing_okf),
     }
 
@@ -424,57 +473,28 @@ def _extract_first_summary(body: str) -> str:
     return summary or "Original specification archived to Git history; inspect historical commit for full details."
 
 
-def dehydrate_spec(
-    spec_path: Path,
-    repo_root: Optional[Path] = None,
-    living_doc: Optional[str] = None,
-    dry_run: bool = False,
-) -> Dict[str, Any]:
-    """Collapse a shipped PRD/spec markdown file into a compact commit-linked stub."""
-    abs_spec = spec_path.resolve()
-    if not abs_spec.is_file():
-        raise FileNotFoundError(f"Spec file not found: {spec_path}")
+def _verify_spec_committed_and_clean(resolved_root: Path, rel_spec: str) -> str:
+    """Verify `rel_spec` is clean and committed in Git, returning its latest commit SHA."""
+    in_git = _run_git(resolved_root, ["rev-parse", "--is-inside-work-tree"]) == "true"
+    porcelain = _git_porcelain_for_path(resolved_root, rel_spec) if in_git else None
+    commit_sha = _run_git(resolved_root, ["log", "-n", "1", "--format=%H", "--", rel_spec]) if in_git else None
+    if not commit_sha and in_git:
+        commit_sha = _run_git(resolved_root, ["rev-parse", "HEAD"])
+    in_blob = bool(commit_sha and _run_git(resolved_root, ["cat-file", "-e", f"{commit_sha}:{rel_spec}"]) is not None)
+    if not in_git or porcelain != "" or not commit_sha or not in_blob:
+        raise ValueError(f"Refusing to dehydrate '{rel_spec}': uncommitted changes or not in Git HEAD.")
+    return commit_sha
 
-    resolved_root = repo_root.resolve() if repo_root else None
-    if not resolved_root:
-        git_top = _run_git(abs_spec.parent, ["rev-parse", "--show-toplevel"])
-        resolved_root = Path(git_top).resolve() if git_top else abs_spec.parent
 
-    try:
-        rel_spec = abs_spec.relative_to(resolved_root).as_posix()
-    except ValueError:
-        rel_spec = abs_spec.name
-
-    raw_text = abs_spec.read_text(encoding="utf-8")
-    meta, body = _parse_simple_frontmatter(raw_text)
-
-    heading_match = re.search(r"^#\s+(.+)$", body, re.MULTILINE)
-    title = str(meta.get("title") or (heading_match.group(1).strip() if heading_match else abs_spec.stem))
-    summary = _extract_first_summary(body)
-
-    commit_sha = _run_git(resolved_root, ["log", "-n", "1", "--format=%H", "--", rel_spec])
-    if not commit_sha:
-        commit_sha = _run_git(resolved_root, ["rev-parse", "HEAD"]) or "HEAD"
-
-    resolver_mod = _load_git_link_resolver()
-    if resolver_mod:
-        snapshot_url = resolver_mod.resolve_portable_link(
-            rel_spec, repo_root=str(resolved_root), ref=commit_sha
-        )
-    else:
-        snapshot_url = f"{rel_spec}@{commit_sha[:12]}"
-
+def _build_dehydrated_stub(title: str, summary: str, rel_spec: str, commit_sha: str, snapshot_url: str, living_doc: Optional[str]) -> str:
+    """Render compact commit-linked stub markdown replacing a dehydrated spec."""
     today = datetime.date.today().isoformat()
-    living_line = (
-        f"- **Living Architecture Docs:** [`{living_doc}`]({living_doc})\n"
-        if living_doc
-        else "- **Living Architecture Docs:** See [`docs/index.md`](docs/index.md)\n"
-    )
+    living_line = f"- **Living Architecture Docs:** [`{living_doc}`]({living_doc})\n" if living_doc else "- **Living Architecture Docs:** See [`docs/index.md`](docs/index.md)\n"
     living_yaml = f'"{living_doc}"' if living_doc else '"docs/index.md"'
-
-    stub = f"""---
+    escaped_title = title.replace('"', '\\"')
+    return f"""---
 type: Dehydrated Spec Stub
-title: "{title.replace('"', '\\"')}"
+title: "{escaped_title}"
 status: archived
 dehydrated: true
 archived_at: "{today}"
@@ -495,20 +515,50 @@ living_docs: {living_yaml}
 - **Restore via Git:** `git show {commit_sha}:{rel_spec}`
 {living_line}"""
 
-    original_lines = len(raw_text.splitlines())
-    stub_lines = len(stub.splitlines())
+
+def _resolve_spec_target(abs_spec: Path, repo_root: Optional[Path]) -> Tuple[Path, str]:
+    """Resolve repository root and POSIX relative spec path for dehydration."""
+    if repo_root:
+        resolved_root = repo_root.resolve()
+    else:
+        git_top = _run_git(abs_spec.parent, ["rev-parse", "--show-toplevel"])
+        resolved_root = Path(git_top).resolve() if git_top else abs_spec.parent
+    try:
+        return resolved_root, abs_spec.relative_to(resolved_root).as_posix()
+    except ValueError:
+        return resolved_root, abs_spec.name
+
+
+def dehydrate_spec(spec_path: Path, repo_root: Optional[Path] = None, living_doc: Optional[str] = None, dry_run: bool = False) -> Dict[str, Any]:
+    """Collapse a shipped PRD/spec markdown file into a compact commit-linked stub."""
+    abs_spec = spec_path.resolve()
+    if not abs_spec.is_file():
+        raise FileNotFoundError(f"Spec file not found: {spec_path}")
+    resolved_root, rel_spec = _resolve_spec_target(abs_spec, repo_root)
+    commit_sha = _verify_spec_committed_and_clean(resolved_root, rel_spec)
+    raw_text = abs_spec.read_text(encoding="utf-8")
+    meta, body = _parse_simple_frontmatter(raw_text)
+    heading_match = re.search(r"^#\s+(.+)$", body, re.MULTILINE)
+    title = str(meta.get("title") or (heading_match.group(1).strip() if heading_match else abs_spec.stem))
+    resolver_mod = _load_git_link_resolver()
+    snapshot_url = resolver_mod.resolve_portable_link(rel_spec, repo_root=str(resolved_root), ref=commit_sha) if resolver_mod else f"{rel_spec}@{commit_sha[:12]}"
+    stub = _build_dehydrated_stub(title, _extract_first_summary(body), rel_spec, commit_sha, snapshot_url, living_doc)
     if not dry_run:
         abs_spec.write_text(stub, encoding="utf-8")
+    return {"spec_file": rel_spec, "title": title, "last_full_commit": commit_sha, "historical_snapshot": snapshot_url, "original_lines": len(raw_text.splitlines()), "stub_lines": len(stub.splitlines()), "dry_run": dry_run}
 
-    return {
-        "spec_file": rel_spec,
-        "title": title,
-        "last_full_commit": commit_sha,
-        "historical_snapshot": snapshot_url,
-        "original_lines": original_lines,
-        "stub_lines": stub_lines,
-        "dry_run": dry_run,
-    }
+
+def _print_hygiene_report(target: Path, report: Dict[str, Any], as_json: bool) -> None:
+    """Print JSON or human-readable hygiene audit findings."""
+    if as_json:
+        print(json.dumps(report, indent=2))
+        return
+    print(f"📋 Repo Hygiene Audit (`{target.name}`): {report['total_findings']} finding(s)")
+    for key, label in (("stray_root_files", "Stray root file"), ("missing_okf_coverage", "OKF gap"), ("protected_dirty_files", "Protected dirty/untracked file")):
+        for val in report[key]:
+            print(f"  - {label}: `{val}`" if key != "missing_okf_coverage" else f"  - {label}: {val}")
+    for spec in report["un_dehydrated_specs"]:
+        print(f"  - Bulky spec ({spec['body_lines']} lines): `{spec['file']}`")
 
 
 def main() -> int:
@@ -521,34 +571,21 @@ def main() -> int:
     parser.add_argument("--dry-run", action="store_true", help="Preview changes without modifying files")
     parser.add_argument("--json", action="store_true", help="Emit JSON output")
     args = parser.parse_args()
-
     if args.dehydrate_spec:
         root_p = Path(args.repo_root).resolve() if args.repo_root else None
-        result = dehydrate_spec(Path(args.dehydrate_spec), repo_root=root_p, living_doc=args.living_doc, dry_run=args.dry_run)
-        print(json.dumps(result, indent=2) if args.json else f"✅ Dehydrated `{result['spec_file']}` ({result['original_lines']} -> {result['stub_lines']} lines, commit `{result['last_full_commit'][:12]}`).")
+        try:
+            res = dehydrate_spec(Path(args.dehydrate_spec), repo_root=root_p, living_doc=args.living_doc, dry_run=args.dry_run)
+        except (ValueError, FileNotFoundError) as exc:
+            sys.stderr.write(f"Error: {exc}\n")
+            return 2
+        print(json.dumps(res, indent=2) if args.json else f"✅ Dehydrated `{res['spec_file']}` ({res['original_lines']} -> {res['stub_lines']} lines, commit `{res['last_full_commit'][:12]}`).")
         return 0
-
     if args.audit_hygiene is not None:
         target = Path(args.repo_root or args.audit_hygiene).resolve()
-        report = audit_hygiene(target)
-        if args.json:
-            print(json.dumps(report, indent=2))
-        else:
-            print(f"📋 Repo Hygiene Audit (`{target.name}`): {report['total_findings']} finding(s)")
-            for f in report["stray_root_files"]:
-                print(f"  - Stray root file: `{f}`")
-            for s in report["un_dehydrated_specs"]:
-                print(f"  - Bulky spec ({s['body_lines']} lines): `{s['file']}`")
-            for m in report["missing_okf_coverage"]:
-                print(f"  - OKF gap: {m}")
+        _print_hygiene_report(target, audit_hygiene(target), args.json)
         return 0
-
-    scan_target = Path(args.repo_root or args.scan or ".").resolve()
-    result = scan_and_scaffold(scan_target)
-    if args.json:
-        print(json.dumps(result, indent=2))
-    else:
-        print(f"✅ Scaffolded OKF docs in `{result['index_file']}` (stacks: {', '.join(result['detected_stacks']) or 'none'})")
+    result = scan_and_scaffold(Path(args.repo_root or args.scan or ".").resolve())
+    print(json.dumps(result, indent=2) if args.json else f"✅ Scaffolded OKF docs in `{result['index_file']}` (stacks: {', '.join(result['detected_stacks']) or 'none'})")
     return 0
 
 

@@ -82,6 +82,17 @@ class TestGitWorkflowRule(unittest.TestCase):
         self.assertIn("wf-git-workflow", base_rule)
         self.assertIn("wf-git-workflow", clean_coder)
 
+    def test_rules_enforce_uncommitted_untracked_and_ignored_file_protection(self):
+        base_rule = (REPO_ROOT / "rules" / "wf-base.md").read_text(encoding="utf-8")
+        integrity_rule = (REPO_ROOT / "rules" / "wf-file-integrity.md").read_text(encoding="utf-8")
+        git_rule = (REPO_ROOT / "rules" / "wf-git-workflow.md").read_text(encoding="utf-8")
+
+        for content in (base_rule, integrity_rule, git_rule):
+            self.assertIn("uncommitted", content.lower())
+            self.assertIn("untracked", content.lower())
+        self.assertIn("git status --porcelain=v1 --ignored=matching", integrity_rule)
+        self.assertIn("worktree_file_guard.py", git_rule)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -84,6 +84,29 @@ def _read_lines(fpath: Path) -> List[str]:
         return []
 
 
+def _build_docs_issue_candidates(hygiene: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Convert non-destructive hygiene findings into PM inbox review candidates."""
+    protected_dirty = set(hygiene.get("protected_dirty_files", []))
+    candidates: List[Dict[str, Any]] = []
+    for fname in hygiene.get("stray_root_files", [])[:3]:
+        dirty_note = f" `{fname}` has uncommitted or untracked changes and MUST NOT be deleted or overwritten without explicit user consent." if fname in protected_dirty else ""
+        candidates.append({
+            "title": f"Review non-standard root file placement: {fname}", "type": "chore", "severity": "P2", "file": fname,
+            "description": f"`{fname}` looks like a temporary/artifact file at repository root.{dirty_note}",
+            "suggested_action": f"Confirm with user whether `{fname}` belongs at repository root or under `docs/`. NEVER delete without explicit user approval, and never touch files with uncommitted changes.",
+        })
+    for spec in hygiene.get("un_dehydrated_specs", [])[:3]:
+        rel = spec.get("file", "")
+        if not rel:
+            continue
+        candidates.append({
+            "title": f"Dehydrate bulky spec to commit-linked stub: {rel}", "type": "docs", "severity": "P3", "file": rel,
+            "description": f"`{rel}` has {spec.get('lines', spec.get('body_lines', 0))} lines without a dehydrated Git-commit stub.",
+            "suggested_action": f"Run `scaffold_repo_okf.py --dehydrate-spec {rel} --living-doc docs/index.md` only once shipped and cleanly committed in Git HEAD (zero uncommitted edits).",
+        })
+    return candidates
+
+
 def run_docs_sweep(repo_root: Path, okf_mod: Any) -> Dict[str, Any]:
     """Run non-destructive `<repo>/docs/` OKF scaffolding together with stray/spec hygiene audits."""
     scaffold: Dict[str, Any] = {}
@@ -97,30 +120,7 @@ def run_docs_sweep(repo_root: Path, okf_mod: Any) -> Dict[str, Any]:
             docs_index.parent.mkdir(parents=True, exist_ok=True)
             docs_index.write_text("# Repository Architecture Index\n\n_Created by `/wf-work docs`._\n", encoding="utf-8")
             scaffold = {"created_cards": [], "preserved_cards": [], "index_file": "docs/index.md"}
-
-    candidates: List[Dict[str, Any]] = []
-    for fname in hygiene.get("stray_root_files", [])[:3]:
-        candidates.append({
-            "title": f"Move or remove stray root file: {fname}",
-            "type": "chore",
-            "severity": "P2",
-            "file": fname,
-            "description": f"`{fname}` looks like a stray temporary/artifact file committed at repository root.",
-            "suggested_action": f"Relocate `{fname}` under `docs/` or `workforces/` or remove if obsolete.",
-        })
-    for spec in hygiene.get("un_dehydrated_specs", [])[:3]:
-        rel = spec.get("file", "")
-        if not rel:
-            continue
-        candidates.append({
-            "title": f"Dehydrate bulky spec to commit-linked stub: {rel}",
-            "type": "docs",
-            "severity": "P3",
-            "file": rel,
-            "description": f"`{rel}` has {spec.get('lines', 0)} lines without a dehydrated Git-commit stub.",
-            "suggested_action": f"Run `scaffold_repo_okf.py --dehydrate {rel} --living-doc docs/index.md` once shipped.",
-        })
-    return {**hygiene, "scaffold": scaffold, "issue_candidates": candidates}
+    return {**hygiene, "scaffold": scaffold, "issue_candidates": _build_docs_issue_candidates(hygiene)}
 
 
 def run_debt_sweep(repo_root: Path, max_files: int = 200) -> Dict[str, Any]:
