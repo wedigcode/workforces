@@ -1,16 +1,11 @@
 # Clean Coder Engineering Protocol
 
 - **Programming Task Detection**: Whenever a task involves writing, modifying, refactoring, or testing code (`write_to_file`, `replace_file_content`, `multi_replace_file_content`), the agent MUST load and follow the [`wf-clean-coder`](../skills/wf-clean-coder/SKILL.md) skill.
-- **Skill Authority**: All software craftsmanship and engineering standards—including testing every behavior change or bug fix, searching for similar existing code before adding functions, a soft ~50–60 line function limit (extract only nameable, reused or separately tested blocks; never split just for line count), PR review verification form, and the pre-handoff quality gate triad—are governed by the `wf-clean-coder` skill.
+- **Skill Authority**: Coding standards live in the `wf-clean-coder` skill: test what you change, search before you write, simplest design that works, rule of three for duplication, shallow control flow, and a soft ~50–60 line function limit (never split just for line count).
 - **Worktree Isolation for Parallel Agents**: Follow [`wf-git-workflow`](wf-git-workflow.md) and [`wf-agent-parallelization`](../skills/wf-agent-parallelization/SKILL.md) for isolated worktrees (`Workspace: 'share'`) when multiple agents write code concurrently.
-- **Pre-Handoff Quality Gate & Advisory Heuristics**: Before declaring any coding task complete or handing code over to the user, the agent MUST run the quality gate to execute automated unit tests, static typechecks, and linters:
+- **Pre-Handoff Quality Gate**: Before declaring any coding task complete, run the gate once; it covers the checklist audit plus tests, typechecks and linters:
   ```bash
   python3 .agents/skills/wf-post-code-review/scripts/post_code_reviewer.py --root ./ --run-checks --strict
   ```
   *(Fallback: `python3 skills/wf-post-code-review/scripts/post_code_reviewer.py --root ./ --run-checks --strict`)*
-  Checklist heuristics (e.g. line limits, scoping, DRY suggestions) provide advisory guidance rather than blocking non-zero exit codes. Real test regressions, static type errors, and linter errors on modified code remain strictly blocking.
-- **3rd-Party Dependency Security vs. First-Party Code Security**: Upstream dependency audit issues (`npm audit`, `pip-audit`, timeouts) emit non-blocking advisory notices with 7-day retry caching, preventing 3rd-party upstream CVEs from halting progress. The review gate actively audits added diffs for genuine code security (hardcoded secrets, code injection, mutable parameter traps).
-- **Legacy Codebases, Static Analysis Tuning & Quality Sprints**:
-  - **Scope to Active Diff**: Pre-existing static analysis or lint errors in untouched legacy files outside the current diff do not block task completion.
-  - **AI Judgement on Tool Sensitivity**: When working on legacy codebases where static analysis is set too strictly, the AI has discretion to adjust flags or configuration to align with project reality.
-  - **Quick Fixes vs. Quality Sprints**: Quick adjacent fixes can be resolved immediately. For widespread pre-existing codebase errors, raise the concern to the user and route a tracking task to `@wf-project-manager` / `wf-task-tracker` for a dedicated **Code Quality Sprint**.
+  Checklist heuristics are advisory. Test, typecheck and lint failures on modified code are blocking; pre-existing failures in untouched files are not (see the skill for legacy-code and dependency-security handling).

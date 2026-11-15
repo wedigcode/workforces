@@ -5,7 +5,7 @@ Zero external dependencies (Python 3 standard library: ast, re, json, pathlib, a
 
 Fires on post_tool_call and pre-handoff quality gates.
 Audits git diffs and wf-code-graph relationships for:
-1. PR-style review verification form ([x] DRY, [x] soft ~60-line function limit, [x] method scoping, [x] simplicity, [x] maintainability)
+1. PR-style review verification form ([x] DRY, [x] soft ~60-line function limit, [x] shallow control flow, [x] simplicity, [x] maintainability)
 2. AI pushback on skipped coding principles & candidate issue logging
 3. Persistent 3rd-party security bypass caching with weekly retry intervals
 4. Quality triad execution (unit tests, static analysis/type checks, linters)
@@ -857,31 +857,103 @@ def _extract_added_functions(diff_text: str) -> List[str]:
     return fns
 
 def audit_dry_principles(diff_text: str, modified_files: List[str], symbols: List[Dict[str, Any]], target_dir: Path) -> Tuple[bool, List[str], List[str]]:
-    """Check duplicate functions and class helper reuse against code graph."""
+    """Check that new code reuses existing class helpers instead of re-implementing them.
+
+    Function-name matches against the code graph are intentionally not flagged: common
+    names (`main`, `__init__`, `run`, `setUp`) collide constantly and a shared name is not
+    duplicated logic. Repetition is handled by the skill's rule of three instead.
+    """
     violations = audit_class_helper_reuse(modified_files, diff_text, target_dir)
-    candidates = []
+    return len(violations) == 0, violations, []
 
-    for fn in set(_extract_added_functions(diff_text)):
-        matching = [s for s in symbols if s.get("name") == fn and s.get("file") not in modified_files and not is_test_file(s.get("file", ""))]
-        if matching:
-            violations.append(f"Function `{fn}()` matches existing symbol in `{matching[0].get('file')}`:L{matching[0].get('line')}.")
 
-    return len(violations) == 0, violations, candidates
+# Control-flow levels allowed inside one function before the reviewer suggests flattening.
+MAX_CONTROL_FLOW_DEPTH = 3
+_PY_CONTROL_NODES = (ast.If, ast.For, ast.AsyncFor, ast.While, ast.Try, ast.With, ast.AsyncWith) + (
+    (ast.Match,) if hasattr(ast, "Match") else ()
+)
+_CONTROL_PREFIXES = ("if ", "if(", "for ", "for(", "while ", "while(", "try:", "try {", "match ", "switch ", "switch(")
+_FUNC_PREFIXES = ("def ", "async def ", "function ", "func ", "fn ", "public ", "private ", "protected ")
+
+
+def _max_py_control_depth(node: ast.AST, depth: int = 0) -> Tuple[int, int]:
+    """Return (max control-flow depth, line of deepest block) below node, not crossing nested defs."""
+    best, best_line = depth, getattr(node, "lineno", 0)
+    for child in ast.iter_child_nodes(node):
+        if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda)):
+            continue
+        child_depth = depth + 1 if isinstance(child, _PY_CONTROL_NODES) else depth
+        d, line = _max_py_control_depth(child, child_depth)
+        if d > best:
+            best, best_line = d, line
+    return best, best_line
+
+
+def _py_nesting_violations(path: Path, rel: str, touched: Set[int]) -> List[str]:
+    """Flag touched Python functions whose control flow nests deeper than the limit."""
+    viols: List[str] = []
+    try:
+        tree = ast.parse(path.read_text(encoding="utf-8", errors="ignore"), filename=str(path))
+    except Exception as err:
+        sys.stderr.write(f"[post_code_reviewer] AST parse notice: {err}\n")
+        return viols
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        func_range = set(range(node.lineno, getattr(node, "end_lineno", node.lineno) + 1))
+        if touched and not func_range.intersection(touched):
+            continue
+        depth, line = _max_py_control_depth(node)
+        if depth > MAX_CONTROL_FLOW_DEPTH:
+            viols.append(f"Deeply nested control flow ({depth} levels) in `{rel}` `{node.name}()`:L{line}.")
+    return viols
+
+
+def _diff_nesting_violations(diff_text: str, skip_files: Set[str]) -> List[str]:
+    """Indentation heuristic for non-Python files, measured relative to each hunk's shallowest line."""
+    viols: List[str] = []
+    curr, hunk = "unknown", []
+
+    def flush() -> None:
+        if not hunk or curr in skip_files or is_test_file(curr):
+            return
+        base = min(ind for ind, _ in hunk)
+        steps = sorted({ind - base for ind, _ in hunk if ind > base})
+        unit = steps[0] if steps else 4
+        base_is_func = any(ind == base and txt.startswith(_FUNC_PREFIXES) for ind, txt in hunk)
+        limit = MAX_CONTROL_FLOW_DEPTH + (1 if base_is_func else 0)
+        for ind, txt in hunk:
+            if txt.startswith(_CONTROL_PREFIXES) and (ind - base) // unit >= limit:
+                viols.append(f"Deeply nested control flow in `{curr}`: `{txt[:35]}...`.")
+
+    for line in diff_text.splitlines():
+        if line.startswith("+++ b/") or line.startswith("@@"):
+            flush()
+            hunk = []
+            if line.startswith("+++ b/"):
+                curr = line[6:].strip()
+        elif line.startswith("+") and line[1:].strip():
+            body = line[1:].expandtabs(4)
+            hunk.append((len(body) - len(body.lstrip(" ")), body.strip()))
+    flush()
+    return viols
+
 
 def audit_method_scoping(diff_text: str, modified_files: List[str], target_dir: Path) -> Tuple[bool, List[str], List[str]]:
-    """Check for deeply nested control flow blocks (indent >= 16 spaces / 4 levels)."""
-    violations = []
-    curr = "unknown"
-    for line in diff_text.splitlines():
-        if line.startswith("+++ b/"):
-            curr = line[6:].strip()
-        elif line.startswith("+") and not line.startswith("+++"):
-            if is_test_file(curr):
-                continue
-            stripped = line[1:].strip()
-            indent = len(line[1:]) - len(line[1:].lstrip(" "))
-            if indent >= 16 and any(stripped.startswith(kw) for kw in ["if ", "for ", "while ", "try:", "match "]):
-                violations.append(f"Deeply nested control flow (indent depth >= 4) in `{curr}`: `{stripped[:35]}...`.")
+    """Flag functions that are hard to follow because control flow nests too deeply.
+
+    Depth is counted from the start of each function, so class methods are not penalised
+    for their extra indentation. Python uses the AST; other languages use a diff heuristic.
+    """
+    touched_by_file = _get_touched_lines(diff_text)
+    violations: List[str] = []
+    ast_checked: Set[str] = set()
+    for rel in modified_files:
+        full = target_dir / rel
+        if rel.endswith(".py") and full.exists() and not is_test_file(rel):
+            violations.extend(_py_nesting_violations(full, rel, touched_by_file.get(rel, set())))
+            ast_checked.add(rel)
+    violations.extend(_diff_nesting_violations(diff_text, ast_checked))
     return len(violations) == 0, violations, []
 
 def audit_simplicity_and_verbosity(diff_text: str, modified_files: List[str]) -> Tuple[bool, List[str], List[str]]:
@@ -979,7 +1051,7 @@ def _build_pr_checks_list(
     checks = [
         (dry_ok, "is it dry", dry_v, "Verified clean. No duplicate helper logic detected."),
         (len_ok, f"no new code exceeds {FUNCTION_LINE_SOFT_LIMIT} lines", len_v, "All modified functions within line limits."),
-        (scop_ok, "should any new code be in its own method", scop_v, "Method granularity is clean; no deeply nested blocks."),
+        (scop_ok, "is any function hard to follow", scop_v, "Control flow stays shallow; try early returns before extracting."),
         (simp_ok, "is any of it too verbose or can it be simplified", simp_v, "Clean, idiomatic expressions without redundant boilerplate."),
         (maint_ok, "code maintainability", maint_v, "Error propagation preserved, caller contracts intact.")
     ]

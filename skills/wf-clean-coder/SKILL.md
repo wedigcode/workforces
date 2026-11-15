@@ -1,6 +1,6 @@
 ---
 name: wf-clean-coder
-description: MANDATORY for any programming, coding, refactoring, bug fixing, or code modification task. Enforces software craftsmanship, a test written or updated and run for every behavior change or bug fix, searching for existing similar code before adding new functions, single responsibility and SOLID architecture, a soft ~50-60 line function limit with extraction only for nameable, reused or separately tested blocks, zero error swallowing, PR-style code review verification checklist with advisory feedback, weekly-retried 3rd-party security bypass, and pre-handoff quality gates. Reach for this skill whenever writing, editing, or refactoring code, adding new functions or classes, implementing APIs, fixing bugs, or modifying tests before and after code changes.
+description: MANDATORY for any programming, coding, refactoring, bug fixing, or code modification task. Enforces software craftsmanship, a test written or updated and run for every behavior change or bug fix, searching for existing similar code before adding new functions, the simplest design that works with a rule of three for duplication, shallow control flow, a soft ~50-60 line function limit with extraction only for nameable, reused or separately tested blocks, zero error swallowing, PR-style code review verification checklist with advisory feedback, weekly-retried 3rd-party security bypass, and pre-handoff quality gates. Reach for this skill whenever writing, editing, or refactoring code, adding new functions or classes, implementing APIs, fixing bugs, or modifying tests before and after code changes.
 ---
 # Skill: Clean Coder
 
@@ -18,32 +18,26 @@ Lean, high-signal engineering workflow: reuse before you write, test what you ch
 For every behavior change or bug fix, write or update a test that covers it and run it before declaring the task done. For a bug fix, the test should exercise the failing case. Pure refactors, renames, docs and config-only changes rely on the existing suite passing.
 
 ### Step 3: Concrete Coding Constraints
-- **SOLID, DRY, KISS, YAGNI**: Apply standard design principles cleanly without redundant boilerplate.
+- **Simplest Design That Works**: Write the most direct code that solves the task. Do not add a new interface, abstract base class, factory, or configuration layer until there are two real, current uses for it; one concrete implementation is not a reason to abstract.
+- **Rule of Three for Duplication**: Copying a small piece of logic twice is acceptable. Extract a shared helper on the third copy, or earlier only when the copies must stay in sync (e.g. the same validation or business rule). Do not merge code that merely looks similar but changes for different reasons.
 - **Function Length (soft limit ~50–60 lines)**: Prefer functions that fit on one screen, but length alone is not a reason to split. Extract a block into its own function only when (a) its purpose can be named in one short phrase, (b) it is reused, or (c) it is worth testing on its own. Never extract just to meet a line count, and keep a sequential flow (step 1, step 2, step 3) in one function that reads top to bottom rather than scattering it across single-use helpers the reviewer has to jump between.
-- **Method Decomposition**: Extract nested blocks (> 2 levels deep) into helper methods when clarity improves.
-- **Simplicity**: Favor clean, idiomatic expressions over verbose intermediate variables or redundant ternary conditionals.
+- **Shallow Control Flow**: Keep nesting to about 3 levels inside a function. Flatten first with early returns, guard clauses, and `continue`; extract a nested block only under the same criteria as above (nameable, reused, or tested on its own).
+- **Simplicity**: Favor clean, idiomatic expressions and drop pointless constructs (`x ? true : false`, `if cond: return True else: return False`). Well-named intermediate variables that explain a step are encouraged; do not collapse them into dense one-liners.
 - **Maintainability & Error Safety**: Always catch specific exceptions, attach contextual metadata, and propagate or log. Never swallow errors with empty `catch` or `except` blocks.
 - **No `"production"` Fallbacks & IaC Env Parity**: NEVER hardcode `"prod"`, `"production"`, or `"live"` as fallback defaults in code. Whenever adding, renaming, or removing an environment variable or hardcoded secret/config value, inspect deployment configs (`template.yaml`, `template.yml`, `samconfig.toml`, `serverless.yml`, `.env.example`) for parity across all environments. Treat missing deployment config as a config/runbook fix (**Config Outage != Code Workaround**).
 - **Concise Boundary Docblocks**: New services, event subscribers, and integration handlers should carry a short (2–4 line) class/module docblock explaining role, events handled, and external config assumptions, paired with living `docs/architecture/*.md` OKF cards where cross-service contracts exist.
 
 ### Step 4: Pre-empt the PR Review Verification Form
 Review the code against the 5-point verification checklist before declaring completion:
-- [x] **is it dry**: No duplicate logic or copy-pasted helpers across files.
+- [x] **is it dry**: No logic copied three or more times, and no re-implementation of an existing helper.
 - [x] **no new code exceeds 60 lines**: Longer functions are fine when they read as one top-to-bottom flow; split only along the extraction criteria above.
-- [x] **should any new code be in its own method**: Monolithic or deeply nested code blocks extracted.
+- [x] **is any function hard to follow**: Control flow stays shallow (early returns first); no function a reviewer must read twice.
 - [x] **is any of it too verbose or can it be simplified**: Concise and idiomatic.
 - [x] **code maintainability**: Error propagation, contract compatibility, and tests verified.
 
-### Step 5: Post-Hook Verification & Quality Gate
-Run the automated review and quality triad:
+### Step 5: Review & Quality Gate
+Run the reviewer once before handing off. The `--run-checks --strict` run produces the same checklist audit as a plain run and also executes the project's tests, typechecks and linters:
 ```bash
-# Post-edit heuristic & checklist audit:
-python3 .agents/skills/wf-post-code-review/scripts/post_code_reviewer.py --root ./
-```
-*(Fallback: `python3 skills/wf-post-code-review/scripts/post_code_reviewer.py --root ./`)*
-
-```bash
-# Pre-handoff quality gate verification:
 python3 .agents/skills/wf-post-code-review/scripts/post_code_reviewer.py --root ./ --run-checks --strict
 ```
 *(Fallback: `python3 skills/wf-post-code-review/scripts/post_code_reviewer.py --root ./ --run-checks --strict`)*

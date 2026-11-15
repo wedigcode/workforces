@@ -152,7 +152,7 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
         self.assertEqual(len(pushbacks), 0)
         self.assertIn("- [x] **is it dry:**", form_md)
         self.assertIn("- [x] **no new code exceeds 60 lines:**", form_md)
-        self.assertIn("- [x] **should any new code be in its own method:**", form_md)
+        self.assertIn("- [x] **is any function hard to follow:**", form_md)
         self.assertIn("- [x] **is any of it too verbose or can it be simplified:**", form_md)
         self.assertIn("- [x] **code maintainability:**", form_md)
 
@@ -670,26 +670,30 @@ class TestQualityGatesAndReviewer(unittest.TestCase):
         touched = post_code_reviewer._get_touched_lines(diff)
         self.assertEqual(touched.get("calc.py"), {12})
 
-    def test_dry_violation_with_code_graph_symbol_and_justification(self):
-        """Test functions matching existing code graph symbols populate violations and pushback."""
-        symbols = [{"name": "duplicate_helper", "file": "src/utils.py", "line": 42}]
-        diff = "+++ b/feature.py\n@@ -0,0 +1,3 @@\n+def duplicate_helper():\n+    return True\n"
+    def test_same_name_symbol_is_not_a_dry_violation(self):
+        """A new function sharing a name with an existing symbol is not flagged as duplication."""
+        symbols = [{"name": "main", "file": "src/cli.py", "line": 42}]
+        diff = "+++ b/feature.py\n@@ -0,0 +1,3 @@\n+def main():\n+    return True\n"
         passed, viols, _ = post_code_reviewer.audit_dry_principles(diff, ["feature.py"], symbols, self.test_dir)
-        self.assertFalse(passed)
-        self.assertTrue(any("matches existing symbol in `src/utils.py`" in v for v in viols))
+        self.assertTrue(passed)
+        self.assertEqual(viols, [])
 
-        _, form_passed, pushbacks, _ = post_code_reviewer.evaluate_pr_verification_form(
-            diff, ["feature.py"], symbols, self.test_dir, justification=None
+    def test_class_method_nesting_measured_from_function(self):
+        """Two nested ifs inside a class method are fine; four control levels are flagged."""
+        shallow = (
+            "class Svc:\n"
+            "    def run(self, items):\n"
+            "        for item in items:\n"
+            "            if item:\n"
+            "                if item.ok:\n"
+            "                    print(item)\n"
         )
-        self.assertFalse(form_passed)
-        self.assertTrue(any("is it dry" in p for p in pushbacks))
-
-        _, just_passed, just_pushbacks, _ = post_code_reviewer.evaluate_pr_verification_form(
-            diff, ["feature.py"], symbols, self.test_dir,
-            justification="Different domain abstraction with specialized error semantics"
-        )
-        self.assertTrue(just_passed)
-        self.assertEqual(len(just_pushbacks), 0)
+        deep = shallow.replace("print(item)", "while item.next:\n                        item = item.next")
+        for code, expect_pass in ((shallow, True), (deep, False)):
+            (self.test_dir / "svc.py").write_text(code, encoding="utf-8")
+            diff = "+++ b/svc.py\n@@ -0,0 +1,8 @@\n" + "".join("+" + l + "\n" for l in code.splitlines())
+            passed, viols, _ = post_code_reviewer.audit_method_scoping(diff, ["svc.py"], self.test_dir)
+            self.assertEqual(passed, expect_pass, viols)
 
     def test_detect_quality_commands_ignores_no_test_specified(self):
         """Test detect_quality_commands ignores npm default 'no test specified' script."""
