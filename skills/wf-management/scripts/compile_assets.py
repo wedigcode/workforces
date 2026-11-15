@@ -505,7 +505,25 @@ def rewrite_relative_links_for_host(
         lambda m: f"{m.group(1)}{_rewrite_link_url(m.group(2), src_vdir, dst_vdir, dirs_cfg)}{m.group(3)}",
         body,
     )
-    return _rewrite_base_dir_refs(rewritten, host_profile)
+    rewritten = _rewrite_base_dir_refs(rewritten, host_profile)
+    return translate_tool_names_for_host(rewritten, host_profile)
+
+
+def translate_tool_names_for_host(body: str, host_profile: Dict[str, Any]) -> str:
+    """Translate Antigravity tool names and phrases in a markdown body to host-native ones.
+
+    Sources are authored against Antigravity, so profiles without ``body_phrase_map`` or
+    ``body_tool_map`` (including Antigravity itself) pass through unchanged. Phrases are
+    literal replacements applied first; tool names are whole-identifier replacements.
+    """
+    for phrase, replacement in (host_profile.get("body_phrase_map") or {}).items():
+        body = body.replace(phrase, replacement)
+    tool_map = host_profile.get("body_tool_map") or {}
+    if not tool_map:
+        return body
+    names = sorted(tool_map, key=len, reverse=True)
+    pattern = re.compile(r"(?<![\w.-])(" + "|".join(re.escape(n) for n in names) + r")(?![\w-])")
+    return pattern.sub(lambda m: tool_map[m.group(1)], body)
 
 
 def compile_markdown_asset(
