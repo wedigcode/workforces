@@ -381,6 +381,7 @@ add_gitignore_entry "workforces/tmp" "workforces/tmp"
 add_gitignore_entry "workforces/session-context/*" "workforces/session-context/*"
 add_gitignore_entry "!workforces/session-context/.gitkeep" "!workforces/session-context/.gitkeep"
 add_gitignore_entry "workforces/memory" "workforces/memory"
+add_gitignore_entry "workforces/tasks/.claim.lock" "workforces/tasks/.claim.lock"
 add_gitignore_entry ".worktrees" ".worktrees (agent parallelization)"
 
 if [[ "$DRY" != true ]]; then

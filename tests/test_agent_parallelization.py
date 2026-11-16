@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Tests for agent-parallelization skill and multi-agent Git orchestration."""
 
-import os
 import json
+import os
+import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -57,10 +59,12 @@ class TestAgentParallelization(unittest.TestCase):
         # 1. Check setup.sh
         setup_sh = (REPO_ROOT / "skills" / "wf-management" / "scripts" / "setup.sh").read_text(encoding="utf-8")
         self.assertIn('add_gitignore_entry ".worktrees"', setup_sh)
+        self.assertIn('add_gitignore_entry "workforces/tasks/.claim.lock"', setup_sh)
 
         # 2. Check update.sh
         update_sh = (REPO_ROOT / "skills" / "wf-management" / "scripts" / "update.sh").read_text(encoding="utf-8")
         self.assertIn('add_update_gitignore_entry ".worktrees"', update_sh)
+        self.assertIn('add_update_gitignore_entry "workforces/tasks/.claim.lock"', update_sh)
 
         # 3. Check validate-references.py
         val_refs = (REPO_ROOT / "skills" / "wf-management" / "scripts" / "validate-references.py").read_text(encoding="utf-8")
@@ -73,6 +77,38 @@ class TestAgentParallelization(unittest.TestCase):
         # 5. Check graph_indexer.py
         gi = (REPO_ROOT / "skills" / "wf-code-graph" / "scripts" / "graph_indexer.py").read_text(encoding="utf-8")
         self.assertIn('".worktrees"', gi)
+
+    def test_claim_lock_gitignored_on_setup_and_update(self):
+        setup_sh = REPO_ROOT / "skills" / "wf-management" / "scripts" / "setup.sh"
+        update_sh = REPO_ROOT / "skills" / "wf-management" / "scripts" / "update.sh"
+        entry = "workforces/tasks/.claim.lock"
+        with tempfile.TemporaryDirectory() as tmp:
+            ws = Path(tmp)
+            subprocess.run(["git", "init"], cwd=str(ws), check=True, capture_output=True)
+            res = subprocess.run(
+                ["bash", str(setup_sh), str(ws), "--type", "project", "--hosts", "claude", "--teams", "dev", "--non-interactive"],
+                cwd=str(REPO_ROOT), capture_output=True, text=True, timeout=60,
+            )
+            self.assertEqual(res.returncode, 0, res.stdout + res.stderr)
+            gitignore = ws / ".gitignore"
+            self.assertIn(entry, gitignore.read_text(encoding="utf-8").splitlines())
+            self.assertEqual(subprocess.run(["git", "check-ignore", "-q", entry], cwd=str(ws)).returncode, 0)
+            self.assertEqual(subprocess.run(["git", "check-ignore", "-q", "workforces/tasks/TASK-001.md"], cwd=str(ws)).returncode, 1)
+
+            # Simulate pre-existing install missing the lock entry; verify --dry and idempotent update.sh
+            stripped = "\n".join(line for line in gitignore.read_text(encoding="utf-8").splitlines() if line != entry) + "\n"
+            gitignore.write_text(stripped, encoding="utf-8")
+            dry = subprocess.run(["bash", str(update_sh), str(ws), "--dry", "--non-interactive"], cwd=str(REPO_ROOT), capture_output=True, text=True, timeout=60)
+            self.assertEqual(dry.returncode, 0, dry.stdout + dry.stderr)
+            self.assertIn(entry, dry.stdout)
+            self.assertNotIn(entry, gitignore.read_text(encoding="utf-8").splitlines())
+
+            for _ in range(2):
+                upd = subprocess.run(["bash", str(update_sh), str(ws), "--non-interactive"], cwd=str(REPO_ROOT), capture_output=True, text=True, timeout=60)
+                self.assertEqual(upd.returncode, 0, upd.stdout + upd.stderr)
+            lines = gitignore.read_text(encoding="utf-8").splitlines()
+            self.assertEqual(lines.count(entry), 1)
+            self.assertEqual(subprocess.run(["git", "check-ignore", "-q", entry], cwd=str(ws)).returncode, 0)
 
 
 if __name__ == "__main__":

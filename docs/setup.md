@@ -107,7 +107,7 @@ Both `setup.sh` and `update.sh` persist active multi-host settings to `workforce
 ```
 
 - **Auto-Detection Priority:** On subsequent `update.sh` or `prune-team.py` runs, Workforces reads `hosts` from `workforces/config.json` and—when `auto_detect_hosts` is `true`—unions them with any newly added AI host directories in the workspace. Pass `--no-auto-detect` to lock strictly to the saved/specified hosts.
-- **`.gitignore` Safeguards:** Setup automatically ensures `workforces/tmp`, `workforces/session-context/*`, `workforces/memory`, and `.worktrees` are ignored so scratch artifacts are never committed.
+- **`.gitignore` Safeguards:** Setup automatically ensures `workforces/tmp`, `workforces/session-context/*`, `workforces/memory`, `workforces/tasks/.claim.lock`, and `.worktrees` are ignored so scratch artifacts are never committed.
 
 ---
 
