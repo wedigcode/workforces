@@ -84,14 +84,72 @@ def _read_lines(fpath: Path) -> List[str]:
         return []
 
 
-def _build_docs_issue_candidates(hygiene: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """Convert non-destructive hygiene findings into PM inbox review candidates."""
+def _format_doc_rec_candidate(rec: Dict[str, Any], prefix: str, repo_label: str) -> Dict[str, Any]:
+    """Format a ranked module documentation gap as a PM inbox recommendation."""
+    mod = str(rec.get("module") or ".")
+    card_path = str(rec.get("card_path") or "docs/index.md")
+    status = str(rec.get("doc_status") or "missing")
+    callers = int(rec.get("inbound_callers") or 0)
+    undoc = int(rec.get("undocumented_symbols") or 0)
+    sym_total = int(rec.get("symbol_count") or 0)
+    env_vars = rec.get("env_vars") or []
+    tests = rec.get("test_files") or []
+    undoc_names = rec.get("undocumented_symbol_names") or []
+    caller_files = rec.get("caller_files") or []
+
+    facts = [
+        f"Module `{mod}` (`doc_status: {status}`, {rec.get('file_count', 0)} files, {rec.get('total_lines', 0)} lines).",
+        f"Blast radius: {callers} external caller file(s)" + (f" (e.g. {', '.join(f'`{c}`' for c in caller_files[:3])})." if caller_files else "."),
+        f"Inline docblocks: {undoc}/{sym_total} public symbol(s) undocumented" + (f" (e.g. {', '.join(f'`{n}`' for n in undoc_names[:5])})." if undoc_names else "."),
+    ]
+    if env_vars:
+        facts.append(f"Env vars: {', '.join(f'`{v}`' for v in env_vars[:6])}.")
+    if tests:
+        facts.append(f"Tests: {', '.join(f'`{t}`' for t in tests[:4])}.")
+
+    return {
+        "title": f"{prefix}Document module `{mod}`: OKF architecture card + inline docblocks",
+        "type": "docs",
+        "severity": str(rec.get("severity") or "P2"),
+        "file": mod,
+        "repo": repo_label,
+        "description": " ".join(facts),
+        "suggested_action": (
+            f"Promote via `report-task.py --promote-issue <issue> --approve`. Then: "
+            f"(1) author/enrich `{card_path}` (`doc_status: documented`, refactor-ready OKF schema) and refresh `docs/index.md` via `scaffold_repo_okf.py --scan`, "
+            f"(2) add concise 2-4 line module/class docblocks, public docstrings, and inline 'why' comments in `{mod}`, "
+            f"and (3) run `post_code_reviewer.py --run-checks --strict` and open a Draft PR."
+        ),
+    }
+
+
+def _build_docs_issue_candidates(hygiene: Dict[str, Any], repo_label: str = "") -> List[Dict[str, Any]]:
+    """Convert doc recommendations, stale cards, and hygiene findings into PM inbox candidates."""
+    prefix = f"[{repo_label}] " if repo_label else ""
     protected_dirty = set(hygiene.get("protected_dirty_files", []))
     candidates: List[Dict[str, Any]] = []
+
+    for rec in hygiene.get("doc_recommendations", [])[:3]:
+        candidates.append(_format_doc_rec_candidate(rec, prefix, repo_label))
+
+    for stale in hygiene.get("stale_cards", [])[:2]:
+        rel_card = stale.get("file", "")
+        if not rel_card:
+            continue
+        candidates.append({
+            "title": f"{prefix}Refresh stale architecture doc: {rel_card}",
+            "type": "docs",
+            "severity": "P2",
+            "file": rel_card,
+            "repo": repo_label,
+            "description": f"`{rel_card}` is out of sync ({stale.get('reason', 'drift detected')}).",
+            "suggested_action": "Verify `affected_files:` globs, refresh `last_verified_commit` and `## Constraints, Invariants & Gotchas`, and run `scaffold_repo_okf.py --scan`.",
+        })
+
     for fname in hygiene.get("stray_root_files", [])[:3]:
         dirty_note = f" `{fname}` has uncommitted or untracked changes and MUST NOT be deleted or overwritten without explicit user consent." if fname in protected_dirty else ""
         candidates.append({
-            "title": f"Review non-standard root file placement: {fname}", "type": "chore", "severity": "P2", "file": fname,
+            "title": f"{prefix}Review non-standard root file placement: {fname}", "type": "chore", "severity": "P2", "file": fname, "repo": repo_label,
             "description": f"`{fname}` looks like a temporary/artifact file at repository root.{dirty_note}",
             "suggested_action": f"Confirm with user whether `{fname}` belongs at repository root or under `docs/`. NEVER delete without explicit user approval, and never touch files with uncommitted changes.",
         })
@@ -100,17 +158,17 @@ def _build_docs_issue_candidates(hygiene: Dict[str, Any]) -> List[Dict[str, Any]
         if not rel:
             continue
         candidates.append({
-            "title": f"Dehydrate bulky spec to commit-linked stub: {rel}", "type": "docs", "severity": "P3", "file": rel,
+            "title": f"{prefix}Dehydrate bulky spec to commit-linked stub: {rel}", "type": "docs", "severity": "P3", "file": rel, "repo": repo_label,
             "description": f"`{rel}` has {spec.get('lines', spec.get('body_lines', 0))} lines without a dehydrated Git-commit stub.",
             "suggested_action": f"Run `scaffold_repo_okf.py --dehydrate-spec {rel} --living-doc docs/index.md` only once shipped and cleanly committed in Git HEAD (zero uncommitted edits).",
         })
     return candidates
 
 
-def run_docs_sweep(repo_root: Path, okf_mod: Any) -> Dict[str, Any]:
-    """Run non-destructive `<repo>/docs/` OKF scaffolding together with stray/spec hygiene audits."""
+def run_docs_sweep(repo_root: Path, okf_mod: Any, repo_label: str = "") -> Dict[str, Any]:
+    """Run non-destructive `<repo>/docs/` OKF scaffolding together with doc-gap & hygiene audits."""
     scaffold: Dict[str, Any] = {}
-    hygiene: Dict[str, Any] = {"stray_root_files": [], "un_dehydrated_specs": []}
+    hygiene: Dict[str, Any] = {"stray_root_files": [], "un_dehydrated_specs": [], "stale_cards": [], "doc_recommendations": []}
     if okf_mod is not None:
         scaffold = okf_mod.scan_and_scaffold(repo_root)
         hygiene = okf_mod.audit_hygiene(repo_root)
@@ -120,7 +178,7 @@ def run_docs_sweep(repo_root: Path, okf_mod: Any) -> Dict[str, Any]:
             docs_index.parent.mkdir(parents=True, exist_ok=True)
             docs_index.write_text("# Repository Architecture Index\n\n_Created by `/wf-work docs`._\n", encoding="utf-8")
             scaffold = {"created_cards": [], "preserved_cards": [], "index_file": "docs/index.md"}
-    return {**hygiene, "scaffold": scaffold, "issue_candidates": _build_docs_issue_candidates(hygiene)}
+    return {**hygiene, "scaffold": scaffold, "issue_candidates": _build_docs_issue_candidates(hygiene, repo_label=repo_label)}
 
 
 def run_debt_sweep(repo_root: Path, max_files: int = 200) -> Dict[str, Any]:

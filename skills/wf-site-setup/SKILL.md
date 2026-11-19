@@ -33,7 +33,7 @@ graph TD
 | **2. Visual Design & DESIGN.md** | `design` / `@wf-designer` | Refero Styles ([styles.refero.design](https://styles.refero.design/)), typography pairings, color tokens, layout blueprints, icon pack | `DESIGN.md`, `src/styles/tokens.css`, `docs/brand-context.md` |
 | **3. Compliance & Sales** | `compliance` (`wf-integrity-validator`) / `sales` (`@wf-sales`) | Affiliate disclosures (Lead Gen) vs Direct SaaS terms, conversion CTAs | Compliance clauses in `docs/product-brief.md` |
 | **4. Scaffolding, Quality Toolchains & Protocols** | `dev` / `@wf-programmer` | Scaffolding tech stack, configuring complete quality toolchain (unit testing, static analysis, linters, architecture guards, mutation testing, automated upgrades, security audits), language-specific AI protocol files (`robots.txt`, `llms.txt`, `ai.txt`, `sitemap`) | Codebase scaffolding, quality configs, CI workflows, protocol files |
-| **5. Brief Finalization** | `@wf-project-manager` | Consolidate 7 mandatory brief sections + Problem-to-Solution Matrix, unblock P0 build tasks | `docs/product-brief.md`, `workforces/workstate.md` |
+| **5. Brief & Architecture Index Finalization** | `@wf-project-manager` | Consolidate 7 mandatory brief sections + Problem-to-Solution Matrix, seed `<repo>/docs/index.md` (`scaffold_repo_okf.py --scan ./`), unblock P0 build tasks | `docs/product-brief.md`, `docs/index.md`, `workforces/workstate.md` |
 
 
 ---
@@ -122,6 +122,7 @@ Execution MUST follow this strict dependency order:
 6. **Step 3b: Quality Engineering Toolchain Scaffolding** (unit tests, static analysis, linters, architecture rules, dependabot, CI)
 7. **Step 4: Language-Specific AI Protocols & SEO** (`robots.txt`, `llms.txt`, `ai.txt`, `sitemap`)
 8. **Step 5: Component & Page Construction** (building strictly per `DESIGN.md`)
-9. **Step 6: Pre-Handoff Quality Gate Verification** (`post_code_reviewer.py --run-checks --strict`)
-10. **Step 7: Designer QA Review & Anti-AI Audit** (`@wf-designer` audit against anti-patterns)
-11. **Step 8: SEO & Schema Validation** (LocalBusiness / Organization / FAQ schema)
+9. **Step 5b: Seed Repo Living Architecture Index** (`python3 .agents/skills/wf-doc-generator/scripts/scaffold_repo_okf.py --scan ./` so `<repo>/docs/index.md` and starter `docs/architecture/*.md` cards exist from day one)
+10. **Step 6: Pre-Handoff Quality Gate Verification** (`post_code_reviewer.py --run-checks --strict`)
+11. **Step 7: Designer QA Review & Anti-AI Audit** (`@wf-designer` audit against anti-patterns)
+12. **Step 8: SEO & Schema Validation** (LocalBusiness / Organization / FAQ schema)

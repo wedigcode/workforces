@@ -9,7 +9,9 @@ Subcommands / Modes:
   --scan <repo>            Non-destructively scaffold/update `<repo>/docs/index.md` and
                            starter `docs/architecture/*.md` cards with `affected_files:`.
   --audit-hygiene <repo>   Audit stray root files, bulky shipped PRDs needing dehydration,
-                           and architecture directories missing OKF `affected_files` coverage.
+                           stale cards, and module doc gaps (with blast-radius priority).
+  --recommend-docs <repo>  Output ranked documentation recommendations (OKF cards +
+                           inline code docblocks) by blast radius and complexity.
   --dehydrate-spec <file>  Collapse a shipped PRD/spec into a compact stub linking to
                            the exact pre-dehydration Git commit SHA and living docs.
 """
@@ -26,13 +28,43 @@ import subprocess
 import sys
 from fnmatch import fnmatch
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, FrozenSet, List, Optional, Set, Tuple
 
 
-IGNORE_DIRS = frozenset({
+IGNORE_DIRS: FrozenSet[str] = frozenset({
     ".git", ".worktrees", "node_modules", "vendor", "__pycache__",
     ".venv", "venv", "dist", "build", ".next", "target", ".agents",
-    ".claude", ".grok", ".github", "workforces",
+    ".claude", ".grok", ".github", "workforces", "coverage", ".cache",
+})
+
+CODE_EXTS: FrozenSet[str] = frozenset({
+    ".py", ".ts", ".tsx", ".js", ".jsx", ".go", ".php", ".rs", ".java", ".rb",
+})
+MONOREPO_CONTAINERS: FrozenSet[str] = frozenset({"apps", "services", "packages", "crates", "modules"})
+SRC_CONTAINERS: FrozenSet[str] = frozenset({"src", "app", "internal", "pkg", "cmd", "lib", "skills"})
+ENTRYPOINT_HINTS: Tuple[str, ...] = (
+    "controller", "handler", "subscriber", "listener", "notifier", "worker",
+    "router", "route", "service", "command", "webhook", "index.", "main.", "app.", "server.",
+)
+
+ENV_LOOKUP_RE = re.compile(
+    r"(?:process\.env\.([A-Z][A-Z0-9_]{2,})"
+    r"|os\.(?:getenv|environ\.get)\(\s*['\"]([A-Z][A-Z0-9_]{2,})['\"]"
+    r"|os\.environ\[\s*['\"]([A-Z][A-Z0-9_]{2,})['\"]\s*\]"
+    r"|\$_ENV\[\s*['\"]([A-Z][A-Z0-9_]{2,})['\"]\s*\]"
+    r"|getenv\(\s*['\"]([A-Z][A-Z0-9_]{2,})['\"]\s*\)"
+    r"|os\.Getenv\(\s*\"([A-Z][A-Z0-9_]{2,})\"\s*\))"
+)
+_BUILTIN_ENV_VARS: FrozenSet[str] = frozenset({
+    "PATH", "HOME", "PWD", "USER", "SHELL", "TERM", "LANG", "TMPDIR", "CI", "PYTHONPATH",
+})
+
+_CATCHALL_STACK_GLOBS: FrozenSet[str] = frozenset({
+    "src/**/*.php", "app/**/*.php", "config/**/*",
+    "cmd/**/*.go", "internal/**/*.go", "pkg/**/*.go", "*.go",
+    "src/**/*.ts", "src/**/*.tsx", "src/**/*.js", "apps/**/*",
+    "src/**/*.py", "app/**/*.py", "*.py",
+    "src/**/*.rs", "crates/**/*.rs",
 })
 
 STANDARD_ROOT_FILES = frozenset((
@@ -49,6 +81,7 @@ STANDARD_ROOT_FILES = frozenset((
 ).split())
 
 _README_VARIANT_RE = re.compile(r"^readme[-_.].+\.(?:md|txt)$")
+_HOST_BASES = (".agents", ".claude", ".grok", ".github", ".github/copilot", ".cursor", "")
 
 AUTO_START = "<!-- wf-okf:auto-start -->"
 AUTO_END = "<!-- wf-okf:auto-end -->"
@@ -57,6 +90,62 @@ AUTO_END = "<!-- wf-okf:auto-end -->"
 def _is_standard_root_file(lower_name: str) -> bool:
     """Return True if a lowercase filename is a standard root repository file or README variant."""
     return lower_name in STANDARD_ROOT_FILES or bool(_README_VARIANT_RE.match(lower_name))
+
+
+def _is_test_relpath(rel: str) -> bool:
+    """Return True if repo-relative POSIX path points to a test fixture or test suite."""
+    parts = rel.lower().split("/")
+    base = parts[-1]
+    if any(p in ("tests", "test", "__tests__", "spec", "specs") for p in parts[:-1]):
+        return True
+    if base.startswith(("test_", "spec_")) or ".test." in base or ".spec." in base:
+        return True
+    return base.endswith(("test.php", "tests.php", "testcase.php"))
+
+
+def _load_sibling_module(skill_name: str, script_name: str, mod_alias: str, repo_root: Optional[Path] = None):
+    """Dynamically load a sibling skill script without requiring package installation."""
+    here = Path(__file__).resolve()
+    candidates: List[Path] = []
+    if len(here.parents) > 2:
+        candidates.append(here.parents[2] / skill_name / "scripts" / script_name)
+    if repo_root is not None:
+        for base in _HOST_BASES:
+            root_base = (repo_root / base) if base else repo_root
+            candidates.append(root_base / "skills" / skill_name / "scripts" / script_name)
+    target = next((p for p in candidates if p.is_file()), None)
+    if target is None:
+        return None
+    spec = importlib.util.spec_from_file_location(mod_alias, str(target))
+    if spec and spec.loader:
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+    return None
+
+
+def _load_git_link_resolver(repo_root: Optional[Path] = None):
+    """Load `git_link_resolver.py` from sibling `wf-management` skill."""
+    return _load_sibling_module("wf-management", "git_link_resolver.py", "wf_git_link_resolver", repo_root=repo_root)
+
+
+def _load_graph_indexer(repo_root: Optional[Path] = None):
+    """Load `graph_indexer.py` from sibling `wf-code-graph` skill if installed."""
+    return _load_sibling_module("wf-code-graph", "graph_indexer.py", "wf_graph_indexer", repo_root=repo_root)
+
+
+def _run_git(repo_root: Path, args: List[str]) -> Optional[str]:
+    """Run a read-only git subcommand inside `repo_root` and return stripped stdout."""
+    try:
+        res = subprocess.run(
+            ["git", "-C", str(repo_root)] + args,
+            capture_output=True, text=True, timeout=5, check=False,
+        )
+        if res.returncode == 0:
+            return res.stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return None
 
 
 def _git_porcelain_for_path(repo_root: Path, rel_path: str) -> Optional[str]:
@@ -73,34 +162,76 @@ def _git_porcelain_for_path(repo_root: Path, rel_path: str) -> Optional[str]:
     return None
 
 
-def _load_git_link_resolver():
-    """Dynamically load sibling `git_link_resolver` without requiring package installs."""
-    here = Path(__file__).resolve().parent
-    candidate = here.parent.parent / "wf-management" / "scripts" / "git_link_resolver.py"
-    if not candidate.is_file():
-        return None
-    spec = importlib.util.spec_from_file_location("wf_git_link_resolver", str(candidate))
-    if spec and spec.loader:
-        mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
-        return mod
-    return None
+def _find_matching_files(repo_root: Path, patterns: Tuple[str, ...]) -> List[str]:
+    """Walk `repo_root` safely returning repo-relative POSIX paths matching `patterns`."""
+    matches: List[str] = []
+    for root, dirs, files in os.walk(repo_root):
+        dirs[:] = sorted(d for d in dirs if d not in IGNORE_DIRS)
+        rel_dir = Path(root).relative_to(repo_root)
+        for fname in sorted(files):
+            if any(fnmatch(fname, pat) for pat in patterns):
+                rel = (rel_dir / fname).as_posix()
+                matches.append(rel.lstrip("./"))
+    return matches
 
 
-def _run_git(repo_root: Path, args: List[str]) -> Optional[str]:
+def _collect_repo_files(repo_root: Path) -> Tuple[List[str], List[str], List[str]]:
+    """Collect `(non_test_code_files, test_files, all_files)` inside `repo_root`."""
+    code_files: List[str] = []
+    test_files: List[str] = []
+    all_files: List[str] = []
+    for root, dirs, files in os.walk(repo_root):
+        dirs[:] = sorted(d for d in dirs if d not in IGNORE_DIRS and not d.startswith("."))
+        rel_dir = Path(root).relative_to(repo_root)
+        for fname in sorted(files):
+            rel = (rel_dir / fname).as_posix()
+            if rel.startswith("./"):
+                rel = rel[2:]
+            all_files.append(rel)
+            if Path(fname).suffix.lower() not in CODE_EXTS:
+                continue
+            if _is_test_relpath(rel):
+                test_files.append(rel)
+            elif not rel.startswith("docs/"):
+                code_files.append(rel)
+    return code_files, test_files, all_files
+
+
+def _extract_summary_docblock(file_path: Path) -> str:
+    """Extract the first 1-2 meaningful lines of a leading comment/docblock if present."""
     try:
-        res = subprocess.run(
-            ["git", "-C", str(repo_root)] + args,
-            capture_output=True,
-            text=True,
-            timeout=5,
-            check=False,
-        )
-        if res.returncode == 0:
-            return res.stdout.strip()
-    except (OSError, subprocess.SubprocessError):
-        pass
-    return None
+        lines = file_path.read_text(encoding="utf-8", errors="ignore").splitlines()[:25]
+    except OSError:
+        return ""
+    for line in lines:
+        s = line.strip()
+        if not s or s.startswith(("#!", "<?php", "package ", "---")):
+            continue
+        cleaned = re.sub(r"^(?:/\*\*?|//|#|\*)\s?", "", s).rstrip("*/").strip()
+        if cleaned and not cleaned.startswith(("@", "declare(", "use ", "import ", "from ")):
+            return cleaned[:140]
+    return ""
+
+
+def _read_lines_cached(repo_root: Path, rel: str, cache: Dict[str, List[str]]) -> List[str]:
+    """Read and cache lines for a repo-relative file path."""
+    if rel not in cache:
+        try:
+            cache[rel] = (repo_root / rel).read_text(encoding="utf-8", errors="ignore").splitlines()
+        except OSError:
+            cache[rel] = []
+    return cache[rel]
+
+
+def _extract_env_vars_from_lines(lines: List[str]) -> Set[str]:
+    """Extract referenced environment variable names from source lines."""
+    found: Set[str] = set()
+    for line in lines:
+        for match in ENV_LOOKUP_RE.finditer(line):
+            var = next((g for g in match.groups() if g), "")
+            if var and var not in _BUILTIN_ENV_VARS:
+                found.add(var)
+    return found
 
 
 def _detect_stacks(repo_root: Path) -> List[Dict[str, Any]]:
@@ -108,13 +239,12 @@ def _detect_stacks(repo_root: Path) -> List[Dict[str, Any]]:
     stacks: List[Dict[str, Any]] = []
 
     if (repo_root / "composer.json").is_file():
-        globs = ["src/**/*.php", "app/**/*.php", "config/**/*"]
         subscriber_hits = _find_matching_files(repo_root, ("*Subscriber*.php", "*Listener*.php", "*Notifier*.php"))
         stacks.append({
             "slug": "php-backend",
             "title": "PHP Services & Event Subscribers",
             "description": "PHP domain services, controllers, and event subscribers/listeners.",
-            "globs": globs,
+            "globs": ["src/**/*.php", "app/**/*.php", "config/**/*"],
             "entrypoints": subscriber_hits[:10],
             "tags": ["php", "services", "events"],
         })
@@ -148,7 +278,7 @@ def _detect_stacks(repo_root: Path) -> List[Dict[str, Any]]:
             "title": "Python Services & Automation",
             "description": "Python packages, handlers, and automation scripts.",
             "globs": ["src/**/*.py", "app/**/*.py", "*.py"],
-            "entrypoints": [p for p in py_files if not p.startswith("tests/")][:10],
+            "entrypoints": [p for p in py_files if not _is_test_relpath(p)][:10],
             "tags": ["python"],
         })
 
@@ -178,152 +308,6 @@ def _detect_stacks(repo_root: Path) -> List[Dict[str, Any]]:
         })
 
     return stacks
-
-
-def _find_matching_files(repo_root: Path, patterns: Tuple[str, ...]) -> List[str]:
-    """Walk `repo_root` safely returning repo-relative POSIX paths matching `patterns`."""
-    matches: List[str] = []
-    for root, dirs, files in os.walk(repo_root):
-        dirs[:] = sorted(d for d in dirs if d not in IGNORE_DIRS)
-        rel_dir = Path(root).relative_to(repo_root)
-        for fname in sorted(files):
-            if any(fnmatch(fname, pat) for pat in patterns):
-                rel = (rel_dir / fname).as_posix()
-                matches.append(rel.lstrip("./"))
-    return matches
-
-
-def _extract_summary_docblock(file_path: Path) -> str:
-    """Extract the first 1-2 meaningful lines of a leading comment/docblock if present."""
-    try:
-        lines = file_path.read_text(encoding="utf-8", errors="ignore").splitlines()[:25]
-    except OSError:
-        return ""
-    for line in lines:
-        s = line.strip()
-        if not s or s.startswith(("#!", "<?php", "package ", "---")):
-            continue
-        cleaned = re.sub(r"^(?:/\*\*?|//|#|\*)\s?", "", s).rstrip("*/").strip()
-        if cleaned and not cleaned.startswith(("@", "declare(", "use ", "import ", "from ")):
-            return cleaned[:140]
-    return ""
-
-
-def _render_card_markdown(stack: Dict[str, Any], repo_root: Path, resolver_mod: Any) -> str:
-    """Build a starter `<repo>/docs/architecture/<slug>.md` OKF card."""
-    today = datetime.date.today().isoformat()
-    affected_yaml = "\n".join(f'  - "{g}"' for g in stack["globs"])
-    tags_yaml = ", ".join(stack["tags"])
-
-    entry_lines: List[str] = []
-    for rel in stack["entrypoints"]:
-        abs_target = repo_root / rel
-        href = resolver_mod.resolve_portable_link(str(abs_target), repo_root=str(repo_root)) if resolver_mod else rel
-        doc_hint = _extract_summary_docblock(abs_target) if abs_target.is_file() else ""
-        suffix = f" — {doc_hint}" if doc_hint else ""
-        entry_lines.append(f"- [`{rel}`]({href}){suffix}")
-    entries_block = "\n".join(entry_lines) if entry_lines else "- _No matching entrypoints auto-detected yet._"
-
-    return f"""---
-type: Architecture Component
-title: "{stack['title']}"
-description: "{stack['description']}"
-affected_files:
-{affected_yaml}
-tags: [{tags_yaml}]
-updated_at: "{today}"
----
-
-# {stack['title']}
-
-## Overview
-{stack['description']}
-
-## Key Entrypoints & Subscribers
-{entries_block}
-
-## Environment & Deployment Config
-- Verify all required environment variables against IaC / deployment manifests (`template.yaml`, `samconfig.toml`, `.env.example`) before deploying.
-- Never hardcode `"prod"` or `"production"` fallback values in application code.
-
-## Constraints & Why
-- **{today}:** Initial OKF architecture card scaffolded; append non-obvious architectural constraints and *why* choices were made here instead of keeping a separate `CHANGELOG.md`.
-"""
-
-
-def _merge_index_auto_section(existing_text: str, auto_block: str, title: str = "Repository Architecture Index") -> str:
-    """Non-destructively insert or refresh only the `AUTO_START..AUTO_END` block in `docs/index.md`."""
-    wrapped = f"{AUTO_START}\n{auto_block.strip()}\n{AUTO_END}"
-    if AUTO_START in existing_text and AUTO_END in existing_text:
-        pattern = re.compile(re.escape(AUTO_START) + r".*?" + re.escape(AUTO_END), re.DOTALL)
-        return pattern.sub(wrapped, existing_text, count=1)
-
-    if existing_text.strip():
-        return existing_text.rstrip() + "\n\n## Auto-Discovered Architecture Map\n\n" + wrapped + "\n"
-
-    return f"""---
-type: OKF Index
-title: "{title}"
-description: "Living architecture knowledge index for human developers and AI agents."
----
-
-# {title}
-
-Start here before planning cross-service changes, event subscribers, or environment config updates.
-
-## Auto-Discovered Architecture Map
-
-{wrapped}
-
-## Human Architecture Notes
-_Add system diagrams, ownership notes, and cross-service conventions here; automated scans preserve this section._
-"""
-
-
-def scan_and_scaffold(repo_root: Path) -> Dict[str, Any]:
-    """Scan `repo_root` and non-destructively scaffold `<repo>/docs/index.md` and starter cards."""
-    resolver_mod = _load_git_link_resolver()
-    stacks = _detect_stacks(repo_root)
-    docs_dir = repo_root / "docs"
-    arch_dir = docs_dir / "architecture"
-    arch_dir.mkdir(parents=True, exist_ok=True)
-
-    created_cards: List[str] = []
-    preserved_cards: List[str] = []
-    table_rows = [
-        "| Component | Description | Affected Files | Card |",
-        "|---|---|---|---|",
-    ]
-
-    for stack in stacks:
-        card_rel = f"docs/architecture/{stack['slug']}.md"
-        card_path = repo_root / card_rel
-        if not card_path.exists():
-            card_path.write_text(_render_card_markdown(stack, repo_root, resolver_mod), encoding="utf-8")
-            created_cards.append(card_rel)
-        else:
-            preserved_cards.append(card_rel)
-        card_href = (
-            resolver_mod.resolve_portable_link(str(card_path), repo_root=str(repo_root))
-            if resolver_mod
-            else f"architecture/{stack['slug']}.md"
-        )
-        globs_str = ", ".join(f"`{g}`" for g in stack["globs"][:3])
-        table_rows.append(f"| **{stack['title']}** | {stack['description']} | {globs_str} | [{stack['slug']}.md]({card_href}) |")
-
-    index_path = docs_dir / "index.md"
-    existing_index = index_path.read_text(encoding="utf-8") if index_path.exists() else ""
-    auto_block = "\n".join(table_rows) if stacks else "_No standard language or IaC manifests detected yet._"
-    updated_index = _merge_index_auto_section(existing_index, auto_block)
-    index_path.write_text(updated_index, encoding="utf-8")
-
-    return {
-        "repo_root": str(repo_root),
-        "index_file": "docs/index.md",
-        "created_cards": created_cards,
-        "preserved_cards": preserved_cards,
-        "detected_stacks": [s["slug"] for s in stacks],
-    }
 
 
 def _parse_simple_frontmatter(text: str) -> Tuple[Dict[str, Any], str]:
@@ -364,6 +348,444 @@ def _parse_simple_frontmatter(text: str) -> Tuple[Dict[str, Any], str]:
                 current_key = None
                 meta[k] = v.strip("'\"")
     return meta, parts[2].lstrip("\r\n")
+
+
+def _infer_card_status(meta: Dict[str, Any], body: str) -> str:
+    """Infer card lifecycle state (`scaffold` | `documented` | `stale`) from frontmatter/body."""
+    explicit = str(meta.get("doc_status") or "").strip().lower()
+    if explicit in ("scaffold", "documented", "stale"):
+        return explicit
+    if "Initial OKF architecture card scaffolded" in body:
+        return "scaffold"
+    return "documented"
+
+
+def _read_existing_arch_cards(repo_root: Path) -> List[Dict[str, Any]]:
+    """Read metadata and status for all `<repo>/docs/architecture/*.md` cards."""
+    arch_dir = repo_root / "docs" / "architecture"
+    if not arch_dir.is_dir():
+        return []
+    cards: List[Dict[str, Any]] = []
+    for card in sorted(arch_dir.rglob("*.md")):
+        try:
+            text = card.read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            continue
+        meta, body = _parse_simple_frontmatter(text)
+        aff = meta.get("affected_files") or []
+        globs = [str(g) for g in aff] if isinstance(aff, list) else []
+        is_catchall = bool(globs) and all(g in _CATCHALL_STACK_GLOBS for g in globs)
+        cards.append({
+            "rel": card.relative_to(repo_root).as_posix(),
+            "slug": card.stem,
+            "title": str(meta.get("title") or card.stem),
+            "description": str(meta.get("description") or ""),
+            "affected_files": globs,
+            "doc_status": _infer_card_status(meta, body),
+            "last_verified_commit": str(meta.get("last_verified_commit") or "").strip(),
+            "is_catchall": is_catchall,
+        })
+    return cards
+
+
+def _group_module_dirs(code_files: List[str]) -> Dict[str, List[str]]:
+    """Group non-test code files into logical domain modules."""
+    nested_srcs = {
+        f.split("/")[0] for f in code_files
+        if f.split("/")[0] in SRC_CONTAINERS and len(f.split("/")) >= 3
+    }
+    grouped: Dict[str, List[str]] = {}
+    root_files: List[str] = []
+    for rel in code_files:
+        parts = rel.split("/")
+        if len(parts) == 1:
+            root_files.append(rel)
+            continue
+        top = parts[0]
+        if top in MONOREPO_CONTAINERS:
+            mod = f"{top}/{parts[1]}" if len(parts) >= 3 else top
+        elif top in SRC_CONTAINERS:
+            mod = f"{top}/{parts[1]}" if (top in nested_srcs and len(parts) >= 3) else top
+        else:
+            mod = top
+        grouped.setdefault(mod, []).append(rel)
+
+    if not grouped and root_files:
+        grouped["."] = root_files
+    return grouped
+
+
+def _slugify_module(module: str) -> str:
+    """Convert a module relative path into a deterministic kebab-case card slug."""
+    if module == ".":
+        return "root"
+    return re.sub(r"[^a-z0-9]+", "-", module.lower()).strip("-") or "module"
+
+
+def _has_inline_docblock(lines: List[str], sym: Dict[str, Any]) -> bool:
+    """Return True if a Python docstring or leading comment block precedes `sym`."""
+    if sym.get("docstring"):
+        return True
+    line_no = int(sym.get("line") or 0)
+    if line_no <= 1 or line_no > len(lines):
+        return False
+    start = max(0, line_no - 6)
+    preceding = [ln.strip() for ln in lines[start:line_no - 1] if ln.strip()]
+    return any(ln.startswith(("/**", "/*", "*/", "*", "///", "//", "#")) for ln in preceding[-3:])
+
+
+def _scan_symbols_once(repo_root: Path) -> Tuple[List[Dict[str, Any]], Dict[str, List[Dict[str, Any]]]]:
+    """Run in-memory `SymbolIndexer` scan once and index symbols by repo-relative file path."""
+    gi_mod = _load_graph_indexer(repo_root=repo_root)
+    if gi_mod is None or not hasattr(gi_mod, "SymbolIndexer"):
+        return [], {}
+    try:
+        symbols = gi_mod.SymbolIndexer(str(repo_root)).scan()
+    except Exception:
+        return [], {}
+    by_file: Dict[str, List[Dict[str, Any]]] = {}
+    for sym in symbols:
+        f_rel = str(sym.get("file") or "").replace("\\", "/")
+        if f_rel:
+            sym["file"] = f_rel
+            by_file.setdefault(f_rel, []).append(sym)
+    return symbols, by_file
+
+
+def _compute_symbol_metrics(
+    repo_root: Path,
+    mod_files: List[str],
+    all_symbols: List[Dict[str, Any]],
+    symbols_by_file: Dict[str, List[Dict[str, Any]]],
+    lines_cache: Dict[str, List[str]],
+) -> Dict[str, Any]:
+    """Compute public docblock coverage and cross-module inbound caller blast radius."""
+    mod_file_set = set(mod_files)
+    all_defined: Set[str] = set()
+    public_syms: List[Dict[str, Any]] = []
+    undoc_names: List[str] = []
+    documented_count = 0
+
+    for rel in mod_files:
+        file_lines = _read_lines_cached(repo_root, rel, lines_cache)
+        for sym in symbols_by_file.get(rel, []):
+            name = str(sym.get("name") or "")
+            if not name:
+                continue
+            all_defined.add(name)
+            if name.startswith("_") and sym.get("kind") != "class":
+                continue
+            public_syms.append(sym)
+            if _has_inline_docblock(file_lines, sym):
+                documented_count += 1
+            elif name not in undoc_names and len(undoc_names) < 8:
+                undoc_names.append(name)
+
+    caller_files: Set[str] = set()
+    if all_defined:
+        for sym in all_symbols:
+            cfile = sym.get("file", "")
+            if not cfile or cfile in mod_file_set or _is_test_relpath(cfile):
+                continue
+            if any(c in all_defined for c in sym.get("calls", [])):
+                caller_files.add(cfile)
+
+    return {
+        "symbol_count": len(public_syms),
+        "documented_symbol_count": documented_count,
+        "undocumented_symbols": len(public_syms) - documented_count,
+        "undocumented_symbol_names": undoc_names,
+        "inbound_callers": len(caller_files),
+        "caller_files": sorted(caller_files)[:5],
+    }
+
+
+def _match_module_tests(module: str, mod_files: List[str], test_files: List[str]) -> List[str]:
+    """Identify test files likely covering `module` by directory or filename stem."""
+    mod_base = Path(module).name.lower() if module != "." else ""
+    stems = {Path(f).stem.lower() for f in mod_files[:15] if len(Path(f).stem) >= 3}
+    matched: List[str] = []
+    for tf in test_files:
+        low = tf.lower()
+        if (mod_base and len(mod_base) >= 3 and mod_base in low) or any(st in low for st in stems):
+            matched.append(tf)
+        if len(matched) >= 10:
+            break
+    return matched
+
+
+def _commits_since_for_paths(repo_root: Path, sha: str, paths: List[str]) -> int:
+    """Count Git commits touching `paths` since `sha`, returning 0 when unavailable."""
+    if not sha or not paths:
+        return 0
+    if _run_git(repo_root, ["cat-file", "-e", f"{sha}^{{commit}}"]) is None:
+        return 0
+    out = _run_git(repo_root, ["rev-list", "--count", f"{sha}..HEAD", "--"] + paths[:25])
+    try:
+        return int(out) if out else 0
+    except ValueError:
+        return 0
+
+
+def _glob_matches(rel_path: str, pattern: str) -> bool:
+    """Match a repo-relative POSIX path against a glob pattern, allowing `**/` for zero subdirs."""
+    if fnmatch(rel_path, pattern):
+        return True
+    if "/**/" in pattern and fnmatch(rel_path, pattern.replace("/**/", "/")):
+        return True
+    if pattern.startswith("**/") and fnmatch(rel_path, pattern[3:]):
+        return True
+    return False
+
+
+def _evaluate_module_doc_status(
+    repo_root: Path,
+    in_git: bool,
+    module: str,
+    mod_files: List[str],
+    cards: List[Dict[str, Any]],
+) -> Tuple[str, Optional[str]]:
+    """Determine `(doc_status, matched_card_rel)` for a module across existing cards."""
+    dedicated: List[Dict[str, Any]] = []
+    catchall: List[Dict[str, Any]] = []
+    for card in cards:
+        globs = card["affected_files"]
+        if any(_glob_matches(mf, g) for mf in mod_files for g in globs):
+            (catchall if card["is_catchall"] else dedicated).append(card)
+
+    chosen = dedicated[0] if dedicated else (catchall[0] if (catchall and module == ".") else None)
+    if chosen is None:
+        return "missing", None
+    status = chosen["doc_status"]
+    if status == "documented" and in_git and chosen["last_verified_commit"]:
+        if _commits_since_for_paths(repo_root, chosen["last_verified_commit"], mod_files) >= 5:
+            status = "stale"
+    return status, chosen["rel"]
+
+
+def _analyze_single_module(
+    repo_root: Path,
+    in_git: bool,
+    module: str,
+    mod_files: List[str],
+    test_files: List[str],
+    cards: List[Dict[str, Any]],
+    all_symbols: List[Dict[str, Any]],
+    symbols_by_file: Dict[str, List[Dict[str, Any]]],
+    lines_cache: Dict[str, List[str]],
+) -> Dict[str, Any]:
+    """Assemble static metrics, blast radius, and doc recommendation score for one module."""
+    total_lines = 0
+    giant_files: List[Dict[str, Any]] = []
+    env_vars: Set[str] = set()
+    entrypoints: List[str] = []
+
+    for rel in mod_files:
+        lines = _read_lines_cached(repo_root, rel, lines_cache)
+        total_lines += len(lines)
+        if len(lines) >= 400:
+            giant_files.append({"file": rel, "lines": len(lines)})
+        env_vars.update(_extract_env_vars_from_lines(lines))
+        if any(hint in Path(rel).name.lower() for hint in ENTRYPOINT_HINTS):
+            entrypoints.append(rel)
+
+    giant_files.sort(key=lambda item: item["lines"], reverse=True)
+    if not entrypoints:
+        entrypoints = mod_files[:5]
+
+    sym_metrics = _compute_symbol_metrics(repo_root, mod_files, all_symbols, symbols_by_file, lines_cache)
+    doc_status, matched_card = _evaluate_module_doc_status(repo_root, in_git, module, mod_files, cards)
+    slug = _slugify_module(module)
+    card_path = matched_card or f"docs/architecture/{slug}.md"
+    globs = [f"{module}/**/*"] if module != "." else [f"*{ext}" for ext in sorted(CODE_EXTS)[:4]]
+
+    status_weight = {"missing": 15, "scaffold": 10, "stale": 8, "documented": 0}.get(doc_status, 0)
+    priority_score = (
+        sym_metrics["inbound_callers"] * 4
+        + len(giant_files) * 10
+        + sym_metrics["undocumented_symbols"] * 2
+        + (total_lines // 100)
+        + status_weight
+    )
+    severity = "P1" if (sym_metrics["inbound_callers"] >= 3 or giant_files or total_lines >= 800) else "P2"
+
+    return {
+        "module": module,
+        "slug": slug,
+        "card_path": card_path,
+        "doc_status": doc_status,
+        "globs": globs,
+        "file_count": len(mod_files),
+        "total_lines": total_lines,
+        "giant_files": giant_files[:5],
+        "entrypoints": entrypoints[:10],
+        "env_vars": sorted(env_vars),
+        "test_files": _match_module_tests(module, mod_files, test_files),
+        **sym_metrics,
+        "priority_score": priority_score,
+        "severity": severity,
+    }
+
+
+def discover_modules(repo_root: Path) -> List[Dict[str, Any]]:
+    """Discover code modules with blast-radius metrics, env vars, test coverage, and doc status."""
+    code_files, test_files, _ = _collect_repo_files(repo_root)
+    if not code_files:
+        return []
+    in_git = _run_git(repo_root, ["rev-parse", "--is-inside-work-tree"]) == "true"
+    cards = _read_existing_arch_cards(repo_root)
+    all_symbols, symbols_by_file = _scan_symbols_once(repo_root)
+    lines_cache: Dict[str, List[str]] = {}
+    grouped = _group_module_dirs(code_files)
+
+    modules = [
+        _analyze_single_module(
+            repo_root, in_git, mod, mod_files, test_files, cards, all_symbols, symbols_by_file, lines_cache
+        )
+        for mod, mod_files in sorted(grouped.items())
+    ]
+    modules.sort(key=lambda item: (-item["priority_score"], item["module"]))
+    return modules
+
+
+def _render_card_markdown(stack: Dict[str, Any], repo_root: Path, resolver_mod: Any) -> str:
+    """Build a starter `<repo>/docs/architecture/<slug>.md` refactor-ready OKF card."""
+    today = datetime.date.today().isoformat()
+    head_sha = _run_git(repo_root, ["rev-parse", "HEAD"]) or ""
+    affected_yaml = "\n".join(f'  - "{g}"' for g in stack["globs"])
+    tags_yaml = ", ".join(stack["tags"])
+
+    entry_lines: List[str] = []
+    env_vars: Set[str] = set()
+    for rel in stack["entrypoints"]:
+        abs_target = repo_root / rel
+        href = resolver_mod.resolve_portable_link(str(abs_target), repo_root=str(repo_root)) if resolver_mod else rel
+        doc_hint = _extract_summary_docblock(abs_target) if abs_target.is_file() else ""
+        if abs_target.is_file():
+            env_vars.update(_extract_env_vars_from_lines(abs_target.read_text(encoding="utf-8", errors="ignore").splitlines()))
+        suffix = f" — {doc_hint}" if doc_hint else ""
+        entry_lines.append(f"- [`{rel}`]({href}){suffix}")
+    entries_block = "\n".join(entry_lines) if entry_lines else "- _No matching entrypoints auto-detected yet._"
+    env_block = "\n".join(f"- `{v}` — verify parity across deployment manifests / `.env.example`" for v in sorted(env_vars))
+    if not env_block:
+        env_block = "- Verify required environment variables against IaC manifests (`template.yaml`, `samconfig.toml`, `.env.example`)."
+
+    return f"""---
+type: Architecture Component
+title: "{stack['title']}"
+description: "{stack['description']}"
+doc_status: "scaffold"
+last_verified_commit: "{head_sha}"
+affected_files:
+{affected_yaml}
+tags: [{tags_yaml}]
+updated_at: "{today}"
+---
+
+# {stack['title']}
+
+## Purpose & Boundaries
+{stack['description']}
+- _Enrich this card via `/wf-work docs` with explicit ownership boundaries (owns vs. does NOT own)._
+
+## Entrypoints, Events & Data Flow
+{entries_block}
+
+## Key Dependencies & Blast Radius
+- _Run `pre_impact_analyzer.py` or `scaffold_repo_okf.py --recommend-docs` to map upstream services and high-fan-in callers before refactoring._
+
+## Environment & Deployment Config
+{env_block}
+- Never hardcode `"prod"` or `"production"` fallback values in application code.
+
+## Test Coverage & Verification
+- _List unit/integration test files and verification commands covering this component._
+
+## Constraints, Invariants & Gotchas
+- **{today}:** Initial OKF architecture card scaffolded; append non-obvious architectural constraints and *why* choices were made here instead of keeping a separate `CHANGELOG.md`.
+"""
+
+
+def _merge_index_auto_section(existing_text: str, auto_block: str, title: str = "Repository Architecture Index") -> str:
+    """Non-destructively insert or refresh only the `AUTO_START..AUTO_END` block in `docs/index.md`."""
+    wrapped = f"{AUTO_START}\n{auto_block.strip()}\n{AUTO_END}"
+    if AUTO_START in existing_text and AUTO_END in existing_text:
+        pattern = re.compile(re.escape(AUTO_START) + r".*?" + re.escape(AUTO_END), re.DOTALL)
+        return pattern.sub(wrapped, existing_text, count=1)
+
+    if existing_text.strip():
+        return existing_text.rstrip() + "\n\n## Auto-Discovered Architecture Map\n\n" + wrapped + "\n"
+
+    return f"""---
+type: OKF Index
+title: "{title}"
+description: "Living architecture knowledge index for human developers and AI agents."
+---
+
+# {title}
+
+Start here before planning cross-service changes, event subscribers, refactoring, or environment config updates.
+
+## Auto-Discovered Architecture Map
+
+{wrapped}
+
+## Human Architecture Notes
+_Add system diagrams, ownership notes, and cross-service conventions here; automated scans preserve this section._
+"""
+
+
+def scan_and_scaffold(repo_root: Path) -> Dict[str, Any]:
+    """Scan `repo_root` and non-destructively scaffold `<repo>/docs/index.md` and starter cards."""
+    resolver_mod = _load_git_link_resolver(repo_root=repo_root)
+    stacks = _detect_stacks(repo_root)
+    docs_dir = repo_root / "docs"
+    arch_dir = docs_dir / "architecture"
+    arch_dir.mkdir(parents=True, exist_ok=True)
+
+    created_cards: List[str] = []
+    preserved_cards: List[str] = []
+
+    for stack in stacks:
+        card_rel = f"docs/architecture/{stack['slug']}.md"
+        card_path = repo_root / card_rel
+        if not card_path.exists():
+            card_path.write_text(_render_card_markdown(stack, repo_root, resolver_mod), encoding="utf-8")
+            created_cards.append(card_rel)
+        else:
+            preserved_cards.append(card_rel)
+
+    all_cards = _read_existing_arch_cards(repo_root)
+    table_rows = [
+        "| Component | Status | Description | Affected Files | Card |",
+        "|---|---|---|---|---|",
+    ]
+    for card in all_cards:
+        card_path = repo_root / card["rel"]
+        card_href = (
+            resolver_mod.resolve_portable_link(str(card_path), repo_root=str(repo_root))
+            if resolver_mod
+            else f"architecture/{card['slug']}.md"
+        )
+        globs_str = ", ".join(f"`{g}`" for g in card["affected_files"][:3]) or "_none_"
+        desc = card["description"] or "Architecture component card."
+        table_rows.append(
+            f"| **{card['title']}** | `{card['doc_status']}` | {desc} | {globs_str} | [{card['slug']}.md]({card_href}) |"
+        )
+
+    index_path = docs_dir / "index.md"
+    existing_index = index_path.read_text(encoding="utf-8") if index_path.exists() else ""
+    auto_block = "\n".join(table_rows) if all_cards else "_No architecture cards or language manifests detected yet._"
+    index_path.write_text(_merge_index_auto_section(existing_index, auto_block), encoding="utf-8")
+
+    return {
+        "repo_root": str(repo_root),
+        "index_file": "docs/index.md",
+        "created_cards": created_cards,
+        "preserved_cards": preserved_cards,
+        "indexed_cards": [c["rel"] for c in all_cards],
+        "detected_stacks": [s["slug"] for s in stacks],
+    }
 
 
 def _should_skip_git_root_entry(repo_root: Path, name: str, lower: str, protected_dirty: List[str]) -> bool:
@@ -437,23 +859,74 @@ def _scan_missing_okf(repo_root: Path) -> List[str]:
     for kd in ("src/Service", "src/EventSubscriber", "src/EventListener", "internal", "cmd", "apps"):
         if (repo_root / kd).exists():
             sample = f"{kd}/sample.file"
-            if not any(fnmatch(sample, g) or fnmatch(kd, g.rstrip("/*")) for g in covered_globs):
+            if not any(_glob_matches(sample, g) or _glob_matches(kd, g.rstrip("/*")) for g in covered_globs):
                 missing.append(f"Directory `{kd}` has no matching `affected_files:` card under `docs/architecture/`.")
     return missing
 
 
+def _scan_stale_cards(repo_root: Path, in_git: bool, all_files: List[str]) -> List[Dict[str, Any]]:
+    """Detect `docs/architecture/*.md` cards with broken `affected_files` globs or code drift."""
+    stale: List[Dict[str, Any]] = []
+    for card in _read_existing_arch_cards(repo_root):
+        globs = card["affected_files"]
+        broken = [g for g in globs if not any(_glob_matches(fp, g) for fp in all_files)]
+        matched_files = [fp for fp in all_files if any(_glob_matches(fp, g) for g in globs)]
+        commits_behind = 0
+        if in_git and card["doc_status"] == "documented" and card["last_verified_commit"] and matched_files:
+            commits_behind = _commits_since_for_paths(repo_root, card["last_verified_commit"], matched_files)
+
+        reasons: List[str] = []
+        if broken:
+            reasons.append(f"broken affected_files globs: {', '.join(broken[:3])}")
+        if commits_behind >= 5:
+            reasons.append(f"{commits_behind} commits behind `{card['last_verified_commit'][:8]}`")
+        if card["doc_status"] == "stale" and not reasons:
+            reasons.append("marked doc_status: stale")
+        if reasons:
+            stale.append({
+                "file": card["rel"],
+                "doc_status": card["doc_status"],
+                "broken_globs": broken,
+                "commits_behind": commits_behind,
+                "reason": "; ".join(reasons),
+            })
+    return stale
+
+
+def _filter_doc_recommendations(modules: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Return prioritized modules needing architecture docs or inline docblock enrichment."""
+    recs: List[Dict[str, Any]] = []
+    for mod in modules:
+        sym_count = int(mod.get("symbol_count", 0))
+        doc_count = int(mod.get("documented_symbol_count", 0))
+        undoc_count = int(mod.get("undocumented_symbols", 0))
+        low_docblocks = sym_count > 0 and undoc_count >= 3 and (doc_count / sym_count) < 0.5
+        if mod["doc_status"] in ("missing", "scaffold", "stale") or low_docblocks:
+            reason = f"doc_status={mod['doc_status']}" if mod["doc_status"] != "documented" else "low_inline_docblocks"
+            recs.append({**mod, "recommendation_reason": reason})
+    return recs
+
+
 def audit_hygiene(repo_root: Path) -> Dict[str, Any]:
-    """Identify stray root clutter, bulky shipped PRDs needing dehydration, and missing OKF docs."""
+    """Identify stray root clutter, bulky specs, stale cards, and prioritized doc gaps."""
     in_git = _run_git(repo_root, ["rev-parse", "--is-inside-work-tree"]) == "true"
     protected_dirty: List[str] = []
     stray_root_files = _scan_stray_root_files(repo_root, in_git, protected_dirty)
     bulky_specs = _scan_bulky_specs(repo_root, in_git, protected_dirty)
     missing_okf = _scan_missing_okf(repo_root)
+    _, _, all_files = _collect_repo_files(repo_root)
+    stale_cards = _scan_stale_cards(repo_root, in_git, all_files)
+    doc_recommendations = _filter_doc_recommendations(discover_modules(repo_root))
     return {
-        "repo_root": str(repo_root), "stray_root_files": stray_root_files,
-        "un_dehydrated_specs": bulky_specs, "missing_okf_coverage": missing_okf,
+        "repo_root": str(repo_root),
+        "stray_root_files": stray_root_files,
+        "un_dehydrated_specs": bulky_specs,
+        "missing_okf_coverage": missing_okf,
+        "stale_cards": stale_cards,
+        "doc_recommendations": doc_recommendations,
         "protected_dirty_files": sorted(set(protected_dirty)),
-        "total_findings": len(stray_root_files) + len(bulky_specs) + len(missing_okf),
+        "total_findings": len(stray_root_files) + len(bulky_specs) + len(missing_okf) + len(stale_cards),
+        "recommendation_count": len(doc_recommendations),
     }
 
 
@@ -540,7 +1013,7 @@ def dehydrate_spec(spec_path: Path, repo_root: Optional[Path] = None, living_doc
     meta, body = _parse_simple_frontmatter(raw_text)
     heading_match = re.search(r"^#\s+(.+)$", body, re.MULTILINE)
     title = str(meta.get("title") or (heading_match.group(1).strip() if heading_match else abs_spec.stem))
-    resolver_mod = _load_git_link_resolver()
+    resolver_mod = _load_git_link_resolver(repo_root=resolved_root)
     snapshot_url = resolver_mod.resolve_portable_link(rel_spec, repo_root=str(resolved_root), ref=commit_sha) if resolver_mod else f"{rel_spec}@{commit_sha[:12]}"
     stub = _build_dehydrated_stub(title, _extract_first_summary(body), rel_spec, commit_sha, snapshot_url, living_doc)
     if not dry_run:
@@ -553,18 +1026,44 @@ def _print_hygiene_report(target: Path, report: Dict[str, Any], as_json: bool) -
     if as_json:
         print(json.dumps(report, indent=2))
         return
-    print(f"📋 Repo Hygiene Audit (`{target.name}`): {report['total_findings']} finding(s)")
+    print(f"📋 Repo Hygiene Audit (`{target.name}`): {report['total_findings']} finding(s), {report.get('recommendation_count', 0)} doc recommendation(s)")
     for key, label in (("stray_root_files", "Stray root file"), ("missing_okf_coverage", "OKF gap"), ("protected_dirty_files", "Protected dirty/untracked file")):
         for val in report[key]:
             print(f"  - {label}: `{val}`" if key != "missing_okf_coverage" else f"  - {label}: {val}")
     for spec in report["un_dehydrated_specs"]:
         print(f"  - Bulky spec ({spec['body_lines']} lines): `{spec['file']}`")
+    for stale in report.get("stale_cards", []):
+        print(f"  - Stale card: `{stale['file']}` ({stale['reason']})")
+    for rec in report.get("doc_recommendations", [])[:5]:
+        print(f"  - [{rec['severity']}] Doc gap `{rec['module']}` (status={rec['doc_status']}, callers={rec['inbound_callers']}, undoc_syms={rec['undocumented_symbols']})")
+
+
+def _print_recommend_docs(target: Path, as_json: bool) -> None:
+    """Run module discovery and print ranked documentation recommendations."""
+    modules = discover_modules(target)
+    recs = _filter_doc_recommendations(modules)
+    report = {
+        "repo_root": str(target),
+        "modules_analyzed": len(modules),
+        "recommendation_count": len(recs),
+        "doc_recommendations": recs,
+    }
+    if as_json:
+        print(json.dumps(report, indent=2))
+        return
+    print(f"📚 Documentation Recommendations (`{target.name}`): {len(recs)} of {len(modules)} modules need docs")
+    for rec in recs:
+        print(
+            f"  - [{rec['severity']}] `{rec['module']}` -> `{rec['card_path']}` "
+            f"(score={rec['priority_score']}, status={rec['doc_status']}, callers={rec['inbound_callers']}, undoc_syms={rec['undocumented_symbols']}/{rec['symbol_count']})"
+        )
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Scaffold and audit repo-local `<repo>/docs/` OKF architecture docs.")
     parser.add_argument("--scan", nargs="?", const=".", help="Scan repo and scaffold/update `<repo>/docs/`")
-    parser.add_argument("--audit-hygiene", nargs="?", const=".", help="Audit stray root files, bulky specs, and OKF gaps")
+    parser.add_argument("--audit-hygiene", nargs="?", const=".", help="Audit stray root files, bulky specs, stale cards, and OKF gaps")
+    parser.add_argument("--recommend-docs", nargs="?", const=".", help="Rank undocumented modules by blast radius and symbol doc coverage")
     parser.add_argument("--dehydrate-spec", help="Collapse a shipped PRD/spec file into a commit-linked stub")
     parser.add_argument("--living-doc", help="Optional path to replacement living doc card under `docs/architecture/`")
     parser.add_argument("--repo-root", default=None, help="Explicit repository root path")
@@ -579,6 +1078,10 @@ def main() -> int:
             sys.stderr.write(f"Error: {exc}\n")
             return 2
         print(json.dumps(res, indent=2) if args.json else f"✅ Dehydrated `{res['spec_file']}` ({res['original_lines']} -> {res['stub_lines']} lines, commit `{res['last_full_commit'][:12]}`).")
+        return 0
+    if args.recommend_docs is not None:
+        target = Path(args.repo_root or args.recommend_docs).resolve()
+        _print_recommend_docs(target, args.json)
         return 0
     if args.audit_hygiene is not None:
         target = Path(args.repo_root or args.audit_hygiene).resolve()

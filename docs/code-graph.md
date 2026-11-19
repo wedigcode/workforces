@@ -70,10 +70,10 @@ A machine-readable symbol registry:
 }
 ```
 
-### 2. OKF Knowledge Catalog (`workforces/knowledge-catalog/`)
-Human and AI-readable Open Knowledge Format catalog:
-- **`workforces/knowledge-catalog/index.md`**: Master catalog index referencing domain catalogs and the Code Symbol Index.
-- **`workforces/knowledge-catalog/code/index.md`**: Master table listing all indexed symbols, kinds, languages, and line numbers (`src/services/calculator.ts#L42`).
+### 2. Optional OKF Symbol Catalog (`workforces/knowledge-catalog/`)
+Supplemental symbol catalog for `wf-canvas` and deep API inspection (primary universal architecture cards live in `<repo>/docs/index.md` and `<repo>/docs/architecture/*.md` via [`wf-doc-generator`](../skills/wf-doc-generator/SKILL.md)):
+- **`workforces/knowledge-catalog/index.md`**: Master supplemental catalog index referencing domain catalogs and the Code Symbol Index.
+- **`workforces/knowledge-catalog/code/index.md`**: Master table listing all indexed symbols, kinds, languages, and portable Git/repo links.
 - **`workforces/knowledge-catalog/code/symbols/<symbol_name>.md`**: Individual concept cards per symbol containing metadata frontmatter, signatures, docstrings, and outbound calls.
 
 ---

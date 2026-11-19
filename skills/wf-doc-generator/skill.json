@@ -1,7 +1,7 @@
 {
   "kind": "skill",
   "name": "wf-doc-generator",
-  "description": "Auto-discovers project programming languages (TypeScript, Python, Go, Rust) and executes native documentation generators (TypeDoc, pydoc, go doc, cargo doc) to export structured API references. Reach for this skill when generating or refreshing technical documentation, publishing an Open Knowledge Format (OKF) catalog under `workforces/knowledge-catalog/`, or onboarding to an unfamiliar codebase needing extracted architectural references.",
+  "description": "Generates and maintains living Open Knowledge Format (OKF) architecture documentation under `<repo>/docs/` (`docs/index.md` and `docs/architecture/*.md`), concise source-file boundary docblocks and inline 'why' comments, ranked documentation-gap recommendations, and optional API reference documentation for TypeScript, Python, PHP, Go, Rust, and IaC packages into an Open Knowledge Format catalog (`workforces/knowledge-catalog/code/`). Reach for this skill when scaffolding or enriching repo architecture cards, onboarding to an unfamiliar codebase, documenting high-blast-radius modules for safer refactoring, or dehydrating shipped PRDs.",
   "user_invocable": true,
   "disable_model_invocation": false,
   "hosts": {}

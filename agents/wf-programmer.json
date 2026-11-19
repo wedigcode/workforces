@@ -15,6 +15,7 @@
     "wf-code-graph",
     "wf-post-code-review",
     "wf-codebase-improvement",
+    "wf-doc-generator",
     "wf-agent-parallelization"
   ],
   "background_only": false,

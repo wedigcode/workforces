@@ -1,15 +1,16 @@
 ---
 name: wf-memory-management
-description: Manages persistent skill memory files (one Markdown file per skill under `workforces/memory/`) and navigates structured domain catalogs in Open Knowledge Format (`workforces/knowledge-catalog/`). Reach for this skill when a skill requires persistent state, cached configuration, or timestamps across sessions, or when reading and authoring modular, cross-referenced Markdown knowledge bases about systems and projects.
+description: Navigates primary repository OKF architecture documentation (`<repo>/docs/index.md` and `docs/architecture/*.md`), manages persistent skill memory files (`workforces/memory/<skill-name>.md` with cached IDs, state, and timestamps), and reads/authors modular markdown knowledge catalogs in Open Knowledge Format (`workforces/knowledge-catalog/`). Reach for this skill when reading living system architecture cards before planning or coding, persisting skill state or config timestamps across sessions, or authoring cross-referenced markdown knowledge bases.
 ---
 # Memory Management
 
-Two distinct memory surfaces, two distinct purposes:
+Three memory and knowledge surfaces, each with a clear scope:
 
 | Surface | Path | Who writes it | What it contains |
 |---------|------|--------------|-----------------|
+| **Living Repo Architecture** | `<repo>/docs/index.md` & `docs/architecture/*.md` | `wf-doc-generator`, engineers | Universal OKF architecture cards (`affected_files`, `doc_status`, blast radius, constraints) readable by every AI harness |
 | **Skill memory** | `workforces/memory/<skill-name>.md` | The skill itself | Config, cached IDs, last-sync timestamps |
-| **Knowledge catalog** | `workforces/knowledge-catalog/` | The user / project agents | OKF-formatted knowledge about projects, systems, and resources |
+| **Knowledge catalog** | `workforces/knowledge-catalog/` | The user / project agents | Optional workforce-specific OKF domain playbooks & Canvas symbol exports (`code/`) |
 
 ---
 
@@ -93,9 +94,14 @@ Use **two complementary OKF tiers**:
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `type` | ✅ Yes | Kind of concept (e.g. `API Endpoint`, `Playbook`, `BigQuery Table`, `Metric`). Consumers use this for routing. |
+| `type` | ✅ Yes | Kind of concept (e.g. `OKF Index`, `Architecture Component`, `API Endpoint`, `Playbook`, `Dehydrated Spec Stub`). Consumers use this for routing. |
 | `title` | Recommended | Human-readable name. Falls back to filename if omitted. |
 | `description` | Recommended | One sentence. Used by indexes and search. |
+| `affected_files` | For Architecture Cards | Array of repo-relative file globs covered by the card (checked by `post_code_reviewer.py` and `scaffold_repo_okf.py`). |
+| `doc_status` | For Architecture Cards | `scaffold`, `documented`, or `stale`. |
+| `last_verified_commit` | For Architecture Cards | Full Git SHA at which the card was last verified against code. |
+| `updated_at` | Recommended | `YYYY-MM-DD` date last verified or modified. |
+| `dehydrated` | For Archived Specs | `true` when a shipped PRD/spec has been collapsed into a commit-linked stub. |
 | `resource` | Optional | URI of the underlying asset (DB URL, API base URL, etc.) |
 | `tags` | Optional | Array of strings for filtering |
 | `timestamp` | Optional | ISO 8601 last-modified time |
@@ -109,9 +115,9 @@ Use **two complementary OKF tiers**:
 
 ### System prompt for navigating OKF
 
-When instructing an agent to use the catalog, include:
+When instructing an agent to use project OKF docs, include:
 
-> *"The knowledge catalog at `workforces/knowledge-catalog/` is formatted in Open Knowledge Format (OKF). Start by reading `index.md` to get a directory listing. Parse the YAML frontmatter of each file to check its `type` and `description` before loading the full body. Follow markdown links within files to gather related concepts. Do not load all files at once — navigate progressively using the index."*
+> *"Project architecture docs at `<repo>/docs/` (and optional domain catalogs at `workforces/knowledge-catalog/`) are formatted in Open Knowledge Format (OKF). Start by reading `<repo>/docs/index.md` first (then `workforces/knowledge-catalog/index.md` if present). Check YAML frontmatter (`type`, `doc_status`, `affected_files`, `description`) before loading full bodies, and load only the architecture cards matching the modules you are touching."*
 
 ---
 

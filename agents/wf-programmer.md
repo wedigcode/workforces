@@ -19,6 +19,7 @@ skills:
   - wf-code-graph
   - wf-post-code-review
   - wf-codebase-improvement
+  - wf-doc-generator
   - wf-agent-parallelization
 commandExecutionPolicy: sandbox
 ---

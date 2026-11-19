@@ -38,9 +38,10 @@ python3 .agents/skills/wf-management/scripts/validate-references.py ./ --fix
 
 ## Capabilities
 
-1. **Reference Validation:** Audits all relative and markdown file links to verify target files exist on disk.
-2. **Auto-Fixing:** Creates stub files for ghost references when invoked with `--fix`.
-3. **Pending Subtask Extraction:** Scans tasks (`- [ ]` items) and reports pending dependencies into project tracking logs.
+1. **Reference Validation:** Audits all relative and markdown file links (including `<repo>/docs/` and `workforces/`) to verify target files exist on disk without `file://` or machine-local paths.
+2. **OKF Card Glob Hygiene:** Works alongside `scaffold_repo_okf.py --audit-hygiene ./` to detect stale `affected_files:` globs in `<repo>/docs/architecture/*.md` after files move or get deleted.
+3. **Auto-Fixing:** Creates stub files for ghost references when invoked with `--fix` (skipping uncommitted/ignored files per `wf-file-integrity`).
+4. **Pending Subtask Extraction:** Scans tasks (`- [ ]` items) and reports pending dependencies into project tracking logs.
 
 ---
 

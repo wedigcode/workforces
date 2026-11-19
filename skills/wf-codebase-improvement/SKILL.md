@@ -66,17 +66,17 @@ This skill is invoked autonomously by `@wf-programmer` or coordinators, or direc
 
 ### Protocol A: Codebase Hygiene & Living OKF Knowledge Maintenance
 
-1. **Audit Repo Hygiene & Scaffold Living OKF Docs (`<repo>/docs/`)**:
-   Keep portable architecture docs in `<repo>/docs/` using `wf-doc-generator` (paired optionally with `wf-code-graph` for AST call inspection):
+1. **Audit Repo Hygiene & Living OKF Architecture Docs (`<repo>/docs/`)**:
+   Keep portable architecture docs in `<repo>/docs/` using `wf-doc-generator` (paired with `wf-code-graph` for AST call inspection):
    ```bash
    python3 .agents/skills/wf-doc-generator/scripts/scaffold_repo_okf.py --audit-hygiene ./
    ```
    *(Fallback: `python3 skills/wf-doc-generator/scripts/scaffold_repo_okf.py --audit-hygiene ./`)*
 
 2. **Code Cleanliness Audit**:
-   - **Dead Code & Unused Symbols**: Identify indexed symbols with zero downstream callers across the codebase.
+   - **Dead Code & Unused Symbols**: Identify indexed symbols with zero downstream callers across the codebase — and cross-check `<repo>/docs/architecture/*.md` first so externally triggered handlers, webhooks, or EventSubscribers are never flagged or deleted as dead code.
    - **Workspace Scratch Cleanup**: Sweep `workforces/tmp/` and temporary execution logs older than 7 days (never delete outside `workforces/tmp/` without `git status --porcelain=v1 --ignored=matching` verification and user consent).
-   - **Broken Relative Links**: Scan `workforces/knowledge-catalog/` for references pointing to non-existent files.
+   - **Stale Cards & Broken Relative Links**: Verify `<repo>/docs/**/*.md` (`affected_files:` globs and relative links) and optional `workforces/knowledge-catalog/` references point to existing files.
    - **Git Workspace Hygiene**: Report untracked artifacts or uncommitted scratch files to the user; NEVER delete or `git clean` them autonomously.
 
 3. **Deferred Issue Reporting**:
@@ -100,8 +100,8 @@ This skill is invoked autonomously by `@wf-programmer` or coordinators, or direc
 
    | Check | Status | Details |
    |-------|--------|---------|
+   | **Repo Living OKF Docs** | ✅ Up to date | `<repo>/docs/index.md` & `docs/architecture/*.md` verified |
    | **Code Graph Index** | ✅ Up to date | 32 symbols indexed in `workforces/code-graph.json` |
-   | **OKF Knowledge Catalog** | ✅ Rebuilt | Catalog synced at `workforces/knowledge-catalog/code/index.md` |
    | **Dead Code / Unused Symbols** | ⚠️ 2 found | `unused_helper()` (src/utils.ts:L14) |
    | **Workspace Scratch Clean** | ✅ Clean | 0 stale files removed |
    | **Issues Reported to Inbox** | 📬 2 logged | Reviewed by PM during /wf-sync or task triage |
@@ -111,7 +111,8 @@ This skill is invoked autonomously by `@wf-programmer` or coordinators, or direc
 
 ### Protocol B: Continuous Improvement Across Pillars
 
-1. **Baseline Verification**:
+1. **Baseline & Architecture Verification**:
+   - Read `<repo>/docs/index.md` and matching `docs/architecture/*.md` cards (`affected_files:`) before refactoring so invariants, subscribers, env contracts, and verification commands are known up front.
    - Check if project tests pass (`npm test`, `pytest`, `go test`, `cargo test`, etc.).
    - Index symbols using `python3 .agents/skills/wf-code-graph/scripts/graph_indexer.py --scan ./`.
 
@@ -123,6 +124,6 @@ This skill is invoked autonomously by `@wf-programmer` or coordinators, or direc
    - Apply fixes cleanly following Clean Coder principles (`skills/wf-clean-coder/SKILL.md`).
    - Run tests after each change to guarantee zero regression.
 
-4. **Catalog & Summary**:
-   - Update `workforces/knowledge-catalog/` with updated symbol graphs.
+4. **Living Docs & Summary**:
+   - Update matching `<repo>/docs/architecture/*.md` (`affected_files`, `last_verified_commit`, `## Constraints, Invariants & Gotchas`) and inline boundary docblocks in modified files; refresh `docs/index.md` via `scaffold_repo_okf.py --scan ./` (and optionally rebuild `workforces/knowledge-catalog/` if used).
    - Present a concise summary of improvements made.
