@@ -28,10 +28,18 @@ Dispatches recurring or on-demand background work across Antigravity, Claude Cod
 
 ## Multi-Repo & Sibling-Repo Disambiguation (`--repo`)
 
-`/wf-work` resolves configured repositories from `workforces/config.json`, `workforces/workrules.md` (`tracked_repos`), `workforces/workstate.md`, and `workforces/projects/*.md` (including sibling `../<repo>` clones). It never scans unconfigured directories.
+`/wf-work` resolves configured repositories from `workforces/config.json`, `workforces/workrules.md` (`tracked_repos`), `workforces/workstate.md`, and `workforces/projects/*.md` (including sibling `../<repo>` and sibling-org `../<org>/<repo>` / `../../<org>/<repo>` clones). It never scans unconfigured directories.
 - **Single repository**: Runs directly on that repository.
 - **Multiple repositories configured & `--repo` omitted**: `work_dispatch.py` returns `action: "needs_repo_selection"` with `available_repos` without modifying files. **Ask the user** which repository to target, or whether to run across `all`.
 - **Explicit target**: Pass `--repo <name|slug|path>` for one repository, or `--repo all` to run across all configured/sibling repositories (logging `[<repo>]`-tagged inbox items under the shared inbox cap).
+
+---
+
+## Approval vs. Execution Boundary
+
+Discovery, PM approval, and worker execution are strictly separate phases:
+- **User Approves Inbox Items (Queue Only — Do NOT Execute)**: When a user approves discovered `workforces/issues/inbox/` items in chat (e.g., *"these can be worked on"*, *"approve #1 and #3"*, *"queue these"*), route them **only** through `@wf-project-manager` (Fast Path Inbox Approval) using `report-task.py --promote-issue <issue> --approve --sync-session` to promote them into `workforces/tasks/` with `approved_for_execution: true`, then **STOP**.
+- **Explicit Execution Gate**: Do **not** immediately claim or execute newly promoted tasks in the same turn unless the user runs `/wf-work` *(auto)* or explicitly asks to execute them now (e.g., *"approve and start working on them now"*).
 
 ---
 

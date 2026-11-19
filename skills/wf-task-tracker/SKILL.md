@@ -35,9 +35,10 @@ Agents and Scribe invoke the task tracker automatically via `report-task.py` and
 
 ### Unified Status Lifecycle (`status`)
 
-Tasks use a single 5-state lifecycle matching natural todo workflows:
+Tasks use a 6-state lifecycle matching natural todo and cross-harness review workflows:
 - **`todo`**: Actionable task ready to be worked on (default state upon creation).
 - **`in_progress`**: Actively being worked on or executed.
+- **`review`**: Work submitted (e.g., Draft PR) and awaiting cross-harness code review or human approval.
 - **`blocked`**: Waiting on external dependency, review, or answer.
 - **`done`**: Successfully completed.
 - **`dropped`**: Intentionally abandoned, rejected, or won't fix (with deciding factors logged).
@@ -119,7 +120,59 @@ python3 .agents/skills/wf-task-tracker/scripts/report-task.py --find-similar "se
 python3 .agents/skills/wf-task-tracker/scripts/report-task.py --list --status todo
 ```
 
-### 5. Personal Sync & Follow-Up Aggregator (`/wf-sync --me`)
+### 5. PM Queueing & Inbox Promotion vs. Worker Claiming (`/wf-work`)
+
+PM queuing/approval and worker claiming/execution are strictly separate steps:
+
+#### A. PM Queuing & Approval (`@wf-project-manager`)
+Promote discovered `workforces/issues/inbox/` items into `workforces/tasks/` with `approved_for_execution: true` (and stop without executing):
+
+```bash
+# Promote an inbox issue and approve it for the /wf-work worker queue:
+python3 .agents/skills/wf-task-tracker/scripts/report-task.py \
+    --promote-issue "workforces/issues/inbox/20261114-document-module-billing.md" \
+    --approve \
+    --cadence one_shot \
+    --session-file "workforces/session-context/026_2026-08-23_pilot-strategy.md" \
+    --sync-session
+
+# Approve or unapprove an existing task in-place:
+python3 .agents/skills/wf-task-tracker/scripts/report-task.py \
+    --update "document-module-billing" \
+    --approve \
+    --cadence rolling_slice \
+    --sync-session
+```
+- `--promote-issue <path|slug>`: Moves the inbox issue to `workforces/issues/triaged/`, creates the task in `workforces/tasks/` (preserving `repo`, `file`, `session_id`, `session_file`, `source_issue`), and syncs `workforces/workstate.md` and `session_file` (`tracked_tasks`).
+- `--approve` / `--unapprove`: Sets `approved_for_execution: true` or `false` for the `/wf-work` queue.
+- `--cadence one_shot|rolling_slice`: Marks single-pass tasks vs. 1-bite-per-day rolling refactors (tracked via `last_slice_date`).
+
+#### B. Worker Claiming & Cross-Harness Review (`/wf-work` workers)
+Workers claim queued items atomically under `workforces/tasks/.claim.lock` and hand off Draft PRs for cross-harness review:
+
+```bash
+# Atomically claim highest-priority review (P0) or approved task (P1):
+python3 .agents/skills/wf-task-tracker/scripts/report-task.py \
+    --claim-next --mode auto --harness antigravity --agent "@wf-programmer" --ttl-minutes 90 --json
+
+# Reclaim expired claim leases back to the queue:
+python3 .agents/skills/wf-task-tracker/scripts/report-task.py --reclaim-stale
+
+# Author hands off completed Draft PR for cross-harness review:
+python3 .agents/skills/wf-task-tracker/scripts/report-task.py \
+    --update "<task_path>" --request-review --pr "<pr_url>"
+
+# Reviewer on a different harness records verdict (approved | changes_requested):
+python3 .agents/skills/wf-task-tracker/scripts/report-task.py \
+    --update "<task_path>" --complete-review approved --review-notes "Verified tests and docs."
+
+# Complete one daily slice on a rolling_slice task without closing it:
+python3 .agents/skills/wf-task-tracker/scripts/report-task.py \
+    --update "<task_path>" --complete-slice
+```
+*(Pass `--allow-same-harness` only when explicitly overriding cross-harness review enforcement.)*
+
+### 6. Personal Sync & Follow-Up Aggregator (`/wf-sync --me`)
 
 Aggregate your in-flight tasks, git workspace, session context, and GitHub reviews/issues in a single command:
 
@@ -153,6 +206,13 @@ recommended_tools: []
 delegated_to: ~
 github_labels: []
 github_issue: ~
+github_pr: ~
+approved_for_execution: true
+cadence: "one_shot"
+repo: "acme/web-app"
+source_issue: "workforces/issues/triaged/20260823-110000-security-questionnaire.md"
+authored_by_harness: ~
+review_state: "none"
 ---
 
 # Follow up with enterprise pilot lead regarding security questionnaire

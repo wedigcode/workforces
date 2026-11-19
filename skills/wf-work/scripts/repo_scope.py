@@ -227,6 +227,49 @@ def _normalize_slug(raw: str) -> str:
     return ""
 
 
+def _match_child_ci(parent: Path, target_name: str, require_git: bool = False) -> Optional[Path]:
+    """Find a direct child directory of `parent` matching `target_name` case-insensitively."""
+    try:
+        entries = sorted(parent.iterdir())
+    except OSError:
+        return None
+    target_low = target_name.lower()
+    for child in entries:
+        if not child.is_dir() or child.name.lower() != target_low:
+            continue
+        if require_git and not (child / ".git").exists():
+            continue
+        return child.resolve()
+    return None
+
+
+def _find_sibling_org_repo(workspace_root: Path, owner: str, repo_name: str) -> Optional[Path]:
+    """Locate configured `<owner>/<repo>` under workspace, parent, or sibling-org grandparent dirs."""
+    grandparent = workspace_root.parent.parent
+    exact_candidates = [
+        workspace_root / owner / repo_name,
+        workspace_root / "projects" / owner / repo_name,
+        workspace_root.parent / owner / repo_name,
+    ]
+    if grandparent != workspace_root.parent:
+        exact_candidates.append(grandparent / owner / repo_name)
+    for cand in exact_candidates:
+        if cand.is_dir():
+            return cand.resolve()
+
+    org_parents = [workspace_root.parent]
+    if grandparent != workspace_root.parent:
+        org_parents.append(grandparent)
+    for org_parent in org_parents:
+        org_dir = _match_child_ci(org_parent, owner)
+        if org_dir is None:
+            continue
+        sib = _match_child_ci(org_dir, repo_name, require_git=True)
+        if sib is not None:
+            return sib
+    return None
+
+
 def _resolve_entry_dir(workspace_root: Path, entry: Dict[str, str], root_slug: str) -> Tuple[Optional[Path], str, str]:
     """Resolve one configured entry to `(existing_dir, slug, display_name)` or `(None, '', '')`."""
     raw = entry.get("raw", "").strip()
@@ -241,9 +284,11 @@ def _resolve_entry_dir(workspace_root: Path, entry: Dict[str, str], root_slug: s
         p = Path(path_hint)
         cand = p.resolve() if p.is_absolute() else (workspace_root / p).resolve()
         if not cand.is_dir() and not p.is_absolute():
-            sib = (workspace_root.parent / p).resolve()
-            if sib.is_dir():
-                cand = sib
+            for base in (workspace_root.parent, workspace_root.parent.parent):
+                sib = (base / p).resolve()
+                if sib.is_dir():
+                    cand = sib
+                    break
         if cand.is_dir():
             resolved_slug = slug or _git_remote_slug(cand)
             return cand, resolved_slug, explicit_name or cand.name
@@ -252,7 +297,7 @@ def _resolve_entry_dir(workspace_root: Path, entry: Dict[str, str], root_slug: s
     if not slug:
         return None, "", ""
 
-    repo_name = slug.split("/")[-1]
+    owner, repo_name = slug.split("/", 1)
     if root_slug.lower() == slug.lower() or workspace_root.name.lower() == repo_name.lower():
         return workspace_root.resolve(), slug, explicit_name or workspace_root.name
 
@@ -264,10 +309,13 @@ def _resolve_entry_dir(workspace_root: Path, entry: Dict[str, str], root_slug: s
         if cand.is_dir():
             return cand.resolve(), slug, explicit_name or cand.name
 
-    if workspace_root.parent.is_dir():
-        for sibling in sorted(workspace_root.parent.iterdir()):
-            if sibling.is_dir() and sibling.name.lower() == repo_name.lower() and (sibling / ".git").exists():
-                return sibling.resolve(), slug, explicit_name or sibling.name
+    sib = _match_child_ci(workspace_root.parent, repo_name, require_git=True)
+    if sib is not None:
+        return sib, slug, explicit_name or sib.name
+
+    org_match = _find_sibling_org_repo(workspace_root, owner, repo_name)
+    if org_match is not None:
+        return org_match, slug, explicit_name or org_match.name
     return None, "", ""
 
 
@@ -310,6 +358,7 @@ def _match_single_repo(candidates: List[Dict[str, Any]], workspace_root: Path, r
     cand_paths = {
         Path(needle).resolve() if Path(needle).is_absolute() else (workspace_root / needle).resolve(),
         (workspace_root.parent / needle).resolve(),
+        (workspace_root.parent.parent / needle).resolve(),
     }
     for item in candidates:
         item_path = Path(item["path"]).resolve()
