@@ -219,8 +219,8 @@ class TestDeploySafetyHook(unittest.TestCase):
         profiles = ca.load_host_profiles(str(REPO_ROOT))
         prog_meta = json.loads((REPO_ROOT / "plugins" / "wf-programming-plugin" / "plugin.json").read_text(encoding="utf-8"))
 
-        agy_cmd = ca.compile_plugin_hooks_for_host(prog_meta, profiles["antigravity"])["PreToolUse"][1]["hooks"][0]["command"]
-        claude_cmd = ca.compile_plugin_hooks_for_host(prog_meta, profiles["claude"])["PreToolUse"][1]["hooks"][0]["command"]
+        agy_cmd = ca.compile_plugin_hooks_for_host(prog_meta, profiles["antigravity"])["PreToolUse"][0]["hooks"][0]["command"]
+        claude_cmd = ca.compile_plugin_hooks_for_host(prog_meta, profiles["claude"])["PreToolUse"][0]["hooks"][0]["command"]
 
         res_agy = subprocess.run(["/bin/sh", "-c", agy_cmd], input='{"toolCall":{"args":{"CommandLine":"git status"}}}', cwd=self.tmp, capture_output=True, text=True, check=True)
         self.assertEqual(json.loads(res_agy.stdout).get("decision"), "force_ask")
@@ -374,10 +374,22 @@ class TestScaffoldRepoOkf(unittest.TestCase):
         )
         web_dir = self.tmp / "apps" / "web"
         web_dir.mkdir(parents=True, exist_ok=True)
-        (web_dir / "checkout.ts").write_text("export function pay() { return calculate_tax(100); }\n", encoding="utf-8")
+        (web_dir / "checkout.ts").write_text(
+            "import { calculate_tax } from '../billing/invoice';\nexport function pay() { return calculate_tax(100); }\n",
+            encoding="utf-8",
+        )
         api_dir = self.tmp / "src" / "api"
         api_dir.mkdir(parents=True, exist_ok=True)
-        (api_dir / "routes.py").write_text("def handle():\n    return calculate_tax(50)\n", encoding="utf-8")
+        (api_dir / "routes.py").write_text(
+            "from apps.billing.invoice import calculate_tax\n\ndef handle():\n    return calculate_tax(50)\n",
+            encoding="utf-8",
+        )
+        unrelated_dir = self.tmp / "apps" / "unrelated"
+        unrelated_dir.mkdir(parents=True, exist_ok=True)
+        (unrelated_dir / "util.py").write_text(
+            "def calculate_tax():\n    return 0\n\ndef run():\n    return calculate_tax()\n",
+            encoding="utf-8",
+        )
         (self.tmp / "tests").mkdir(parents=True, exist_ok=True)
         (self.tmp / "tests" / "test_billing.py").write_text("def test_tax(): pass\n", encoding="utf-8")
 
@@ -388,7 +400,10 @@ class TestScaffoldRepoOkf(unittest.TestCase):
         ).stdout.strip()
 
         for i in range(6):
-            (api_dir / "routes.py").write_text(f"def handle():\n    return calculate_tax({51 + i})\n", encoding="utf-8")
+            (api_dir / "routes.py").write_text(
+                f"from apps.billing.invoice import calculate_tax\n\ndef handle():\n    return calculate_tax({51 + i})\n",
+                encoding="utf-8",
+            )
             subprocess.run(["git", "add", "."], cwd=self.tmp, check=True, capture_output=True)
             subprocess.run(["git", "commit", "-m", f"api change {i}"], cwd=self.tmp, check=True, capture_output=True)
 
@@ -419,6 +434,7 @@ class TestScaffoldRepoOkf(unittest.TestCase):
         billing_rec = next(r for r in recs if r["module"] == "apps/billing")
         web_rec = next(r for r in recs if r["module"] == "apps/web")
         self.assertGreaterEqual(billing_rec["inbound_callers"], 2)
+        self.assertNotIn("apps/unrelated/util.py", billing_rec["caller_files"])
         self.assertGreater(billing_rec["priority_score"], web_rec["priority_score"])
         self.assertIn("BILLING_WEBHOOK_KEY", billing_rec["env_vars"])
         self.assertIn("tests/test_billing.py", billing_rec["test_files"])
@@ -436,6 +452,61 @@ class TestScaffoldRepoOkf(unittest.TestCase):
         )
         cli_payload = json.loads(cli_res.stdout)
         self.assertEqual(cli_payload["doc_recommendations"][0]["module"], "apps/billing")
+
+    def test_file_impact_direct_importers_okf_cards_and_git_cochanges(self):
+        billing_dir = self.tmp / "apps" / "billing"
+        billing_dir.mkdir(parents=True, exist_ok=True)
+        (self.tmp / "src" / "api").mkdir(parents=True, exist_ok=True)
+        (self.tmp / "apps" / "unrelated").mkdir(parents=True, exist_ok=True)
+        (self.tmp / "tests").mkdir(parents=True, exist_ok=True)
+        (self.tmp / "docs" / "architecture").mkdir(parents=True, exist_ok=True)
+
+        (self.tmp / "docs" / "architecture" / "billing.md").write_text(
+            '---\ntype: Architecture Component\ntitle: "Billing"\ndescription: "Tax logic."\n'
+            'doc_status: "documented"\naffected_files:\n  - "apps/billing/**/*"\n---\n# Billing\n',
+            encoding="utf-8",
+        )
+        (self.tmp / "src" / "api" / "routes.py").write_text(
+            "from apps.billing.invoice import calculate_tax\n\ndef route():\n    return calculate_tax(10)\n",
+            encoding="utf-8",
+        )
+        (self.tmp / "apps" / "unrelated" / "noise.py").write_text(
+            "def calculate_tax():\n    return 0\n",
+            encoding="utf-8",
+        )
+
+        for i in range(2):
+            (billing_dir / "invoice.py").write_text(
+                f"import os\nKEY = os.getenv('BILLING_WEBHOOK_KEY')\n\ndef calculate_tax(amount):\n    return amount * 0.{i + 1}\n",
+                encoding="utf-8",
+            )
+            (self.tmp / "template.yaml").write_text(f"Description: v{i}\n", encoding="utf-8")
+            (self.tmp / "tests" / "test_billing.py").write_text(f"def test_tax_{i}(): pass\n", encoding="utf-8")
+            subprocess.run(["git", "add", "."], cwd=self.tmp, check=True, capture_output=True)
+            subprocess.run(["git", "commit", "-m", f"paired billing change {i}"], cwd=self.tmp, check=True, capture_output=True)
+
+        impact = scaffold_repo_okf.analyze_file_impact(self.tmp, "apps/billing/invoice.py")
+        self.assertEqual(impact["target_file"], "apps/billing/invoice.py")
+        self.assertTrue(any(c["file"] == "docs/architecture/billing.md" for c in impact["matching_okf_cards"]))
+        self.assertIn("src/api/routes.py", impact["direct_importers"])
+        self.assertNotIn("apps/unrelated/noise.py", impact["direct_importers"])
+        self.assertTrue(any(item["file"] == "template.yaml" for item in impact["git_co_changed_files"]))
+        self.assertIn("tests/test_billing.py", impact["matching_tests"])
+        self.assertIn("BILLING_WEBHOOK_KEY", impact["env_vars"])
+
+        cli_res = subprocess.run(
+            [
+                sys.executable,
+                str(REPO_ROOT / "skills" / "wf-doc-generator" / "scripts" / "scaffold_repo_okf.py"),
+                "--impact", "apps/billing/invoice.py",
+                "--repo-root", str(self.tmp),
+                "--json",
+            ],
+            capture_output=True, text=True, check=True,
+        )
+        cli_impact = json.loads(cli_res.stdout)
+        self.assertIn("src/api/routes.py", cli_impact["direct_importers"])
+        self.assertTrue(any(item["file"] == "template.yaml" for item in cli_impact["git_co_changed_files"]))
 
 
 class TestWfWorkMultiHarnessAndBudgetGate(unittest.TestCase):
@@ -753,6 +824,31 @@ class TestRepositoryCleanHygiene(unittest.TestCase):
                         user_link_re.search(text),
                         f"Non-portable local link found in {p.relative_to(REPO_ROOT)}",
                     )
+
+    def test_wf_code_graph_deprecated_for_ai_and_decoupled(self):
+        """Ensure wf-code-graph is UI-only (disable_model_invocation=True) and decoupled from AI agents/skills/hooks."""
+        cg_meta = json.loads((REPO_ROOT / "skills" / "wf-code-graph" / "skill.json").read_text(encoding="utf-8"))
+        self.assertTrue(cg_meta.get("disable_model_invocation"))
+
+        decoupled_files = [
+            "agents/wf-researcher.md",
+            "agents/wf-programmer.md",
+            "agents/wf-programmer.json",
+            "teams/dev/pack.json",
+            "plugins/wf-programming-plugin/plugin.json",
+            "plugins/wf-programming-plugin/hooks.json",
+            "skills/wf-doc-generator/scripts/scaffold_repo_okf.py",
+            "skills/wf-plan/SKILL.md",
+            "skills/wf-feature-research/SKILL.md",
+            "skills/wf-codebase-improvement/SKILL.md",
+            "skills/wf-work/SKILL.md",
+            "skills/wf-work/scripts/work_dispatch.py",
+        ]
+        banned = ("wf-code-graph", "pre_impact_analyzer", "graph_indexer", "pre_tool_hook")
+        for rel in decoupled_files:
+            content = (REPO_ROOT / rel).read_text(encoding="utf-8")
+            for tok in banned:
+                self.assertNotIn(tok, content, f"Deprecated token `{tok}` still referenced in {rel}")
 
 
 if __name__ == "__main__":

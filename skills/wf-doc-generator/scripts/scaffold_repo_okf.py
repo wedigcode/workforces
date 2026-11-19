@@ -19,6 +19,7 @@ Subcommands / Modes:
 from __future__ import annotations
 
 import argparse
+import ast
 import datetime
 import importlib.util
 import json
@@ -127,11 +128,6 @@ def _load_sibling_module(skill_name: str, script_name: str, mod_alias: str, repo
 def _load_git_link_resolver(repo_root: Optional[Path] = None):
     """Load `git_link_resolver.py` from sibling `wf-management` skill."""
     return _load_sibling_module("wf-management", "git_link_resolver.py", "wf_git_link_resolver", repo_root=repo_root)
-
-
-def _load_graph_indexer(repo_root: Optional[Path] = None):
-    """Load `graph_indexer.py` from sibling `wf-code-graph` skill if installed."""
-    return _load_sibling_module("wf-code-graph", "graph_indexer.py", "wf_graph_indexer", repo_root=repo_root)
 
 
 def _run_git(repo_root: Path, args: List[str]) -> Optional[str]:
@@ -434,34 +430,324 @@ def _has_inline_docblock(lines: List[str], sym: Dict[str, Any]) -> bool:
     return any(ln.startswith(("/**", "/*", "*/", "*", "///", "//", "#")) for ln in preceding[-3:])
 
 
-def _scan_symbols_once(repo_root: Path) -> Tuple[List[Dict[str, Any]], Dict[str, List[Dict[str, Any]]]]:
-    """Run in-memory `SymbolIndexer` scan once and index symbols by repo-relative file path."""
-    gi_mod = _load_graph_indexer(repo_root=repo_root)
-    if gi_mod is None or not hasattr(gi_mod, "SymbolIndexer"):
-        return [], {}
+_SYMBOL_PATTERNS: Tuple[Tuple[str, str], ...] = (
+    (r"^\s*(?:(?:public|private|protected|static|final|abstract)\s+)*function\s+([a-zA-Z0-9_]+)\s*\(", "method"),
+    (r"^\s*(?:export\s+)?(?:async\s+)?function\s+([a-zA-Z0-9_]+)\s*\(", "function"),
+    (r"^\s*(?:export\s+)?const\s+([a-zA-Z0-9_]+)\s*=\s*(?:async\s*)?\([^)]*\)\s*=>", "function"),
+    (r"^\s*(?:public|private|protected|async|static|\s)*\s+([a-zA-Z0-9_]+)\s*\([^)]*\)\s*(?::|\{)", "method"),
+    (r"^\s*func\s+(?:\([^)]+\)\s+)?([a-zA-Z0-9_]+)\s*\(", "function"),
+    (r"^\s*(?:pub\s+)?(?:async\s+)?fn\s+([a-zA-Z0-9_]+)\s*\(", "function"),
+    (r"^\s*(?:public|private|protected|static|async|override|\s)+\s+[\w<>]+\s+([a-zA-Z0-9_]+)\s*\(", "method"),
+    (r"^\s*(?:export\s+)?(?:default\s+)?(?:abstract\s+|final\s+)?(?:class|interface|struct)\s+([a-zA-Z0-9_]+)", "class"),
+)
+_CALL_STOP_KEYWORDS: FrozenSet[str] = frozenset({
+    "if", "for", "while", "switch", "catch", "return", "function", "func", "fn", "class", "new", "typeof", "constructor",
+})
+_RESOLVE_EXTS: Tuple[str, ...] = (".py", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".php", ".go", ".rs")
+_RESOLVE_INDEX_TAILS: Tuple[str, ...] = ("/__init__.py", "/index.ts", "/index.tsx", "/index.js", "/mod.rs")
+_JS_IMPORT_RE = re.compile(
+    r"""(?:import|export)\s+(?:[^'"]*?\s+from\s+)?['"]([^'"]+)['"]|(?:require|import)\s*\(\s*['"]([^'"]+)['"]\s*\)"""
+)
+_PHP_USE_RE = re.compile(r"^\s*use\s+([A-Za-z0-9_\\]+)\s*(?:as\s+\w+)?;", re.MULTILINE)
+_PHP_REQ_RE = re.compile(r"""(?:require|include)(?:_once)?\s*\(?\s*['"]([^'"]+)['"]\s*\)?""")
+_GO_IMPORT_RE = re.compile(r'^\s*(?:import\s+)?(?:[a-zA-Z0-9_.]+\s+)?"([^"\s]+)"', re.MULTILINE)
+_RUST_USE_RE = re.compile(r"^\s*(?:pub\s+)?use\s+(?:crate|super|self)::([A-Za-z0-9_:]+)", re.MULTILINE)
+_RUST_MOD_RE = re.compile(r"^\s*(?:pub\s+)?mod\s+([A-Za-z0-9_]+)\s*;", re.MULTILINE)
+
+
+def _parse_python_symbols(content: str, rel_path: str) -> List[Dict[str, Any]]:
+    """Parse Python classes and functions in memory using stdlib `ast`."""
     try:
-        symbols = gi_mod.SymbolIndexer(str(repo_root)).scan()
-    except Exception:
-        return [], {}
+        tree = ast.parse(content)
+    except SyntaxError:
+        return _parse_regex_symbols(content.splitlines(), rel_path)
+    out: List[Dict[str, Any]] = []
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            out.append({
+                "name": node.name, "kind": "function", "file": rel_path,
+                "line": node.lineno, "docstring": (ast.get_docstring(node) or "").strip(),
+            })
+        elif isinstance(node, ast.ClassDef):
+            out.append({
+                "name": node.name, "kind": "class", "file": rel_path,
+                "line": node.lineno, "docstring": (ast.get_docstring(node) or "").strip(),
+            })
+    return out
+
+
+def _parse_regex_symbols(lines: List[str], rel_path: str) -> List[Dict[str, Any]]:
+    """Parse classes, functions, and methods from non-Python source lines."""
+    out: List[Dict[str, Any]] = []
+    for idx, line in enumerate(lines, 1):
+        for pat, kind in _SYMBOL_PATTERNS:
+            match = re.search(pat, line)
+            if not match:
+                continue
+            name = match.group(1)
+            if name in _CALL_STOP_KEYWORDS:
+                continue
+            out.append({"name": name, "kind": kind, "file": rel_path, "line": idx, "docstring": ""})
+            break
+    return out
+
+
+def _scan_symbols_once(
+    repo_root: Path,
+    code_files: List[str],
+    lines_cache: Dict[str, List[str]],
+) -> Dict[str, List[Dict[str, Any]]]:
+    """Parse `code_files` in memory for docblock coverage and symbol inventories."""
     by_file: Dict[str, List[Dict[str, Any]]] = {}
-    for sym in symbols:
-        f_rel = str(sym.get("file") or "").replace("\\", "/")
-        if f_rel:
-            sym["file"] = f_rel
-            by_file.setdefault(f_rel, []).append(sym)
-    return symbols, by_file
+    for rel in code_files:
+        lines = _read_lines_cached(repo_root, rel, lines_cache)
+        syms = _parse_python_symbols("\n".join(lines), rel) if rel.endswith(".py") else _parse_regex_symbols(lines, rel)
+        if syms:
+            by_file[rel] = syms
+    return by_file
 
 
-def _compute_symbol_metrics(
+def _extract_dynamic_loader_spec(call_node: ast.Call) -> Optional[str]:
+    """Extract repo-relative script path from `_load_sibling_*` or `_load_module` calls."""
+    if not isinstance(call_node.func, ast.Name):
+        return None
+    fn = call_node.func.id
+    if fn in ("_load_sibling_script", "_load_sibling_module") and len(call_node.args) >= 2:
+        a0, a1 = call_node.args[0], call_node.args[1]
+        if isinstance(a0, ast.Constant) and isinstance(a1, ast.Constant):
+            if isinstance(a0.value, str) and isinstance(a1.value, str):
+                return f"skills/{a0.value}/scripts/{a1.value}"
+    if fn == "_load_module" and len(call_node.args) >= 2:
+        a1 = call_node.args[1]
+        if isinstance(a1, ast.Constant) and isinstance(a1.value, str) and "/" in a1.value:
+            return a1.value
+    return None
+
+
+def _extract_python_imports(content: str) -> List[str]:
+    """Extract module import specifiers and dynamic sibling script references from Python AST."""
+    try:
+        tree = ast.parse(content)
+    except SyntaxError:
+        return []
+    specs: List[str] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            specs.extend(alias.name for alias in node.names if alias.name)
+        elif isinstance(node, ast.ImportFrom):
+            prefix = "." * node.level
+            base = f"{prefix}{node.module}" if node.module else prefix
+            if base:
+                specs.append(base)
+            for alias in node.names:
+                if alias.name and alias.name != "*":
+                    specs.append(f"{base}{'.' if node.module else ''}{alias.name}")
+        elif isinstance(node, ast.Call):
+            dyn = _extract_dynamic_loader_spec(node)
+            if dyn:
+                specs.append(dyn)
+    return specs
+
+
+def _extract_raw_imports(rel: str, lines: List[str]) -> List[str]:
+    """Extract raw import/use/require specifiers for supported languages."""
+    ext = Path(rel).suffix.lower()
+    text = "\n".join(lines)
+    if ext == ".py":
+        return _extract_python_imports(text)
+    if ext in (".ts", ".tsx", ".js", ".jsx", ".mjs"):
+        return [m.group(1) or m.group(2) for m in _JS_IMPORT_RE.finditer(text) if (m.group(1) or m.group(2))]
+    if ext == ".php":
+        uses = [m.group(1).lstrip("\\").replace("\\", "/") for m in _PHP_USE_RE.finditer(text)]
+        reqs = [m.group(1) for m in _PHP_REQ_RE.finditer(text)]
+        return uses + reqs
+    if ext == ".go":
+        return [m.group(1) for m in _GO_IMPORT_RE.finditer(text) if "/" in m.group(1)]
+    if ext == ".rs":
+        uses = [f"./{m.group(1).replace('::', '/')}" for m in _RUST_USE_RE.finditer(text)]
+        mods = [f"./{m.group(1)}" for m in _RUST_MOD_RE.finditer(text)]
+        return uses + mods
+    return []
+
+
+def _build_target_lookup(code_files: List[str]) -> Tuple[Set[str], Dict[str, Set[str]], Dict[str, Set[str]]]:
+    """Build exact-path, stem, and multi-segment suffix indexes for import resolution."""
+    code_set = set(code_files)
+    noext_index: Dict[str, Set[str]] = {}
+    suffix_index: Dict[str, Set[str]] = {}
+    for rel in code_files:
+        p = Path(rel)
+        noext = p.with_suffix("").as_posix()
+        noext_index.setdefault(noext, set()).add(rel)
+        noext_index.setdefault(noext.lower(), set()).add(rel)
+        if p.name in ("__init__.py", "index.ts", "index.tsx", "index.js", "mod.rs"):
+            parent = p.parent.as_posix()
+            noext_index.setdefault(parent, set()).add(rel)
+            noext_index.setdefault(parent.lower(), set()).add(rel)
+        elif p.suffix == ".go":
+            parent = p.parent.as_posix()
+            noext_index.setdefault(parent, set()).add(rel)
+        parts = noext.lower().split("/")
+        for start in range(len(parts) - 1):
+            tail = "/".join(parts[start:])
+            suffix_index.setdefault(tail, set()).add(rel)
+    return code_set, noext_index, suffix_index
+
+
+def _resolve_relative_spec(
+    importer_rel: str, spec: str, code_set: Set[str], noext_index: Dict[str, Set[str]]
+) -> Set[str]:
+    """Resolve `./`, `../`, or Python leading-dot relative import specifiers."""
+    parent = Path(importer_rel).parent
+    if spec.startswith((".", "/")) and not spec.startswith(("./", "../", "/")):
+        dots = len(spec) - len(spec.lstrip("."))
+        tail = spec[dots:].replace(".", "/")
+        base_dir = parent
+        for _ in range(max(0, dots - 1)):
+            base_dir = base_dir.parent
+        candidate = (base_dir / tail) if tail else base_dir
+    else:
+        clean = spec.lstrip("/")
+        base = clean[:-3] if clean.endswith(".js") and not (parent / clean).as_posix() in code_set else clean
+        candidate = Path(base) if spec.startswith("/") else (parent / base)
+
+    norm = Path(os.path.normpath(candidate.as_posix())).as_posix().lstrip("./")
+    if norm in code_set:
+        return {norm}
+    hits: Set[str] = set(noext_index.get(norm, set()))
+    for ext in _RESOLVE_EXTS:
+        if f"{norm}{ext}" in code_set:
+            hits.add(f"{norm}{ext}")
+    for idx_tail in _RESOLVE_INDEX_TAILS:
+        if f"{norm}{idx_tail}" in code_set:
+            hits.add(f"{norm}{idx_tail}")
+    return hits
+
+
+def _resolve_import_targets(
+    importer_rel: str,
+    spec: str,
+    code_set: Set[str],
+    noext_index: Dict[str, Set[str]],
+    suffix_index: Dict[str, Set[str]],
+) -> Set[str]:
+    """Resolve one raw import/use/require specifier to concrete repo code files."""
+    clean = spec.strip()
+    if not clean:
+        return set()
+    if clean.startswith((".", "/")):
+        return _resolve_relative_spec(importer_rel, clean, code_set, noext_index)
+    norm = clean.replace(".", "/") if "/" not in clean and "\\" not in clean else clean.replace("\\", "/")
+    norm = norm.lstrip("@/").strip("/")
+    if norm in code_set:
+        return {norm}
+    if norm in noext_index:
+        return set(noext_index[norm])
+    low = norm.lower()
+    if low in noext_index:
+        return set(noext_index[low])
+    if "/" in low and low in suffix_index:
+        return set(suffix_index[low])
+    parts = [p for p in low.split("/") if p]
+    for start in range(1, max(1, len(parts) - 1)):
+        tail = "/".join(parts[start:])
+        if tail in suffix_index:
+            return set(suffix_index[tail])
+    return set()
+
+
+def _build_import_graph(
+    repo_root: Path,
+    code_files: List[str],
+    test_files: List[str],
+    lines_cache: Dict[str, List[str]],
+) -> Tuple[Dict[str, Set[str]], Dict[str, Set[str]]]:
+    """Build `(importers_by_file, test_importers_by_file)` from real import/use/require statements."""
+    code_set, noext_index, suffix_index = _build_target_lookup(code_files)
+    importers_by_file: Dict[str, Set[str]] = {}
+    test_importers_by_file: Dict[str, Set[str]] = {}
+    for importer_rel, is_test in [(f, False) for f in code_files] + [(f, True) for f in test_files]:
+        lines = _read_lines_cached(repo_root, importer_rel, lines_cache)
+        bucket = test_importers_by_file if is_test else importers_by_file
+        for spec in _extract_raw_imports(importer_rel, lines):
+            for target in _resolve_import_targets(importer_rel, spec, code_set, noext_index, suffix_index):
+                if target != importer_rel:
+                    bucket.setdefault(target, set()).add(importer_rel)
+    return importers_by_file, test_importers_by_file
+
+
+def _clean_commit_files(block: str) -> List[str]:
+    """Extract sorted, non-ignored repo-relative file paths from a git log commit block."""
+    files: Set[str] = set()
+    for line in block.splitlines():
+        rel = line.strip().replace("\\", "/")
+        if not rel or any(part in IGNORE_DIRS for part in Path(rel).parts):
+            continue
+        files.add(rel)
+    return sorted(files)
+
+
+def _build_git_cochanges(
+    repo_root: Path, in_git: bool, max_commits: int = 200
+) -> Tuple[Dict[str, Dict[str, int]], int]:
+    """Build pairwise file co-change counts across recent non-merge Git commits."""
+    if not in_git:
+        return {}, 0
+    raw = _run_git(
+        repo_root,
+        ["log", "--name-only", "--pretty=format:---COMMIT---", f"-n{max_commits}", "--no-merges"],
+    )
+    if not raw:
+        return {}, 0
+    counts: Dict[str, Dict[str, int]] = {}
+    valid_commits = 0
+    for block in raw.split("---COMMIT---"):
+        files = _clean_commit_files(block)
+        if len(files) < 2 or len(files) > 25:
+            continue
+        valid_commits += 1
+        for src in files:
+            peer_map = counts.setdefault(src, {})
+            for dst in files:
+                if dst != src:
+                    peer_map[dst] = peer_map.get(dst, 0) + 1
+    return counts, valid_commits
+
+
+def _top_cochanged_for_files(
+    target_files: Set[str],
+    cochanges: Dict[str, Dict[str, int]],
+    commit_count: int,
+    existing_files: Optional[Set[str]] = None,
+    limit: int = 5,
+) -> List[Dict[str, Any]]:
+    """Return top co-changed files outside `target_files` ordered by co-change frequency."""
+    agg: Dict[str, int] = {}
+    for tf in target_files:
+        for peer, count in cochanges.get(tf, {}).items():
+            if peer in target_files:
+                continue
+            if existing_files is not None and peer not in existing_files:
+                continue
+            agg[peer] = agg.get(peer, 0) + count
+    min_threshold = 2 if commit_count >= 10 else 1
+    ranked = [
+        {"file": f, "cochanges": c}
+        for f, c in sorted(agg.items(), key=lambda kv: (-kv[1], kv[0]))
+        if c >= min_threshold
+    ]
+    return ranked[:limit]
+
+
+def _compute_module_metrics(
     repo_root: Path,
     mod_files: List[str],
-    all_symbols: List[Dict[str, Any]],
     symbols_by_file: Dict[str, List[Dict[str, Any]]],
+    importers_by_file: Dict[str, Set[str]],
     lines_cache: Dict[str, List[str]],
 ) -> Dict[str, Any]:
-    """Compute public docblock coverage and cross-module inbound caller blast radius."""
+    """Compute public docblock coverage and cross-module direct import fan-in."""
     mod_file_set = set(mod_files)
-    all_defined: Set[str] = set()
     public_syms: List[Dict[str, Any]] = []
     undoc_names: List[str] = []
     documented_count = 0
@@ -470,10 +756,7 @@ def _compute_symbol_metrics(
         file_lines = _read_lines_cached(repo_root, rel, lines_cache)
         for sym in symbols_by_file.get(rel, []):
             name = str(sym.get("name") or "")
-            if not name:
-                continue
-            all_defined.add(name)
-            if name.startswith("_") and sym.get("kind") != "class":
+            if not name or (name.startswith("_") and sym.get("kind") != "class"):
                 continue
             public_syms.append(sym)
             if _has_inline_docblock(file_lines, sym):
@@ -481,33 +764,36 @@ def _compute_symbol_metrics(
             elif name not in undoc_names and len(undoc_names) < 8:
                 undoc_names.append(name)
 
-    caller_files: Set[str] = set()
-    if all_defined:
-        for sym in all_symbols:
-            cfile = sym.get("file", "")
-            if not cfile or cfile in mod_file_set or _is_test_relpath(cfile):
-                continue
-            if any(c in all_defined for c in sym.get("calls", [])):
-                caller_files.add(cfile)
+    direct_importers: Set[str] = set()
+    for rel in mod_files:
+        for imp in importers_by_file.get(rel, set()):
+            if imp not in mod_file_set:
+                direct_importers.add(imp)
 
     return {
         "symbol_count": len(public_syms),
         "documented_symbol_count": documented_count,
         "undocumented_symbols": len(public_syms) - documented_count,
         "undocumented_symbol_names": undoc_names,
-        "inbound_callers": len(caller_files),
-        "caller_files": sorted(caller_files)[:5],
+        "inbound_callers": len(direct_importers),
+        "caller_files": sorted(direct_importers)[:5],
     }
 
 
+_GENERIC_DIR_NAMES: FrozenSet[str] = frozenset({
+    "skills", "scripts", "src", "app", "lib", "pkg", "cmd", "internal", "utils", "helpers", "services", "models", "controllers",
+})
+
+
 def _match_module_tests(module: str, mod_files: List[str], test_files: List[str]) -> List[str]:
-    """Identify test files likely covering `module` by directory or filename stem."""
-    mod_base = Path(module).name.lower() if module != "." else ""
+    """Identify test files likely covering `module` by non-generic directory or filename stem."""
+    mod_parts = [p.lower() for p in Path(module).parts if p not in (".", "") and p.lower() not in _GENERIC_DIR_NAMES]
+    mod_tokens = {p for p in mod_parts if len(p) >= 3}
     stems = {Path(f).stem.lower() for f in mod_files[:15] if len(Path(f).stem) >= 3}
     matched: List[str] = []
     for tf in test_files:
         low = tf.lower()
-        if (mod_base and len(mod_base) >= 3 and mod_base in low) or any(st in low for st in stems):
+        if any(tok in low for tok in mod_tokens) or any(st in low for st in stems):
             matched.append(tf)
         if len(matched) >= 10:
             break
@@ -569,12 +855,16 @@ def _analyze_single_module(
     module: str,
     mod_files: List[str],
     test_files: List[str],
+    all_file_set: Set[str],
     cards: List[Dict[str, Any]],
-    all_symbols: List[Dict[str, Any]],
     symbols_by_file: Dict[str, List[Dict[str, Any]]],
+    importers_by_file: Dict[str, Set[str]],
+    test_importers_by_file: Dict[str, Set[str]],
+    cochanges: Dict[str, Dict[str, int]],
+    commit_count: int,
     lines_cache: Dict[str, List[str]],
 ) -> Dict[str, Any]:
-    """Assemble static metrics, blast radius, and doc recommendation score for one module."""
+    """Assemble static metrics, import fan-in, co-change coupling, and doc score for one module."""
     total_lines = 0
     giant_files: List[Dict[str, Any]] = []
     env_vars: Set[str] = set()
@@ -593,7 +883,12 @@ def _analyze_single_module(
     if not entrypoints:
         entrypoints = mod_files[:5]
 
-    sym_metrics = _compute_symbol_metrics(repo_root, mod_files, all_symbols, symbols_by_file, lines_cache)
+    sym_metrics = _compute_module_metrics(repo_root, mod_files, symbols_by_file, importers_by_file, lines_cache)
+    co_change_items = _top_cochanged_for_files(set(mod_files), cochanges, commit_count, existing_files=all_file_set, limit=5)
+    co_change_files = [item["file"] for item in co_change_items]
+    direct_tests = {tf for mf in mod_files for tf in test_importers_by_file.get(mf, set())}
+    matched_tests = sorted(direct_tests | set(_match_module_tests(module, mod_files, test_files)))[:10]
+
     doc_status, matched_card = _evaluate_module_doc_status(repo_root, in_git, module, mod_files, cards)
     slug = _slugify_module(module)
     card_path = matched_card or f"docs/architecture/{slug}.md"
@@ -602,6 +897,7 @@ def _analyze_single_module(
     status_weight = {"missing": 15, "scaffold": 10, "stale": 8, "documented": 0}.get(doc_status, 0)
     priority_score = (
         sym_metrics["inbound_callers"] * 4
+        + len(co_change_files) * 2
         + len(giant_files) * 10
         + sym_metrics["undocumented_symbols"] * 2
         + (total_lines // 100)
@@ -620,7 +916,8 @@ def _analyze_single_module(
         "giant_files": giant_files[:5],
         "entrypoints": entrypoints[:10],
         "env_vars": sorted(env_vars),
-        "test_files": _match_module_tests(module, mod_files, test_files),
+        "test_files": matched_tests,
+        "co_change_files": co_change_files,
         **sym_metrics,
         "priority_score": priority_score,
         "severity": severity,
@@ -628,24 +925,73 @@ def _analyze_single_module(
 
 
 def discover_modules(repo_root: Path) -> List[Dict[str, Any]]:
-    """Discover code modules with blast-radius metrics, env vars, test coverage, and doc status."""
-    code_files, test_files, _ = _collect_repo_files(repo_root)
+    """Discover code modules with import fan-in, Git co-change coupling, env vars, and doc status."""
+    code_files, test_files, all_files = _collect_repo_files(repo_root)
     if not code_files:
         return []
     in_git = _run_git(repo_root, ["rev-parse", "--is-inside-work-tree"]) == "true"
     cards = _read_existing_arch_cards(repo_root)
-    all_symbols, symbols_by_file = _scan_symbols_once(repo_root)
     lines_cache: Dict[str, List[str]] = {}
+    symbols_by_file = _scan_symbols_once(repo_root, code_files, lines_cache)
+    importers_by_file, test_importers_by_file = _build_import_graph(repo_root, code_files, test_files, lines_cache)
+    cochanges, commit_count = _build_git_cochanges(repo_root, in_git)
     grouped = _group_module_dirs(code_files)
+    all_file_set = set(all_files)
 
     modules = [
         _analyze_single_module(
-            repo_root, in_git, mod, mod_files, test_files, cards, all_symbols, symbols_by_file, lines_cache
+            repo_root, in_git, mod, mod_files, test_files, all_file_set, cards,
+            symbols_by_file, importers_by_file, test_importers_by_file, cochanges, commit_count, lines_cache,
         )
         for mod, mod_files in sorted(grouped.items())
     ]
     modules.sort(key=lambda item: (-item["priority_score"], item["module"]))
     return modules
+
+
+def analyze_file_impact(repo_root: Path, target_file: str) -> Dict[str, Any]:
+    """Compute pre-edit blast radius for `target_file` using OKF cards, direct imports, tests, and Git co-changes."""
+    resolved_root = repo_root.resolve()
+    cand = Path(target_file)
+    abs_target = cand.resolve() if cand.is_absolute() else (resolved_root / cand).resolve()
+    try:
+        rel_target = abs_target.relative_to(resolved_root).as_posix()
+    except ValueError:
+        rel_target = target_file.replace("\\", "/").lstrip("./")
+
+    code_files, test_files, all_files = _collect_repo_files(resolved_root)
+    in_git = _run_git(resolved_root, ["rev-parse", "--is-inside-work-tree"]) == "true"
+    cards = _read_existing_arch_cards(resolved_root)
+    lines_cache: Dict[str, List[str]] = {}
+    symbols_by_file = _scan_symbols_once(resolved_root, code_files, lines_cache)
+    importers_by_file, test_importers_by_file = _build_import_graph(resolved_root, code_files, test_files, lines_cache)
+    cochanges, commit_count = _build_git_cochanges(resolved_root, in_git)
+
+    matching_cards = [
+        {"file": c["rel"], "title": c["title"], "doc_status": c["doc_status"]}
+        for c in cards
+        if any(_glob_matches(rel_target, g) for g in c["affected_files"])
+    ]
+    target_lines = _read_lines_cached(resolved_root, rel_target, lines_cache) if abs_target.is_file() else []
+    mod_parent = Path(rel_target).parent.as_posix() or "."
+    direct_tests = test_importers_by_file.get(rel_target, set())
+    heuristic_tests = _match_module_tests(mod_parent, [rel_target], test_files)
+
+    return {
+        "repo_root": str(resolved_root),
+        "target_file": rel_target,
+        "matching_okf_cards": matching_cards,
+        "direct_importers": sorted(importers_by_file.get(rel_target, set())),
+        "matching_tests": sorted(set(direct_tests) | set(heuristic_tests))[:10],
+        "git_co_changed_files": _top_cochanged_for_files(
+            {rel_target}, cochanges, commit_count, existing_files=set(all_files), limit=8
+        ),
+        "env_vars": sorted(_extract_env_vars_from_lines(target_lines)),
+        "exported_symbols": [
+            str(s["name"]) for s in symbols_by_file.get(rel_target, [])
+            if s.get("name") and not str(s["name"]).startswith("_")
+        ][:15],
+    }
 
 
 def _render_card_markdown(stack: Dict[str, Any], repo_root: Path, resolver_mod: Any) -> str:
@@ -692,7 +1038,7 @@ updated_at: "{today}"
 {entries_block}
 
 ## Key Dependencies & Blast Radius
-- _Run `pre_impact_analyzer.py` or `scaffold_repo_okf.py --recommend-docs` to map upstream services and high-fan-in callers before refactoring._
+- _Run `scaffold_repo_okf.py --recommend-docs` and `grep_search` to map upstream services and high-fan-in callers before refactoring._
 
 ## Environment & Deployment Config
 {env_block}
@@ -1059,11 +1405,26 @@ def _print_recommend_docs(target: Path, as_json: bool) -> None:
         )
 
 
+def _print_impact_report(report: Dict[str, Any], as_json: bool) -> None:
+    """Print JSON or human-readable pre-edit file impact summary."""
+    if as_json:
+        print(json.dumps(report, indent=2))
+        return
+    print(f"🎯 Pre-Edit Impact (`{report['target_file']}`):")
+    print(f"  - OKF cards: {', '.join(c['file'] for c in report['matching_okf_cards']) or 'none'}")
+    print(f"  - Direct importers ({len(report['direct_importers'])}): {', '.join(report['direct_importers'][:8]) or 'none'}")
+    print(f"  - Matching tests: {', '.join(report['matching_tests'][:6]) or 'none'}")
+    co_str = ", ".join(f"{item['file']} ({item['cochanges']}x)" for item in report["git_co_changed_files"][:6])
+    print(f"  - Git co-changed files: {co_str or 'none'}")
+    print(f"  - Env vars: {', '.join(report['env_vars']) or 'none'}")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Scaffold and audit repo-local `<repo>/docs/` OKF architecture docs.")
     parser.add_argument("--scan", nargs="?", const=".", help="Scan repo and scaffold/update `<repo>/docs/`")
     parser.add_argument("--audit-hygiene", nargs="?", const=".", help="Audit stray root files, bulky specs, stale cards, and OKF gaps")
-    parser.add_argument("--recommend-docs", nargs="?", const=".", help="Rank undocumented modules by blast radius and symbol doc coverage")
+    parser.add_argument("--recommend-docs", nargs="?", const=".", help="Rank undocumented modules by import fan-in, co-change, and doc coverage")
+    parser.add_argument("--impact", help="Analyze pre-edit blast radius (OKF cards, direct importers, tests, Git co-changes) for a file")
     parser.add_argument("--dehydrate-spec", help="Collapse a shipped PRD/spec file into a commit-linked stub")
     parser.add_argument("--living-doc", help="Optional path to replacement living doc card under `docs/architecture/`")
     parser.add_argument("--repo-root", default=None, help="Explicit repository root path")
@@ -1078,6 +1439,10 @@ def main() -> int:
             sys.stderr.write(f"Error: {exc}\n")
             return 2
         print(json.dumps(res, indent=2) if args.json else f"✅ Dehydrated `{res['spec_file']}` ({res['original_lines']} -> {res['stub_lines']} lines, commit `{res['last_full_commit'][:12]}`).")
+        return 0
+    if args.impact:
+        target = Path(args.repo_root or ".").resolve()
+        _print_impact_report(analyze_file_impact(target, args.impact), args.json)
         return 0
     if args.recommend_docs is not None:
         target = Path(args.repo_root or args.recommend_docs).resolve()

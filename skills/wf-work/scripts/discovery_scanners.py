@@ -96,12 +96,15 @@ def _format_doc_rec_candidate(rec: Dict[str, Any], prefix: str, repo_label: str)
     tests = rec.get("test_files") or []
     undoc_names = rec.get("undocumented_symbol_names") or []
     caller_files = rec.get("caller_files") or []
+    co_change_files = rec.get("co_change_files") or []
 
     facts = [
         f"Module `{mod}` (`doc_status: {status}`, {rec.get('file_count', 0)} files, {rec.get('total_lines', 0)} lines).",
-        f"Blast radius: {callers} external caller file(s)" + (f" (e.g. {', '.join(f'`{c}`' for c in caller_files[:3])})." if caller_files else "."),
+        f"Blast radius: {callers} external importer(s)" + (f" (e.g. {', '.join(f'`{c}`' for c in caller_files[:3])})." if caller_files else "."),
         f"Inline docblocks: {undoc}/{sym_total} public symbol(s) undocumented" + (f" (e.g. {', '.join(f'`{n}`' for n in undoc_names[:5])})." if undoc_names else "."),
     ]
+    if co_change_files:
+        facts.append(f"Git co-changes: {', '.join(f'`{c}`' for c in co_change_files[:4])}.")
     if env_vars:
         facts.append(f"Env vars: {', '.join(f'`{v}`' for v in env_vars[:6])}.")
     if tests:

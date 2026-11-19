@@ -196,9 +196,9 @@ def _try_claim_approved_exec(
     else:
         instructions = (
             f"Work in an isolated branch/worktree (`feat/...`, `fix/...`, or `refactor/...`){repo_note}. "
-            "First inspect matching `<repo>/docs/architecture/*.md` cards and run `pre_impact_analyzer.py --file <target>`; "
+            "First inspect matching `<repo>/docs/architecture/*.md` cards, run `scaffold_repo_okf.py --impact <target>`, and grep import paths/exported symbols; "
             "if rolling_slice, extract only 1-3 small helper blocks; keep `docs/architecture/*.md` (`affected_files`, `Constraints & Why`, `last_verified_commit`) synced; "
-            "run `post_code_reviewer.py --run-checks --strict`, open a Draft PR, and hand off via `--request-review`."
+            "run `post_code_reviewer.py --run-checks --strict` (stack typecheckers + tests), open a Draft PR, and hand off via `--request-review`."
         )
     return {
         "action": "execute_approved_task",

@@ -16,7 +16,6 @@ subagent: true
 model: inherit
 skills:
   - wf-clean-coder
-  - wf-code-graph
   - wf-post-code-review
   - wf-codebase-improvement
   - wf-doc-generator

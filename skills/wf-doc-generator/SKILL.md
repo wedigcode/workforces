@@ -12,7 +12,7 @@ Maintains universal, agent- and human-readable Open Knowledge Format (OKF) archi
 
 | Stack / Language | Primary Signal Files | OKF Architecture Card | Optional Native API Extractor |
 |---|---|---|---|
-| **PHP** | `composer.json`, `src/EventSubscriber/`, `src/Service/` | `docs/architecture/php-backend.md` | `phpdoc` / `graph_indexer.py` |
+| **PHP** | `composer.json`, `src/EventSubscriber/`, `src/Service/` | `docs/architecture/php-backend.md` | `phpdoc` |
 | **TypeScript / JS** | `package.json`, `tsconfig.json` | `docs/architecture/node-typescript.md` | `npx -y typedoc --json workforces/docs/typedoc.json` |
 | **Python** | `pyproject.toml`, `setup.py`, `requirements.txt` | `docs/architecture/python-modules.md` | `python3 -m pydoc -w ./` |
 | **Go** | `go.mod`, `cmd/`, `internal/`, `pkg/` | `docs/architecture/go-services.md` | `go doc -all ./...` |
@@ -68,13 +68,17 @@ Architecture cards tell agents *where* things connect; concise inline source doc
    python3 .agents/skills/wf-doc-generator/scripts/scaffold_repo_okf.py --scan ./
    ```
    *(Fallback: `python3 skills/wf-doc-generator/scripts/scaffold_repo_okf.py --scan ./`)*
-2. Rank undocumented, scaffold-only, stale, or low-docblock modules by external caller blast radius and size:
+2. Rank undocumented, scaffold-only, stale, or low-docblock modules by direct import fan-in, Git co-change coupling, and size:
    ```bash
    python3 .agents/skills/wf-doc-generator/scripts/scaffold_repo_okf.py --recommend-docs ./ --json
    ```
+3. Inspect pre-edit blast radius (matching OKF cards, direct importers, tests, and Git co-changed files) for any specific file:
+   ```bash
+   python3 .agents/skills/wf-doc-generator/scripts/scaffold_repo_okf.py --impact <path/to/file> --json
+   ```
 
 ### Step 2: Enrich Cards & Inline Docblocks
-1. Inspect the recommended module, its matching tests, env vars, and callers (`pre_impact_analyzer.py --file <entry>`).
+1. Inspect the recommended module, its matching tests, env vars, and callers (`grep_search`).
 2. Author or enrich `<repo>/docs/architecture/<module>.md` using the Refactor-Ready OKF schema above (`doc_status: documented`, `last_verified_commit: <HEAD>`).
 3. Add concise boundary docblocks, public docstrings, and *"why"* inline comments in that module's source files.
 4. Re-run `scaffold_repo_okf.py --scan ./` so `docs/index.md` updates the module's status and summary table non-destructively.
@@ -90,7 +94,7 @@ Architecture cards tell agents *where* things connect; concise inline source doc
    ```
 
 ### Step 4: Optional Deep API Reference Cache
-- Native extractors (`typedoc`, `pydoc`, `go doc`, `cargo doc`) or optional Canvas symbol exports (`wf-code-graph --build-okf`) write supplemental API dumps to `workforces/docs/` and `workforces/knowledge-catalog/code/` when deep symbol catalogs are needed.
+- Native extractors (`typedoc`, `pydoc`, `go doc`, `cargo doc`) write supplemental API dumps to `workforces/docs/` when deep API references are needed.
 
 ---
 

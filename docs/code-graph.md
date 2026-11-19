@@ -4,12 +4,15 @@ The **Code Graph** is a zero-dependency symbol indexer and dependency mapper bui
 
 ---
 
-## 1. Overview & Architecture
+## 1. Overview & Architecture *(Canvas UI Support)*
 
-Code Graph consists of two core scripts located in [`skills/wf-code-graph/scripts/`](../skills/wf-code-graph/scripts):
+> [!NOTE]
+> `wf-code-graph` is retained for the **Workforce Canvas / Dashboard UI** (`wf-canvas`, `wf-dashboard`) and is deprecated for AI agent workflows (which read `<repo>/docs/index.md` + `docs/architecture/*.md` and use `grep_search`).
 
-1. **[`graph_indexer.py`](../skills/wf-code-graph/scripts/graph_indexer.py)**: Scans the codebase, parses symbols using Python `ast` (with fallback to multi-language regex patterns), and extracts call trees.
-2. **[`pre_impact_analyzer.py`](../skills/wf-code-graph/scripts/pre_impact_analyzer.py)**: Evaluates modified files against the index to compute downstream caller blast radius and suggest existing helper utilities.
+Code Graph consists of scripts located in [`skills/wf-code-graph/scripts/`](../skills/wf-code-graph/scripts):
+
+1. **[`graph_indexer.py`](../skills/wf-code-graph/scripts/graph_indexer.py)**: Scans the codebase, parses symbols using Python `ast` (with fallback to multi-language regex patterns), and writes `workforces/code-graph.json` on demand for the Canvas UI.
+2. **[`pre_impact_analyzer.py`](../skills/wf-code-graph/scripts/pre_impact_analyzer.py)**: Computes caller/callee relationships from `workforces/code-graph.json` for Canvas UI inspection (`server.py`).
 
 ### Supported Languages
 - **Python** (AST parsing with full function call tree extraction)
@@ -29,19 +32,16 @@ To prevent heavy codebase re-scans during interactive editing:
 - If no files have changed, scanning completes instantly (**< 5ms cache hit**) without parsing files or writing to disk.
 - If files have changed, only modified files are re-parsed and merged into the cached symbol tree.
 
-### Automatic Generation
-The incremental index runs automatically via compiled `PreToolUse` lifecycle hooks before file modifications (defined canonically in [`plugins/wf-programming-plugin/plugin.json`](../plugins/wf-programming-plugin/plugin.json) and compiled into `.agents/plugins/wf-programming-plugin/hooks.json`, `.claude/settings.json`, and `.grok/hooks.json`).
+### On-Demand Generation (Canvas UI)
+`workforces/code-graph.json` is generated on demand when launching `/wf-dashboard` or `wf-canvas/scripts/server.py` (or manually via `graph_indexer.py --scan ./`), rather than running before every AI file edit.
 
-### Full OKF Catalog Rebuild & Background Cleanliness (`/wf-codebase-improvement`)
-Heavy OKF Markdown catalog file generation is decoupled from pre-hooks. To force a full catalog rebuild and run code cleanliness audits, run:
+### Optional Full OKF Catalog Rebuild
+Heavy OKF Markdown catalog file generation is decoupled and optional. To force a symbol catalog rebuild for `workforces/knowledge-catalog/code/`, run:
 
 ```bash
 # Via CLI
 python3 .agents/skills/wf-code-graph/scripts/graph_indexer.py --scan ./ --build-okf --force
 # (Fallback: python3 skills/wf-code-graph/scripts/graph_indexer.py --scan ./ --build-okf --force)
-
-# Or via slash command / skill
-/wf-codebase-improvement
 ```
 
 ---
@@ -110,5 +110,5 @@ Output example:
 
 Workforces compiles canonical plugin hooks from [`plugins/wf-programming-plugin/plugin.json`](../plugins/wf-programming-plugin/plugin.json) into host-native hook definitions across Antigravity ([`plugins/wf-programming-plugin/hooks.json`](../plugins/wf-programming-plugin/hooks.json)), Claude Code (`.claude/settings.json`), and Grok Build (`.grok/hooks.json`):
 
-1. **Pre-Hook (`PreToolUse`)**: Runs [`pre_tool_hook.py`](../skills/wf-code-graph/scripts/pre_tool_hook.py) (`graph_indexer.py` + `pre_impact_analyzer.py`) before edit/multi-edit tools (`write_to_file`, `replace_file_content`, `multi_replace_file_content` on Antigravity; `Write`, `Edit`, `MultiEdit` on Claude Code & Grok Build) to warn the AI of downstream callers.
+1. **Pre-Hook (`PreToolUse`)**: Runs [`deploy_safety_hook.py`](../skills/wf-post-code-review/scripts/deploy_safety_hook.py) on command execution (`pre_tool_hook.py` for code-graph indexing is retired from `wf-programming-plugin`; indexing is invoked on demand by `wf-dashboard` / `wf-canvas`).
 2. **Post-Hook (`PostToolUse`)**: Runs [`post_code_reviewer.py`](../skills/wf-post-code-review/scripts/post_code_reviewer.py) via [`post_tool_hook.py`](../skills/wf-post-code-review/scripts/post_tool_hook.py) after edits to verify cross-system consistency.

@@ -187,12 +187,14 @@ class TestMultiHostCompiler(unittest.TestCase):
         merged = json.loads(settings_file.read_text(encoding="utf-8"))
         self.assertEqual(merged["env"]["FOO"], "bar")
         pre_rules = merged["hooks"]["PreToolUse"]
-        self.assertEqual(len(pre_rules), 3)
+        self.assertEqual(len(pre_rules), 2)
         self.assertTrue(any("custom-user-hook" in json.dumps(r) for r in pre_rules))
-        wf_rule = [r for r in pre_rules if "pre_tool_hook.py" in json.dumps(r)][0]
-        self.assertEqual(wf_rule["matcher"], "Write|Edit|MultiEdit")
+        self.assertNotIn("pre_tool_hook.py", json.dumps(merged["hooks"]))
         deploy_rule = [r for r in pre_rules if "deploy_safety_hook.py" in json.dumps(r)][0]
         self.assertEqual(deploy_rule["matcher"], "Bash")
+        post_rules = merged["hooks"]["PostToolUse"]
+        post_rule = [r for r in post_rules if "post_tool_hook.py" in json.dumps(r)][0]
+        self.assertEqual(post_rule["matcher"], "Write|Edit|MultiEdit")
 
         # Re-running with identical plugins is idempotent (changed == False)
         changed_again, _ = ca.sync_claude_settings_hooks(
@@ -540,7 +542,8 @@ class TestMultiHostManifestAndPrune(unittest.TestCase):
         )
         self.assertTrue((self.target / ".github" / "agents" / "wf-programmer.agent.md").is_file())
         self.assertTrue((self.target / ".cursor" / "rules" / "wf-clean-coder.mdc").is_file())
-        self.assertIn("pre_tool_hook.py", settings_path.read_text(encoding="utf-8"))
+        self.assertIn("deploy_safety_hook.py", settings_path.read_text(encoding="utf-8"))
+        self.assertIn("post_tool_hook.py", settings_path.read_text(encoding="utf-8"))
         self.assertIn("wf-programming", (self.target / ".grok" / "hooks.json").read_text(encoding="utf-8"))
 
         # Live prune of 'dev' across all 5 hosts
@@ -576,7 +579,8 @@ class TestMultiHostManifestAndPrune(unittest.TestCase):
 
         claude_after = json.loads(settings_path.read_text(encoding="utf-8"))
         self.assertIn("user-guard", json.dumps(claude_after["hooks"]))
-        self.assertNotIn("pre_tool_hook.py", json.dumps(claude_after["hooks"]))
+        self.assertNotIn("deploy_safety_hook.py", json.dumps(claude_after["hooks"]))
+        self.assertNotIn("post_tool_hook.py", json.dumps(claude_after["hooks"]))
         self.assertIn("validate-references.py", json.dumps(claude_after["hooks"]))
 
         # Config and manifest updated consistently

@@ -73,10 +73,10 @@ For dedicated cron schedules or repo-scoped runs:
      - Run `post_code_reviewer.py --run-checks --strict`, push feature branch, open a **Draft PR**, and hand off via `--request-review`.
    - **Promoted `refactor` / `debt` / Feature Tasks**:
      - Create an isolated branch/worktree (`feat/...`, `fix/...`, `refactor/...`).
-     - Read matching `<repo>/docs/architecture/*.md` cards and run `pre_impact_analyzer.py --file <target>` before modifying code.
+     - Read matching `<repo>/docs/architecture/*.md` cards (`## Key Dependencies & Blast Radius`, `## Constraints, Invariants & Gotchas`, `## Test Coverage & Verification`), run `scaffold_repo_okf.py --impact <target>` + targeted `grep_search` on import paths/exported symbols before modifying code.
      - If `cadence == rolling_slice`, extract **only 1–3 small helper blocks** (strictly <= 1 slice per file per day), keeping diffs easy to verify.
      - Keep matching `docs/architecture/*.md` (`affected_files`, `Constraints, Invariants & Gotchas`, `last_verified_commit`) synchronized with code changes.
-     - Run `post_code_reviewer.py --run-checks --strict`, push feature branch, open a **Draft PR**, and hand off to another harness:
+     - Run `post_code_reviewer.py --run-checks --strict` (verifying callers via real stack typecheckers & tests), push feature branch, open a **Draft PR**, and hand off to another harness:
        ```bash
        python3 .agents/skills/wf-task-tracker/scripts/report-task.py --update "<task_path>" --request-review --pr "<pr_url>"
        ```

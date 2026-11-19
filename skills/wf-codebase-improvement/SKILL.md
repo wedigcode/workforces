@@ -67,7 +67,7 @@ This skill is invoked autonomously by `@wf-programmer` or coordinators, or direc
 ### Protocol A: Codebase Hygiene & Living OKF Knowledge Maintenance
 
 1. **Audit Repo Hygiene & Living OKF Architecture Docs (`<repo>/docs/`)**:
-   Keep portable architecture docs in `<repo>/docs/` using `wf-doc-generator` (paired with `wf-code-graph` for AST call inspection):
+   Keep portable architecture docs in `<repo>/docs/` using `wf-doc-generator`:
    ```bash
    python3 .agents/skills/wf-doc-generator/scripts/scaffold_repo_okf.py --audit-hygiene ./
    ```
@@ -101,7 +101,6 @@ This skill is invoked autonomously by `@wf-programmer` or coordinators, or direc
    | Check | Status | Details |
    |-------|--------|---------|
    | **Repo Living OKF Docs** | ✅ Up to date | `<repo>/docs/index.md` & `docs/architecture/*.md` verified |
-   | **Code Graph Index** | ✅ Up to date | 32 symbols indexed in `workforces/code-graph.json` |
    | **Dead Code / Unused Symbols** | ⚠️ 2 found | `unused_helper()` (src/utils.ts:L14) |
    | **Workspace Scratch Clean** | ✅ Clean | 0 stale files removed |
    | **Issues Reported to Inbox** | 📬 2 logged | Reviewed by PM during /wf-sync or task triage |
@@ -112,9 +111,9 @@ This skill is invoked autonomously by `@wf-programmer` or coordinators, or direc
 ### Protocol B: Continuous Improvement Across Pillars
 
 1. **Baseline & Architecture Verification**:
-   - Read `<repo>/docs/index.md` and matching `docs/architecture/*.md` cards (`affected_files:`) before refactoring so invariants, subscribers, env contracts, and verification commands are known up front.
-   - Check if project tests pass (`npm test`, `pytest`, `go test`, `cargo test`, etc.).
-   - Index symbols using `python3 .agents/skills/wf-code-graph/scripts/graph_indexer.py --scan ./`.
+   - Read `<repo>/docs/index.md` and matching `docs/architecture/*.md` cards (`affected_files:`) before deleting or refactoring so invariants, subscribers, env contracts, and verification commands are known up front.
+   - Run `python3 .agents/skills/wf-doc-generator/scripts/scaffold_repo_okf.py --impact <file>` and targeted `grep_search` on import paths/exported symbols to map direct importers and Git co-changed files.
+   - Verify callers and behavior via real stack typecheckers and tests (`npm test`, `pytest`, `go test`, `cargo test`, `post_code_reviewer.py --run-checks --strict`).
 
 2. **Pillar Audit**:
    - Perform static checks for selected pillar(s).

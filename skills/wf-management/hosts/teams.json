@@ -68,7 +68,7 @@
     "dev": {
       "name": "dev",
       "title": "Engineering & Development",
-      "description": "Software architecture, clean code implementation, TDD, symbol graph indexing, automated post-edit reviews, and bug fixes.",
+      "description": "Software architecture, clean code implementation, TDD, living OKF documentation, automated post-edit reviews, and bug fixes.",
       "agents": [
         "wf-programmer"
       ],
@@ -78,7 +78,6 @@
       ],
       "skills": [
         "wf-clean-coder",
-        "wf-code-graph",
         "wf-post-code-review",
         "wf-codebase-improvement",
         "wf-pr-review",
