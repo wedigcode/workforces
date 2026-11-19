@@ -4,7 +4,7 @@ Post-Hook Whole-Codebase Code Reviewer for Workforces
 Zero external dependencies (Python 3 standard library: ast, re, json, pathlib, argparse, subprocess, datetime).
 
 Fires on post_tool_call and pre-handoff quality gates.
-Audits git diffs and wf-code-graph relationships for:
+Audits git diffs and living `<repo>/docs/` architecture cards for:
 1. PR-style review verification form ([x] DRY, [x] soft ~60-line function limit, [x] shallow control flow, [x] simplicity, [x] maintainability)
 2. AI pushback on skipped coding principles & candidate issue logging
 3. Persistent 3rd-party security bypass caching with weekly retry intervals
@@ -1339,7 +1339,7 @@ def run_code_review_gate(
     target_dir = resolve_target_dir(root_arg=str(root_dir), target_dir_arg=target_dir_arg)
     modified_files = get_modified_files(target_dir)
     diff_text = get_git_diff(target_dir)
-    symbols = load_code_graph(root_dir, target_dir)
+    symbols: List[Dict[str, Any]] = []
 
     if not modified_files and not diff_text.strip() and not run_checks:
         return (f"### 🔍 [Post-Hook Code Review]\n✅ No modified files detected in target repo `{target_dir}`.", True)

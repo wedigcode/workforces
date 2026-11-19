@@ -33,7 +33,7 @@ Feature research is invoked by `@wf-researcher`, through conversational prompts,
 ## Required Skills
 
 Always load these skills before starting the pipeline:
-- **`wf-memory-management`** — for reading project knowledge catalog (`workforces/knowledge-catalog/`) and project memory
+- **`wf-memory-management`** — for reading living repository OKF architecture docs (`<repo>/docs/index.md`, `docs/architecture/*.md`), optional `workforces/knowledge-catalog/`, and project memory
 - **`wf-github-project-planning`** — for project boards and GitHub issue creation
 
 ---
@@ -92,7 +92,7 @@ Before doing any research, produce a **Feature Brief**:
 ### Gathering Context
 
 1. Read workspace configuration in `workforces/workrules.md` and `workforces/workstate.md`.
-2. Inspect tracked project definitions in `workforces/projects/` and Open Knowledge Format (OKF) files in `workforces/knowledge-catalog/` to map entities, APIs, and services.
+2. Inspect `<repo>/docs/index.md` and matching `docs/architecture/*.md` cards first, then inspect `workforces/projects/` and optional Open Knowledge Format (OKF) files in `workforces/knowledge-catalog/` to map entities, APIs, and services.
 3. Check `workforces/memory/github-project-planning-skill.md` for tracked repository metadata.
 4. Locate project repository roots (sibling folders at `../` relative to workspace root, subdirectories, or specified paths).
    - If a project directory is not found → pause and ask the user for the path.
@@ -113,7 +113,7 @@ Produce a **Gap Analysis Document** using this template:
 
 ## Existing Codebase Audit Findings
 
-- **Searched Files & Queries:** [list files, tables, directories, and symbol queries searched via wf-code-graph/grep_search/list_dir]
+- **Searched Files & Queries:** [list files, tables, directories, and symbol queries searched via `<repo>/docs/index.md`, `grep_search`, and `list_dir`]
 - **Pre-Existing Entities & Methods:** [list existing database tables, models, legacy utilities, or helper methods]
 - **Existing vs. Missing Capabilities:** [clear breakdown of what already exists vs what needs to be built]
 
@@ -229,7 +229,7 @@ Using the gap analysis and implementation strategy, generate a PRD.
 
 ### Output Location
 
-Save to: `docs/prd-{feature-name}.md` in the **target project repository**.
+Save to: `docs/specs/prd-{feature-name}.md` in the **target project repository** (`docs/prd-{feature-name}.md` is also recognized by `wf-doc-generator` when shipped and ready to dehydrate).
 
 ### PRD Template
 
@@ -386,5 +386,5 @@ After the user approves the work breakdown:
 | 0 — Clarify | Feature idea (raw) | Feature Brief | ✅ Yes |
 | 1 — Gap Analysis | Feature Brief | Gap Analysis Document | ✅ Yes |
 | 2 — Strategy | Gap Analysis | Implementation Strategy | No (flows into Phase 3) |
-| 3 — PRD | Gap Analysis + Strategy | `docs/prd-{feature}.md` | ✅ Yes |
+| 3 — PRD | Gap Analysis + Strategy | `docs/specs/prd-{feature}.md` | ✅ Yes |
 | 4 — Breakdown | PRD | P0/P1/P2 task table | ✅ Yes (before GitHub issue creation) |

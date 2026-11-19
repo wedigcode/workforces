@@ -29,8 +29,8 @@ Breaks down work into phased, actionable tasks with estimates, dependencies, and
 1. **Determine Scope Gate**:
    - **Purely Local Task** (isolated helper, UI tweak, single-file bug with no external events/integrations/env config): inspect target file and callers, then plan/fix immediately.
    - **System-Wired Task** (touches domain events, subscribers, webhooks, queues, 3rd-party services, or env/IaC config): run full macro-context audit below.
-2. **Read Repo Living OKF Docs First**: Inspect `<repo>/docs/index.md` and matching `docs/architecture/*.md` cards (via `affected_files:` frontmatter) to understand existing services, event dispatchers, subscribers, and `Constraints & Why` notes.
-3. **Find at Least 1 Existing Analog**: Search (`grep_search`, `list_dir`, or optionally `graph_indexer.py --query`) for how another existing integration, notifier, or subscriber solves this pattern so new code groups cleanly into existing extension points instead of scattering across unrelated layers.
+2. **Read Repo Living OKF Docs First**: Inspect `<repo>/docs/index.md` and matching `docs/architecture/*.md` cards (via `affected_files:` frontmatter) to understand existing services, event dispatchers, subscribers, `Key Dependencies & Blast Radius`, and `Constraints & Why` notes.
+3. **Find at Least 1 Existing Analog & Map Blast Radius**: Search (`grep_search` on module import paths/exported symbols, `list_dir`) and optionally run `scaffold_repo_okf.py --impact <file>` on shared/cross-module targets to inspect direct importers, tests, and Git co-changed files so new code groups cleanly into existing extension points.
 4. **Verify IaC & Environment Config Parity**: If config/env vars change, inspect `template.yaml`, `template.yml`, `samconfig.toml`, `serverless.yml`, or `.env.example` across environments; never plan `"production"` code defaults or unapproved live deployments.
 5. **Record Findings**: Include `## Existing Codebase Audit Findings` (existing analog reused, subscribers affected, IaC config parity) in the plan.
 

@@ -1,7 +1,7 @@
 {
   "kind": "skill",
   "name": "wf-work",
-  "description": "Runs token-aware autonomous maintenance, cross-harness code review, and approved backlog execution sweeps on idle capacity or recurring cron schedules. Reach for this skill or trigger it when dispatching scheduled background worker passes across codereview, docs architecture scaffolding, security audits, UX polish, performance tuning, rolling one-slice-per-day refactoring, or dependency housekeeping with PM inbox caps and claim locks.",
+  "description": "Runs token-aware autonomous maintenance, cross-harness code review, ranked documentation discovery, and approved backlog execution sweeps on idle capacity or recurring cron schedules across single or configured multi-repo workspaces. Reach for this skill or trigger it when dispatching background worker passes across codereview, docs discovery and OKF/docblock authoring, security audits, UX polish, performance tuning, rolling one-slice-per-day refactoring, or dependency housekeeping with PM inbox caps, multi-repo disambiguation, and claim locks.",
   "user_invocable": true,
   "disable_model_invocation": false,
   "hosts": {}

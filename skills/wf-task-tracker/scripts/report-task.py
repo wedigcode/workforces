@@ -488,6 +488,7 @@ def promote_issue_to_task(
         approved_for_execution=approved,
         cadence=cadence,
         source_issue=rel_source,
+        repo=str(imeta.get("repo") or ""),
     )
     with open(task_path, "w", encoding="utf-8") as f:
         f.write(content)
@@ -715,6 +716,7 @@ def build_task_markdown(
     authored_by_harness: Optional[str] = None,
     review_state: Optional[str] = None,
     source_issue: Optional[str] = None,
+    repo: str = "",
 ) -> str:
     """Construct complete task file markdown with frontmatter and lineage."""
     now = created_at or datetime.datetime.now()
@@ -749,6 +751,8 @@ def build_task_markdown(
         metadata["review_state"] = review_state
     if source_issue:
         metadata["source_issue"] = source_issue
+    if repo:
+        metadata["repo"] = repo
 
     session_origin_link = ""
     if session_file:
@@ -787,7 +791,7 @@ def build_task_markdown(
 
 {header_line}  
 **Reported:** {now.strftime("%Y-%m-%d %H:%M")} | **Updated:** {up_now.strftime("%Y-%m-%d %H:%M")}  
-{session_origin_link}{f"**Affected file:** `{file_path}`\n" if file_path else ""}{tool_delegation_line}
+{session_origin_link}{f"**Target Repo:** `{repo}`\n" if repo else ""}{f"**Affected file:** `{file_path}`\n" if file_path else ""}{tool_delegation_line}
 ## Description
 
 {description if description else "_No description provided._"}

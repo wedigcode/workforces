@@ -32,7 +32,7 @@ CORE_RULES = {
 CORE_SKILLS = {
     'wf-management', 'wf-memory-management', 'wf-task-tracker', 'wf-issue-tracker',
     'wf-session-context', 'wf-usage-tracker', 'wf-integrity-validator', 'wf-canvas',
-    'wf-github-project-planning', 'wf-hypothesis-tracker',
+    'wf-code-graph', 'wf-github-project-planning', 'wf-hypothesis-tracker',
     'wf-plan', 'wf-sync', 'wf-work', 'wf-advisor', 'wf-ideate', 'wf-investigate',
     'wf-question-formulation', 'wf-update', 'wf-dashboard',
 }

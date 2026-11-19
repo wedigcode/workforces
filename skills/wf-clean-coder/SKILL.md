@@ -10,9 +10,13 @@ Lean, high-signal engineering workflow: reuse before you write, test what you ch
 
 ## Workflow Protocol
 
-### Step 1: Pre-Implementation Analog & Architecture Check
-1. **Architecture Index & Existing Analog First**: If `<repo>/docs/index.md` exists, inspect it and matching `docs/architecture/*.md` cards first. For any task touching domain events, subscribers, queues, webhooks, 3rd-party services, or env/IaC config, find **at least 1 existing analog** in the codebase so you reuse or group into existing dispatcher/subscriber flows instead of scattering duplicate notifications.
-2. **Search for Similar Code Before Adding Functions**: Before writing a new function, class or helper, search for existing ones with similar names or purpose using `grep_search` (name fragments, synonyms such as `format`/`render`/`to_string`) and `list_dir` (likely `utils`, `helpers`, `lib`, `services` folders). Reuse or extend what exists instead of adding a near-duplicate.
+### Step 1: Pre-Implementation Analog, Architecture & Blast Radius Check
+1. **Architecture Index & Existing Analog First**: If `<repo>/docs/index.md` exists, inspect it and matching `docs/architecture/*.md` cards (`## Key Dependencies & Blast Radius`, `## Constraints, Invariants & Gotchas`, `## Test Coverage & Verification`) first. For any task touching domain events, subscribers, queues, webhooks, 3rd-party services, or env/IaC config, find **at least 1 existing analog** in the codebase so you reuse or group into existing dispatcher/subscriber flows instead of scattering duplicate notifications.
+2. **Pre-Edit Blast Radius Protocol (Before Changing Public Contracts or Refactoring)**:
+   - Run on-demand `python3 .agents/skills/wf-doc-generator/scripts/scaffold_repo_okf.py --impact <file>` (Fallback: `skills/wf-doc-generator/scripts/scaffold_repo_okf.py`) to inspect matching OKF cards, direct importers, matching tests, and Git co-changed files.
+   - Run targeted `grep_search` on the module import path and changed exported symbol names.
+   - Verify exact caller compatibility via real stack typecheckers and tests (`tsc`, `mypy`, `phpstan`, `go vet`, `cargo check`) in `post_code_reviewer.py --run-checks --strict`.
+3. **Search for Similar Code Before Adding Functions**: Before writing a new function, class or helper, search for existing ones with similar names or purpose using `grep_search` (name fragments, synonyms such as `format`/`render`/`to_string`) and `list_dir` (likely `utils`, `helpers`, `lib`, `services` folders). Reuse or extend what exists instead of adding a near-duplicate.
 
 ### Step 2: Test What You Change
 For every behavior change or bug fix, write or update a test that covers it and run it before declaring the task done. For a bug fix, the test should exercise the failing case. Pure refactors, renames, docs and config-only changes rely on the existing suite passing.

@@ -1,7 +1,7 @@
 {
   "kind": "skill",
   "name": "wf-memory-management",
-  "description": "Manages persistent skill memory files (one Markdown file per skill under `workforces/memory/`) and navigates structured domain catalogs in Open Knowledge Format (`workforces/knowledge-catalog/`). Reach for this skill when a skill requires persistent state, cached configuration, or timestamps across sessions, or when reading and authoring modular, cross-referenced Markdown knowledge bases about systems and projects.",
+  "description": "Navigates primary repository OKF architecture documentation (`<repo>/docs/index.md` and `docs/architecture/*.md`), manages persistent skill memory files (`workforces/memory/<skill-name>.md` with cached IDs, state, and timestamps), and reads/authors modular markdown knowledge catalogs in Open Knowledge Format (`workforces/knowledge-catalog/`). Reach for this skill when reading living system architecture cards before planning or coding, persisting skill state or config timestamps across sessions, or authoring cross-referenced markdown knowledge bases.",
   "user_invocable": true,
   "disable_model_invocation": false,
   "hosts": {}

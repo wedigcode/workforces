@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
+import inspect
 import json
 import subprocess
 import sys
@@ -181,16 +182,44 @@ def _try_claim_approved_exec(
     if not claimed_exec:
         return None
     is_rolling = claimed_exec.get("cadence") == "rolling_slice"
+    task_type = str(claimed_exec.get("type") or "").lower()
+    target_repo = str(claimed_exec.get("repo") or "").strip()
+    repo_note = f" (target repo: `{target_repo}`)" if target_repo else ""
+    if task_type == "docs":
+        instructions = (
+            f"Work in an isolated `docs/...` branch/worktree{repo_note}. Follow `wf-doc-generator`: "
+            "(1) author/enrich `<repo>/docs/architecture/<module>.md` (`doc_status: documented`, refactor-ready OKF schema) "
+            "and refresh `docs/index.md` via `scaffold_repo_okf.py --scan`, "
+            "(2) add concise 2-4 line module/class boundary docblocks, public docstrings, and inline 'why' comments in the module's source files, "
+            "(3) run `post_code_reviewer.py --run-checks --strict`, open a Draft PR, and hand off via `--request-review`."
+        )
+    else:
+        instructions = (
+            f"Work in an isolated branch/worktree (`feat/...`, `fix/...`, or `refactor/...`){repo_note}. "
+            "First inspect matching `<repo>/docs/architecture/*.md` cards, run `scaffold_repo_okf.py --impact <target>`, and grep import paths/exported symbols; "
+            "if rolling_slice, extract only 1-3 small helper blocks; keep `docs/architecture/*.md` (`affected_files`, `Constraints & Why`, `last_verified_commit`) synced; "
+            "run `post_code_reviewer.py --run-checks --strict` (stack typecheckers + tests), open a Draft PR, and hand off via `--request-review`."
+        )
     return {
         "action": "execute_approved_task",
         "harness": active_harness,
         "claimed_task": claimed_exec,
         "rolling_slice": is_rolling,
-        "instructions": (
-            "Work in an isolated branch/worktree (`feat/...` or `refactor/...`), extract only 1-3 small helper blocks if rolling_slice, "
-            "run `post_code_reviewer.py --run-checks --strict`, open a Draft PR, and hand off via `--request-review`."
-        ),
+        "instructions": instructions,
     }
+
+
+def _tag_candidates_repo(findings: Dict[str, Any], repo_label: str) -> None:
+    """Annotate discovery issue candidates with `[repo_label]` prefix and `repo` metadata."""
+    if not repo_label:
+        return
+    prefix = f"[{repo_label}] "
+    for cand in findings.get("issue_candidates") or []:
+        if not cand.get("repo"):
+            cand["repo"] = repo_label
+        title = str(cand.get("title") or "")
+        if title and not title.startswith(prefix):
+            cand["title"] = f"{prefix}{title}"
 
 
 def _run_discovery_sweep(
@@ -198,23 +227,45 @@ def _run_discovery_sweep(
     repo_root: Path,
     scanners_mod: Any,
     okf_mod: Any,
+    repo_label: str = "",
 ) -> Dict[str, Any]:
     """Execute concrete read-only discovery sweep for the selected mode."""
     if scanners_mod is None:
         return {"sweep_focus": canonical_mode, "issue_candidates": []}
     if canonical_mode == "docs":
-        return scanners_mod.run_docs_sweep(repo_root, okf_mod)
-    if canonical_mode == "debt":
-        return scanners_mod.run_debt_sweep(repo_root)
-    if canonical_mode == "security":
-        return scanners_mod.run_security_sweep(repo_root)
-    if canonical_mode == "design":
-        return scanners_mod.run_design_sweep(repo_root)
-    if canonical_mode == "optimization":
-        return scanners_mod.run_optimization_sweep(repo_root)
-    if canonical_mode == "housekeeping":
-        return scanners_mod.run_housekeeping_sweep(repo_root)
-    return {"sweep_focus": canonical_mode, "issue_candidates": []}
+        findings = scanners_mod.run_docs_sweep(repo_root, okf_mod, repo_label=repo_label)
+    elif canonical_mode == "debt":
+        findings = scanners_mod.run_debt_sweep(repo_root)
+    elif canonical_mode == "security":
+        findings = scanners_mod.run_security_sweep(repo_root)
+    elif canonical_mode == "design":
+        findings = scanners_mod.run_design_sweep(repo_root)
+    elif canonical_mode == "optimization":
+        findings = scanners_mod.run_optimization_sweep(repo_root)
+    elif canonical_mode == "housekeeping":
+        findings = scanners_mod.run_housekeeping_sweep(repo_root)
+    else:
+        findings = {"sweep_focus": canonical_mode, "issue_candidates": []}
+    _tag_candidates_repo(findings, repo_label)
+    return findings
+
+
+def _is_duplicate_candidate(cand: Dict[str, Any], title: str, search_dirs: List[str], issue_mod: Any) -> bool:
+    """Return True if an existing issue matches `title` within the same `(repo, file)` scope."""
+    matches = issue_mod.find_similar_issues(title, search_dirs, threshold=0.78)
+    if not matches:
+        return False
+    cand_repo = str(cand.get("repo") or "").strip().lower()
+    cand_file = str(cand.get("file") or "").strip().lower()
+    for _, _, meta in matches:
+        match_repo = str(meta.get("repo") or "").strip().lower()
+        match_file = str(meta.get("file") or "").strip().lower()
+        if cand_repo != match_repo:
+            continue
+        if cand_file and match_file and cand_file != match_file:
+            continue
+        return True
+    return False
 
 
 def _log_discovery_candidates(
@@ -223,6 +274,7 @@ def _log_discovery_candidates(
     gate: Dict[str, Any],
     findings: Dict[str, Any],
     issue_mod: Any,
+    inbox_offset: int = 0,
 ) -> List[str]:
     """Log bounded, deduplicated discovery findings into `workforces/issues/inbox/`."""
     if issue_mod is None:
@@ -237,37 +289,120 @@ def _log_discovery_candidates(
         str(repo_root / "workforces" / "issues" / "triaged"),
         str(repo_root / "workforces" / "issues" / "completed"),
     ]
-    current_inbox = int(gate.get("inbox_count", 0))
+    current_inbox = int(gate.get("inbox_count", 0)) + inbox_offset
     max_inbox = int(gate.get("max_untriaged_inbox", 15))
     allowance = min(3, max(0, max_inbox - current_inbox)) if max_inbox > 0 else 3
     if allowance <= 0:
         return []
 
+    supports_repo = "repo" in inspect.signature(issue_mod.build_issue_markdown).parameters
     inbox_dir.mkdir(parents=True, exist_ok=True)
     logged: List[str] = []
     for cand in candidates:
         if len(logged) >= allowance:
             break
         title = str(cand.get("title") or "").strip()
-        if not title or issue_mod.find_similar_issues(title, search_dirs, threshold=0.78):
+        if not title or _is_duplicate_candidate(cand, title, search_dirs, issue_mod):
             continue
-        out_file = inbox_dir / f"auto-{issue_mod.slugify(title)}.md"
+        out_file = inbox_dir / f"auto-{issue_mod.slugify(title.replace('/', '-'))}.md"
         if out_file.exists():
             continue
-        out_file.write_text(
-            issue_mod.build_issue_markdown(
-                title=title,
-                issue_type=str(cand.get("type") or "chore"),
-                severity=str(cand.get("severity") or "P2"),
-                reporter=f"wf-work:{active_harness}",
-                description=str(cand.get("description") or title),
-                suggested_action=str(cand.get("suggested_action") or "Review and promote via `/wf-sync --daily`."),
-                file_path=str(cand.get("file") or ""),
-            ),
-            encoding="utf-8",
-        )
+        kwargs: Dict[str, Any] = {
+            "title": title,
+            "issue_type": str(cand.get("type") or "chore"),
+            "severity": str(cand.get("severity") or "P2"),
+            "reporter": f"wf-work:{active_harness}",
+            "description": str(cand.get("description") or title),
+            "suggested_action": str(cand.get("suggested_action") or "Review and promote via `/wf-sync --daily`."),
+            "file_path": str(cand.get("file") or ""),
+        }
+        if supports_repo and cand.get("repo"):
+            kwargs["repo"] = str(cand["repo"])
+        out_file.write_text(issue_mod.build_issue_markdown(**kwargs), encoding="utf-8")
         logged.append(str(out_file))
     return logged
+
+
+def _build_needs_repo_response(canonical_mode: str, active_harness: str, resolved: Dict[str, Any]) -> Dict[str, Any]:
+    """Build non-mutating disambiguation response when target repository is ambiguous."""
+    return {
+        "action": "needs_repo_selection",
+        "mode": canonical_mode,
+        "harness": active_harness,
+        "ambiguous": True,
+        "reason": resolved.get("reason"),
+        "available_repos": resolved.get("available_repos", []),
+        "question": (
+            f"Multiple configured repositories were found. Which repository should `/wf-work {canonical_mode}` run on? "
+            "Specify a repo name/slug, or pass `--repo all` to run across all configured repositories."
+        ),
+    }
+
+
+def _execute_discovery_phase(
+    repo_root: Path,
+    canonical_mode: str,
+    active_harness: str,
+    gate: Dict[str, Any],
+    repo: Optional[str],
+    log_to_inbox: bool,
+    scanners_mod: Any,
+    okf_mod: Any,
+    issue_mod: Any,
+    repo_scope_mod: Any,
+) -> Dict[str, Any]:
+    """Resolve single vs. multi-repo target(s) and execute bounded discovery sweeps."""
+    fallback = [{"name": repo_root.name, "slug": repo_root.name, "path": str(repo_root), "is_workspace_root": True}]
+    if repo_scope_mod is not None:
+        resolved = repo_scope_mod.resolve_repo_targets(repo_root, repo_arg=repo)
+        if resolved.get("status") == "ambiguous":
+            return _build_needs_repo_response(canonical_mode, active_harness, resolved)
+        targets = resolved.get("targets") or fallback
+        scope = resolved.get("scope", "single")
+    else:
+        targets = fallback
+        scope = "single"
+
+    policy_note = "Never open unsolicited PRs during discovery; log findings to workforces/issues/inbox/ via report-issue.py."
+    if len(targets) == 1 and scope != "all":
+        t = targets[0]
+        repo_label = "" if t.get("is_workspace_root") else str(t.get("name") or "")
+        findings = _run_discovery_sweep(canonical_mode, Path(t["path"]), scanners_mod, okf_mod, repo_label=repo_label)
+        logged_issues = _log_discovery_candidates(repo_root, active_harness, gate, findings, issue_mod) if log_to_inbox else []
+        return {
+            "action": "discovery",
+            "mode": canonical_mode,
+            "harness": active_harness,
+            "gate": gate,
+            "target_repo": t,
+            "findings": findings,
+            "logged_issues": logged_issues,
+            "policy": policy_note,
+        }
+
+    results_by_repo: Dict[str, Any] = {}
+    merged_candidates: List[Dict[str, Any]] = []
+    all_logged: List[str] = []
+    for t in targets:
+        r_name = str(t.get("name") or Path(t["path"]).name)
+        r_findings = _run_discovery_sweep(canonical_mode, Path(t["path"]), scanners_mod, okf_mod, repo_label=r_name)
+        results_by_repo[r_name] = r_findings
+        merged_candidates.extend(r_findings.get("issue_candidates") or [])
+        if log_to_inbox:
+            all_logged.extend(_log_discovery_candidates(repo_root, active_harness, gate, r_findings, issue_mod, inbox_offset=len(all_logged)))
+
+    return {
+        "action": "discovery",
+        "mode": canonical_mode,
+        "scope": "all",
+        "harness": active_harness,
+        "gate": gate,
+        "repos": [str(t.get("name") or "") for t in targets],
+        "results_by_repo": results_by_repo,
+        "findings": {"issue_candidates": merged_candidates, "repo_count": len(targets)},
+        "logged_issues": all_logged,
+        "policy": policy_note,
+    }
 
 
 def dispatch_work(
@@ -281,6 +416,7 @@ def dispatch_work(
     window_remaining_minutes: Optional[int] = None,
     skip_gh: bool = False,
     log_to_inbox: bool = True,
+    repo: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Run gate checks, claim priority work, or execute bounded discovery sweeps."""
     canonical_mode = MODE_ALIASES.get(mode.strip().lower())
@@ -292,6 +428,7 @@ def dispatch_work(
     okf_mod = _load_sibling_script("wf-doc-generator", "scaffold_repo_okf.py", repo_root=repo_root)
     issue_mod = _load_sibling_script("wf-issue-tracker", "report-issue.py", repo_root=repo_root)
     scanners_mod = _load_sibling_script("wf-work", "discovery_scanners.py", repo_root=repo_root)
+    repo_scope_mod = _load_sibling_script("wf-work", "repo_scope.py", repo_root=repo_root)
     if not budget_mod or not task_mod:
         raise RuntimeError("Required sibling scripts (budget_gate.py / report-task.py) not found.")
 
@@ -328,23 +465,16 @@ def dispatch_work(
     if not gate["allowed"]:
         return {"action": "halted", "harness": active_harness, "gate": gate}
 
-    findings = _run_discovery_sweep(canonical_mode, repo_root, scanners_mod, okf_mod)
-    logged_issues = _log_discovery_candidates(repo_root, active_harness, gate, findings, issue_mod) if log_to_inbox else []
-    return {
-        "action": "discovery",
-        "mode": canonical_mode,
-        "harness": active_harness,
-        "gate": gate,
-        "findings": findings,
-        "logged_issues": logged_issues,
-        "policy": "Never open unsolicited PRs during discovery; log findings to workforces/issues/inbox/ via report-issue.py.",
-    }
+    return _execute_discovery_phase(
+        repo_root, canonical_mode, active_harness, gate, repo, log_to_inbox, scanners_mod, okf_mod, issue_mod, repo_scope_mod
+    )
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Dispatch token-aware `/wf-work` sweeps.")
     parser.add_argument("mode", nargs="?", default="auto", help="auto|codereview|docs|security|design|optimization|debt|housekeeping|status|pause|resume")
     parser.add_argument("--root", default=".", help="Repository root path")
+    parser.add_argument("--repo", default=None, help="Target configured/sibling repository name, slug, path, or 'all'")
     parser.add_argument("--harness", help="Override active harness (`antigravity`, `claude`, `grok`)")
     parser.add_argument("--agent", help="Worker agent label for task claim attribution")
     parser.add_argument("--worktree", help="Worktree/branch label for task claim attribution")
@@ -368,9 +498,14 @@ def main() -> int:
         window_remaining_minutes=args.window_remaining_minutes,
         skip_gh=args.skip_gh,
         log_to_inbox=args.log_to_inbox,
+        repo=args.repo,
     )
     if args.json:
         print(json.dumps(result, indent=2, default=str))
+    elif result.get("action") == "needs_repo_selection":
+        print(f"❓ {result.get('question')}")
+        for r in result.get("available_repos", []):
+            print(f"  - {r.get('name')} ({r.get('slug')}) -> {r.get('path')}")
     else:
         print(f"⚙️ /wf-work [{result.get('harness')}] -> {result['action']}")
     return 0

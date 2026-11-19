@@ -271,7 +271,7 @@ class TestHookScriptsExecution(unittest.TestCase):
         pcr_scripts.mkdir(parents=True)
         for s in ["pre_tool_hook.py", "graph_indexer.py", "pre_impact_analyzer.py"]:
             shutil.copy2(REPO_ROOT / "skills" / "wf-code-graph" / "scripts" / s, cg_scripts / s)
-        for s in ["post_tool_hook.py", "post_code_reviewer.py"]:
+        for s in ["post_tool_hook.py", "post_code_reviewer.py", "deploy_safety_hook.py", "worktree_file_guard.py"]:
             shutil.copy2(REPO_ROOT / "skills" / "wf-post-code-review" / "scripts" / s, pcr_scripts / s)
         sample_py = ws_root / "calc.py"
         sample_py.write_text("def add(a: int, b: int) -> int:\n    return a + b\n", encoding="utf-8")
@@ -283,7 +283,7 @@ class TestHookScriptsExecution(unittest.TestCase):
     def _verify_pre_hook_cmd(self, cmd: str, ws_root: Path, sample_py: Path) -> None:
         """Verify pre-tool hook execution in consumer directory."""
         payload = json.dumps({
-            "toolCall": {"name": "write_to_file", "args": {"TargetFile": str(sample_py)}},
+            "toolCall": {"name": "run_command", "args": {"CommandLine": "git status", "Cwd": str(ws_root)}},
             "workspacePaths": [str(ws_root)],
         })
         proc = subprocess.run(cmd, shell=True, input=payload, capture_output=True, text=True, timeout=30, cwd=ws_root)

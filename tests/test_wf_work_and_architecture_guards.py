@@ -219,8 +219,8 @@ class TestDeploySafetyHook(unittest.TestCase):
         profiles = ca.load_host_profiles(str(REPO_ROOT))
         prog_meta = json.loads((REPO_ROOT / "plugins" / "wf-programming-plugin" / "plugin.json").read_text(encoding="utf-8"))
 
-        agy_cmd = ca.compile_plugin_hooks_for_host(prog_meta, profiles["antigravity"])["PreToolUse"][1]["hooks"][0]["command"]
-        claude_cmd = ca.compile_plugin_hooks_for_host(prog_meta, profiles["claude"])["PreToolUse"][1]["hooks"][0]["command"]
+        agy_cmd = ca.compile_plugin_hooks_for_host(prog_meta, profiles["antigravity"])["PreToolUse"][0]["hooks"][0]["command"]
+        claude_cmd = ca.compile_plugin_hooks_for_host(prog_meta, profiles["claude"])["PreToolUse"][0]["hooks"][0]["command"]
 
         res_agy = subprocess.run(["/bin/sh", "-c", agy_cmd], input='{"toolCall":{"args":{"CommandLine":"git status"}}}', cwd=self.tmp, capture_output=True, text=True, check=True)
         self.assertEqual(json.loads(res_agy.stdout).get("decision"), "force_ask")
@@ -360,6 +360,153 @@ class TestScaffoldRepoOkf(unittest.TestCase):
         with self.assertRaises(ValueError):
             scaffold_repo_okf.dehydrate_spec(untracked_spec, repo_root=git_repo)
         self.assertIn("Draft 90", untracked_spec.read_text(encoding="utf-8"))
+
+    def test_module_discovery_blast_radius_stale_cards_and_full_index(self):
+        billing_dir = self.tmp / "apps" / "billing"
+        billing_dir.mkdir(parents=True, exist_ok=True)
+        (billing_dir / "invoice.py").write_text(
+            "import os\nKEY = os.getenv('BILLING_WEBHOOK_KEY')\n\ndef calculate_tax(amount):\n    return amount * 0.1\n",
+            encoding="utf-8",
+        )
+        (billing_dir / "notifier.py").write_text(
+            'class InvoiceNotifier:\n    """Dispatches invoice webhooks."""\n    pass\n',
+            encoding="utf-8",
+        )
+        web_dir = self.tmp / "apps" / "web"
+        web_dir.mkdir(parents=True, exist_ok=True)
+        (web_dir / "checkout.ts").write_text(
+            "import { calculate_tax } from '../billing/invoice';\nexport function pay() { return calculate_tax(100); }\n",
+            encoding="utf-8",
+        )
+        api_dir = self.tmp / "src" / "api"
+        api_dir.mkdir(parents=True, exist_ok=True)
+        (api_dir / "routes.py").write_text(
+            "from apps.billing.invoice import calculate_tax\n\ndef handle():\n    return calculate_tax(50)\n",
+            encoding="utf-8",
+        )
+        unrelated_dir = self.tmp / "apps" / "unrelated"
+        unrelated_dir.mkdir(parents=True, exist_ok=True)
+        (unrelated_dir / "util.py").write_text(
+            "def calculate_tax():\n    return 0\n\ndef run():\n    return calculate_tax()\n",
+            encoding="utf-8",
+        )
+        (self.tmp / "tests").mkdir(parents=True, exist_ok=True)
+        (self.tmp / "tests" / "test_billing.py").write_text("def test_tax(): pass\n", encoding="utf-8")
+
+        subprocess.run(["git", "add", "."], cwd=self.tmp, check=True, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "seed modules"], cwd=self.tmp, check=True, capture_output=True)
+        base_sha = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=self.tmp, check=True, capture_output=True, text=True
+        ).stdout.strip()
+
+        for i in range(6):
+            (api_dir / "routes.py").write_text(
+                f"from apps.billing.invoice import calculate_tax\n\ndef handle():\n    return calculate_tax({51 + i})\n",
+                encoding="utf-8",
+            )
+            subprocess.run(["git", "add", "."], cwd=self.tmp, check=True, capture_output=True)
+            subprocess.run(["git", "commit", "-m", f"api change {i}"], cwd=self.tmp, check=True, capture_output=True)
+
+        arch_dir = self.tmp / "docs" / "architecture"
+        arch_dir.mkdir(parents=True, exist_ok=True)
+        (arch_dir / "api.md").write_text(
+            '---\ntype: Architecture Component\ntitle: "API Gateway"\ndescription: "Handles HTTP routes."\n'
+            'doc_status: "documented"\naffected_files:\n  - "src/api/**/*"\n  - "src/deleted/**/*"\n---\n# API\n',
+            encoding="utf-8",
+        )
+        (arch_dir / "drifted.md").write_text(
+            f'---\ntype: Architecture Component\ntitle: "Drifted API"\ndescription: "Tracks old SHA."\n'
+            f'doc_status: "documented"\nlast_verified_commit: "{base_sha}"\naffected_files:\n  - "src/api/**/*"\n---\n# Drifted\n',
+            encoding="utf-8",
+        )
+
+        scan_res = scaffold_repo_okf.scan_and_scaffold(self.tmp)
+        self.assertIn("docs/architecture/api.md", scan_res["indexed_cards"])
+        self.assertIn("docs/architecture/drifted.md", scan_res["indexed_cards"])
+        index_text = (self.tmp / "docs" / "index.md").read_text(encoding="utf-8")
+        self.assertIn("api.md", index_text)
+        self.assertIn("drifted.md", index_text)
+        self.assertIn("`documented`", index_text)
+
+        hygiene = scaffold_repo_okf.audit_hygiene(self.tmp)
+        recs = hygiene["doc_recommendations"]
+        self.assertGreaterEqual(len(recs), 2)
+        billing_rec = next(r for r in recs if r["module"] == "apps/billing")
+        web_rec = next(r for r in recs if r["module"] == "apps/web")
+        self.assertGreaterEqual(billing_rec["inbound_callers"], 2)
+        self.assertNotIn("apps/unrelated/util.py", billing_rec["caller_files"])
+        self.assertGreater(billing_rec["priority_score"], web_rec["priority_score"])
+        self.assertIn("BILLING_WEBHOOK_KEY", billing_rec["env_vars"])
+        self.assertIn("tests/test_billing.py", billing_rec["test_files"])
+        self.assertIn("calculate_tax", billing_rec["undocumented_symbol_names"])
+
+        stale_files = {s["file"]: s for s in hygiene["stale_cards"]}
+        self.assertIn("docs/architecture/api.md", stale_files)
+        self.assertIn("src/deleted/**/*", stale_files["docs/architecture/api.md"]["broken_globs"])
+        self.assertIn("docs/architecture/drifted.md", stale_files)
+        self.assertGreaterEqual(stale_files["docs/architecture/drifted.md"]["commits_behind"], 6)
+
+        cli_res = subprocess.run(
+            [sys.executable, str(REPO_ROOT / "skills" / "wf-doc-generator" / "scripts" / "scaffold_repo_okf.py"), "--recommend-docs", str(self.tmp), "--json"],
+            capture_output=True, text=True, check=True,
+        )
+        cli_payload = json.loads(cli_res.stdout)
+        self.assertEqual(cli_payload["doc_recommendations"][0]["module"], "apps/billing")
+
+    def test_file_impact_direct_importers_okf_cards_and_git_cochanges(self):
+        billing_dir = self.tmp / "apps" / "billing"
+        billing_dir.mkdir(parents=True, exist_ok=True)
+        (self.tmp / "src" / "api").mkdir(parents=True, exist_ok=True)
+        (self.tmp / "apps" / "unrelated").mkdir(parents=True, exist_ok=True)
+        (self.tmp / "tests").mkdir(parents=True, exist_ok=True)
+        (self.tmp / "docs" / "architecture").mkdir(parents=True, exist_ok=True)
+
+        (self.tmp / "docs" / "architecture" / "billing.md").write_text(
+            '---\ntype: Architecture Component\ntitle: "Billing"\ndescription: "Tax logic."\n'
+            'doc_status: "documented"\naffected_files:\n  - "apps/billing/**/*"\n---\n# Billing\n',
+            encoding="utf-8",
+        )
+        (self.tmp / "src" / "api" / "routes.py").write_text(
+            "from apps.billing.invoice import calculate_tax\n\ndef route():\n    return calculate_tax(10)\n",
+            encoding="utf-8",
+        )
+        (self.tmp / "apps" / "unrelated" / "noise.py").write_text(
+            "def calculate_tax():\n    return 0\n",
+            encoding="utf-8",
+        )
+
+        for i in range(2):
+            (billing_dir / "invoice.py").write_text(
+                f"import os\nKEY = os.getenv('BILLING_WEBHOOK_KEY')\n\ndef calculate_tax(amount):\n    return amount * 0.{i + 1}\n",
+                encoding="utf-8",
+            )
+            (self.tmp / "template.yaml").write_text(f"Description: v{i}\n", encoding="utf-8")
+            (self.tmp / "tests" / "test_billing.py").write_text(f"def test_tax_{i}(): pass\n", encoding="utf-8")
+            subprocess.run(["git", "add", "."], cwd=self.tmp, check=True, capture_output=True)
+            subprocess.run(["git", "commit", "-m", f"paired billing change {i}"], cwd=self.tmp, check=True, capture_output=True)
+
+        impact = scaffold_repo_okf.analyze_file_impact(self.tmp, "apps/billing/invoice.py")
+        self.assertEqual(impact["target_file"], "apps/billing/invoice.py")
+        self.assertTrue(any(c["file"] == "docs/architecture/billing.md" for c in impact["matching_okf_cards"]))
+        self.assertIn("src/api/routes.py", impact["direct_importers"])
+        self.assertNotIn("apps/unrelated/noise.py", impact["direct_importers"])
+        self.assertTrue(any(item["file"] == "template.yaml" for item in impact["git_co_changed_files"]))
+        self.assertIn("tests/test_billing.py", impact["matching_tests"])
+        self.assertIn("BILLING_WEBHOOK_KEY", impact["env_vars"])
+
+        cli_res = subprocess.run(
+            [
+                sys.executable,
+                str(REPO_ROOT / "skills" / "wf-doc-generator" / "scripts" / "scaffold_repo_okf.py"),
+                "--impact", "apps/billing/invoice.py",
+                "--repo-root", str(self.tmp),
+                "--json",
+            ],
+            capture_output=True, text=True, check=True,
+        )
+        cli_impact = json.loads(cli_res.stdout)
+        self.assertIn("src/api/routes.py", cli_impact["direct_importers"])
+        self.assertTrue(any(item["file"] == "template.yaml" for item in cli_impact["git_co_changed_files"]))
 
 
 class TestWfWorkMultiHarnessAndBudgetGate(unittest.TestCase):
@@ -567,6 +714,91 @@ class TestWfWorkMultiHarnessAndBudgetGate(unittest.TestCase):
             self.assertIn(expected_kind, kinds, f"Mode `{sweep_mode}` missed `{expected_kind}` in {out}")
             self.assertGreaterEqual(len(out["logged_issues"]), 1, f"Expected logged inbox issue for `{sweep_mode}`")
 
+    def test_docs_recommendation_promotion_and_dual_deliverable_instructions(self):
+        billing_dir = self.tmp / "src" / "billing"
+        billing_dir.mkdir(parents=True, exist_ok=True)
+        (billing_dir / "ledger.py").write_text("def post_entry(x):\n    return x + 1\n", encoding="utf-8")
+        cli_dir = self.tmp / "src" / "cli"
+        cli_dir.mkdir(parents=True, exist_ok=True)
+        (cli_dir / "main.py").write_text("def run():\n    return post_entry(1)\n", encoding="utf-8")
+
+        res = work_dispatch.dispatch_work(self.tmp, mode="docs", harness="claude", skip_gh=True, log_to_inbox=True)
+        self.assertEqual(res["action"], "discovery")
+        self.assertGreaterEqual(len(res["logged_issues"]), 2)
+        self.assertTrue(any("src-cli" in Path(p).name for p in res["logged_issues"]))
+
+        doc_issue_path = next(
+            p for p in res["logged_issues"]
+            if "document-module" in Path(p).name and "src-billing" in Path(p).name
+        )
+        issue_text = Path(doc_issue_path).read_text(encoding="utf-8")
+        self.assertIn("docs/architecture/src-billing.md", issue_text)
+        self.assertIn("docblocks", issue_text)
+
+        tasks_dir = self.tmp / "workforces" / "tasks"
+        promoted_path = report_task.promote_issue_to_task(doc_issue_path, str(tasks_dir), approved=True)
+        claimed = work_dispatch.dispatch_work(self.tmp, mode="auto", harness="antigravity", skip_gh=True)
+        self.assertEqual(claimed["action"], "execute_approved_task")
+        self.assertEqual(Path(claimed["claimed_task"]["path"]).resolve(), Path(promoted_path).resolve())
+        self.assertIn("docs/architecture/<module>.md", claimed["instructions"])
+        self.assertIn("docblocks", claimed["instructions"])
+        self.assertIn("post_code_reviewer.py --run-checks --strict", claimed["instructions"])
+
+    def test_multi_repo_disambiguation_single_target_and_all(self):
+        parent = self.tmp / "workspace_parent"
+        hub = parent / "hub"
+        svc_a = parent / "svc-a"
+        svc_b = parent / "svc-b"
+        for d in (hub, svc_a, svc_b):
+            d.mkdir(parents=True, exist_ok=True)
+        _init_git_repo(svc_a, remote_url="git@github.com:acme/svc-a.git")
+        _init_git_repo(svc_b, remote_url="git@github.com:acme/svc-b.git")
+        (svc_a / "src" / "auth").mkdir(parents=True, exist_ok=True)
+        (svc_a / "src" / "auth" / "token.py").write_text("def issue_token():\n    return 'tok'\n", encoding="utf-8")
+        (svc_b / "src" / "orders").mkdir(parents=True, exist_ok=True)
+        (svc_b / "src" / "orders" / "sync.py").write_text("def sync_order():\n    return True\n", encoding="utf-8")
+
+        (hub / "workforces" / "tasks").mkdir(parents=True, exist_ok=True)
+        (hub / "workforces" / "issues" / "inbox").mkdir(parents=True, exist_ok=True)
+        (hub / "workforces" / "config.json").write_text(
+            json.dumps({"schema_version": 1, "hosts": ["claude"]}, indent=2),
+            encoding="utf-8",
+        )
+        (hub / "workforces" / "workrules.md").write_text(
+            "# Work Rules\n\n## Tracked Repositories\n- tracked_repos: [acme/svc-a, acme/svc-b]\n",
+            encoding="utf-8",
+        )
+
+        # 1. Ambiguous without --repo -> must ask and perform zero writes
+        ambiguous = work_dispatch.dispatch_work(hub, mode="docs", harness="claude", skip_gh=True, log_to_inbox=True)
+        self.assertEqual(ambiguous["action"], "needs_repo_selection")
+        self.assertTrue(ambiguous["ambiguous"])
+        self.assertEqual({r["name"] for r in ambiguous["available_repos"]}, {"svc-a", "svc-b"})
+        self.assertFalse((svc_a / "docs" / "index.md").exists())
+        self.assertFalse((svc_b / "docs" / "index.md").exists())
+        self.assertEqual(list((hub / "workforces" / "issues" / "inbox").glob("*.md")), [])
+
+        # 2. Explicit single --repo svc-a -> documents/scans only svc-a and tags issue repo
+        one = work_dispatch.dispatch_work(hub, mode="docs", harness="claude", skip_gh=True, log_to_inbox=True, repo="svc-a")
+        self.assertEqual(one["action"], "discovery")
+        self.assertTrue((svc_a / "docs" / "index.md").is_file())
+        self.assertFalse((svc_b / "docs" / "index.md").exists())
+        self.assertGreaterEqual(len(one["logged_issues"]), 1)
+        a_meta, _ = report_task.parse_frontmatter(Path(one["logged_issues"][0]).read_text(encoding="utf-8"))
+        self.assertEqual(a_meta.get("repo"), "svc-a")
+
+        promoted_a = report_task.promote_issue_to_task(one["logged_issues"][0], str(hub / "workforces" / "tasks"), approved=True)
+        task_a_meta, _ = report_task.parse_frontmatter(Path(promoted_a).read_text(encoding="utf-8"))
+        self.assertEqual(task_a_meta.get("repo"), "svc-a")
+
+        # 3. --repo all -> runs across both svc-a and svc-b
+        both = work_dispatch.dispatch_work(hub, mode="docs", harness="grok", skip_gh=True, log_to_inbox=True, repo="all")
+        self.assertEqual(both["action"], "discovery")
+        self.assertEqual(both["scope"], "all")
+        self.assertEqual(set(both["repos"]), {"svc-a", "svc-b"})
+        self.assertTrue((svc_b / "docs" / "index.md").is_file())
+        self.assertTrue(any("svc-b" in p for p in both["logged_issues"]))
+
 
 class TestRepositoryCleanHygiene(unittest.TestCase):
     """Ensure zero client-proprietary names or machine-local `/Users/` links were introduced."""
@@ -592,6 +824,31 @@ class TestRepositoryCleanHygiene(unittest.TestCase):
                         user_link_re.search(text),
                         f"Non-portable local link found in {p.relative_to(REPO_ROOT)}",
                     )
+
+    def test_wf_code_graph_deprecated_for_ai_and_decoupled(self):
+        """Ensure wf-code-graph is UI-only (disable_model_invocation=True) and decoupled from AI agents/skills/hooks."""
+        cg_meta = json.loads((REPO_ROOT / "skills" / "wf-code-graph" / "skill.json").read_text(encoding="utf-8"))
+        self.assertTrue(cg_meta.get("disable_model_invocation"))
+
+        decoupled_files = [
+            "agents/wf-researcher.md",
+            "agents/wf-programmer.md",
+            "agents/wf-programmer.json",
+            "teams/dev/pack.json",
+            "plugins/wf-programming-plugin/plugin.json",
+            "plugins/wf-programming-plugin/hooks.json",
+            "skills/wf-doc-generator/scripts/scaffold_repo_okf.py",
+            "skills/wf-plan/SKILL.md",
+            "skills/wf-feature-research/SKILL.md",
+            "skills/wf-codebase-improvement/SKILL.md",
+            "skills/wf-work/SKILL.md",
+            "skills/wf-work/scripts/work_dispatch.py",
+        ]
+        banned = ("wf-code-graph", "pre_impact_analyzer", "graph_indexer", "pre_tool_hook")
+        for rel in decoupled_files:
+            content = (REPO_ROOT / rel).read_text(encoding="utf-8")
+            for tok in banned:
+                self.assertNotIn(tok, content, f"Deprecated token `{tok}` still referenced in {rel}")
 
 
 if __name__ == "__main__":

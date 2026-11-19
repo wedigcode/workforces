@@ -1,38 +1,90 @@
 ---
 name: wf-doc-generator
-description: Auto-discovers project programming languages (TypeScript, Python, Go, Rust) and executes native documentation generators (TypeDoc, pydoc, go doc, cargo doc) to export structured API references. Reach for this skill when generating or refreshing technical documentation, publishing an Open Knowledge Format (OKF) catalog under `workforces/knowledge-catalog/`, or onboarding to an unfamiliar codebase needing extracted architectural references.
+description: Generates and maintains living Open Knowledge Format (OKF) architecture documentation under `<repo>/docs/` (`docs/index.md` and `docs/architecture/*.md`), concise source-file boundary docblocks and inline 'why' comments, ranked documentation-gap recommendations, and optional API reference documentation for TypeScript, Python, PHP, Go, Rust, and IaC packages into an Open Knowledge Format catalog (`workforces/knowledge-catalog/code/`). Reach for this skill when scaffolding or enriching repo architecture cards, onboarding to an unfamiliar codebase, documenting high-blast-radius modules for safer refactoring, or dehydrating shipped PRDs.
 ---
-# Skill: Automated Documentation Generator
+# Skill: Living Architecture & Code Documentation Generator
 
-Detects project programming language, discovers native documentation generators (TypeDoc, pydoc/sphinx, go doc, cargo doc, etc.), extracts API docs, and formats them into the `workforces/knowledge-catalog/` directory using Open Knowledge Format (OKF).
+Maintains universal, agent- and human-readable Open Knowledge Format (OKF) architecture docs inside **`<repo>/docs/`** (`docs/index.md` + `docs/architecture/*.md`), paired with concise source-file docblocks and inline *"why"* comments so every coding harness and developer has immediate wiring, blast-radius, and verification context.
 
 ---
 
-## Language Auto-Discovery Matrix
+## Stack & Language Auto-Discovery Matrix
 
-| Language | Primary Signal Files | Native / Standard Doc Tool | Extraction Command |
-|----------|----------------------|----------------------------|--------------------|
-| **TypeScript / JS** | `package.json`, `tsconfig.json` | `typedoc`, `jsdoc`, `graph_indexer.py` | `npx -y typedoc --json workforces/docs/typedoc.json` |
-| **Python** | `pyproject.toml`, `setup.py`, `requirements.txt` | `pydoc`, `sphinx`, `graph_indexer.py` | `python3 -m pydoc -w ./` |
-| **Go** | `go.mod` | `go doc` | `go doc -all ./...` |
-| **Rust** | `Cargo.toml` | `cargo doc` | `cargo doc --no-deps` |
-| **Java** | `pom.xml`, `build.gradle` | `javadoc` | `javadoc -d workforces/docs/javadoc` |
+| Stack / Language | Primary Signal Files | OKF Architecture Card | Optional Native API Extractor |
+|---|---|---|---|
+| **PHP** | `composer.json`, `src/EventSubscriber/`, `src/Service/` | `docs/architecture/php-backend.md` | `phpdoc` |
+| **TypeScript / JS** | `package.json`, `tsconfig.json` | `docs/architecture/node-typescript.md` | `npx -y typedoc --json workforces/docs/typedoc.json` |
+| **Python** | `pyproject.toml`, `setup.py`, `requirements.txt` | `docs/architecture/python-modules.md` | `python3 -m pydoc -w ./` |
+| **Go** | `go.mod`, `cmd/`, `internal/`, `pkg/` | `docs/architecture/go-services.md` | `go doc -all ./...` |
+| **Rust** | `Cargo.toml`, `crates/` | `docs/architecture/rust-crates.md` | `cargo doc --no-deps` |
+| **Java** | `pom.xml`, `build.gradle` | `docs/architecture/<module>.md` | `javadoc -d workforces/docs/javadoc` |
+| **IaC / Deployment** | `template.yaml`, `samconfig.toml`, `serverless.yml` | `docs/architecture/iac-deployment.md` | IaC parameter & env parity cross-check |
+
+---
+
+## Refactor-Ready OKF Architecture Card Schema (`<repo>/docs/architecture/<module>.md`)
+
+Every module architecture card should stay concise, factual, and scannable so agents save tokens and avoid regressions during refactoring:
+
+```yaml
+---
+type: Architecture Component
+title: "<Human-Readable Module Name>"
+description: "<One-sentence summary of role and responsibility.>"
+doc_status: "documented"      # scaffold | documented | stale
+last_verified_commit: "<git_sha>"
+affected_files:
+  - "src/billing/**/*"
+tags: [billing, payments, webhook]
+updated_at: "YYYY-MM-DD"
+---
+```
+
+Required body sections:
+1. **`## Purpose & Boundaries`** — What this module owns vs. explicitly does *not* own.
+2. **`## Entrypoints, Events & Data Flow`** — Controllers, routes, CLI commands, queues, event subscribers/listeners, external APIs, and database tables.
+3. **`## Key Dependencies & Blast Radius`** — Upstream services called and high-fan-in downstream callers that break if contracts change.
+4. **`## Environment & Deployment Config`** — Exact env vars read by the module and their IaC/manifest source (`template.yaml`, `samconfig.toml`, `.env.example`). Never hardcode `"prod"`/`"production"` defaults.
+5. **`## Test Coverage & Verification`** — Matching test file paths and exact test/lint/typecheck commands to verify edits.
+6. **`## Constraints, Invariants & Gotchas`** — Dated bullets explaining non-obvious invariants and *why* choices exist (replaces keeping a separate `CHANGELOG.md`).
+
+---
+
+## Code Docblocks & Inline Documentation Protocol
+
+Architecture cards tell agents *where* things connect; concise inline source docs prevent misreads when editing files directly:
+- **Module & Class Boundary Docblocks**: Keep a short 2–4 line docstring/comment on services, controllers, event subscribers, and integration handlers describing responsibility, events handled, and external config assumptions.
+- **Public & High-Fan-In Functions**: Document non-obvious parameters, return contracts, side effects, and error conditions on public functions/methods referenced across modules.
+- **Inline *"Why"* Comments**: Add brief inline comments only for non-obvious invariants, ordering constraints, race-condition guards, or workarounds—never narrate obvious syntax (`# increment counter`).
+- **Quality Gate After Code Edits**: Whenever modifying source files to add docblocks/comments, run `post_code_reviewer.py --root ./ --run-checks --strict` before opening a Draft PR.
 
 ---
 
 ## Execution Protocol
 
-### Step 1: Detect Project Stack & Scaffold Repo-Local OKF Docs (`<repo>/docs/`)
-Save architecture docs directly inside **`<repo>/docs/`** so all coding harnesses (even without Workforces installed) share architecture context:
-1. Run the non-destructive OKF scaffolder across PHP, Go, Node/TypeScript, Python, Rust, and AWS SAM/IaC:
+### Step 1: Discover Gaps & Scaffold `<repo>/docs/`
+1. Non-destructively scaffold `<repo>/docs/index.md` and starter cards, and auto-index **all** `docs/architecture/*.md` cards (including custom domain cards with `doc_status`):
    ```bash
    python3 .agents/skills/wf-doc-generator/scripts/scaffold_repo_okf.py --scan ./
    ```
    *(Fallback: `python3 skills/wf-doc-generator/scripts/scaffold_repo_okf.py --scan ./`)*
-2. Inspect and enrich generated `<repo>/docs/index.md` and `docs/architecture/*.md` cards (`affected_files:` frontmatter globs + concise `## Constraints & Why` entries — never maintain a redundant `CHANGELOG.md`).
+2. Rank undocumented, scaffold-only, stale, or low-docblock modules by direct import fan-in, Git co-change coupling, and size:
+   ```bash
+   python3 .agents/skills/wf-doc-generator/scripts/scaffold_repo_okf.py --recommend-docs ./ --json
+   ```
+3. Inspect pre-edit blast radius (matching OKF cards, direct importers, tests, and Git co-changed files) for any specific file:
+   ```bash
+   python3 .agents/skills/wf-doc-generator/scripts/scaffold_repo_okf.py --impact <path/to/file> --json
+   ```
 
-### Step 2: Repo Hygiene Audit & Dehydrating Shipped PRDs/Specs
-1. Audit stray root files, bulky shipped PRDs/specs, and undocumented services (protects dirty, untracked, and Git-ignored files; never deletes files):
+### Step 2: Enrich Cards & Inline Docblocks
+1. Inspect the recommended module, its matching tests, env vars, and callers (`grep_search`).
+2. Author or enrich `<repo>/docs/architecture/<module>.md` using the Refactor-Ready OKF schema above (`doc_status: documented`, `last_verified_commit: <HEAD>`).
+3. Add concise boundary docblocks, public docstrings, and *"why"* inline comments in that module's source files.
+4. Re-run `scaffold_repo_okf.py --scan ./` so `docs/index.md` updates the module's status and summary table non-destructively.
+
+### Step 3: Repo Hygiene Audit & Dehydrating Shipped PRDs/Specs
+1. Audit stray root files, bulky shipped PRDs/specs, stale `affected_files:` globs, and doc gaps (protects dirty, untracked, and Git-ignored files; never deletes files):
    ```bash
    python3 .agents/skills/wf-doc-generator/scripts/scaffold_repo_okf.py --audit-hygiene ./
    ```
@@ -41,11 +93,11 @@ Save architecture docs directly inside **`<repo>/docs/`** so all coding harnesse
    python3 .agents/skills/wf-doc-generator/scripts/scaffold_repo_okf.py --dehydrate-spec docs/specs/example-prd.md --living-doc docs/architecture/service.md
    ```
 
-### Step 3: Optional Native Extractors & Canvas Symbol Index
-- Native extractors (`typedoc`, `pydoc`, `go doc`, `cargo doc`) or optional symbol graph exports (`wf-code-graph`) may supplement `<repo>/docs/` when deep API dumps are needed.
+### Step 4: Optional Deep API Reference Cache
+- Native extractors (`typedoc`, `pydoc`, `go doc`, `cargo doc`) write supplemental API dumps to `workforces/docs/` when deep API references are needed.
 
 ---
 
 ## Output Location
-- **Primary Architecture Surface (Universal)**: `<repo>/docs/index.md`, `<repo>/docs/architecture/*.md`
+- **Primary Universal Surface (All Harnesses + Humans)**: `<repo>/docs/index.md`, `<repo>/docs/architecture/*.md`, and concise source-file docblocks/comments.
 - **Optional Deep Reference Cache**: `workforces/docs/`, `workforces/knowledge-catalog/code/`

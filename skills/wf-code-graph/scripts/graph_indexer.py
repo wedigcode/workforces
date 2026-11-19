@@ -4,12 +4,13 @@ Graph Indexer & Method Finder for Workforces
 Zero external dependencies (uses standard Python 3: ast, re, json, pathlib, argparse).
 
 Scans codebases to discover classes, functions, methods, docstrings, signatures,
-and call references. Generates workforces/code-graph.json and OKF concept files
-in workforces/knowledge-catalog/symbols/.
+and call references. Generates workforces/code-graph.json and optional OKF symbol files
+in workforces/knowledge-catalog/code/symbols/.
 """
 
 import argparse
 import ast
+import importlib.util
 import json
 import os
 import re
@@ -257,7 +258,40 @@ class SymbolIndexer:
                 "symbols": self.symbols
             }, f, indent=2)
 
+    def _load_link_resolver(self):
+        """Dynamically load sibling `git_link_resolver.py` when present."""
+        here = Path(__file__).resolve()
+        candidates = []
+        if len(here.parents) > 2:
+            candidates.append(here.parents[2] / "wf-management" / "scripts" / "git_link_resolver.py")
+        for base in (".agents", ".claude", ".grok", ".github", ".cursor", ""):
+            root_base = (self.root_dir / base) if base else self.root_dir
+            candidates.append(root_base / "skills" / "wf-management" / "scripts" / "git_link_resolver.py")
+        target = next((p for p in candidates if p.is_file()), None)
+        if not target:
+            return None
+        spec = importlib.util.spec_from_file_location("wf_git_link_resolver", str(target))
+        if spec and spec.loader:
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            return mod
+        return None
+
+    def _resolve_symbol_link(self, file_rel: str, line: int, from_file: Path, resolver_mod: Any) -> str:
+        """Build portable Git host URL or relative POSIX link for a symbol location."""
+        abs_target = self.root_dir / file_rel
+        if resolver_mod is not None:
+            return resolver_mod.resolve_portable_link(
+                str(abs_target),
+                repo_root=str(self.root_dir),
+                line=int(line),
+                relative_from=str(from_file),
+            )
+        rel = os.path.relpath(abs_target, from_file.parent).replace("\\", "/")
+        return f"{rel}#L{line}"
+
     def export_okf_catalog(self, catalog_dir: Path):
+        resolver_mod = self._load_link_resolver()
         # Determine code catalog directory and root knowledge catalog directory
         if catalog_dir.name == "knowledge-catalog":
             code_catalog_dir = catalog_dir / "code"
@@ -296,7 +330,8 @@ class SymbolIndexer:
             f.write("| Symbol | Kind | Language | File | Signature |\n")
             f.write("|--------|------|----------|------|-----------|\n")
             for sym in self.symbols:
-                f.write(f"| `{sym['name']}` | {sym['kind']} | {sym['language']} | [{sym['file']}](../../../{sym['file']}#L{sym['line']}) | `{sym['signature']}` |\n")
+                href = self._resolve_symbol_link(sym["file"], sym["line"], index_file, resolver_mod)
+                f.write(f"| `{sym['name']}` | {sym['kind']} | {sym['language']} | [{sym['file']}]({href}) | `{sym['signature']}` |\n")
 
         # Write individual symbol OKF files under code/symbols/
         symbols_dir = code_catalog_dir / "symbols"
@@ -345,9 +380,10 @@ class SymbolIndexer:
 
                 if len(occurrences) == 1:
                     sym = occurrences[0]
+                    href = self._resolve_symbol_link(sym["file"], sym["line"], sym_file, resolver_mod)
                     f.write(f"- **Kind:** {sym['kind']}\n")
                     f.write(f"- **Signature:** `{sym['signature']}`\n")
-                    f.write(f"- **Location:** [{sym['file']}](../../../../{sym['file']}#L{sym['line']})\n\n")
+                    f.write(f"- **Location:** [{sym['file']}]({href})\n\n")
                     if sym['docstring']:
                         f.write(f"## Documentation\n```\n{sym['docstring']}\n```\n\n")
                     if sym['calls']:
@@ -360,13 +396,15 @@ class SymbolIndexer:
                     f.write("| Location | Kind | Language | Signature |\n")
                     f.write("| -------- | ---- | -------- | --------- |\n")
                     for sym in occurrences:
-                        f.write(f"| [{sym['file']}](../../../../{sym['file']}#L{sym['line']}) | {sym['kind']} | {sym['language']} | `{sym['signature']}` |\n")
+                        href = self._resolve_symbol_link(sym["file"], sym["line"], sym_file, resolver_mod)
+                        f.write(f"| [{sym['file']}]({href}) | {sym['kind']} | {sym['language']} | `{sym['signature']}` |\n")
                     f.write("\n## Occurrences Detail\n\n")
                     for idx, sym in enumerate(occurrences, 1):
-                        f.write(f"### {idx}. [{sym['file']}](../../../../{sym['file']}#L{sym['line']})\n\n")
+                        href = self._resolve_symbol_link(sym["file"], sym["line"], sym_file, resolver_mod)
+                        f.write(f"### {idx}. [{sym['file']}]({href})\n\n")
                         f.write(f"- **Kind:** {sym['kind']}\n")
                         f.write(f"- **Signature:** `{sym['signature']}`\n")
-                        f.write(f"- **Location:** [{sym['file']}](../../../../{sym['file']}#L{sym['line']})\n\n")
+                        f.write(f"- **Location:** [{sym['file']}]({href})\n\n")
                         if sym['docstring']:
                             f.write(f"**Documentation:**\n```\n{sym['docstring']}\n```\n\n")
                         if sym['calls']:

@@ -276,6 +276,7 @@ def build_issue_markdown(
     status: str = "inbox",
     triage_status: str = "pending",
     github_issue: Optional[str] = None,
+    repo: str = "",
 ) -> str:
     """Construct complete issue file markdown with frontmatter and lineage."""
     now = created_at or datetime.datetime.now()
@@ -298,6 +299,8 @@ def build_issue_markdown(
         "triage_status": triage_status,
         "github_issue": github_issue,
     }
+    if repo:
+        metadata["repo"] = repo
 
     session_origin_link = ""
     if session_file:
@@ -326,7 +329,7 @@ def build_issue_markdown(
 
 **Type:** `{issue_type}` | **Severity:** `{severity}` | **Reporter:** `{reporter}`  
 **Reported:** {now.strftime("%Y-%m-%d %H:%M")} | **Updated:** {up_now.strftime("%Y-%m-%d %H:%M")}  
-{session_origin_link}{f"**Affected file:** `{file_path}`\n" if file_path else ""}{tool_delegation_line}
+{session_origin_link}{f"**Target Repo:** `{repo}`\n" if repo else ""}{f"**Affected file:** `{file_path}`\n" if file_path else ""}{tool_delegation_line}
 ## Description
 
 {description}
@@ -478,7 +481,7 @@ def main() -> None:
     parser.add_argument("--title", help="Short issue/feature title")
     parser.add_argument(
         "--type", default="bug",
-        choices=["bug", "debt", "design", "refactor", "security", "idea"],
+        choices=["bug", "debt", "design", "docs", "perf", "ux", "chore", "refactor", "security", "idea"],
         help="Issue type",
     )
     parser.add_argument(
@@ -487,6 +490,7 @@ def main() -> None:
         help="Severity/priority estimate",
     )
     parser.add_argument("--reporter", default=None, help="Agent or skill that logged the issue (default: wf-scribe)")
+    parser.add_argument("--repo", default="", help="Target repository name/slug when scoped to a specific repo")
     parser.add_argument("--file", default="", help="Affected file path (optional)")
     parser.add_argument("--description", default="", help="Full description of the issue or feature")
     parser.add_argument("--suggested-action", default="", help="Recommended fix, next step, or implementation spec")
@@ -617,6 +621,8 @@ def main() -> None:
             meta["reporter"] = args.reporter
         if args.file:
             meta["file"] = args.file
+        if args.repo:
+            meta["repo"] = args.repo
         if args.session_id:
             meta["session_id"] = args.session_id
         if args.session_file:
@@ -779,6 +785,7 @@ def main() -> None:
         evolution_notes=evolution_notes,
         created_at=now,
         updated_at=now,
+        repo=args.repo,
     )
 
     with open(filepath, "w", encoding="utf-8") as f:
