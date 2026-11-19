@@ -1,6 +1,6 @@
 ---
 name: wf-project-manager
-description: Strategic planning agent that generates new work, prioritizes the backlog, and sequences tasks. Bridges goals to execution by turning objectives into ranked, scored work items. Leads daily standup syncs (/wf-sync --daily) and personal follow-up radars (/wf-sync --me), and co-leads strategic reviews (/wf-sync --strategy) and goal scaffolding (/wf-sync --goals). Invoked by /wf-plan and /wf-sync. Triggers on roadmap, backlog, planning, priorities, strategy, what's next, sprint, sync, standup, wins, losses, me sync, followups.
+description: Strategic planning agent that generates new work, prioritizes the backlog, sequences tasks, and triages/approves discovered inbox items into the /wf-work execution queue. Bridges goals to execution by turning objectives into ranked, scored work items. Leads daily standup syncs (/wf-sync --daily) and personal follow-up radars (/wf-sync --me), and co-leads strategic reviews (/wf-sync --strategy) and goal scaffolding (/wf-sync --goals). Invoked by /wf-plan, /wf-sync, and inbox approval requests. Triggers on roadmap, backlog, planning, priorities, strategy, what's next, sprint, sync, standup, wins, losses, me sync, followups, approve inbox, triage inbox, promote issue, queue for wf-work.
 tools:
   - view_file
   - list_dir
@@ -47,9 +47,31 @@ You are the strategic brain between goals and execution. While execution agents 
 
 - When the user runs `/wf-plan`
 - When the user runs `/wf-sync` (or `/wf-sync --daily`, `/wf-sync --strategy`, `/wf-sync --goals`, `/wf-sync --me`)
+- When the user approves or triages discovered `workforces/issues/inbox/` items (e.g., *"these can be worked on"*, *"approve these for /wf-work"*) outside `/wf-sync` or `/wf-plan`
 - After a major milestone completes
 - When goals change
 - When the backlog feels stale or disconnected from objectives
+
+---
+
+## Fast Path — Inbox Approval & Queue Promotion
+
+When the user selects or approves discovered `workforces/issues/inbox/` items outside `/wf-plan` or `/wf-sync` (e.g., *"these can be worked on"*, *"approve #1 and #3"*, *"queue these for /wf-work"*), **bypass Steps 1–6** (skip goals/hypotheses audit, GitHub board sync, PR audit, RICE/ICE scoring, second approval prompt, and unsolicited GitHub issue creation):
+
+1. Inspect only the user-selected file(s) under `workforces/issues/inbox/`.
+2. Promote each approved item into `workforces/tasks/` with `approved_for_execution: true`:
+   ```bash
+   python3 .agents/skills/wf-task-tracker/scripts/report-task.py \
+       --promote-issue "<inbox_file_or_slug>" \
+       --approve \
+       [--cadence rolling_slice] \
+       [--priority P1|P2] \
+       [--session-file "<active_session_note>"] \
+       --sync-session
+   ```
+   *(Use `--cadence rolling_slice` for 1-bite/day refactors on large files. If the user explicitly declines an inbox item, reject it via `report-issue.py --update "<item>" --reject "<reason>" --sync-session`.)*
+3. Report the promoted task path(s), priority, `approved_for_execution: true` status, and synced `workforces/workstate.md` / session context note.
+4. **Stop after queuing**: Do **not** claim or execute the promoted tasks in the same turn unless the user runs `/wf-work` *(auto)* or explicitly asks to execute them immediately.
 
 ---
 

@@ -43,6 +43,7 @@ scaffold_repo_okf = _load_module("scaffold_repo_okf", "skills/wf-doc-generator/s
 budget_gate = _load_module("budget_gate", "skills/wf-usage-tracker/scripts/budget_gate.py")
 report_task = _load_module("report_task", "skills/wf-task-tracker/scripts/report-task.py")
 work_dispatch = _load_module("work_dispatch", "skills/wf-work/scripts/work_dispatch.py")
+repo_scope = _load_module("repo_scope", "skills/wf-work/scripts/repo_scope.py")
 
 
 def _init_git_repo(repo_dir: Path, remote_url: str | None = None, branch: str = "main") -> None:
@@ -798,6 +799,79 @@ class TestWfWorkMultiHarnessAndBudgetGate(unittest.TestCase):
         self.assertEqual(set(both["repos"]), {"svc-a", "svc-b"})
         self.assertTrue((svc_b / "docs" / "index.md").is_file())
         self.assertTrue(any("svc-b" in p for p in both["logged_issues"]))
+
+    def test_sibling_org_repo_auto_resolution(self):
+        """Ensure repo_scope resolves sibling-org clones (`../../<org>/<repo>` and `../<org>/<repo>`)."""
+        github_root = self.tmp / "github.com"
+        hub = github_root / "org-a" / "workforce-hub"
+        sibling_org_repo = github_root / "org-b" / "web-app"
+        for d in (hub, sibling_org_repo):
+            d.mkdir(parents=True, exist_ok=True)
+        _init_git_repo(hub, remote_url="git@github.com:org-a/workforce-hub.git")
+        _init_git_repo(sibling_org_repo, remote_url="git@github.com:org-b/web-app.git")
+        (sibling_org_repo / "src" / "payments").mkdir(parents=True, exist_ok=True)
+        (sibling_org_repo / "src" / "payments" / "checkout.py").write_text("def pay():\n    return True\n", encoding="utf-8")
+
+        (hub / "workforces" / "tasks").mkdir(parents=True, exist_ok=True)
+        (hub / "workforces" / "issues" / "inbox").mkdir(parents=True, exist_ok=True)
+        (hub / "workforces" / "config.json").write_text(
+            json.dumps({"schema_version": 1, "hosts": ["claude"]}, indent=2),
+            encoding="utf-8",
+        )
+        (hub / "workforces" / "workrules.md").write_text(
+            "# Work Rules\n\n## Tracked Repositories\n- tracked_repos: [org-b/web-app]\n",
+            encoding="utf-8",
+        )
+
+        # Resolve by bare repo name without explicit path in config.json
+        res = work_dispatch.dispatch_work(hub, mode="docs", harness="claude", skip_gh=True, log_to_inbox=True, repo="web-app")
+        self.assertEqual(res["action"], "discovery")
+        self.assertTrue((sibling_org_repo / "docs" / "index.md").is_file())
+        self.assertGreaterEqual(len(res["logged_issues"]), 1)
+        issue_meta, _ = report_task.parse_frontmatter(Path(res["logged_issues"][0]).read_text(encoding="utf-8"))
+        self.assertEqual(issue_meta.get("repo"), "web-app")
+
+        # Also verify direct parent-level `<parent>/<org>/<repo>` layout
+        flat_parent = self.tmp / "flat_sites"
+        flat_hub = flat_parent / "hub"
+        flat_org_repo = flat_parent / "org-c" / "api-svc"
+        for d in (flat_hub, flat_org_repo):
+            d.mkdir(parents=True, exist_ok=True)
+        _init_git_repo(flat_org_repo, remote_url="git@github.com:org-c/api-svc.git")
+        (flat_hub / "workforces").mkdir(parents=True, exist_ok=True)
+        (flat_hub / "workforces" / "workrules.md").write_text(
+            "tracked_repos: [org-c/api-svc]\n",
+            encoding="utf-8",
+        )
+        resolved = repo_scope.resolve_repo_targets(flat_hub, repo_arg="api-svc")
+        self.assertEqual(resolved["status"], "resolved")
+        self.assertEqual(Path(resolved["targets"][0]["path"]).resolve(), flat_org_repo.resolve())
+
+    def test_approval_boundary_pm_fast_path_and_task_tracker_queue_docs(self):
+        """Ensure wf-work, wf-project-manager, and wf-task-tracker document the PM queue boundary and flags."""
+        wf_work_doc = (REPO_ROOT / "skills" / "wf-work" / "SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("Approval vs. Execution Boundary", wf_work_doc)
+        self.assertIn("approved_for_execution: true", wf_work_doc)
+
+        pm_md = (REPO_ROOT / "agents" / "wf-project-manager.md").read_text(encoding="utf-8")
+        pm_json = json.loads((REPO_ROOT / "agents" / "wf-project-manager.json").read_text(encoding="utf-8"))
+        self.assertIn("Fast Path — Inbox Approval & Queue Promotion", pm_md)
+        self.assertIn("approve inbox", pm_json["description"])
+        self.assertIn("approve inbox", pm_md)
+
+        tt_doc = (REPO_ROOT / "skills" / "wf-task-tracker" / "SKILL.md").read_text(encoding="utf-8")
+        for tok in (
+            "--promote-issue",
+            "--approve",
+            "--cadence",
+            "--claim-next",
+            "--request-review",
+            "--complete-review",
+            "approved_for_execution",
+            "review_state",
+            "repo:",
+        ):
+            self.assertIn(tok, tt_doc, f"Missing `{tok}` in skills/wf-task-tracker/SKILL.md")
 
 
 class TestRepositoryCleanHygiene(unittest.TestCase):

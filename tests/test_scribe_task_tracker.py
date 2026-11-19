@@ -276,6 +276,84 @@ tracked_tasks: []
         self.assertIn("## Completed Tasks (Recent)", ws_updated)
         self.assertIn("Setup Micro-Frontend Architecture", ws_updated)
 
+    def test_update_sync_session_writes_repo_relative_path(self):
+        """Ensure --update --sync-session writes repo-relative paths into tracked_tasks[*].file."""
+        subprocess.run([
+            sys.executable,
+            TASK_SCRIPT,
+            "--title", "Normalize Session Path Task",
+            "--type", "docs",
+            "--priority", "P1",
+            "--session-id", "026",
+            "--session-file", self.session_file,
+            "--description", "Verify portable relative path in session frontmatter.",
+            "--out-dir", self.tasks_dir,
+            "--sync-session",
+        ], check=True)
+
+        task_file = os.listdir(self.tasks_dir)[0]
+        abs_task_path = os.path.abspath(os.path.join(self.tasks_dir, task_file))
+
+        res_update = subprocess.run([
+            sys.executable,
+            TASK_SCRIPT,
+            "--update", abs_task_path,
+            "--approve",
+            "--evolution-note", "Approved for queue.",
+            "--sync-session",
+        ], capture_output=True, text=True)
+        self.assertEqual(res_update.returncode, 0, res_update.stderr)
+
+        with open(self.session_file, "r", encoding="utf-8") as f:
+            s_meta, _ = report_task_mod.parse_frontmatter(f.read())
+        tracked_file = s_meta["tracked_tasks"][0]["file"]
+        self.assertEqual(tracked_file, f"workforces/tasks/{task_file}")
+        self.assertFalse(os.path.isabs(tracked_file))
+
+    def test_promote_issue_syncs_to_session_file_with_relative_path(self):
+        """Ensure --promote-issue syncs promoted task into session tracked_tasks with repo-relative path."""
+        inbox_dir = os.path.join(self.test_dir, "workforces", "issues", "inbox")
+        os.makedirs(inbox_dir, exist_ok=True)
+        issue_path = os.path.join(inbox_dir, "20261119-doc-billing.md")
+        with open(issue_path, "w", encoding="utf-8") as f:
+            f.write(
+                f"---\n"
+                f'title: "Document billing module"\n'
+                f'type: "docs"\n'
+                f'severity: "P1"\n'
+                f'status: "inbox"\n'
+                f'session_id: "026"\n'
+                f'session_file: "{self.session_file}"\n'
+                f'repo: "acme/billing"\n'
+                f"---\n\n"
+                f"# Document billing module\n\n"
+                f"## Description\n\n"
+                f"Author OKF card and inline docblocks.\n"
+            )
+
+        res = subprocess.run([
+            sys.executable,
+            TASK_SCRIPT,
+            "--promote-issue", issue_path,
+            "--approve",
+            "--out-dir", self.tasks_dir,
+            "--sync-session",
+            "--json",
+        ], capture_output=True, text=True)
+        self.assertEqual(res.returncode, 0, res.stderr)
+        payload = json.loads(res.stdout)
+        self.assertTrue(payload["approved_for_execution"])
+        promoted_name = os.path.basename(payload["task_path"])
+
+        with open(self.session_file, "r", encoding="utf-8") as f:
+            s_meta, s_body = report_task_mod.parse_frontmatter(f.read())
+        self.assertEqual(len(s_meta.get("tracked_tasks", [])), 1)
+        entry = s_meta["tracked_tasks"][0]
+        self.assertEqual(entry["title"], "Document billing module")
+        self.assertEqual(entry["file"], f"workforces/tasks/{promoted_name}")
+        self.assertFalse(os.path.isabs(entry["file"]))
+        self.assertIn("Document billing module", s_body)
+
 
 if __name__ == "__main__":
     unittest.main()

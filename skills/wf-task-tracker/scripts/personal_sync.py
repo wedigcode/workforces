@@ -30,18 +30,86 @@ import sys
 from typing import Any, Dict, List, Optional, Tuple
 
 
-def resolve_portable_md_link(target_path: str, relative_from: Optional[str] = None) -> str:
-    """Resolve target_path to a remote Git host URL or repo-relative POSIX path."""
+def _load_git_link_resolver() -> Optional[Any]:
+    """Load `git_link_resolver.py` from `wf-management/scripts/` when available."""
     here = os.path.dirname(os.path.abspath(__file__))
     resolver_path = os.path.normpath(
         os.path.join(here, "..", "..", "wf-management", "scripts", "git_link_resolver.py")
     )
-    if os.path.isfile(resolver_path):
-        spec = importlib.util.spec_from_file_location("wf_git_link_resolver", resolver_path)
-        if spec and spec.loader:
-            mod = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(mod)
-            return mod.resolve_portable_link(target_path, relative_from=relative_from)
+    if not os.path.isfile(resolver_path):
+        return None
+    spec = importlib.util.spec_from_file_location("wf_git_link_resolver", resolver_path)
+    if not spec or not spec.loader:
+        return None
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _infer_workspace_root(path_hint: str) -> Optional[str]:
+    """Infer workspace root from the rightmost `workforces/` or `.scribe/` segment."""
+    abs_path = os.path.abspath(path_hint)
+    parts = abs_path.split(os.sep)
+    for idx in range(len(parts) - 1, -1, -1):
+        if parts[idx] in ("workforces", ".scribe"):
+            root = os.sep.join(parts[:idx]) or os.sep
+            if os.path.isdir(root):
+                return root
+    return None
+
+
+def normalize_repo_relative_path(target_path: str, reference_path: Optional[str] = None) -> str:
+    """Normalize a local path to a clean repo/workspace-relative POSIX path."""
+    cleaned = (target_path or "").strip()
+    if cleaned.startswith("file://"):
+        cleaned = cleaned[len("file://"):]
+    if not cleaned:
+        return ""
+
+    if not os.path.isabs(cleaned):
+        posix = cleaned.replace("\\", "/")
+        if posix.startswith("./"):
+            posix = posix[2:]
+        if not posix.startswith(".."):
+            return posix
+
+    resolver = _load_git_link_resolver()
+    git_root = resolver.find_git_root(cleaned) if resolver else None
+    workspace_root = (
+        git_root
+        or _infer_workspace_root(cleaned)
+        or (_infer_workspace_root(reference_path) if reference_path else None)
+    )
+    if resolver:
+        rel = resolver.to_repo_relative_path(cleaned, repo_root=workspace_root)
+        if rel:
+            return rel
+
+    if workspace_root and os.path.isabs(cleaned):
+        real_root = os.path.realpath(workspace_root)
+        real_target = os.path.realpath(cleaned)
+        if real_target.startswith(real_root + os.sep):
+            return os.path.relpath(real_target, real_root).replace(os.sep, "/")
+
+    posix = cleaned.replace("\\", "/")
+    if posix.startswith("./"):
+        posix = posix[2:]
+    if os.path.isabs(posix):
+        try:
+            rel_cwd = os.path.relpath(os.path.realpath(posix), os.path.realpath(os.getcwd())).replace(os.sep, "/")
+            if not rel_cwd.startswith(".."):
+                return rel_cwd
+        except ValueError:
+            pass
+        return os.path.basename(posix)
+    return posix
+
+
+def resolve_portable_md_link(target_path: str, relative_from: Optional[str] = None) -> str:
+    """Resolve target_path to a remote Git host URL or repo-relative POSIX path."""
+    resolver = _load_git_link_resolver()
+    if resolver:
+        return resolver.resolve_portable_link(target_path, relative_from=relative_from)
     if relative_from:
         from_dir = relative_from if os.path.isdir(relative_from) else os.path.dirname(os.path.abspath(relative_from))
         try:
@@ -178,6 +246,7 @@ def sync_task_to_session_file(
             content = f.read()
 
         meta, body = parse_frontmatter(content)
+        rel_task_path = normalize_repo_relative_path(task_file_path, reference_path=session_file_path)
         task_id = os.path.splitext(os.path.basename(task_file_path))[0]
         title = task_meta.get("title", task_id)
         task_type = task_meta.get("type", "task")
@@ -195,12 +264,14 @@ def sync_task_to_session_file(
         new_tracked = []
         for item in tracked:
             if isinstance(item, dict) and (
-                item.get("id") == task_id or item.get("file") == task_file_path or (item.get("title") and item.get("title") == title)
+                item.get("id") == task_id
+                or item.get("file") in (rel_task_path, task_file_path)
+                or (item.get("title") and item.get("title") == title)
             ):
                 found = True
                 new_item = {
                     "id": task_id,
-                    "file": task_file_path,
+                    "file": rel_task_path,
                     "title": title,
                     "type": task_type,
                     "priority" if list_key == "tracked_tasks" else "severity": priority,
@@ -213,7 +284,7 @@ def sync_task_to_session_file(
         if not found:
             new_item = {
                 "id": task_id,
-                "file": task_file_path,
+                "file": rel_task_path,
                 "title": title,
                 "type": task_type,
                 "priority" if list_key == "tracked_tasks" else "severity": priority,

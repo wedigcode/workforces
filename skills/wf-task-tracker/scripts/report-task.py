@@ -68,13 +68,23 @@ except ImportError:
     msvcrt = None  # type: ignore[assignment]
 
 try:
-    from personal_sync import sync_workstate_from_tasks, reconcile_github_tasks, resolve_portable_md_link as _resolve_portable_md_link
+    from personal_sync import (
+        normalize_repo_relative_path as _normalize_repo_relative_path,
+        reconcile_github_tasks,
+        resolve_portable_md_link as _resolve_portable_md_link,
+        sync_workstate_from_tasks,
+    )
 except ImportError:
     script_dir = os.path.dirname(os.path.abspath(__file__))
     if script_dir not in sys.path:
         sys.path.insert(0, script_dir)
     try:
-        from personal_sync import sync_workstate_from_tasks, reconcile_github_tasks, resolve_portable_md_link as _resolve_portable_md_link
+        from personal_sync import (
+            normalize_repo_relative_path as _normalize_repo_relative_path,
+            reconcile_github_tasks,
+            resolve_portable_md_link as _resolve_portable_md_link,
+            sync_workstate_from_tasks,
+        )
     except ImportError:
         def sync_workstate_from_tasks(root_dir: str) -> bool:
             return False
@@ -82,6 +92,11 @@ except ImportError:
             return []
         def _resolve_portable_md_link(target_path: str, relative_from: Optional[str] = None) -> str:
             return os.path.basename(target_path) if os.path.isabs(target_path) else target_path.replace("\\", "/")
+        def _normalize_repo_relative_path(target_path: str, reference_path: Optional[str] = None) -> str:
+            cleaned = (target_path or "").strip().replace("\\", "/")
+            if cleaned.startswith("./"):
+                cleaned = cleaned[2:]
+            return os.path.basename(cleaned) if os.path.isabs(cleaned) else cleaned
 
 VALID_STATUSES = ["todo", "in_progress", "review", "blocked", "done", "dropped"]
 VALID_PRIORITIES = ["P0", "P1", "P2", "P3"]
@@ -428,6 +443,25 @@ def claim_next_task(
         return {"claim_kind": "execution", "path": fpath, **meta}
 
 
+def _resolve_existing_session_file(session_file: str, tasks_dir: str) -> Optional[str]:
+    """Locate an existing session context file from an absolute, cwd-relative, or workspace-relative path."""
+    if not session_file:
+        return None
+    if os.path.isfile(session_file):
+        return session_file
+    if not os.path.isabs(session_file):
+        abs_tasks = os.path.abspath(tasks_dir)
+        parts = abs_tasks.split(os.sep)
+        for idx in range(len(parts) - 1, -1, -1):
+            if parts[idx] in ("workforces", ".scribe"):
+                ws_root = os.sep.join(parts[:idx]) or os.sep
+                cand = os.path.join(ws_root, session_file)
+                if os.path.isfile(cand):
+                    return cand
+                break
+    return None
+
+
 def promote_issue_to_task(
     issue_path: str,
     tasks_dir: str,
@@ -435,6 +469,10 @@ def promote_issue_to_task(
     cadence: str = "one_shot",
     priority_override: Optional[str] = None,
     assignee: Optional[str] = None,
+    session_id: Optional[str] = None,
+    session_file: Optional[str] = None,
+    sync_session: bool = True,
+    evolution_note: Optional[str] = None,
 ) -> str:
     """Promote a backlog issue file (`workforces/issues/inbox/`) into an actionable task."""
     with open(issue_path, "r", encoding="utf-8") as f:
@@ -442,6 +480,7 @@ def promote_issue_to_task(
 
     now = datetime.datetime.now()
     title = str(imeta.get("title") or os.path.splitext(os.path.basename(issue_path))[0])
+    task_type = str(imeta.get("type") or "task")
     prio = priority_override or str(imeta.get("severity") or imeta.get("priority") or "P2")
     if prio not in VALID_PRIORITIES:
         prio = "P2"
@@ -469,9 +508,13 @@ def promote_issue_to_task(
         shutil.move(issue_path, triaged_dest)
 
     rel_source = _resolve_portable_md_link(triaged_dest)
+    effective_session_id = session_id or str(imeta.get("session_id") or "")
+    effective_session_file = session_file or str(imeta.get("session_file") or "")
+    promo_summary = evolution_note or f"Promoted from `{rel_source}` (approved={approved}, cadence={cadence})."
+
     content = build_task_markdown(
         title=title,
-        task_type=str(imeta.get("type") or "task"),
+        task_type=task_type,
         priority=prio,
         status="todo",
         reporter=str(imeta.get("reporter") or "wf-project-manager"),
@@ -479,10 +522,10 @@ def promote_issue_to_task(
         description=description,
         suggested_action=suggested_action,
         file_path=str(imeta.get("file") or ""),
-        session_id=str(imeta.get("session_id") or ""),
-        session_file=str(imeta.get("session_file") or ""),
+        session_id=effective_session_id,
+        session_file=effective_session_file,
         github_issue=imeta.get("github_issue"),
-        evolution_notes=[f"**{now.strftime('%Y-%m-%d %H:%M')}:** Promoted from `{rel_source}` (approved={approved}, cadence={cadence})."],
+        evolution_notes=[f"**{now.strftime('%Y-%m-%d %H:%M')}:** {promo_summary}"],
         created_at=now,
         updated_at=now,
         approved_for_execution=approved,
@@ -492,6 +535,24 @@ def promote_issue_to_task(
     )
     with open(task_path, "w", encoding="utf-8") as f:
         f.write(content)
+
+    if sync_session and effective_session_file:
+        session_disk_path = _resolve_existing_session_file(effective_session_file, tasks_dir)
+        if session_disk_path:
+            task_meta_for_sync = {
+                "title": title,
+                "type": task_type,
+                "priority": prio,
+                "status": "todo",
+                "description": description,
+            }
+            sync_task_to_session_file(
+                session_disk_path,
+                task_path,
+                task_meta_for_sync,
+                evolution_summary=promo_summary,
+            )
+
     return task_path
 
 
@@ -826,6 +887,7 @@ def sync_task_to_session_file(
             content = f.read()
 
         meta, body = parse_frontmatter(content)
+        rel_task_path = _normalize_repo_relative_path(task_file_path, reference_path=session_file_path)
         task_id = os.path.splitext(os.path.basename(task_file_path))[0]
         title = task_meta.get("title", task_id)
         task_type = task_meta.get("type", "task")
@@ -844,12 +906,14 @@ def sync_task_to_session_file(
         new_tracked = []
         for item in tracked:
             if isinstance(item, dict) and (
-                item.get("id") == task_id or item.get("file") == task_file_path or (item.get("title") and item.get("title") == title)
+                item.get("id") == task_id
+                or item.get("file") in (rel_task_path, task_file_path)
+                or (item.get("title") and item.get("title") == title)
             ):
                 found = True
                 new_item = {
                     "id": task_id,
-                    "file": task_file_path,
+                    "file": rel_task_path,
                     "title": title,
                     "type": task_type,
                     "priority" if list_key == "tracked_tasks" else "severity": priority,
@@ -862,7 +926,7 @@ def sync_task_to_session_file(
         if not found:
             new_item = {
                 "id": task_id,
-                "file": task_file_path,
+                "file": rel_task_path,
                 "title": title,
                 "type": task_type,
                 "priority" if list_key == "tracked_tasks" else "severity": priority,
@@ -1172,6 +1236,10 @@ def main() -> None:
             cadence=args.cadence or "one_shot",
             priority_override=args.priority_alias or (args.priority if args.priority != "P2" else None),
             assignee=args.assignee,
+            session_id=args.session_id or None,
+            session_file=args.session_file or None,
+            sync_session=True,
+            evolution_note=args.evolution_note or None,
         )
         if not args.no_sync_workstate:
             root_dir = os.path.abspath(os.path.join(tasks_dir, "..", "..")) if ("workforces" in tasks_dir or ".scribe" in tasks_dir) else os.getcwd()
